@@ -141,19 +141,19 @@ A CPU reference implementation of the same kernel, small grids only and runnable
 
 ## Changelog
 
-- 2026-11-06 15:45 PST, adopted from L7a (DevLog-006 s.5) and L8:
+- 2026-11-06 15:3x PST (before commit 3698b3f), adopted from L7a (DevLog-006 s.5) and L8:
   - `eval/schema/amp-eval-0.schema.json` (owned by L8) is now authoritative for C8, including `spec`, `metric_id`, `gate`, `expected`, `field_reference`, structured `tolerance.rule`/`norm`, and `budget_s.native`.
   - The expected-value file format is `amp-eval-expected/0`, for all lanes.
   - New reserve case IDs use 21-39 for class a, 41-59 for class b and 61-79 for class c.
   - CP-05 (electro-osmotic slit) is class a and is filed by L7a only.
   - Rule targets that need a sequence (mesh levels, radii) report `pending`, not `fail`, when given a single value.
-- 2026-11-06 15:45 PST: tsconfig.base `lib` = ["ES2023"]; packages add DOM or WebWorker themselves, never both (from L1).
+- 2026-11-06 15:2x PST: tsconfig.base `lib` = ["ES2023"]; packages add DOM or WebWorker themselves, never both (from L1).
 - Open: affine temperature units (`degC`) in `@amp/core/units`, requested by L1 and L7a; to be decided in the core v1 pass.
-- 2026-11-06 16:10 PST, adopted from L2 (DevLog-003 s.5):
+- 2026-11-06 15:4x PST (before commit 79f9e87), adopted from L2 (DevLog-003 s.5):
   - C3 detail is now authoritative in `packages/spec` (zod schema, exported JSON Schema). The C3 text above is a summary only.
   - C7 gains the fields `kind`, `target`, `text`, `textHash` and a genesis line; the authoritative definition is in `packages/spec/src/types/`.
   - Shared C2/C4/C5/C6/C7 types are published in `packages/spec/src/types/`. Lanes drop their `contract-shim.ts`.
   - C1: `zod` (4.6.7, MIT) is an approved runtime dependency of `@amp/spec`.
   - Registry: physics, BC, study, feature, coupling and material-property types are registered by name. The seed in `packages/spec/src/provisional/wave1.ts` is provisional; L4 (physics) and L3 (features) replace it.
   - `degC` is handled in the spec layer for now.
-- 2026-11-06 16:10 PST, from L7b: physics tag `solid-nonlinear` to be added (L8). Class-b `source` sub-keys to be documented in the schema (L8).
+- 2026-11-06 15:4x PST, from L7b: physics tag `solid-nonlinear` to be added (L8). Class-b `source` sub-keys to be documented in the schema (L8).

@@ -208,5 +208,8 @@ Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope f
 
 - 2026-11-06 14:30 PST: Read DevLog-000 and the sim DevLogs of both atlases (APA 010, 014; EO 023 decisions). Five read-only research lanes launched: R1 EO engine/UI, R2 APA engine/UI, R3 eval sources, R4 browser tech, R5 landscape and agent-native.
 - 2026-11-06 15:00 PST: R1-R5 reports in `DevLog/research/`. This plan written. No code, no git, no installs.
-- 2026-11-06 15:10 PST: Wentao answered Q1-Q8 plus git (section 5), then went out.
-- 2026-11-06 15:20 PST: L0 scaffold: LICENSE (GPL-3.0, same sha1 as both atlases), root package.json / pnpm-workspace / tsconfig.base, .gitignore, README, CLAUDE.md, contracts v0; `git init`, first commit on `main`. Wave 1 launched with 8 background lanes (L1, L2, L3, L6, L7a, L7b, L7c, L8).
+- 2026-11-06 15:0x PST (before the 15:08 commit): Wentao answered Q1-Q8 plus git (section 5), then went out.
+- 2026-11-06 15:08 PST (commit time): L0 scaffold: LICENSE (GPL-3.0, same sha1 as both atlases), root package.json / pnpm-workspace / tsconfig.base, .gitignore, README, CLAUDE.md, contracts v0; `git init`, first commit on `main`. Wave 1 launched about 15:10 with 8 background lanes (L1, L2, L3, L6, L7a, L7b, L7c, L8).
+- 2026-11-06 15:37 PST: L1 (core) and L7a (eval class a) done and committed (ca93b68, 3698b3f). Contract changelog started. L1 audit and L4 physics launched.
+- 2026-11-06 15:45 PST: L7b (eval class b, 20 cases) and L2 (spec + op log) done and committed (9ff1d75, ce9db2c). validation/ gains pillow and matplotlib (L7b CR-3). Launched L5 web (DevLog-011), materials lane L10 (DevLog-013; new lane, needed by L2, L4 and L7b) and the L2 audit.
+- 2026-11-06 15:47 PST: L1 audit: no blocking findings; S1 (tri-fe assumes micrometre coordinates) sent to L4, and L1 resumed to fix S1-S3. Audit committed (79f9e87). Timestamps in the contract changelog corrected to commit times (the earlier entries had guessed times). The L7b audit is queued because of the 10-agent cap.
