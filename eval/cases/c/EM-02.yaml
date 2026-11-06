@@ -1,0 +1,89 @@
+# EM-02: Palace spheres: Maxwell capacitance matrix of two conducting spheres in vacuum (Lekner series)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: EM-02
+class: c
+title: 'Palace spheres: Maxwell capacitance matrix of two conducting spheres in vacuum (Lekner series)'
+status: unvalidated
+untestable_reason: null
+physics: [electrostatics]
+dimension: [2D-axisym, 3D]
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    sphere_a:
+      radius_m: 0.01
+      center_m: [0, 0, 0]
+    sphere_b:
+      radius_m: 0.02
+      center_m: [0.05, 0, 0]
+  symmetry: axisymmetric about the centre line
+  note: 'outer ground boundary ''sufficiently far'' (spheres.md L60-62): truncation radius is a solver choice'
+materials:
+  vacuum: {eps_r: 1.0, source: spheres.md L22-23}
+bcs:
+- {selection: sphere_a, type: terminal}
+- {selection: sphere_b, type: terminal}
+- {selection: outer, type: ground}
+initial: null
+study: {type: stationary}
+references:
+- quantity: C_aa
+  metric_id: C_aa
+  value: 1.2305175023308963e-12
+  unit: F
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-02.json, metric_id: C_aa}
+  provenance: {citation: 'Lekner, J. Electrostat. 69 (2011) 11-14, series as in Palace docs', locator: 'palace docs/src/examples/spheres.md
+      L27-40 (series), L74-80 (values)', accessed: null, generator: validation/c/gen_palace.py}
+- quantity: C_bb
+  metric_id: C_bb
+  value: 2.431543115748378e-12
+  unit: F
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-02.json, metric_id: C_bb}
+  provenance: {citation: 'Lekner, J. Electrostat. 69 (2011) 11-14, series as in Palace docs', locator: 'palace docs/src/examples/spheres.md
+      L27-40 (series), L74-80 (values)', accessed: null, generator: validation/c/gen_palace.py}
+- quantity: C_ab
+  metric_id: C_ab
+  value: -4.945667565325716e-13
+  unit: F
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-02.json, metric_id: C_ab}
+  provenance: {citation: 'Lekner, J. Electrostat. 69 (2011) 11-14, series as in Palace docs', locator: 'palace docs/src/examples/spheres.md
+      L27-40 (series), L74-80 (values)', accessed: null, generator: validation/c/gen_palace.py}
+reference_results:
+- {solver: 'Palace v0.19.0 regression gold (coarse CI mesh, order 3)', C_aa_F: 1.237445610357e-12, C_bb_F: 2.478413459856e-12,
+  C_ab_F: -4.770975738888e-13, locator: test/data/regression/ref/spheres/terminal-C.csv}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 2.0, native: null}
+  budget_basis: R3 s.3.3 browser est. < 2 s; est., not measured
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Apache-2.0 (Palace code and docs)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/two-spheres.yaml}
+missing: []
+assumptions: []
+source_case: {suite: Palace examples, file: docs/src/examples/spheres.md, url: github.com/awslabs/palace tag v0.19.0 (ca9a6a2d1e64a410229c3d7538507e5eae975cc6),
+  accessed: '2026-11-06', note: cache/eval-c/sources/palace/spheres.md sha256 7b2251eaf22361c82eb214d7f650136ba20956e4b3e5a559fb548a3779ac33e2}
+lane: L7c
+created: '2026-11-06'

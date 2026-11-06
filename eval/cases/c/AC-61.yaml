@@ -1,0 +1,95 @@
+# AC-61: The Well helmholtz_staircase: point-source scattering by a periodic sound-hard staircase
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: AC-61
+class: c
+title: 'The Well helmholtz_staircase: point-source scattering by a periodic sound-hard staircase'
+status: unvalidated
+untestable_reason: null
+physics: [acoustics]
+dimension: 2D
+units: SI
+geometry:
+  kind: dataset_grid
+  spec:
+    nx: 1024
+    ny: 256
+    frames: 50
+    x: [-8.0, 8.0]
+    y: [-0.5, 3.5]
+    fields: [pressure_re, pressure_im, mask]
+    dtype: float32
+materials: null
+bcs: null
+initial: null
+study: {type: transient}
+references:
+- quantity: VRMSE vs stored trajectory at frames 1, 10, last
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.0, 1.0]
+      note: 'sanity bound: VRMSE 1 = predicting the spatial mean (The Well App. E.3); the gate is the own self-convergence
+        floor, set after the first run (R3 s.4)'
+  bounds: null
+  basis: P
+  form: dataset
+  gate: false
+  provenance: {citation: 'Ohana et al., The Well, NeurIPS 2024 Datasets and Benchmarks, arXiv:2412.00568', locator: HF helmholtz_staircase
+      README 'About the data'; paper App. E.3 (VRMSE), accessed: '2026-11-06'}
+  note: per field; The Well metric definition
+reference_results: []
+convergence: {method: none, note: 'dataset case: report own self-convergence floor (two finest levels) next to the dataset
+    metric (R3 s.4)'}
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not estimated
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset:
+  name: The Well / helmholtz_staircase
+  subset: test
+  metric: VRMSE
+  url: https://huggingface.co/datasets/polymathic-ai/helmholtz_staircase
+  license: CC-BY-4.0
+  hf_revision: a24295051ca7ff772b08c9e1645d965b057c6298
+  hf_last_modified: '2025-04-10T07:50:09.000Z'
+  n_hdf5_files: 48
+  total_hdf5_bytes: 54760833024
+  file: data/test/helmholtz_staircase_omega_006.hdf5
+  file_bytes: 335544320
+  hash: sha256:d32ae84d0344b884257a6f7435de574c0afff56183893cd21eaaf605db103f65
+  sample_index: 0
+  frame0: t0_fields/* [0, 0]
+  probe_sidecar: cache/eval-c/the_well-helmholtz_staircase/sidecar.json
+  stored_grid:
+    nx: 1024
+    ny: 256
+    frames: 50
+    x: [-8.0, 8.0]
+    y: [-0.5, 3.5]
+    fields: [pressure_re, pressure_im, mask]
+    dtype: float32
+rights:
+  source_license: CC-BY-4.0 (HF dataset card license tag; The Well paper App. A.6); code BSD-3-Clause
+  allowed: [cite_values, re_derive_setup, reference_by_hash]
+  forbidden: [redistribute_data_without_attribution]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/well-helmholtz-staircase.yaml}
+missing: [staircase period d and step geometry in physical units are not in the README (mask field gives them)]
+assumptions: []
+source_case: {suite: The Well, file: helmholtz_staircase README.md + helmholtz_staircase.yaml, url: huggingface.co/datasets/polymathic-ai/helmholtz_staircase,
+  accessed: '2026-11-06', note: cache/eval-c/sources/hf/helmholtz_staircase_README.md sha256 84ddf8e2ba22e6b66dfd7afa97a054e1939cda2fa06ca4b823b20e369a0cfec5}
+notes: ['Equations: -(lap + omega^2) u = delta(x - x0) above a right-angle staircase, u_n = 0 on the surface, outgoing radiation;
+    stored fields are Re/Im of u(x) e^{-i omega t} over one period', 'Parameters: 16 omega in 0.06283032-2.5110908; sources
+    x0 in {-0.4..0.4} x {-0.2..0.4} (README); stored dt = 2 pi/(50 omega)', 'Protocol (R3 s.4): load stored frame 0 (and stored
+    coefficient fields), integrate with our solver at a resolution where our own result is converged, compare with the stored
+    trajectory using the dataset metric, report it next to our self-convergence floor (two finest levels).', 'Generator: Floquet-Bloch
+    transform + boundary integral equations (github.com/fruzsinaagocs/bies), Agocs-Barnett arXiv:2310.12486.', 'Probed file:
+    test/helmholtz_staircase_omega_006.hdf5 (335,544,320 B): 3 trajectories, root attr omega 0.06283032.', 'Gate idea: frame
+    0 alone does not fix the solution (source term); solve the frequency-domain BVP with our solver (PML + quasi-periodic)
+    and compare frame-by-frame phases.']
+lane: L7c
+created: '2026-11-06'

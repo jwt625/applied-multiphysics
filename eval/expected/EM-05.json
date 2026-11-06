@@ -1,0 +1,94 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "EM-05",
+  "class": "c",
+  "generator": "validation/c/gen_suites.py",
+  "command": "cd validation && uv run python c/gen_suites.py",
+  "method": "Infinitely long hollow conducting cylinder in a uniform transverse time-harmonic field, A_z = f(r) cos(theta); inside f = C r, shell f = D I1(kr) + E K1(kr) with k^2 = j w mu0 sigma, outside f = -B0 r + F/r; continuity of f and f' at r_i and r_o (mu = mu0 everywhere).",
+  "generated_at": "2026-11-06T15:57:15-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "By_center_re",
+      "value": -0.0018439155993120807,
+      "unit": "T",
+      "precision": {
+        "method": "exact Bessel solution, 4x4 interface system"
+      },
+      "source": {
+        "source_value": "-0.0018",
+        "rel_diff": 0.02439755517337817,
+        "agreement": "agree",
+        "note": "VM166 target By(0,0) real part"
+      },
+      "locator": "Ansys VM166 Results Comparison, Target column",
+      "phasor_convention": "e^{+j w t}"
+    },
+    {
+      "metric_id": "By_center_im",
+      "value": -0.021044761843139963,
+      "unit": "T",
+      "precision": {
+        "method": "exact Bessel solution"
+      },
+      "source": {
+        "source_value": "-0.0210",
+        "rel_diff": 0.0021315163399981633,
+        "agreement": "agree",
+        "note": "VM166 target By(0,0) imaginary part"
+      },
+      "locator": "Ansys VM166 Results Comparison, Target column",
+      "phasor_convention": "e^{+j w t}"
+    },
+    {
+      "metric_id": "loss_per_length",
+      "value": 9151.78562574126,
+      "unit": "W/m",
+      "precision": {
+        "method": "(1/2) sigma w^2 pi int |f(r)|^2 r dr, scipy quad, full cross-section, time average"
+      },
+      "source": {
+        "source_value": "2288",
+        "rel_diff": 2.9999063049568444,
+        "agreement": "disagree",
+        "note": "VM166 target power loss (see quarter-section target)"
+      },
+      "locator": "Ansys VM166 Results Comparison, Target column"
+    },
+    {
+      "metric_id": "loss_per_length_quarter",
+      "value": 2287.946406435315,
+      "unit": "W/m",
+      "precision": {
+        "method": "full-section loss / 4"
+      },
+      "source": {
+        "source_value": "2288",
+        "rel_diff": 2.342376078884983e-05,
+        "agreement": "agree",
+        "note": "VM166 target power loss"
+      },
+      "locator": "Ansys VM166 Results Comparison, Target column",
+      "note": "the VM166 target equals one quarter of the full-section time-averaged loss; inferred to be a quarter-symmetry model value (assumption, the page does not state it)"
+    }
+  ],
+  "inputs": {
+    "r_i_m": 0.05715,
+    "r_o_m": 0.06985,
+    "sigma_S_per_m": 25380711.0,
+    "f_Hz": 60.0,
+    "B0_T": 0.1,
+    "B0_meaning": "peak amplitude of the applied field B_y = B0 cos(w t)"
+  },
+  "check_far_field_sign": -0.1
+}

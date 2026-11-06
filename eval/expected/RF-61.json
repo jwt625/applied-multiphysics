@@ -1,0 +1,84 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "RF-61",
+  "class": "c",
+  "generator": "validation/c/gen_palace.py",
+  "command": "cd validation && uv run python c/gen_palace.py",
+  "method": "RG-401/U coax section (inner 0.0645 in, outer 0.215 in diameter, eps_r 2.08, tan d 4e-2) driven by a 100 Ohm lumped port: reflection magnitude from the quasi-TEM line impedance.",
+  "generated_at": "2026-11-06T15:57:14-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "Z0_lossless",
+      "value": 50.053644886759386,
+      "unit": "ohm",
+      "precision": {
+        "method": "eta0 ln(b/a) / (2 pi sqrt(eps_r))"
+      },
+      "source": {
+        "source_value": "50",
+        "rel_diff": 0.0010728977351877234,
+        "agreement": "agree",
+        "note": "coaxial.md L19 nominal 50 Ohm"
+      },
+      "locator": "palace docs/src/examples/coaxial.md L19-21"
+    },
+    {
+      "metric_id": "abs_S11_lumped100",
+      "value": 0.3331824528177022,
+      "unit": "1",
+      "precision": {
+        "method": "|(Z_L - Z0)/(Z_L + Z0)| with complex Z0 (eps_r (1 - j tan d)), frequency independent for constant tan d (quasi-TEM)"
+      },
+      "source": {
+        "source_value": "0.3333333",
+        "rel_diff": 0.00045254159214755163,
+        "agreement": "disagree",
+        "note": "coaxial.md L114 'expect |Gamma| = 1/3'"
+      },
+      "locator": "palace docs/src/examples/coaxial.md L113-116",
+      "lossless_abs_gamma": 0.33285666036925327,
+      "Z0_complex": {
+        "re": 50.023647691193524,
+        "im": 1.0000730844738932
+      }
+    },
+    {
+      "metric_id": "abs_S11_dB",
+      "value": -9.54635757898528,
+      "unit": "dB",
+      "precision": {
+        "method": "20 log10 |Gamma|"
+      },
+      "source": {
+        "source_value": "-9.5",
+        "rel_diff": 0.0048797451563452315,
+        "agreement": "agree",
+        "note": "coaxial.md L115"
+      },
+      "locator": "palace docs/src/examples/coaxial.md L115"
+    }
+  ],
+  "inputs": {
+    "d_inner_m": 0.0016383,
+    "d_outer_m": 0.005461,
+    "eps_r": 2.08,
+    "tan_delta": 0.04,
+    "Z_port_ohm": 100.0,
+    "f_sweep_Hz": [
+      5000000000.0,
+      15000000000.0
+    ]
+  },
+  "source_repo": "awslabs/palace tag v0.19.0 (commit ca9a6a2d1e64a410229c3d7538507e5eae975cc6)"
+}

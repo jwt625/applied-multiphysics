@@ -1,0 +1,113 @@
+# SC-02: DEVSIM diode_1d: abrupt Si pn diode, forward DC sweep 0.1-0.5 V
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: SC-02
+class: c
+title: 'DEVSIM diode_1d: abrupt Si pn diode, forward DC sweep 0.1-0.5 V'
+status: unvalidated
+untestable_reason: null
+physics: [semiconductor-dd]
+dimension: 1D
+units: SI
+geometry:
+  kind: analytic
+  spec: {length_cm: 1.0e-05, junction_cm: 5.0e-06, mesh_cm: 'ps 1e-7 at ends, 1e-9 at the junction (diode_common.py CreateMesh)'}
+materials:
+  si: {source: 'DEVSIM simple_physics defaults via diode_common.SetParameters; mu_n 400, mu_p 200 cm2/Vs, tau 1e-8 s (R3 s.3.9)'}
+bcs:
+- selection: top
+  type: ohmic
+  params: {V: 0..0.5 step 0.1}
+- selection: bot
+  type: ohmic
+  params: {V: 0}
+initial: null
+study: {type: parametric}
+references:
+- quantity: J_total 0.1 V
+  metric_id: J_top_0.1V
+  value: 1.1592313132996793e-07
+  unit: A/cm^2
+  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
+      mesh (proposed)}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.1V}
+  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.1), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
+- quantity: J_total 0.2 V
+  metric_id: J_top_0.2V
+  value: 1.136336617995751e-06
+  unit: A/cm^2
+  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
+      mesh (proposed)}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.2V}
+  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.2), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
+- quantity: J_total 0.3 V
+  metric_id: J_top_0.3V
+  value: 1.5931460769419148e-05
+  unit: A/cm^2
+  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
+      mesh (proposed)}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.3V}
+  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.3), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
+- quantity: J_total 0.4 V
+  metric_id: J_top_0.4V
+  value: 0.00044875293238027603
+  unit: A/cm^2
+  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
+      mesh (proposed)}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.4V}
+  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.4), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
+- quantity: J_total 0.5 V
+  metric_id: J_top_0.5V
+  value: 0.018155155173288445
+  unit: A/cm^2
+  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
+      mesh (proposed)}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.5V}
+  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.5), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 est. < 1 s
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Apache-2.0 (DEVSIM); golden-results repo has no LICENSE file (values cited only)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/devsim-diode-1d.yaml}
+missing: []
+assumptions: []
+source_case: {suite: DEVSIM examples, file: examples/diode/diode_1d.py, url: github.com/devsim/devsim main e3a25f08c7f17cc6932624c12bf9f0f10d7f7cfd,
+  accessed: '2026-11-06', note: cache/eval-c/sources/devsim/diode_1d.py sha256 66a60784e9a54644b6186828343a6101228d13a4e4a0ab007e17aee0992f9cd8}
+notes: ['Regenerated locally: validation/c/gen_devsim.py runs the unmodified example with devsim 2.11.2 (PyPI) and matches
+    the golden to < 1e-15 relative at every bias.']
+lane: L7c
+created: '2026-11-06'

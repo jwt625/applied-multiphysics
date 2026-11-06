@@ -11,6 +11,10 @@ dependencies = [
     "pyyaml",
     "pillow>=13.0.0",
     "matplotlib>=3.11.2",
+    "devsim==2.11.2",
+    "requests>=2.34.2",
+    "h5py>=3.16.0",
+    "jsonschema>=4.26.0",
 ]
 
 [tool.uv]

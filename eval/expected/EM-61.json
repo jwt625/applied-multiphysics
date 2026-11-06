@@ -1,0 +1,155 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "EM-61",
+  "class": "c",
+  "generator": "validation/c/gen_palace.py",
+  "command": "cd validation && uv run python c/gen_palace.py",
+  "method": "Shorted micro-coax with superconducting (London) conductor films: geometric plus kinetic inductance, flat-film sheet inductance mu0 lambda coth(d/lambda), formula as in Palace docs.",
+  "generated_at": "2026-11-06T15:57:14-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "L_geom",
+      "value": 9.631782433335777e-12,
+      "unit": "H",
+      "precision": {
+        "method": "closed form mu0 l / (2 pi) ln(b/a)"
+      },
+      "source": {
+        "source_value": "9.6318",
+        "rel_diff": 1.8238194545995844e-06,
+        "agreement": "agree",
+        "note": "coaxial.md L180 Exact (pH)"
+      },
+      "locator": "palace docs/src/examples/coaxial.md L166-170 (formula), L178-182 (table)"
+    },
+    {
+      "metric_id": "L_total_london",
+      "value": 3.0366972281914867e-11,
+      "unit": "H",
+      "precision": {
+        "method": "L_geom + mu0 lambda coth(d/lambda) l/(2 pi) (1/a + 1/b)"
+      },
+      "source": {
+        "source_value": "30.3670",
+        "rel_diff": 9.12769951988094e-07,
+        "agreement": "agree",
+        "note": "coaxial.md L181 Exact (pH)"
+      },
+      "locator": "palace docs/src/examples/coaxial.md L166-170 (formula), L178-182 (table)"
+    },
+    {
+      "metric_id": "L_kin",
+      "value": 2.0735189848579086e-11,
+      "unit": "H",
+      "precision": {
+        "method": "closed form"
+      },
+      "source": {
+        "source_value": "20.7352",
+        "rel_diff": 4.895742945697601e-07,
+        "agreement": "agree",
+        "note": "coaxial.md L182 Exact (pH)"
+      },
+      "locator": "palace docs/src/examples/coaxial.md L166-170 (formula), L178-182 (table)"
+    }
+  ],
+  "inputs": {
+    "a_m": 8.1915e-07,
+    "b_m": 2.7305e-06,
+    "length_m": 4e-05,
+    "lambda_m": 4e-07,
+    "film_d_m": 1e-07
+  },
+  "lambda_sweep": [
+    {
+      "lambda_m": 2.5e-08,
+      "L_H": 9.949397643089896e-12,
+      "L_kin_H": 3.1761520975411825e-13,
+      "source": {
+        "source_value": "9.9494",
+        "rel_diff": 2.3688967209371726e-07,
+        "agreement": "agree",
+        "note": "coaxial.md L223-231 Exact column (pH)"
+      }
+    },
+    {
+      "lambda_m": 5e-08,
+      "L_H": 1.0290274351430274e-11,
+      "L_kin_H": 6.584919180944957e-13,
+      "source": {
+        "source_value": "10.2903",
+        "rel_diff": 2.4924997062043864e-06,
+        "agreement": "agree",
+        "note": "coaxial.md L223-231 Exact column (pH)"
+      }
+    },
+    {
+      "lambda_m": 1e-07,
+      "L_H": 1.129882350852226e-11,
+      "L_kin_H": 1.6670410751864817e-12,
+      "source": {
+        "source_value": "11.2988",
+        "rel_diff": 2.0806211508760954e-06,
+        "agreement": "agree",
+        "note": "coaxial.md L223-231 Exact column (pH)"
+      }
+    },
+    {
+      "lambda_m": 2e-07,
+      "L_H": 1.512653077000442e-11,
+      "L_kin_H": 5.49474833666864e-12,
+      "source": {
+        "source_value": "15.1265",
+        "rel_diff": 2.0341787207865457e-06,
+        "agreement": "agree",
+        "note": "coaxial.md L223-231 Exact column (pH)"
+      }
+    },
+    {
+      "lambda_m": 4e-07,
+      "L_H": 3.0366972281914867e-11,
+      "L_kin_H": 2.0735189848579086e-11,
+      "source": {
+        "source_value": "30.3670",
+        "rel_diff": 9.12769951988094e-07,
+        "agreement": "agree",
+        "note": "coaxial.md L223-231 Exact column (pH)"
+      }
+    },
+    {
+      "lambda_m": 8e-07,
+      "L_H": 9.130950456389935e-11,
+      "L_kin_H": 8.167772213056357e-11,
+      "source": {
+        "source_value": "91.3095",
+        "rel_diff": 4.9982743883833365e-08,
+        "agreement": "agree",
+        "note": "coaxial.md L223-231 Exact column (pH)"
+      }
+    },
+    {
+      "lambda_m": 1.6e-06,
+      "L_H": 3.3507471277242285e-10,
+      "L_kin_H": 3.2544293033908707e-10,
+      "source": {
+        "source_value": "335.0747",
+        "rel_diff": 3.8118135595253295e-08,
+        "agreement": "agree",
+        "note": "coaxial.md L223-231 Exact column (pH)"
+      }
+    }
+  ],
+  "source_repo": "awslabs/palace tag v0.19.0 (commit ca9a6a2d1e64a410229c3d7538507e5eae975cc6)",
+  "assumption": "a, b from the RG-401/U diameters in inches scaled to um (L0 = 1e-6); the docs print them rounded (0.819 / 2.731 um); with the rounded values L_geom is 9.6347 pH (3e-4 off the docs' 9.6318)"
+}

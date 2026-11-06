@@ -1,0 +1,105 @@
+# TR-02: PDEBench 1D advection, periodic, beta in {0.1 .. 7} (exact shift)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: TR-02
+class: c
+title: PDEBench 1D advection, periodic, beta in {0.1 .. 7} (exact shift)
+status: unvalidated
+untestable_reason: null
+physics: [transport-diffusion]
+dimension: 1D
+units: SI
+geometry:
+  kind: dataset_grid
+  spec:
+    nx: 1024
+    x: cell centres 1/2048 .. 2047/2048
+    frames: 201
+    t: 0..2 step 0.01
+    t_coordinate_entries: 202
+    fields: [tensor]
+    dtype: float32
+materials: null
+bcs: null
+initial: null
+study: {type: transient}
+references:
+- quantity: nRMSE vs stored solution
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.0, 1.0]
+      note: 'sanity bound: nRMSE 1 = predicting zero; the gate is the own self-convergence floor (R3 s.4)'
+  bounds: null
+  basis: P
+  form: dataset
+  gate: false
+  provenance: {citation: 'Takamoto et al., PDEBench, NeurIPS 2022 Datasets and Benchmarks, arXiv:2210.07182v7 (2024-08-26)',
+    locator: 'paper App. D.1 eq. 6-8; Table 1 (Ns 1024, Nt 200)', accessed: '2026-11-06'}
+  note: PDEBench eq. 4 (App. B)
+- quantity: nRMSE of exact shift vs stored frames
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.0, 1.0]
+      note: 'sanity bound: nRMSE 1 = predicting zero; the gate is the own self-convergence floor (R3 s.4)'
+  bounds: null
+  basis: P
+  form: dataset
+  gate: false
+  provenance: {citation: 'Takamoto et al., PDEBench, NeurIPS 2022 Datasets and Benchmarks, arXiv:2210.07182v7 (2024-08-26)',
+    locator: eq. 6-7 exact solution vs stored tensor, accessed: '2026-11-06'}
+  note: measures the dataset's own discretization floor (upwind scheme error)
+reference_results: []
+convergence: {method: none, note: 'dataset case: report own self-convergence floor (two finest levels) next to the dataset
+    metric (R3 s.4)'}
+speed:
+  budget_s: {browser: 0.1, native: null}
+  budget_basis: R3 est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset:
+  name: PDEBench / 1D_Advection_beta1.0
+  subset: 1D_Advection_Sols_beta1.0.hdf5
+  metric: nRMSE
+  url: https://darus.uni-stuttgart.de/api/access/datafile/255675
+  license: CC BY 4.0
+  file: 1D_Advection_Sols_beta1.0.hdf5
+  file_bytes: 8232966952
+  hash: md5:1fe41923a4123db55bf4e89bea32e142
+  darus_file_id: 255675
+  sample_index: 0
+  frame0: tensor[0, 0]
+  probe_sidecar: cache/eval-c/pdebench-1D_Advection_beta1.0/sidecar.json
+  stored_grid:
+    nx: 1024
+    x: cell centres 1/2048 .. 2047/2048
+    frames: 201
+    t: 0..2 step 0.01
+    t_coordinate_entries: 202
+    fields: [tensor]
+    dtype: float32
+rights:
+  source_license: CC BY 4.0 (DaRUS dataset licence field); code 'MIT except where otherwise stated' (LICENSE.txt)
+  allowed: [cite_values, re_derive_setup, reference_by_hash]
+  forbidden: [redistribute_data_without_attribution]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pdebench-1d-advection-beta1p0.yaml}
+missing: []
+assumptions: []
+source_case: {suite: PDEBench, file: 1D_Advection_Sols_beta1.0.hdf5, url: 'darus.uni-stuttgart.de doi:10.18419/darus-2986
+    (dataset version 8.0, released 2024-02-13)', accessed: '2026-11-06', note: cache/eval-c/sources/pdebench/darus.json sha256
+    e8c0d87ef05bf6f9938d8c63f823142095b93aa3c651fc25d719497453ee380b}
+notes: ['Equations: u_t + beta u_x = 0, x in (0, 1), t in (0, 2], periodic; exact u(t, x) = u0(x - beta t) (paper eq. 6-7)',
+  'Parameters: beta in {0.1, 0.2, 0.4, 0.7, 1, 2, 4, 7}; u0 = sum of N = 2 sines, k_max 8 (eq. 8); 10000 samples per beta',
+  'Protocol (R3 s.4): load stored frame 0 (and stored coefficient fields), integrate with our solver at a resolution where
+    our own result is converged, compare with the stored trajectory using the dataset metric, report it next to our self-convergence
+    floor (two finest levels).', 'Probed 1D_Advection_Sols_beta1.0.hdf5: tensor [10000, 201, 1024] float32, x-coordinate 1024
+    cell centres, t-coordinate has 202 entries (0 .. 2.01) for 201 frames (flag: one extra coordinate).', 'Generator: JAX
+    2nd-order upwind (R3 s.4); the exact shift of frame 0 is an independent reference.']
+lane: L7c
+created: '2026-11-06'

@@ -1,0 +1,58 @@
+# CP-04: Si electrothermal (hot-arm) microactuator at 15 V (Mankame-Ananthasuresh 2001)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: CP-04
+class: c
+title: Si electrothermal (hot-arm) microactuator at 15 V (Mankame-Ananthasuresh 2001)
+status: untestable
+untestable_reason: VM223 page gives no convection coefficient, emissivity or ambient temperature, and does not define d10
+  (geometry); the primary paper (JMM 11:252) is paywalled
+activation: source h, emissivity, T_ambient and the full geometry from Mankame-Ananthasuresh 2001
+physics: [coupled-joule, coupled-thermoelastic]
+dimension: 3D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    d_m: {d1: 4.0e-05, d2: 0.000255, d3: 4.0e-05, d4: 0.00033, d5: 0.0019, d6: 9.0e-05, d7: 7.5e-05, d8: 0.000352, d9: 0.000352,
+      d11: 2.0e-05}
+  note: dimension names as on VM223
+materials:
+  si: {E_Pa: 169000000000.0, nu: 0.3, resistivity_ohm_m_300K: 0.00042, alpha_k_table: 'T 300-1500 K, VM223 table (units garbled
+      on the page)', source: Ansys VM223}
+bcs: null
+initial: null
+study: null
+references:
+- quantity: tip UY
+  value: 2.7e-05
+  unit: m
+  tolerance: {rel: 0.02}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: true
+  provenance: {citation: 'Mankame, Ananthasuresh, JMM 11:252 (2001) via Ansys VM223', locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM223.html,
+      Results Comparison table', accessed: '2026-11-06'}
+  extraction: text
+  note: units not printed on the page; m inferred from magnitude (assumption)
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not estimated; set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Ansys MAPDL Verification Manual page, (c) ANSYS Inc. all rights reserved; target cites the textbook/report
+  allowed: [cite_values]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/hot-arm-actuator.yaml}
+missing: [convection h, emissivity, ambient temperature, d10, alpha and k units]
+assumptions: []
+source_case: {suite: Ansys VM223 (pointer), file: Hlp_V_VM223.html, url: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM223.html,
+  accessed: '2026-11-06'}
+lane: L7c
+created: '2026-11-06'

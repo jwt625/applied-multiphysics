@@ -1,0 +1,56 @@
+# HT-61: scikit-fem ex01: Poisson -lap u = 1 on the unit square, maximum of u
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: HT-61
+class: c
+title: 'scikit-fem ex01: Poisson -lap u = 1 on the unit square, maximum of u'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    domain:
+    - [0, 1]
+    - [0, 1]
+materials: null
+bcs:
+- {selection: boundary, type: dirichlet, value: 0}
+initial: null
+study: {type: stationary}
+references:
+- quantity: u_max
+  metric_id: u_max
+  value: 0.07367135328352661
+  unit: '1'
+  tolerance: {rel: 1.0e-05, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/HT-61.json, metric_id: u_max}
+  provenance: {citation: double Fourier sine series (this lane), locator: github.com/kinnala/scikit-fem tag 12.0.2 tests/test_examples.py
+      L8-12 (FEM gold 0.073657185490792), accessed: null, generator: validation/c/gen_suites.py}
+reference_results:
+- {solver: 'scikit-fem 12.0.2 P1, MeshTri().refined(6)', u_max: 0.073657185490792, locator: tests/test_examples.py L12}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 0.5, native: null}
+  budget_basis: 2D Poisson; est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: BSD-3-Clause (scikit-fem)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/poisson-square.yaml}
+missing: []
+assumptions: []
+source_case: {suite: scikit-fem examples, file: docs/examples/ex01.py, url: github.com/kinnala/scikit-fem tag 12.0.2, accessed: '2026-11-06',
+  note: cache/eval-c/sources/skfem/ex01.py sha256 b3c1be5c024c2d4e6634ad3971c6a963e5ad87dff15ad902a22f27713be02f49}
+lane: L7c
+created: '2026-11-06'

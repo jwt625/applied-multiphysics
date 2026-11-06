@@ -1,0 +1,125 @@
+# RF-01: Palace cylinder: Teflon-filled cylindrical cavity, modes, dielectric and copper-wall Q
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: RF-01
+class: c
+title: 'Palace cylinder: Teflon-filled cylindrical cavity, modes, dielectric and copper-wall Q'
+status: unvalidated
+untestable_reason: null
+physics: [rf-resonator]
+dimension: [2D-axisym, 3D]
+units: SI
+geometry:
+  kind: analytic
+  spec: {radius_m: 0.0274, height_m: 0.0548}
+  symmetry: axisymmetric
+materials:
+  teflon: {eps_r: 2.08, tan_delta: 0.0004, source: cylinder.md L26-27}
+  copper_walls: {R_s_ohm: 0.0184, source: cylinder.md L100-101 (copper at 5 GHz)}
+bcs:
+- {selection: walls, type: pec}
+- selection: walls
+  type: surface_impedance
+  params: {R_s_ohm: 0.0184}
+  note: second configuration (cavity_impedance.json)
+initial: null
+study: {type: eigen, n: 15, shift: 2000000000.0}
+references:
+- quantity: f TM010
+  metric_id: f_TM010
+  value: 2903636072.3343897
+  unit: Hz
+  tolerance: {rel: 1.0e-05, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/RF-01.json, metric_id: f_TM010}
+  provenance: {citation: Pozar via Palace docs, locator: 'palace docs/src/examples/cylinder.md L31-44, L115', accessed: null,
+    generator: validation/c/gen_palace.py}
+  note: exact; Palace's table entry 2.903605 GHz uses a rounded Bessel zero (L7a RF-21 resolution); equals RF-21
+- quantity: f TE111
+  metric_id: f_TE111
+  value: 2922197191.014636
+  unit: Hz
+  tolerance: {rel: 1.0e-05, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/RF-01.json, metric_id: f_TE111}
+  provenance: {citation: Pozar via Palace docs, locator: palace docs/src/examples/cylinder.md L119, accessed: null, generator: validation/c/gen_palace.py}
+- quantity: f TE011
+  metric_id: f_TE011
+  value: 5000146299.18556
+  unit: Hz
+  tolerance: {rel: 1.0e-05, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/RF-01.json, metric_id: f_TE011}
+  provenance: {citation: Pozar via Palace docs, locator: palace docs/src/examples/cylinder.md L118, accessed: null, generator: validation/c/gen_palace.py}
+  note: degenerate with TM111
+- quantity: Q_c TE011 (R_s 0.0184 Ohm)
+  metric_id: Q_c_TE011
+  value: 29395.11665316677
+  unit: '1'
+  tolerance: {rel: 0.01, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/RF-01.json, metric_id: Q_c_TE011}
+  provenance: {citation: Pozar Ex. 6.4 formula as printed in Palace docs, locator: 'palace docs/src/examples/cylinder.md L53-65,
+      L150-159', accessed: null, generator: validation/c/gen_palace.py}
+- quantity: Q TE011 copper walls
+  metric_id: Q_TE011_copper
+  value: 2304.045237772176
+  unit: '1'
+  tolerance: {rel: 0.01, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/RF-01.json, metric_id: Q_TE011_copper}
+  provenance: {citation: 1/Q = 1/Q_c + 1/Q_d, locator: palace docs/src/examples/cylinder.md L150-156, accessed: null, generator: validation/c/gen_palace.py}
+- quantity: Q_d
+  metric_id: Q_d
+  value: 2500.0
+  unit: '1'
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/RF-01.json, metric_id: Q_d}
+  provenance: {citation: 1/tan delta, locator: 'palace docs/src/examples/cylinder.md L50, L135', accessed: null, generator: validation/c/gen_palace.py}
+reference_results:
+- solver: Palace v0.19.0 regression gold cavity_pec (coarse CI mesh)
+  f_GHz_first4: [2.904769618774, 2.922855211084, 2.922855211091, 3.469124240109]
+  locator: test/data/regression/ref/cylinder/cavity_pec/eig.csv rows 1-4
+- {source: Palace docs analytic table (rounded Bessel zeros), f_TM010_GHz: 2.903605, f_TE111_GHz: 2.922212, locator: palace
+    docs/src/examples/cylinder.md L113-123}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 2.0, native: null}
+  budget_basis: 'R3 s.3.4: 2D-axisym < 2 s, 3D 5-30 s; est.'
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Apache-2.0 (Palace code and docs)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero:
+  suitable: true
+  why: animated E/H of cavity modes; R3 hero RF-01
+  visual: [E_field, H_field]
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/cylinder-cavity.yaml}
+missing: []
+assumptions: []
+source_case: {suite: Palace examples, file: docs/src/examples/cylinder.md, url: github.com/awslabs/palace tag v0.19.0 (ca9a6a2d1e64a410229c3d7538507e5eae975cc6),
+  accessed: '2026-11-06', note: cache/eval-c/sources/palace/cylinder.md sha256 d8fb5dc34542bdc89d126133f0f7a8abceb04e853a26526eaed6485a9211ad7e}
+lane: L7c
+created: '2026-11-06'

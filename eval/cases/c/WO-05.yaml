@@ -1,0 +1,103 @@
+# WO-05: Meep ring resonator (n 3.4, w 1, r 1): TM (Ez) resonances and Q
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-05
+class: c
+title: 'Meep ring resonator (n 3.4, w 1, r 1): TM (Ez) resonances and Q'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes, rf-resonator]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {ring_inner_r: 1, ring_width: 1, pad: 4, pml: 2, unit: a (c = 1)}
+materials:
+  ring: {n: 3.4, source: meep python/tests/test_ring.py L21}
+bcs: null
+initial: null
+study: {type: transient, t_end: 300, source: 'Gaussian Ez at (r + 0.1, 0), fcen 0.15, df 0.1'}
+references:
+- quantity: f1
+  value: 0.118101575043663
+  unit: 1 (c/a)
+  tolerance: {rel: 0.005, after: richardson, note: Meep resolution 10 (not converged); proposed}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: Meep tutorial 'Modes of a Ring Resonator', locator: meep doc/docs/Python_Tutorials/Basics.md L1116-1117,
+    accessed: '2026-11-06'}
+  extraction: text
+- quantity: f2
+  value: 0.147162555528154
+  unit: 1 (c/a)
+  tolerance: {rel: 0.005, after: richardson}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1118, accessed: '2026-11-06'}
+  extraction: text
+- quantity: f3
+  value: 0.175246750722663
+  unit: 1 (c/a)
+  tolerance: {rel: 0.005, after: richardson}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1119, accessed: '2026-11-06'}
+  extraction: text
+- quantity: Q1
+  value: 80.683059081382
+  unit: '1'
+  tolerance: {rel: 0.2}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1117, accessed: '2026-11-06'}
+- quantity: Q2
+  value: 316.29272471914
+  unit: '1'
+  tolerance: {rel: 0.2}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1118, accessed: '2026-11-06'}
+- quantity: Q3
+  value: 1677.48461212767
+  unit: '1'
+  tolerance: {rel: 0.2}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1119, accessed: '2026-11-06'}
+reference_results:
+- {solver: Meep v1.35.1 unit-test gold, f1: 0.118101315147, decay: -0.000731513241623, tolerance_in_test: 1e-3 relative, locator: meep
+    python/tests/test_ring.py L67-68}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 10.0, native: null}
+  budget_basis: 'R3: FDTD 2-10 s, FEM eig < 2 s; est.'
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero:
+  suitable: true
+  why: ring resonance build-up (R3 hero WO-05)
+  visual: [Ez, spectrum]
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/meep-ring.yaml}
+missing: []
+assumptions: []
+source_case: {suite: Meep tutorial + test, file: python/tests/test_ring.py, url: github.com/NanoComp/meep tag v1.35.1, accessed: '2026-11-06',
+  note: cache/eval-c/sources/meep/test_ring.py sha256 dd980a9695fa35cccb744139ca84f60c47fa70d960666100cf0c8402605b6dd2}
+lane: L7c
+created: '2026-11-06'

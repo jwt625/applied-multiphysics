@@ -1,0 +1,72 @@
+# FL-62: NASA TMR NACA 0012, SA model, M 0.15, Re 6e6, alpha 10 deg: lift and drag (897x257 grid)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: FL-62
+class: c
+title: 'NASA TMR NACA 0012, SA model, M 0.15, Re 6e6, alpha 10 deg: lift and drag (897x257 grid)'
+status: unvalidated
+untestable_reason: null
+physics: [turbulent]
+dimension: 2D
+units: SI
+geometry:
+  kind: step_ref
+  spec: {airfoil: 'NACA 0012 closed sharp TE, scaled by 1.008930411365', grid: 897x257 (TMR), farfield_c: 500}
+materials:
+  air: {source: 'M 0.15, Re 6e6 per chord, T_ref 540 R, Pr 0.72, Prt 0.9, Sutherland (naca0012numerics_val.html)'}
+bcs: null
+initial: null
+study: {type: stationary}
+references:
+- quantity: C_L (alpha 10)
+  value: 1.0909
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [1.0909, 1.0983]
+      note: CFL3D .. FUN3D on the same grid; validation-page values, no grid-convergence data
+  bounds: [1.0909, 1.0983]
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: 'NASA TMR NACA 0012 validation, SA', locator: tmbwg.github.io/turbmodels/naca0012_val_sa.html table
+      L170-183, accessed: '2026-11-06'}
+  extraction: tabulated
+- quantity: C_D (alpha 10)
+  value: 0.01231
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.01231, 0.01242]
+  bounds: [0.01231, 0.01242]
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: 'NASA TMR NACA 0012 validation, SA', locator: 'naca0012_val_sa.html table L173, L183', accessed: '2026-11-06'}
+  extraction: tabulated
+reference_results:
+- alpha_deg: 15
+  C_L: [1.5461, 1.5547]
+  C_D: [0.02124, 0.02159]
+  codes: [CFL3D, FUN3D]
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: native only; est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: CC0-1.0 (TMBWG/turbmodels repository licence)
+  allowed: [cite_values, re_derive_setup, copy_data]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/tmr-naca0012-sa.yaml}
+missing: []
+assumptions: []
+source_case: {suite: NASA TMR, file: naca0012_val_sa.html, url: tmbwg.github.io/turbmodels (repo TMBWG/turbmodels main 20a39f549dbff988a6accc421ac84dafc4487695),
+  accessed: '2026-11-06', note: cache/eval-c/sources/tmr/naca0012_val_sa.html sha256 1fe38b6dc3c9b066445410ca2fa30226cdd141703b7c9b5ccc84bb4ee315fd0f}
+lane: L7c
+created: '2026-11-06'

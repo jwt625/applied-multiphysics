@@ -1,0 +1,99 @@
+# TR-03: The Well gray_scott_reaction_diffusion: Gray-Scott patterns, 6 (F, k) sets, periodic [-1,1]^2
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: TR-03
+class: c
+title: 'The Well gray_scott_reaction_diffusion: Gray-Scott patterns, 6 (F, k) sets, periodic [-1,1]^2'
+status: unvalidated
+untestable_reason: null
+physics: [transport-reaction]
+dimension: 2D-periodic
+units: SI
+geometry:
+  kind: dataset_grid
+  spec:
+    nx: 128
+    ny: 128
+    frames: 1001
+    x_stored: linspace(-1, 1, 128) (spacing 2/127)
+    fields: [t0_fields/A, t0_fields/B]
+    dtype: float32
+    per_file_trajectories: 20
+materials: null
+bcs: null
+initial: null
+study: {type: transient}
+references:
+- quantity: VRMSE vs stored trajectory at frames 1, 10, last
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.0, 1.0]
+      note: 'sanity bound: VRMSE 1 = predicting the spatial mean (The Well App. E.3); the gate is the own self-convergence
+        floor, set after the first run (R3 s.4)'
+  bounds: null
+  basis: P
+  form: dataset
+  gate: false
+  provenance: {citation: 'Ohana et al., The Well, NeurIPS 2024 Datasets and Benchmarks, arXiv:2412.00568', locator: HF gray_scott_reaction_diffusion
+      README 'About the data'; paper App. E.3 (VRMSE), accessed: '2026-11-06'}
+  note: per field; The Well metric definition
+reference_results: []
+convergence: {method: none, note: 'dataset case: report own self-convergence floor (two finest levels) next to the dataset
+    metric (R3 s.4)'}
+speed:
+  budget_s: {browser: 20.0, native: null}
+  budget_basis: R3 s.3.8 est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset:
+  name: The Well / gray_scott_reaction_diffusion
+  subset: test
+  metric: VRMSE
+  url: https://huggingface.co/datasets/polymathic-ai/gray_scott_reaction_diffusion
+  license: CC-BY-4.0
+  hf_revision: 913ef5679d5c4b4ccd6fcd52c055509dfbf190f9
+  hf_last_modified: '2025-04-10T07:50:08.000Z'
+  n_hdf5_files: 18
+  total_hdf5_bytes: 157940711424
+  file: data/test/gray_scott_reaction_diffusion_bubbles_F_0.098_k_0.057.hdf5
+  file_bytes: 2650800128
+  hash: sha256:db6bac94402d5c7a46e8c335d80e77c1f293fabda0d6521ba1dfbbe0c65c2ba1
+  sample_index: 0
+  frame0: t0_fields/* [0, 0]
+  probe_sidecar: cache/eval-c/the_well-gray_scott_reaction_diffusion/sidecar.json
+  stored_grid:
+    nx: 128
+    ny: 128
+    frames: 1001
+    x_stored: linspace(-1, 1, 128) (spacing 2/127)
+    fields: [t0_fields/A, t0_fields/B]
+    dtype: float32
+    per_file_trajectories: 20
+rights:
+  source_license: CC-BY-4.0 (HF dataset card license tag; The Well paper App. A.6); code BSD-3-Clause
+  allowed: [cite_values, re_derive_setup, reference_by_hash]
+  forbidden: [redistribute_data_without_attribution]
+hero:
+  suitable: true
+  why: H12 Turing patterns on the GPU
+  visual: [A_concentration]
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/well-gray-scott-reaction-diffusion.yaml}
+missing: []
+assumptions: ['Stored x coordinates are linspace(-1, 1, 128) including both ends, while a periodic Fourier grid has spacing
+    2/128; we assume the stored array is a label and the data sit on the periodic grid (to verify against the generator before
+    gating).']
+source_case: {suite: The Well, file: gray_scott_reaction_diffusion README.md + gray_scott_reaction_diffusion.yaml, url: huggingface.co/datasets/polymathic-ai/gray_scott_reaction_diffusion,
+  accessed: '2026-11-06', note: cache/eval-c/sources/hf/gray_scott_reaction_diffusion_README.md sha256 80c8bd2a6b16d1be59d28bb836d21c36b37419d4426225d463decdfc7f680c96}
+notes: ['Equations: A_t = dA lap A - A B^2 + F (1 - A); B_t = dB lap B + A B^2 - (F + k) B (README prints ''- A B^2'' in the
+    B equation: sign typo vs the standard model; flag)', 'Parameters: dA 2e-5, dB 1e-5; (F, k) gliders (0.014, 0.054), bubbles
+    (0.098, 0.057), maze (0.029, 0.057), worms (0.058, 0.065), spirals (0.018, 0.051), spots (0.03, 0.062); dt_sim 1, stored
+    every 10, t 0-10000', 'Protocol (R3 s.4): load stored frame 0 (and stored coefficient fields), integrate with our solver
+    at a resolution where our own result is converged, compare with the stored trajectory using the dataset metric, report
+    it next to our self-convergence floor (two finest levels).', 'Generator: Chebfun spin2, Fourier spectral + ETDRK4 (github.com/danfortunato/spectral-gray-scott,
+    MATLAB).', 'Probed file: test/..._bubbles_F_0.098_k_0.057.hdf5 (2,650,800,128 B): A, B [20, 1001, 128, 128] float32; dimensions/time
+    0..10000 step 10.']
+lane: L7c
+created: '2026-11-06'

@@ -1,0 +1,88 @@
+# EM-03: Palace rings: inductance matrix of two coplanar concentric current rings
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: EM-03
+class: c
+title: 'Palace rings: inductance matrix of two coplanar concentric current rings'
+status: unvalidated
+untestable_reason: null
+physics: [magnetostatics]
+dimension: [2D-axisym, 3D]
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    ring_a: {radius_m: 1.0e-05, width_m: 1.0e-06}
+    ring_b: {radius_m: 0.0001, width_m: 1.0e-06}
+    coplanar: true
+    concentric: true
+materials:
+  vacuum: {mu_r: 1.0, source: rings.md L24-25}
+bcs:
+- {selection: ring_a, type: surface_current}
+- {selection: ring_b, type: surface_current}
+- {selection: farfield, type: pec_magnetic_insulation}
+initial: null
+study: {type: stationary}
+references:
+- quantity: M_ab
+  metric_id: M_ab
+  value: 1.9739208799572496e-12
+  unit: H
+  tolerance: {rel: 0.02, after: richardson, note: 'formula is the r_a << r_b, w = 0 limit; the exact filament-loop value differs
+      (see expected JSON); tolerance sized to that model error (assumption)'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-03.json, metric_id: M_ab}
+  provenance: {citation: 'Biot-Savart small-loop limit, Palace docs', locator: 'palace docs/src/examples/rings.md L28-30,
+      L73-75', accessed: null, generator: validation/c/gen_palace.py}
+- quantity: L_aa
+  metric_id: L_aa
+  value: 4.1785366513873915e-11
+  unit: H
+  tolerance: {rel: 0.03, after: richardson, note: thin-ring approximation; Palace itself reports percent-level differences
+      (rings.md L86-87)}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-03.json, metric_id: L_aa}
+  provenance: {citation: 'thin-ring self inductance, Palace docs ref. [1]', locator: 'palace docs/src/examples/rings.md L35-39,
+      L79-83', accessed: null, generator: validation/c/gen_palace.py}
+- quantity: L_bb
+  metric_id: L_bb
+  value: 7.072050415971537e-10
+  unit: H
+  tolerance: {rel: 0.03, after: richardson, note: as L_aa}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-03.json, metric_id: L_bb}
+  provenance: {citation: 'thin-ring self inductance, Palace docs ref. [1]', locator: 'palace docs/src/examples/rings.md L35-39,
+      L79-83', accessed: null, generator: validation/c/gen_palace.py}
+reference_results:
+- {solver: Palace v0.19.0 regression gold (coarse CI mesh), M_11_H: 4.271797046795e-11, M_12_H: 1.960101643863e-12, M_22_H: 7.139527404879e-10,
+  locator: test/data/regression/ref/rings/terminal-M.csv}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 2.0, native: null}
+  budget_basis: R3 s.3.3 browser est. < 2 s; est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Apache-2.0 (Palace code and docs)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/coplanar-rings.yaml}
+missing: []
+assumptions: ['rings.md L29 prints M_ab = mu0 pi r_b^2 / (2 r_a); the printed 1.973921 pH equals mu0 pi r_a^2 / (2 r_b), used
+    here (docs typo).']
+source_case: {suite: Palace examples, file: docs/src/examples/rings.md, url: github.com/awslabs/palace tag v0.19.0 (ca9a6a2d1e64a410229c3d7538507e5eae975cc6),
+  accessed: '2026-11-06', note: cache/eval-c/sources/palace/rings.md sha256 a982d493ee322823a3ec8e401787f8a44e2f696ab1bd9d7c35dd87c70fa377ec}
+lane: L7c
+created: '2026-11-06'

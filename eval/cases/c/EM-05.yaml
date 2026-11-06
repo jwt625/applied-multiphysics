@@ -1,0 +1,98 @@
+# EM-05: Hollow aluminium cylinder in a uniform 60 Hz transverse field (eddy currents)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: EM-05
+class: c
+title: Hollow aluminium cylinder in a uniform 60 Hz transverse field (eddy currents)
+status: unvalidated
+untestable_reason: null
+physics: [eddy, currents]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {r_inner_m: 0.05715, r_outer_m: 0.06985, external_boundary_m: 0.84}
+materials:
+  aluminium: {sigma_S_per_m: 25380711.0, mu_r: 1.0, source: Ansys VM166 inputs}
+bcs:
+- selection: external
+  type: applied_field
+  params: {B0_T: 0.1, direction: y, f_Hz: 60.0}
+initial: null
+study:
+  type: frequency
+  f_list: [60.0]
+references:
+- quantity: By(0,0) real
+  metric_id: By_center_re
+  value: -0.0018439155993120807
+  unit: T
+  tolerance: {rel: 0.002, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-05.json, metric_id: By_center_re}
+  provenance: {citation: exact 2D Bessel solution (this lane); target Emson RAL-86-049 p. 39 via Ansys VM166, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+  note: phasor e^{+j w t}
+- quantity: By(0,0) imag
+  metric_id: By_center_im
+  value: -0.021044761843139963
+  unit: T
+  tolerance: {rel: 0.002, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-05.json, metric_id: By_center_im}
+  provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+- quantity: loss per length, full section
+  metric_id: loss_per_length
+  value: 9151.78562574126
+  unit: W/m
+  tolerance: {rel: 0.002, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-05.json, metric_id: loss_per_length}
+  provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+- quantity: VM166 target loss (quarter section, inferred)
+  value: 2288
+  unit: W/m
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: P
+  form: benchmark
+  gate: false
+  provenance: {citation: Emson 1986 via Ansys VM166, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
+      Results Comparison table', accessed: '2026-11-06'}
+  extraction: text
+  note: equals full-section loss / 4 to 2.3e-5; read as a quarter-symmetry value (assumption)
+reference_results:
+- {solver: Ansys PLANE233, By_T: -0.0018 - j0.0212, loss_W_per_m: 2315.2128}
+- {solver: Ansys PLANE13, By_T: -0.0019 - j0.02140, loss_W_per_m: 2341.3041}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 2.0, native: null}
+  budget_basis: R3 s.3.3 est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Ansys MAPDL Verification Manual page, (c) ANSYS Inc. all rights reserved; target cites the textbook/report;
+    formula textbook
+  allowed: [cite_values]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/eddy-hollow-cylinder.yaml}
+missing: []
+assumptions: ['B0 = 0.1 T is the peak of B_y = B0 cos(w t); the VM166 page writes ''omega = 60 Hz'', read as f = 60 Hz.',
+  The 0.84 m external boundary is replaced by the exact far-field condition in the generator.]
+source_case: {suite: Ansys VM166 (pointer), file: Hlp_V_VM166.html, url: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
+  accessed: '2026-11-06'}
+lane: L7c
+created: '2026-11-06'

@@ -1,0 +1,86 @@
+# FL-06: PDEBench 2D Darcy flow, -div(a grad u) = beta, u = 0 on the boundary
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: FL-06
+class: c
+title: PDEBench 2D Darcy flow, -div(a grad u) = beta, u = 0 on the boundary
+status: unvalidated
+untestable_reason: null
+physics: [porous]
+dimension: 2D
+units: SI
+geometry:
+  kind: dataset_grid
+  spec:
+    nx: 128
+    ny: 128
+    x: cell centres 1/256 .. 255/256
+    fields: ['nu (a(x)) [10000,128,128]', 'tensor (u) [10000,1,128,128]']
+    dtype: float32
+materials: null
+bcs: null
+initial: null
+study: {type: stationary}
+references:
+- quantity: nRMSE vs stored solution
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.0, 1.0]
+      note: 'sanity bound: nRMSE 1 = predicting zero; the gate is the own self-convergence floor (R3 s.4)'
+  bounds: null
+  basis: P
+  form: dataset
+  gate: false
+  provenance: {citation: 'Takamoto et al., PDEBench, NeurIPS 2022 Datasets and Benchmarks, arXiv:2210.07182v7 (2024-08-26)',
+    locator: paper App. D.4 eq. 13-15, accessed: '2026-11-06'}
+  note: PDEBench eq. 4 (App. B)
+reference_results: []
+convergence: {method: none, note: 'dataset case: report own self-convergence floor (two finest levels) next to the dataset
+    metric (R3 s.4)'}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset:
+  name: PDEBench / 2D_DarcyFlow_beta1.0
+  subset: 2D_DarcyFlow_beta1.0_Train.hdf5
+  metric: nRMSE
+  url: https://darus.uni-stuttgart.de/api/access/datafile/133219
+  license: CC BY 4.0
+  file: 2D_DarcyFlow_beta1.0_Train.hdf5
+  file_bytes: 1310724488
+  hash: md5:81694ed31306ff2e5f6b76349b0b4389
+  darus_file_id: 133219
+  sample_index: 0
+  frame0: nu[0] (coefficient field)
+  probe_sidecar: cache/eval-c/pdebench-2D_DarcyFlow_beta1.0/sidecar.json
+  stored_grid:
+    nx: 128
+    ny: 128
+    x: cell centres 1/256 .. 255/256
+    fields: ['nu (a(x)) [10000,128,128]', 'tensor (u) [10000,1,128,128]']
+    dtype: float32
+rights:
+  source_license: CC BY 4.0 (DaRUS dataset licence field); code 'MIT except where otherwise stated' (LICENSE.txt)
+  allowed: [cite_values, re_derive_setup, reference_by_hash]
+  forbidden: [redistribute_data_without_attribution]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pdebench-2d-darcyflow-beta1p0.yaml}
+missing: [how a(x) is represented between cell centres (piecewise constant per cell assumed)]
+assumptions: []
+source_case: {suite: PDEBench, file: 2D_DarcyFlow_beta1.0_Train.hdf5, url: 'darus.uni-stuttgart.de doi:10.18419/darus-2986
+    (dataset version 8.0, released 2024-02-13)', accessed: '2026-11-06', note: cache/eval-c/sources/pdebench/darus.json sha256
+    e8c0d87ef05bf6f9938d8c63f823142095b93aa3c651fc25d719497453ee380b}
+notes: ['Equations: -div(a(x) grad u(x)) = beta in (0, 1)^2, u = 0 on the boundary (paper eq. 13-14); stored by pseudo-time
+    relaxation to steady state (eq. 15)', 'Parameters: beta in {0.01, 0.1, 1, 10, 100}; a(x) stored per sample (''nu''); a(x)
+    generator not described', 'Protocol (R3 s.4): load stored frame 0 (and stored coefficient fields), integrate with our
+    solver at a resolution where our own result is converged, compare with the stored trajectory using the dataset metric,
+    report it next to our self-convergence floor (two finest levels).', 'Probed 2D_DarcyFlow_beta1.0_Train.hdf5 (1,310,724,488
+    B): nu [10000, 128, 128], tensor [10000, 1, 128, 128].', 'Our solve uses the stored a(x) directly (steady problem): this
+    is the most deterministic PDEBench gate.']
+lane: L7c
+created: '2026-11-06'

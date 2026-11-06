@@ -1,0 +1,133 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "SM-61",
+  "class": "c",
+  "generator": "validation/c/gen_suites.py",
+  "command": "cd validation && uv run python c/gen_suites.py",
+  "method": "Simply supported Timoshenko beam (supports on the neutral fibre), L 1 m, section 0.2 x 0.1 m (I_z = 6.6667e-5 m^4), shear coefficient 1/1.17692, E 2e11 Pa, nu 0.3, rho 7800 kg/m3: in-plane bending (Timoshenko frequency equation, lower branch) and axial fixed-free modes (the axial condition follows from DX fixed at one support only), modes in 430-4500 Hz.",
+  "generated_at": "2026-11-06T15:57:15-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "f1",
+      "value": 431.8818421914421,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form (bending n = 1)",
+        "kind": "bending",
+        "order": 1
+      },
+      "source": {
+        "source_value": "431.555",
+        "rel_diff": 0.0007573592970585369,
+        "agreement": "disagree",
+        "note": "sdll01a.comm TEST_RESU NUME_ORDRE=1 VALE_REFE"
+      },
+      "locator": "gitlab.com/codeaster/src tag 17.5.8 astest/sdll01a.comm L186-246"
+    },
+    {
+      "metric_id": "f2",
+      "value": 1265.9242088545832,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form (axial n = 1)",
+        "kind": "axial",
+        "order": 1
+      },
+      "source": {
+        "source_value": "1265.924",
+        "rel_diff": 1.6498192877821276e-07,
+        "agreement": "agree",
+        "note": "sdll01a.comm TEST_RESU NUME_ORDRE=2 VALE_REFE"
+      },
+      "locator": "gitlab.com/codeaster/src tag 17.5.8 astest/sdll01a.comm L186-246"
+    },
+    {
+      "metric_id": "f3",
+      "value": 1500.367155645226,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form (bending n = 2)",
+        "kind": "bending",
+        "order": 2
+      },
+      "source": {
+        "source_value": "1498.295",
+        "rel_diff": 0.0013830091171804272,
+        "agreement": "disagree",
+        "note": "sdll01a.comm TEST_RESU NUME_ORDRE=3 VALE_REFE"
+      },
+      "locator": "gitlab.com/codeaster/src tag 17.5.8 astest/sdll01a.comm L186-246"
+    },
+    {
+      "metric_id": "f4",
+      "value": 2870.797506581162,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form (bending n = 3)",
+        "kind": "bending",
+        "order": 3
+      },
+      "source": {
+        "source_value": "2870.661",
+        "rel_diff": 4.7552316752810174e-05,
+        "agreement": "disagree",
+        "note": "sdll01a.comm TEST_RESU NUME_ORDRE=4 VALE_REFE"
+      },
+      "locator": "gitlab.com/codeaster/src tag 17.5.8 astest/sdll01a.comm L186-246"
+    },
+    {
+      "metric_id": "f5",
+      "value": 3797.7726265637493,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form (axial n = 2)",
+        "kind": "axial",
+        "order": 2
+      },
+      "source": {
+        "source_value": "3797.773",
+        "rel_diff": 9.833032432723333e-08,
+        "agreement": "agree",
+        "note": "sdll01a.comm TEST_RESU NUME_ORDRE=5 VALE_REFE"
+      },
+      "locator": "gitlab.com/codeaster/src tag 17.5.8 astest/sdll01a.comm L186-246"
+    },
+    {
+      "metric_id": "f6",
+      "value": 4361.251491712328,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form (bending n = 4)",
+        "kind": "bending",
+        "order": 4
+      },
+      "source": {
+        "source_value": "4377.837",
+        "rel_diff": 0.0037885166322255445,
+        "agreement": "disagree",
+        "note": "sdll01a.comm TEST_RESU NUME_ORDRE=6 VALE_REFE"
+      },
+      "locator": "gitlab.com/codeaster/src tag 17.5.8 astest/sdll01a.comm L186-246"
+    }
+  ],
+  "inputs": {
+    "E_Pa": 200000000000.0,
+    "nu": 0.3,
+    "rho": 7800.0,
+    "L_m": 1.0,
+    "A_m2": 0.02,
+    "Iz_m4": 6.666667e-05,
+    "kappa": 0.8496754239880366
+  }
+}

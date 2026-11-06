@@ -1,0 +1,99 @@
+# TR-61: deal.II step-7: -lap u + u = f on [-1,1]^2 with a three-Gaussian exact solution, mixed BCs
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: TR-61
+class: c
+title: 'deal.II step-7: -lap u + u = f on [-1,1]^2 with a three-Gaussian exact solution, mixed BCs'
+status: unvalidated
+untestable_reason: null
+physics: [transport-reaction]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    domain:
+    - [-1, 1]
+    - [-1, 1]
+    initial_mesh: hyper_cube refined 3x (64 cells)
+materials: null
+bcs:
+- selection: [x = -1, y = -1]
+  type: neumann
+  expr: n . grad u_exact
+- selection: [x = 1, y = 1]
+  type: dirichlet
+  expr: u_exact
+initial: null
+study: {type: stationary}
+references:
+- quantity: L2 error rate, Q1 global refinement
+  value: 2.0
+  unit: '1'
+  tolerance:
+    rule: {type: rate, min: 1.9, note: p + 1}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: deal.II step-7 results, locator: dealii examples/step-7/doc/results.dox L66-97, accessed: '2026-11-06'}
+  extraction: tabulated
+- quantity: H1 error rate, Q2 global refinement
+  value: 2.0
+  unit: '1'
+  tolerance:
+    rule: {type: rate, min: 1.9, note: p}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: deal.II step-7 results, locator: dealii examples/step-7/doc/results.dox L141-172, accessed: '2026-11-06'}
+  extraction: tabulated
+- quantity: L2 error, Q1, 16384 cells
+  value: 0.000766
+  unit: '1'
+  tolerance: {rel: 0.02, note: same mesh family required}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  provenance: {citation: deal.II step-7 results, locator: dealii examples/step-7/doc/results.dox L90, accessed: '2026-11-06'}
+  extraction: tabulated
+- quantity: L2 error, Q2, 16384 cells
+  value: 1.394e-05
+  unit: '1'
+  tolerance: {rel: 0.02}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  provenance: {citation: deal.II step-7 results, locator: dealii examples/step-7/doc/results.dox L165, accessed: '2026-11-06'}
+  extraction: tabulated
+reference_results:
+- Q1_global_L2: [1.84, 0.0357, 0.01192, 0.003047, 0.000766]
+  Q1_global_H1: [2.858, 1.199, 0.7565, 0.3823, 0.1917]
+  Q2_global_L2: [0.1606, 0.007638, 0.0008601, 0.0001107, 1.394e-05]
+  Q2_global_H1: [1.278, 0.5248, 0.1086, 0.02756, 0.006915]
+  cells: [64, 256, 1024, 4096, 16384]
+  locator: dealii examples/step-7/doc/results.dox L66-97, L141-172
+convergence: {levels_min: 3, ratio_min: 2.0, method: rate_fit, expected_order: 2.0}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: 2D scalar FEM; est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: LGPL-2.1-or-later (step-7.cc SPDX); deal.II library Apache-2.0 WITH LLVM-exception OR LGPL-2.1-or-later
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/dealii-step7.yaml}
+missing: []
+assumptions: []
+source_case: {suite: deal.II tutorial, file: examples/step-7, url: github.com/dealii/dealii tag v9.8.0, accessed: '2026-11-06',
+  note: cache/eval-c/sources/dealii/step7_results.dox sha256 c3bc257f32a620c85164473c667aa12ebe3968a350acb5af6c7db301634e2dad}
+notes: ['u_exact = sum_i exp(-|x - x_i|^2 / w^2), x_i = (-0.5, 0.5), (-0.5, -0.5), (0.5, -0.5), w = 1/8 (step-7.cc L115-132);
+    f = -lap u_exact + u_exact; alpha = 1 (L600-606).']
+lane: L7c
+created: '2026-11-06'

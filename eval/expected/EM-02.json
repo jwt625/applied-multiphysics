@@ -1,0 +1,79 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "EM-02",
+  "class": "c",
+  "generator": "validation/c/gen_palace.py",
+  "command": "cd validation && uv run python c/gen_palace.py",
+  "method": "Maxwell capacitance matrix of two conducting spheres in vacuum, Lekner (J. Electrostat. 69, 2011) series as printed in the Palace docs; cosh u = (c^2 - a^2 - b^2)/(2ab).",
+  "generated_at": "2026-11-06T15:57:14-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "C_aa",
+      "value": 1.2305175023308963e-12,
+      "unit": "F",
+      "precision": {
+        "method": "Lekner series",
+        "terms": 18,
+        "tol": 1e-16
+      },
+      "source": {
+        "source_value": "1.230518",
+        "rel_diff": 4.0443870281058744e-07,
+        "agreement": "agree",
+        "note": "palace docs/src/examples/spheres.md L74-80, in pF"
+      },
+      "locator": "palace docs/src/examples/spheres.md L74-80"
+    },
+    {
+      "metric_id": "C_bb",
+      "value": 2.431543115748378e-12,
+      "unit": "F",
+      "precision": {
+        "method": "Lekner series",
+        "terms": 17,
+        "tol": 1e-16
+      },
+      "source": {
+        "source_value": "2.431543",
+        "rel_diff": 4.7602850532950045e-08,
+        "agreement": "agree",
+        "note": "palace docs/src/examples/spheres.md L74-80, in pF"
+      },
+      "locator": "palace docs/src/examples/spheres.md L74-80"
+    },
+    {
+      "metric_id": "C_ab",
+      "value": -4.945667565325716e-13,
+      "unit": "F",
+      "precision": {
+        "method": "Lekner series",
+        "terms": 18,
+        "tol": 1e-16
+      },
+      "source": {
+        "source_value": "-0.4945668",
+        "rel_diff": 8.788990360636249e-08,
+        "agreement": "agree",
+        "note": "palace docs/src/examples/spheres.md L74-80, in pF"
+      },
+      "locator": "palace docs/src/examples/spheres.md L74-80"
+    }
+  ],
+  "inputs": {
+    "a_m": 0.01,
+    "b_m": 0.02,
+    "c_m": 0.05
+  },
+  "source_repo": "awslabs/palace tag v0.19.0 (commit ca9a6a2d1e64a410229c3d7538507e5eae975cc6)"
+}

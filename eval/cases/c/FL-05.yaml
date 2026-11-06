@@ -1,0 +1,66 @@
+# FL-05: NASA TMR 2D zero-pressure-gradient flat plate, SA model, M 0.2, Re 5e6 per unit length
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: FL-05
+class: c
+title: NASA TMR 2D zero-pressure-gradient flat plate, SA model, M 0.2, Re 5e6 per unit length
+status: unvalidated
+untestable_reason: null
+physics: [turbulent]
+dimension: 2D
+units: SI
+geometry:
+  kind: step_ref
+  spec:
+    plate_m: [0, 2]
+    grid_family: TMR 2DZP nested grids, finest 545x385
+materials:
+  air: {source: 'TMR: compressible RANS, M 0.2, Re 5e6 based on unit length (flatplate.html L85-88)'}
+bcs: null
+initial: null
+study: {type: stationary}
+references:
+- quantity: Cf(x = 0.970084071)
+  value: 0.00270562153
+  unit: '1'
+  tolerance: {rel: 0.002, after: richardson, note: CFL3D and FUN3D finest grids differ by 8e-5 relative}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: 'NASA TMR, CFL3D finest grid 545x385 (208896 cells)', locator: tmbwg.github.io/turbmodels/FlatPlate/SA/cf_convergence.dat
+      zone CFL3D row 1, accessed: '2026-11-06'}
+  extraction: tabulated
+- quantity: C_D
+  value: 0.00285985288
+  unit: '1'
+  tolerance: {rel: 0.003, after: richardson}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: 'NASA TMR, CFL3D finest grid', locator: tmbwg.github.io/turbmodels/FlatPlate/SA/drag_convergence.dat
+      zone CFL3D row 1, accessed: '2026-11-06'}
+  extraction: tabulated
+reference_results:
+- {solver: FUN3D finest, Cf: 0.00270540472596778, C_D: 0.002852469}
+- {model: SST (R3), Cf_CFL3D: 0.00269085355, Cf_FUN3D: 0.00269054633, note: not re-checked this round (SST page not fetched)}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: native only (R3 est. 1-10 min)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: CC0-1.0 (TMBWG/turbmodels repository licence)
+  allowed: [cite_values, re_derive_setup, copy_data]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/tmr-flatplate-sa.yaml}
+missing: []
+assumptions: []
+source_case: {suite: NASA TMR, file: flatplate_sa.html, url: tmbwg.github.io/turbmodels (repo TMBWG/turbmodels main 20a39f549dbff988a6accc421ac84dafc4487695),
+  accessed: '2026-11-06', note: cache/eval-c/sources/tmr/flatplate_sa.html sha256 3822c7bf1ddb115cc2826fc6ed409fb21d40871f7ac733d21ce5404f8adf88f1}
+lane: L7c
+created: '2026-11-06'

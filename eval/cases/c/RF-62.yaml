@@ -1,0 +1,80 @@
+# RF-62: EO-atlas K6a: CPW S 20 / W 5 um on an eps_r 11.7 half-space, quasi-static C', n_RF, Z0
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: RF-62
+class: c
+title: 'EO-atlas K6a: CPW S 20 / W 5 um on an eps_r 11.7 half-space, quasi-static C'', n_RF, Z0'
+status: unvalidated
+untestable_reason: null
+physics: [electrostatics, rf-waveguide]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {S_m: 2.0e-05, W_m: 5.0e-06, metal_t_m: 0.0, grounds: semi-infinite, substrate: half-space y < 0}
+materials:
+  substrate: {eps_r: 11.7, source: EO atlas K6a.yaml}
+  air: {eps_r: 1.0, source: K6a.yaml}
+bcs: null
+initial: null
+study: {type: stationary}
+references:
+- quantity: C'
+  metric_id: C_per_length
+  value: 2.1372691933997188e-10
+  unit: F/m
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/RF-62.json, metric_id: C_per_length}
+  provenance: {citation: conformal map (this lane); EO atlas K6a closed form, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md
+      L345; validation/reference/K6a.json closed_form_t0_infinite, accessed: null, generator: validation/c/gen_suites.py}
+- quantity: n_RF
+  metric_id: n_rf
+  value: 2.5199206336708304
+  unit: '1'
+  tolerance: {rel: 1.0e-05, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/RF-62.json, metric_id: n_rf}
+  provenance: {citation: as above, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md L346, accessed: null,
+    generator: validation/c/gen_suites.py}
+- quantity: Z0
+  metric_id: Z0
+  value: 39.32845936007282
+  unit: ohm
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/RF-62.json, metric_id: Z0}
+  provenance: {citation: as above, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md L347, accessed: null,
+    generator: validation/c/gen_suites.py}
+reference_results:
+- {solver: 'EO tier-B P2 FEM, t = 0, R -> inf', C_pF_per_m: 213.729, U: 0.014, Z0_ohm: 39.3282, locator: eo-modulator-atlas
+    DevLog/DevLog-028-open-source-references.md L345-347}
+- {solver: 'EO tier-B P2 FEM, t = 0.1 um, R = 500 um (engine like-for-like)', C_pF_per_m: 214.261, Z0_ohm: 38.9688}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: EO measured 2D ES 0.17-0.32 s at 27-49k nodes (R1 s.3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own work (eo-modulator-atlas); conformal map textbook
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/cpw-halfspace.yaml}
+missing: []
+assumptions: []
+source_case: {suite: eo-modulator-atlas tier B, file: validation/reference/K6a.json, url: 'eo-modulator-atlas (sibling repo,
+    read-only; HEAD 0546007 on 2026-11-06)', accessed: '2026-11-06'}
+lane: L7c
+created: '2026-11-06'

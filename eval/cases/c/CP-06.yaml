@@ -1,0 +1,90 @@
+# CP-06: PZT-4 cube 20 mm, short- and open-circuit breathing modes (Boucher et al. 1981)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: CP-06
+class: c
+title: PZT-4 cube 20 mm, short- and open-circuit breathing modes (Boucher et al. 1981)
+status: untestable
+untestable_reason: PZT-4 stiffness, piezoelectric and permittivity matrices are images on VM175 (not recoverable as text);
+  target is experimental
+activation: PZT-4 constants from an open primary source (e.g. Boucher 1981 Table or a materials datasheet with locator)
+physics: [coupled-piezo, solid-modal]
+dimension: 3D
+units: SI
+geometry:
+  kind: analytic
+  spec: {edge_m: 0.02, polarization: z}
+materials:
+  pzt4: {rho: 7500.0, source: Ansys VM175; matrices N/A}
+bcs: null
+initial: null
+study: null
+references:
+- quantity: f1 short
+  value: 66560.0
+  unit: Hz
+  tolerance: {rel: 0.03, note: measured target (Boucher 1981 Table 1); tolerance proposed}
+  bounds: null
+  basis: P
+  form: paper_measured
+  gate: true
+  provenance: {citation: 'Boucher, Lagier, Maerfeld, IEEE SU-28 (1981) 318, Table 1 via Ansys VM175', locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM175.html,
+      Results Comparison table', accessed: '2026-11-06'}
+  extraction: text
+  note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
+- quantity: f2 short
+  value: 88010.0
+  unit: Hz
+  tolerance: {rel: 0.03, note: measured target (Boucher 1981 Table 1); tolerance proposed}
+  bounds: null
+  basis: P
+  form: paper_measured
+  gate: true
+  provenance: {citation: 'Boucher, Lagier, Maerfeld, IEEE SU-28 (1981) 318, Table 1 via Ansys VM175', locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM175.html,
+      Results Comparison table', accessed: '2026-11-06'}
+  extraction: text
+  note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
+- quantity: f1 open
+  value: 81590.0
+  unit: Hz
+  tolerance: {rel: 0.03, note: measured target (Boucher 1981 Table 1); tolerance proposed}
+  bounds: null
+  basis: P
+  form: paper_measured
+  gate: true
+  provenance: {citation: 'Boucher, Lagier, Maerfeld, IEEE SU-28 (1981) 318, Table 1 via Ansys VM175', locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM175.html,
+      Results Comparison table', accessed: '2026-11-06'}
+  extraction: text
+  note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
+- quantity: f2 open
+  value: 93410.0
+  unit: Hz
+  tolerance: {rel: 0.03, note: measured target (Boucher 1981 Table 1); tolerance proposed}
+  bounds: null
+  basis: P
+  form: paper_measured
+  gate: true
+  provenance: {citation: 'Boucher, Lagier, Maerfeld, IEEE SU-28 (1981) 318, Table 1 via Ansys VM175', locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM175.html,
+      Results Comparison table', accessed: '2026-11-06'}
+  extraction: text
+  note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not estimated; set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Ansys MAPDL Verification Manual page, (c) ANSYS Inc. all rights reserved; target cites the textbook/report
+  allowed: [cite_values]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pzt-cube.yaml}
+missing: ['PZT-4 [c], [e], [eps_r] values']
+assumptions: []
+source_case: {suite: Ansys VM175 (pointer), file: Hlp_V_VM175.html, url: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM175.html,
+  accessed: '2026-11-06'}
+lane: L7c
+created: '2026-11-06'

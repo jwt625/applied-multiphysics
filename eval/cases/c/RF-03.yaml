@@ -1,0 +1,54 @@
+# RF-03: Palace CPW: coplanar waveguide on 500 um C-axis sapphire, characteristic impedance
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: RF-03
+class: c
+title: 'Palace CPW: coplanar waveguide on 500 um C-axis sapphire, characteristic impedance'
+status: unvalidated
+untestable_reason: null
+physics: [rf-waveguide]
+dimension: 2D
+units: SI
+geometry:
+  kind: layer_stack
+  spec: {trace_w_m: 3.0e-05, gap_s_m: 1.8e-05, substrate_t_m: 0.0005, metal: infinitely thin PEC, pair_pitch_m: 0.000266}
+materials:
+  sapphire: {eps_r_parallel_c: 11.5, tan_delta_parallel_c: 8.6e-05, eps_r_perp_c: 9.3, tan_delta_perp_c: 3.0e-05, c_axis: z,
+    source: cpw.md L20-24}
+bcs: null
+initial: null
+study: {type: frequency, f_list: 2D port mode at the 3D model's frequencies (cpw.md); quasi-TEM Z0}
+references:
+- quantity: Z0
+  value: 56.02
+  unit: ohm
+  tolerance: {rel: 0.01, after: richardson, note: source gives 4 digits and a handbook formula (Visser 2012); tolerance proposed
+      (assumption)}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: 'Palace docs, citing H. J. Visser, Antenna Theory and Applications, Wiley 2012', locator: palace
+      docs/src/examples/cpw.md L18-25, accessed: '2026-11-06'}
+  extraction: text
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not estimated; set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Apache-2.0 (Palace code and docs)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/cpw-sapphire.yaml}
+missing: [Visser's exact formula for anisotropic sapphire is not stated in the docs; ground width and enclosure of the 2D
+    cross-section N/A]
+assumptions: []
+source_case: {suite: Palace examples, file: docs/src/examples/cpw.md, url: github.com/awslabs/palace tag v0.19.0 (ca9a6a2d1e64a410229c3d7538507e5eae975cc6),
+  accessed: '2026-11-06', note: cache/eval-c/sources/palace/cpw.md sha256 dfe6c1e8d01d5aa69892a4e156c4ffc351bc02ad45e030fbcbddc89c6e6e1113}
+lane: L7c
+created: '2026-11-06'

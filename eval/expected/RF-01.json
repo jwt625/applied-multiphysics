@@ -1,0 +1,121 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "RF-01",
+  "class": "c",
+  "generator": "validation/c/gen_palace.py",
+  "command": "cd validation && uv run python c/gen_palace.py",
+  "method": "Teflon-filled circular cylinder cavity (a 2.74 cm, d = 2a): mode frequencies, dielectric and conductor Q, formulas as printed in the Palace docs (Pozar).",
+  "generated_at": "2026-11-06T15:57:14-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "f_TM010",
+      "value": 2903636072.3343897,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form, scipy Bessel zero"
+      },
+      "source": {
+        "source_value": "2.903605",
+        "rel_diff": 1.0701295248314224e-05,
+        "agreement": "disagree",
+        "note": "cylinder.md L115 analytic table (GHz)"
+      },
+      "locator": "palace docs/src/examples/cylinder.md L115 (table), L224 (Floquet table 2.903636)",
+      "note": "exact value equals RF-21 (class a, L7a); Palace's L115 entry uses a rounded Bessel zero"
+    },
+    {
+      "metric_id": "f_TE111",
+      "value": 2922197191.014636,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "source": {
+        "source_value": "2.922212",
+        "rel_diff": 5.067731350159378e-06,
+        "agreement": "disagree",
+        "note": "cylinder.md L119 (GHz)"
+      },
+      "locator": "palace docs/src/examples/cylinder.md L119"
+    },
+    {
+      "metric_id": "f_TE011",
+      "value": 5000146299.18556,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "source": {
+        "source_value": "5.000140",
+        "rel_diff": 1.2598018375150826e-06,
+        "agreement": "disagree",
+        "note": "cylinder.md L118 (GHz)"
+      },
+      "locator": "palace docs/src/examples/cylinder.md L118"
+    },
+    {
+      "metric_id": "Q_c_TE011",
+      "value": 29395.11665316677,
+      "unit": "1",
+      "precision": {
+        "method": "Q_c formula cylinder.md L56-62, R_s 0.0184 Ohm"
+      },
+      "source": {
+        "source_value": "2.94e4",
+        "rel_diff": 0.00016610023242280482,
+        "agreement": "agree",
+        "note": "cylinder.md L155"
+      },
+      "locator": "palace docs/src/examples/cylinder.md L150-159 (Pozar Ex. 6.4)"
+    },
+    {
+      "metric_id": "Q_TE011_copper",
+      "value": 2304.045237772176,
+      "unit": "1",
+      "precision": {
+        "method": "1/Q = 1/Q_c + 1/Q_d"
+      },
+      "source": {
+        "source_value": "2.30e3",
+        "rel_diff": 0.001758799031380793,
+        "agreement": "agree",
+        "note": "cylinder.md L151 (Palace computed)"
+      },
+      "locator": "palace docs/src/examples/cylinder.md L150-151"
+    },
+    {
+      "metric_id": "Q_d",
+      "value": 2500.0,
+      "unit": "1",
+      "precision": {
+        "method": "1/tan delta"
+      },
+      "source": {
+        "source_value": "2.50e3",
+        "rel_diff": 0.0,
+        "agreement": "agree",
+        "note": "cylinder.md L135"
+      },
+      "locator": "palace docs/src/examples/cylinder.md L50, L135"
+    }
+  ],
+  "inputs": {
+    "a_m": 0.0274,
+    "d_m": 0.0548,
+    "eps_r": 2.08,
+    "tan_delta": 0.0004,
+    "R_s_ohm": 0.0184
+  },
+  "source_repo": "awslabs/palace tag v0.19.0 (commit ca9a6a2d1e64a410229c3d7538507e5eae975cc6)"
+}

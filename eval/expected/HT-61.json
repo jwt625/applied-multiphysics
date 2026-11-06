@@ -1,0 +1,42 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "HT-61",
+  "class": "c",
+  "generator": "validation/c/gen_suites.py",
+  "command": "cd validation && uv run python c/gen_suites.py",
+  "method": "Poisson -lap u = 1 on (0,1)^2, u = 0 on the boundary; u_max = u(1/2, 1/2) by the double Fourier sine series.",
+  "generated_at": "2026-11-06T15:57:15-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "u_max",
+      "value": 0.07367135328352661,
+      "unit": "1",
+      "precision": {
+        "method": "double sine series, odd m, n <= 4001",
+        "change_vs_half": 1.81372139529401e-11
+      },
+      "source": {
+        "source_value": "0.073657185490792",
+        "rel_diff": 0.00019234773417157907,
+        "agreement": "disagree",
+        "note": "scikit-fem TestEx01 P1 solution on MeshTri().refined(6); FEM, not exact"
+      },
+      "locator": "github.com/kinnala/scikit-fem tag 12.0.2 tests/test_examples.py L12"
+    }
+  ],
+  "inputs": {
+    "f": 1.0,
+    "domain": "(0,1)^2"
+  }
+}

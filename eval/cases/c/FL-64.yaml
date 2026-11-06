@@ -1,0 +1,97 @@
+# FL-64: The Well shear_flow: 2D periodic incompressible shear layers with a passive tracer, Re 1e4-5e5
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: FL-64
+class: c
+title: 'The Well shear_flow: 2D periodic incompressible shear layers with a passive tracer, Re 1e4-5e5'
+status: unvalidated
+untestable_reason: null
+physics: [laminar-ns, transport-diffusion]
+dimension: 2D-periodic
+units: SI
+geometry:
+  kind: dataset_grid
+  spec:
+    nx: 256
+    ny: 512
+    frames: 200
+    t: [0.0, 19.9]
+    x: [0.0, 1.0]
+    y_stored: [0.0, 1.0]
+    fields: [tracer, pressure, velocity (2)]
+    dtype: float32 (time float64)
+materials: null
+bcs: null
+initial: null
+study: {type: transient}
+references:
+- quantity: VRMSE vs stored trajectory at frames 1, 10, last
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.0, 1.0]
+      note: 'sanity bound: VRMSE 1 = predicting the spatial mean (The Well App. E.3); the gate is the own self-convergence
+        floor, set after the first run (R3 s.4)'
+  bounds: null
+  basis: P
+  form: dataset
+  gate: false
+  provenance: {citation: 'Ohana et al., The Well, NeurIPS 2024 Datasets and Benchmarks, arXiv:2412.00568', locator: HF shear_flow
+      README 'About the data'; paper App. E.3 (VRMSE), accessed: '2026-11-06'}
+  note: per field; The Well metric definition
+reference_results: []
+convergence: {method: none, note: 'dataset case: report own self-convergence floor (two finest levels) next to the dataset
+    metric (R3 s.4)'}
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not estimated
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset:
+  name: The Well / shear_flow
+  subset: test
+  metric: VRMSE
+  url: https://huggingface.co/datasets/polymathic-ai/shear_flow
+  license: CC-BY-4.0
+  hf_revision: 1bca59aef4f2167f1d07d875ace6ea8c646d7cce
+  hf_last_modified: '2026-10-19T01:54:00.000Z'
+  n_hdf5_files: 84
+  total_hdf5_bytes: 471171334144
+  file: data/test/shear_flow_Reynolds_1e4_Schmidt_1e-1.hdf5
+  file_bytes: 1694498816
+  hash: sha256:0af4b6bb5bd2a20ed18d22ccad0652d6e61b40deb2859fa6602dcdee11725d2c
+  sample_index: 0
+  frame0: t0_fields/* [0, 0]
+  probe_sidecar: cache/eval-c/the_well-shear_flow/sidecar.json
+  stored_grid:
+    nx: 256
+    ny: 512
+    frames: 200
+    t: [0.0, 19.9]
+    x: [0.0, 1.0]
+    y_stored: [0.0, 1.0]
+    fields: [tracer, pressure, velocity (2)]
+    dtype: float32 (time float64)
+rights:
+  source_license: CC-BY-4.0 (HF dataset card license tag; The Well paper App. A.6); code BSD-3-Clause
+  allowed: [cite_values, re_derive_setup, reference_by_hash]
+  forbidden: [redistribute_data_without_attribution]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/well-shear-flow.yaml}
+missing: []
+assumptions: []
+source_case: {suite: The Well, file: shear_flow README.md + shear_flow.yaml, url: huggingface.co/datasets/polymathic-ai/shear_flow,
+  accessed: '2026-11-06', note: cache/eval-c/sources/hf/shear_flow_README.md sha256 e7540aa03c9c6f9a3293c86e31acb10f3863266555e1a46d5bd943d584cc9e7a}
+notes: ['Equations: u_t + grad p - nu lap u = -u . grad u; s_t - D lap s = -u . grad s; nu = 1/Re, D = nu/Sc', 'Parameters:
+    Re in {1e4, 5e4, 1e5, 5e5}, Sc in {0.1, 0.2, 0.5, 1, 2, 5, 10}; IC indexed by n_shear {2, 4}, n_blobs {2..5}, w {0.25..4}',
+  'Protocol (R3 s.4): load stored frame 0 (and stored coefficient fields), integrate with our solver at a resolution where
+    our own result is converged, compare with the stored trajectory using the dataset metric, report it next to our self-convergence
+    floor (two finest levels).', 'R3 size/grid conflict resolved from the stored arrays (HF revision 1bca59ae, 2026-10-19,
+    v2 rebuild): 256 x 512 per frame, 200 frames, 4 trajectories per file; HF total 471.19 GB over 84 HDF5 files. README still
+    says 128 x 256 and 114.7 GB; metadata yaml says 256 x 512 (and names the scalars ''Rayleigh, Schmidt'', while the file
+    attrs are Reynolds, Schmidt).', 'Stored y runs 0..1; README states -1 <= y <= 1 (flag: coordinates may be rescaled).',
+  'Generator: Dedalus (github.com/RudyMorel/the-well-rbc-sf), single precision.']
+lane: L7c
+created: '2026-11-06'

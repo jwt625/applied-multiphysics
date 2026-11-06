@@ -1,0 +1,75 @@
+# TR-62: PDEBench 1D Burgers, periodic, nu in {0.001 .. 4}
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: TR-62
+class: c
+title: PDEBench 1D Burgers, periodic, nu in {0.001 .. 4}
+status: unvalidated
+untestable_reason: null
+physics: [transport-diffusion]
+dimension: 1D
+units: SI
+geometry:
+  kind: dataset_grid
+  spec: {nx: 1024, frames: 201, t: 0..2 step 0.01, t_coordinate_entries: 202, dtype: float32}
+materials: null
+bcs: null
+initial: null
+study: {type: transient}
+references:
+- quantity: nRMSE vs stored solution
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.0, 1.0]
+      note: 'sanity bound: nRMSE 1 = predicting zero; the gate is the own self-convergence floor (R3 s.4)'
+  bounds: null
+  basis: P
+  form: dataset
+  gate: false
+  provenance: {citation: 'Takamoto et al., PDEBench, NeurIPS 2022 Datasets and Benchmarks, arXiv:2210.07182v7 (2024-08-26)',
+    locator: paper App. D.3 eq. 11-12, accessed: '2026-11-06'}
+  note: PDEBench eq. 4 (App. B)
+reference_results: []
+convergence: {method: none, note: 'dataset case: report own self-convergence floor (two finest levels) next to the dataset
+    metric (R3 s.4)'}
+speed:
+  budget_s: {browser: 0.5, native: null}
+  budget_basis: R3 est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset:
+  name: PDEBench / 1D_Burgers_Nu0.01
+  subset: 1D_Burgers_Sols_Nu0.01.hdf5
+  metric: nRMSE
+  url: https://darus.uni-stuttgart.de/api/access/datafile/281363
+  license: CC BY 4.0
+  file: 1D_Burgers_Sols_Nu0.01.hdf5
+  file_bytes: 8232968312
+  hash: md5:e6d9a4f62baf9a29121a816b919e2770
+  darus_file_id: 281363
+  sample_index: 0
+  frame0: tensor[0, 0]
+  probe_sidecar: cache/eval-c/pdebench-1D_Burgers_Nu0.01/sidecar.json
+  stored_grid: {nx: 1024, frames: 201, t: 0..2 step 0.01, t_coordinate_entries: 202, dtype: float32}
+rights:
+  source_license: CC BY 4.0 (DaRUS dataset licence field); code 'MIT except where otherwise stated' (LICENSE.txt)
+  allowed: [cite_values, re_derive_setup, reference_by_hash]
+  forbidden: [redistribute_data_without_attribution]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pdebench-1d-burgers-nu0p01.yaml}
+missing: []
+assumptions: []
+source_case: {suite: PDEBench, file: 1D_Burgers_Sols_Nu0.01.hdf5, url: 'darus.uni-stuttgart.de doi:10.18419/darus-2986 (dataset
+    version 8.0, released 2024-02-13)', accessed: '2026-11-06', note: cache/eval-c/sources/pdebench/darus.json sha256 e8c0d87ef05bf6f9938d8c63f823142095b93aa3c651fc25d719497453ee380b}
+notes: ['Equations: u_t + (u^2/2)_x = (nu/pi) u_xx, x in (0, 1), t in (0, 2], periodic (paper eq. 11-12)', 'Parameters: nu
+    in {0.001, 0.002, 0.004, 0.01, 0.02, 0.04, 0.1, 0.2, 0.4, 1, 2, 4} (DaRUS file names); IC eq. 8', 'Protocol (R3 s.4):
+    load stored frame 0 (and stored coefficient fields), integrate with our solver at a resolution where our own result is
+    converged, compare with the stored trajectory using the dataset metric, report it next to our self-convergence floor (two
+    finest levels).', 'Probed 1D_Burgers_Sols_Nu0.01.hdf5: tensor [10000, 201, 1024] float32, same coordinates as advection.',
+  'Repo config BurgersEq/config/multi/config.yaml (main 2026) says xL -1, xR 1, dt_save 0.05, epsilon 1e-2: does not match
+    the stored file (x in (0, 1), 201 frames): flag; the stored file is the reference.']
+lane: L7c
+created: '2026-11-06'

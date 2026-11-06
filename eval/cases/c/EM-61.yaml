@@ -1,0 +1,85 @@
+# EM-61: Palace coaxial: micro-coax inductance with superconducting (London) films
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: EM-61
+class: c
+title: 'Palace coaxial: micro-coax inductance with superconducting (London) films'
+status: unvalidated
+untestable_reason: null
+physics: [magnetostatics]
+dimension: [2D-axisym, 3D]
+units: SI
+geometry:
+  kind: analytic
+  spec: {a_m: 8.1915e-07, b_m: 2.7305e-06, length_m: 4.0e-05, note: RG-401/U diameters 0.0645 / 0.215 in read in um (L0 =
+      1e-6)}
+materials:
+  films: {london_depth_m: 4.0e-07, thickness_m: 1.0e-07, source: coaxial.md L133-137}
+bcs:
+- {selection: far_end, type: pec_short}
+- selection: near_end
+  type: surface_current
+  params: {direction: +R, I_A: 1.0}
+- selection: [inner, outer]
+  type: superconductor
+initial: null
+study: {type: stationary}
+references:
+- quantity: L_geom
+  metric_id: L_geom
+  value: 9.631782433335777e-12
+  unit: H
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-61.json, metric_id: L_geom}
+  provenance: {citation: coax geometric inductance, locator: 'palace docs/src/examples/coaxial.md L166-170, L180', accessed: null,
+    generator: validation/c/gen_palace.py}
+- quantity: L_total (lambda 0.4 um, d 0.1 um)
+  metric_id: L_total_london
+  value: 3.0366972281914867e-11
+  unit: H
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-61.json, metric_id: L_total_london}
+  provenance: {citation: Swihart 1961 / Van Duzer-Turner flat-film sheet inductance via Palace docs, locator: 'palace docs/src/examples/coaxial.md
+      L152-170, L181', accessed: null, generator: validation/c/gen_palace.py}
+- quantity: L_kin
+  metric_id: L_kin
+  value: 2.0735189848579086e-11
+  unit: H
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-61.json, metric_id: L_kin}
+  provenance: {citation: as above, locator: palace docs/src/examples/coaxial.md L182, accessed: null, generator: validation/c/gen_palace.py}
+reference_results:
+- {solver: 'Palace (256 hex elements, order 3)', L_geom_pH: 9.6234, L_total_pH: 30.3591, L_kin_pH: 20.7357, locator: palace
+    docs/src/examples/coaxial.md L178-182}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 2.0, native: null}
+  budget_basis: axisym magnetostatics, by analogy with EM-03; est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Apache-2.0 (Palace code and docs)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/micro-coax-london.yaml}
+missing: []
+assumptions: []
+source_case: {suite: Palace examples, file: docs/src/examples/coaxial.md, url: github.com/awslabs/palace tag v0.19.0 (ca9a6a2d1e64a410229c3d7538507e5eae975cc6),
+  accessed: '2026-11-06', note: cache/eval-c/sources/palace/coaxial.md sha256 0dd42c76bf5a3ad6d67e0c5a7962ee83acae22f6b08ff40c68aaf9c7d380ffc2}
+notes: [The expected JSON also holds the lambda sweep 0.025-1.6 um of coaxial.md L223-231 (all agree).]
+lane: L7c
+created: '2026-11-06'

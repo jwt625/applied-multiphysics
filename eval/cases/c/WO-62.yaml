@@ -1,0 +1,67 @@
+# WO-62: MPB triangular lattice, anisotropic rod/hole (r 0.3a): complete 2D band gap
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-62
+class: c
+title: 'MPB triangular lattice, anisotropic rod/hole (r 0.3a): complete 2D band gap'
+status: unvalidated
+untestable_reason: null
+physics: [optics-phc]
+dimension: 2D-periodic
+units: SI
+geometry:
+  kind: analytic
+  spec: {lattice: triangular, rod_radius: 0.3, unit: a}
+materials:
+  rod:
+    eps_diag: [1, 1, 12]
+    source: mpb doc/docs/Python_Tutorial.md L248
+  background:
+    eps_diag: [12, 12, 1]
+    source: mpb doc/docs/Python_Tutorial.md L256
+bcs: null
+initial: null
+study: {type: eigen, n: 8, shift: both polarizations (ms.run)}
+references:
+- quantity: complete gap lower edge (band 2)
+  value: 0.223977612336924
+  unit: 1 (c/a)
+  tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
+      tolerance proposed (assumption)'}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L269, accessed: '2026-11-06'}
+  extraction: text
+- quantity: complete gap upper edge (band 3)
+  value: 0.274704473679751
+  unit: 1 (c/a)
+  tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
+      tolerance proposed (assumption)'}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L269, accessed: '2026-11-06'}
+  extraction: text
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 3.0, native: null}
+  budget_basis: anisotropic, both polarizations; est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/phc-anisotropic.yaml}
+missing: []
+assumptions: []
+source_case: {suite: MPB tutorial, file: doc/docs/Python_Tutorial.md, url: github.com/NanoComp/mpb tag v1.12.0, accessed: '2026-11-06',
+  note: cache/eval-c/sources/mpb/Python_Tutorial.md sha256 beebeb55eabd0e1b7297045377fb505ed56d688c7f246c8fce3363c4b6886001}
+lane: L7c
+created: '2026-11-06'

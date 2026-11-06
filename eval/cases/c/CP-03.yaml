@@ -1,0 +1,84 @@
+# CP-03: Wire with uniform heat generation and surface convection (Rohsenow-Choi ex. 6.5)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: CP-03
+class: c
+title: Wire with uniform heat generation and surface convection (Rohsenow-Choi ex. 6.5)
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond, heat-conv]
+dimension: [1D-axisym, 2D-axisym]
+units: SI
+geometry:
+  kind: analytic
+  spec: {r0_m: 0.009525, length_m: 0.3048}
+materials:
+  wire: {k_W_per_mK: 22.4995506496063, source: 'VM58: 13 Btu/hr-ft-F converted'}
+bcs:
+- selection: surface
+  type: convection
+  params: {h_W_per_m2K: 28.391316688883375, T_inf_K: 294.26111111111106}
+- selection: domain
+  type: heat_source
+  params: {q_W_per_m3: 1152043.498788998}
+initial: null
+study: {type: stationary}
+references:
+- quantity: T_center
+  metric_id: T_center
+  value: 488.6719453208466
+  unit: K
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/CP-03.json, metric_id: T_center}
+  provenance: {citation: closed form; target Rohsenow-Choi 1963 p. 106 ex. 6.5 via VM58, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+- quantity: T_surface
+  metric_id: T_surface
+  value: 487.5105902777777
+  unit: K
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/CP-03.json, metric_id: T_surface}
+  provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+- quantity: q per 1 ft
+  metric_id: q_per_ft
+  value: 100.08377583671476
+  unit: W
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/CP-03.json, metric_id: q_per_ft}
+  provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 0.5, native: null}
+  budget_basis: R3 est. < 0.5 s
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Ansys MAPDL Verification Manual page, (c) ANSYS Inc. all rights reserved; target cites the textbook/report;
+    formula textbook
+  allowed: [cite_values]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/heated-wire.yaml}
+missing: []
+assumptions: []
+source_case: {suite: Ansys VM58 (pointer), file: Hlp_V_VM58.html, url: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
+  accessed: '2026-11-06'}
+notes: ['Targets in degF on the VM58 page: 419.9 / 417.9 F, 341.5 Btu/hr; this case uses SI.']
+lane: L7c
+created: '2026-11-06'

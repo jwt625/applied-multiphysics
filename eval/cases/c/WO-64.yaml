@@ -1,0 +1,59 @@
+# WO-64: Meep holey-waveguide cavity (eps 13, w 1.2, 3+3 holes r 0.36, defect d 1.4): resonance f, Q
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-64
+class: c
+title: 'Meep holey-waveguide cavity (eps 13, w 1.2, 3+3 holes r 0.36, defect d 1.4): resonance f, Q'
+status: unvalidated
+untestable_reason: null
+physics: [optics-phc, rf-resonator]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {wg_width: 1.2, hole_r: 0.36, defect_d: 1.4, holes_per_side: 3, cell_y: 6, pad: 2, pml: 1, unit: a}
+materials:
+  wg: {eps_r: 13.0, source: test_holey_wvg_cavity.py L10}
+bcs: null
+initial: null
+study: {type: transient, t_end: 400, source: 'Gaussian Hz at origin, fcen 0.25, df 0.2; mirror X, Y phase -1'}
+references:
+- quantity: f
+  value: 0.23445415346009466
+  unit: 1 (c/a)
+  tolerance: {rel: 0.005, after: richardson, note: Meep resolution 20 gold; proposed}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: Meep unit test test_resonant_modes, locator: meep python/tests/test_holey_wvg_cavity.py L66-73, accessed: '2026-11-06'}
+  extraction: text
+- quantity: Q
+  value: 372.40808234438254
+  unit: '1'
+  tolerance: {rel: 0.1}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  provenance: {citation: Meep unit test, locator: meep python/tests/test_holey_wvg_cavity.py L69, accessed: '2026-11-06'}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 10.0, native: null}
+  budget_basis: FDTD; est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/meep-holey-cavity.yaml}
+missing: []
+assumptions: []
+source_case: {suite: Meep tests, file: python/tests/test_holey_wvg_cavity.py, url: github.com/NanoComp/meep tag v1.35.1, accessed: '2026-11-06',
+  note: cache/eval-c/sources/meep/test_holey_wvg_cavity.py sha256 b2057f2a125d269ba687dfb69c957bef641a0f3e25deeec3608564d92dfd8fd5}
+lane: L7c
+created: '2026-11-06'

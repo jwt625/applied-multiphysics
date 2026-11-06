@@ -174,3 +174,8 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - C5: `@amp/post` exports `sample(solution, field, points)` returning values at points, used for probe and field targets. L4 implements it.
   - Units not yet supported: `lbf` and non-SI length units in case statements. Cases restate them in SI (L7a: SM-21).
 - 2026-11-06 16:0x PST, from the L2 audit (DevLog/audits/2026-11-06-L2-spec-audit.md): operation log v1 work (id-anchored array paths, guarded inverses, replay recomputes derived fields, external head hash) is assigned back to L2. It is a dependency of L9 (agent).
+- 2026-11-06 16:1x PST, from L7c (DevLog-008):
+  - The rights tags `copy_with_attribution` and `reference_by_hash` are accepted.
+  - FL-61 (Turek-Hron CFD1) stays class c: the values come from the FEATFLOW software benchmark pages.
+  - A dataset adapter (The Well / PDEBench: start from the stored frame, integrate, VRMSE/nRMSE against our own convergence floor) is assigned to L8 in a later pass. Dataset targets stay `gate: false` until then.
+  - validation/ gains devsim 2.11.2, requests, h5py and jsonschema.

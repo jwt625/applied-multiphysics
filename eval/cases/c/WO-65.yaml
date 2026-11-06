@@ -1,0 +1,77 @@
+# WO-65: EO-atlas K1: Si strip 500 x 220 nm in SiO2, 1550 nm, TE0 n_eff (vector FEM, femwell formulation)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-65
+class: c
+title: 'EO-atlas K1: Si strip 500 x 220 nm in SiO2, 1550 nm, TE0 n_eff (vector FEM, femwell formulation)'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    core_um: [0.5, 0.22]
+    window_um:
+    - [-2, 2]
+    - [-2, 2]
+    case_file: eo-modulator-atlas validation/cases/K1.yaml (sha256 8e4c4fe2...)
+materials:
+  si: {n: 3.477723756, source: EO atlas K1.yaml (Salzberg-Tatian fit)}
+  sio2: {n: 1.444023622, source: EO atlas K1.yaml (Malitson fit)}
+bcs:
+- {selection: window, type: pec}
+initial: null
+study: {type: eigen, n: 6, shift: 2.45}
+references:
+- quantity: n_eff TE0
+  value: 2.44722338
+  unit: '1'
+  tolerance: {abs: 2.0e-06, after: richardson, note: fixture U 5.9e-7 (safety 3); window PEC at +-2 um}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  provenance: {citation: 'EO atlas tier-B reference (eoref.fmode N2/P2, femwell formulation)', locator: 'eo-modulator-atlas
+      DevLog/DevLog-028-open-source-references.md L307; validation/reference/K1-fem.json extrapolated.n_eff (f_ext 2.447223377761226,
+      U 5.86e-7)', accessed: '2026-11-06'}
+  extraction: tabulated
+- quantity: ng (energy)
+  value: 4.19616697
+  unit: '1'
+  tolerance: {abs: 3.0e-06, after: richardson}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  provenance: {citation: EO atlas tier-B, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md L308; K1-fem.json
+      extrapolated.ng_energy, accessed: '2026-11-06'}
+  extraction: tabulated
+reference_results:
+- {solver: tidy3d local mode solver (sanity only), n_eff: 2.44655, U: 0.036, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md
+    L310-311}
+- solver: EO audit independent solver
+  n_eff_range: [2.4472236, 2.4472239]
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: EO measured vector modes 0.25-0.39 s at 32-56k DOF (Node); R1 s.3
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own work (Wentao Jiang, eo-modulator-atlas; engine GPL-3.0-or-later; validation/ has no separate licence)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: [copy_text_without_attribution]
+hero:
+  suitable: true
+  why: H4 Si waveguide modes
+  visual: [E_vector, intensity]
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/si-strip-te0.yaml}
+missing: []
+assumptions: []
+source_case: {suite: eo-modulator-atlas tier B, file: validation/reference/K1-fem.json, url: 'eo-modulator-atlas (sibling
+    repo, read-only; HEAD 0546007 on 2026-11-06)', accessed: '2026-11-06'}
+lane: L7c
+created: '2026-11-06'

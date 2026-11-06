@@ -1,0 +1,76 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "EM-03",
+  "class": "c",
+  "generator": "validation/c/gen_palace.py",
+  "command": "cd validation && uv run python c/gen_palace.py",
+  "method": "Inductance matrix of two coplanar concentric rings, formulas and inputs as printed in the Palace docs (approximate: thin ring, r_a << r_b); exact filament-loop M_ab recorded.",
+  "generated_at": "2026-11-06T15:57:14-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "M_ab",
+      "value": 1.9739208799572496e-12,
+      "unit": "H",
+      "precision": {
+        "method": "closed form mu0 pi r_a^2 / (2 r_b) (r_a << r_b, w = 0)"
+      },
+      "source": {
+        "source_value": "1.973921",
+        "rel_diff": 6.081436410406906e-08,
+        "agreement": "agree",
+        "note": "palace docs/src/examples/rings.md L73-83, in pH"
+      },
+      "locator": "palace docs/src/examples/rings.md L73-83",
+      "exact_filament_loops": 1.981369687046371e-12,
+      "approx_vs_exact_rel": -0.0037594231595544435,
+      "note": "rings.md L29 prints mu0 pi r_b^2 / (2 r_a); the printed value 1.973921 pH equals mu0 pi r_a^2 / (2 r_b): typo in the docs formula, value consistent with the correct form"
+    },
+    {
+      "metric_id": "L_aa",
+      "value": 4.1785366513873915e-11,
+      "unit": "H",
+      "precision": {
+        "method": "thin-ring self inductance mu0 r (ln(16 r / w) - 1.75)"
+      },
+      "source": {
+        "source_value": "41.78537",
+        "rel_diff": 8.342934579540333e-08,
+        "agreement": "agree",
+        "note": "palace docs/src/examples/rings.md L73-83, in pH"
+      },
+      "locator": "palace docs/src/examples/rings.md L73-83"
+    },
+    {
+      "metric_id": "L_bb",
+      "value": 7.072050415971537e-10,
+      "unit": "H",
+      "precision": {
+        "method": "thin-ring self inductance mu0 r (ln(16 r / w) - 1.75)"
+      },
+      "source": {
+        "source_value": "707.2050",
+        "rel_diff": 5.881908874235655e-08,
+        "agreement": "agree",
+        "note": "palace docs/src/examples/rings.md L73-83, in pH"
+      },
+      "locator": "palace docs/src/examples/rings.md L73-83"
+    }
+  ],
+  "inputs": {
+    "r_a_m": 1e-05,
+    "r_b_m": 0.0001,
+    "w_m": 1e-06
+  },
+  "source_repo": "awslabs/palace tag v0.19.0 (commit ca9a6a2d1e64a410229c3d7538507e5eae975cc6)"
+}

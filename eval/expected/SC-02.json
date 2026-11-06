@@ -1,0 +1,115 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "SC-02",
+  "class": "c",
+  "generator": "validation/c/gen_devsim.py",
+  "command": "cd validation && uv run --with devsim==2.11.2 --with requests python c/gen_devsim.py",
+  "method": "DEVSIM 1D abrupt Si pn diode (examples/diode/diode_1d.py: N_A = N_D = 1e18 cm^-3, 1e-5 cm, SRH tau 1e-8 s, Scharfetter-Gummel), DC sweep 0.1-0.5 V; total current density at contact 'top' (DEVSIM cm-based units; 1D device, so A/cm^2).",
+  "generated_at": "2026-11-06T15:57:15-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06",
+    "devsim": "2.11.2"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "J_top_0.1V",
+      "value": 1.1592313132996793e-07,
+      "unit": "A/cm^2",
+      "precision": {
+        "method": "DEVSIM diode_1d.py re-run, unmodified",
+        "golden_rel_diff": 1.1416953328474332e-16
+      },
+      "source": {
+        "source_value": "1.1592313132996792e-07",
+        "rel_diff": 1.1416953328474332e-16,
+        "agreement": "disagree",
+        "note": "golden diode_1d.out, total current at contact top"
+      },
+      "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.1'",
+      "bias_V": 0.1
+    },
+    {
+      "metric_id": "J_top_0.2V",
+      "value": 1.136336617995751e-06,
+      "unit": "A/cm^2",
+      "precision": {
+        "method": "DEVSIM diode_1d.py re-run, unmodified",
+        "golden_rel_diff": 0.0
+      },
+      "source": {
+        "source_value": "1.136336617995751e-06",
+        "rel_diff": 0.0,
+        "agreement": "agree",
+        "note": "golden diode_1d.out, total current at contact top"
+      },
+      "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.2'",
+      "bias_V": 0.2
+    },
+    {
+      "metric_id": "J_top_0.3V",
+      "value": 1.5931460769419148e-05,
+      "unit": "A/cm^2",
+      "precision": {
+        "method": "DEVSIM diode_1d.py re-run, unmodified",
+        "golden_rel_diff": 2.1266924847976322e-16
+      },
+      "source": {
+        "source_value": "1.593146076941915e-05",
+        "rel_diff": 2.1266924847976322e-16,
+        "agreement": "agree",
+        "note": "golden diode_1d.out, total current at contact top"
+      },
+      "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.30000000000000004'",
+      "bias_V": 0.30000000000000004
+    },
+    {
+      "metric_id": "J_top_0.4V",
+      "value": 0.00044875293238027603,
+      "unit": "A/cm^2",
+      "precision": {
+        "method": "DEVSIM diode_1d.py re-run, unmodified",
+        "golden_rel_diff": 2.41603362174076e-16
+      },
+      "source": {
+        "source_value": "0.0004487529323802759",
+        "rel_diff": 2.41603362174076e-16,
+        "agreement": "disagree",
+        "note": "golden diode_1d.out, total current at contact top"
+      },
+      "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.4'",
+      "bias_V": 0.4
+    },
+    {
+      "metric_id": "J_top_0.5V",
+      "value": 0.018155155173288445,
+      "unit": "A/cm^2",
+      "precision": {
+        "method": "DEVSIM diode_1d.py re-run, unmodified",
+        "golden_rel_diff": 7.643992945999581e-16
+      },
+      "source": {
+        "source_value": "0.01815515517328843",
+        "rel_diff": 7.643992945999581e-16,
+        "agreement": "disagree",
+        "note": "golden diode_1d.out, total current at contact top"
+      },
+      "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.5'",
+      "bias_V": 0.5
+    }
+  ],
+  "devsim_commit": "e3a25f08c7f17cc6932624c12bf9f0f10d7f7cfd",
+  "golden_commit": "85e6e1f200374e1e69bb156bc640390b783da6ac",
+  "files_sha256": {
+    "diode_1d.py": "66a60784e9a54644b6186828343a6101228d13a4e4a0ab007e17aee0992f9cd8",
+    "diode_common.py": "5fb7a95c08165627bffd33ca97755ef206de49ee7f550c91023294de3486e772",
+    "diode_1d.golden.out": "d73bc236345a898f379a29d74fcbf5d899faaa3f9f63d2ea0fd302a2f10b0c7d"
+  }
+}

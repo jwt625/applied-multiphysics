@@ -1,0 +1,87 @@
+# FL-61: Turek-Hron CFD1: steady flow past a cylinder with a rigid flag, Re 20 (FEATFLOW finest level)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: FL-61
+class: c
+title: 'Turek-Hron CFD1: steady flow past a cylinder with a rigid flag, Re 20 (FEATFLOW finest level)'
+status: unvalidated
+untestable_reason: null
+physics: [laminar-ns]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    channel_m: [2.5, 0.41]
+    cylinder:
+      center_m: [0.2, 0.2]
+      radius_m: 0.05
+    flag:
+      length_m: 0.35
+      height_m: 0.02
+      right_bottom_corner_m: [0.6, 0.19]
+      rigid: true
+  note: same geometry as class-b CP-07 (L7b), FEATFLOW FSI definitions page
+materials:
+  fluid: {rho: 1000.0, nu: 0.001, source: FEATFLOW CFD tests parameter table (L135-141)}
+bcs:
+- selection: inlet
+  type: velocity
+  expr: (1.5*Ubar*y*(H-y)/(H/2)^2, 0)
+  params: {Ubar: 0.2, H: 0.41}
+- {selection: outlet, type: do_nothing}
+- selection: [walls, cylinder, flag]
+  type: no_slip
+initial: null
+study: {type: stationary}
+references:
+- quantity: drag force
+  value: 14.2929
+  unit: N/m
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: P
+  form: benchmark
+  gate: true
+  provenance: {citation: Turek-Hron 2006 CFD1 via FEATFLOW 'CFD tests' page, locator: 'wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_tests/fsi_cfd_tests.html
+      ''Results for CFD1'', level 6+0 row (L190)', accessed: '2026-11-06'}
+  extraction: tabulated
+  note: reference row 'ref.' gives 14.29
+- quantity: lift force
+  value: 1.11905
+  unit: N/m
+  tolerance: {rel: 0.002, after: richardson}
+  bounds: null
+  basis: P
+  form: benchmark
+  gate: true
+  provenance: {citation: Turek-Hron 2006 CFD1 via FEATFLOW, locator: wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_tests/fsi_cfd_tests.html
+      level 6+0 row (L190), accessed: '2026-11-06'}
+  extraction: tabulated
+  note: reference row 'ref.' gives 1.119
+reference_results:
+- FEATFLOW_levels:
+    4+0: [14.2919, 1.11896]
+    5+0: [14.2927, 1.11904]
+    6+0: [14.2929, 1.11905]
+  ndof_6+0: 11225600
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 10.0, native: null}
+  budget_basis: 2D steady NS; R3 FL-03 2-10 s; est.
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: open web page, no terms stated; Turek-Hron 2006 (Springer LNCSE 53) paywalled
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/turek-hron-cfd1.yaml}
+missing: []
+assumptions: []
+source_case: {suite: FEATFLOW benchmarks, file: fsi_tests/fsi_cfd_tests.html, url: wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_tests/fsi_cfd_tests.html,
+  accessed: '2026-11-06', note: www.featflow.de fails TLS from this machine; TU Dortmund host used (as L7b); cache/eval-c/sources/featflow/cfd.html
+    sha256 2ceafaa5edfa933f8f87c5caf38c394af527bf6e87f59b668e803f9ed8af4aa0}
+lane: L7c
+created: '2026-11-06'
