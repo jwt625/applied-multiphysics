@@ -1,0 +1,29 @@
+{
+  "name": "@amp/mesh",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "2D constrained-Delaunay quality mesher (EO port), structured hex grid and layered prism/tet meshers (APA ports), revolve sweep, quality metrics, P2, mesh hash (C2)",
+  "exports": {
+    ".": "./src/index.ts",
+    "./spec": "./src/spec.ts"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/*.test.ts",
+    "check": "tsc -p . --noEmit",
+    "gates": "nice -n 10 node --max-old-space-size=1536 bench/hero-gates.ts"
+  },
+  "dependencies": {
+    "@amp/geom": "workspace:*",
+    "@amp/spec": "workspace:*",
+    "robust-predicates": "3.0.3"
+  },
+  "devDependencies": {
+    "@loumalouomega/mmg-wasm": "0.1.0",
+    "@types/node": "24.19.2",
+    "float-tetwild-wasm": "0.2.0",
+    "manifold-3d": "3.5.4",
+    "typescript": "5.9.3"
+  }
+}

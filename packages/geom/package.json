@@ -1,0 +1,25 @@
+{
+  "name": "@amp/geom",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "2D sketch + CSG with persistent entity IDs, axisymmetric flag, layered extrude and revolve entity tables",
+  "exports": {
+    ".": "./src/index.ts",
+    "./spec": "./src/spec.ts"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/*.test.ts",
+    "check": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "@amp/spec": "workspace:*",
+    "robust-predicates": "3.0.3",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  }
+}

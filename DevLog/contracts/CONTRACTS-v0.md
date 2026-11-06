@@ -161,3 +161,10 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - C9 gains the optional members `grid`, `views`, `setView`, `setParams`, `paint`, `overlay` and `info`, defined in `packages/rt/src`.
   - The grid gains an optional `lengthUnit` (Gray-Scott uses model units).
   - Eval readback names are listed in DevLog-005 s.7; L8 may wrap the `@amp/rt` gates directly.
+- 2026-11-06 16:0x PST, coordinator decisions on L3's requests (DevLog-004 s.5):
+  1. L3's optional C2 fields move into `@amp/spec` types in the contracts-v1 pass at the end of wave 1. Until then they live in `@amp/mesh` and are documented there.
+  2. Mixed facet shapes: `facets2` stays for wave 1. Contracts v1 changes C2 `facets` to an array of blocks `{type, conn, boundary}[]`, and the migration happens in one pass across mesh, physics and web.
+  3. `Mesh.tagHash` (optional) is added, hashing entity tags and boundary assignment. RunRecord gains an optional `tagHash`. `hash` keeps its meaning (geometry + connectivity).
+  4. Approved: `zod` and `@amp/spec` as dependencies of the `@amp/geom/spec` and `@amp/mesh/spec` subpaths only. Core geom/mesh stays free of the spec dependency.
+  5. `mesh.size.grading` = maximum ratio of size growth per unit distance (L3 mapping), to be documented in the spec schema description (contracts v1).
+  6. Selections match split pieces: selecting `dom:X` selects every `dom:X#k` (expansion via parent links). Readiness messages report the expansion so the user sees which pieces were included.

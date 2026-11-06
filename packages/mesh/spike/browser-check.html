@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><title>pending</title><pre id="o">pending</pre>
+<script type="module">
+const w = new Worker('./browser-worker.mjs', { type: 'module' });
+w.onmessage = (e) => { if (e.data.progress) { console.log('PROGRESS ' + e.data.progress); return; } console.log('RESULT ' + JSON.stringify(e.data)); document.getElementById('o').textContent = 'RESULT ' + JSON.stringify(e.data); document.title = 'done'; };
+w.onerror = (e) => { console.log('WORKERERROR ' + e.message); document.getElementById('o').textContent = 'RESULT ' + JSON.stringify({ workerError: e.message }); };
+</script>
