@@ -1,0 +1,58 @@
+schema: amp-eval/0
+id: CP-01
+class: b
+title: Differentially heated square cavity (de Vahl Davis), air Pr 0.71, mean Nusselt number at Ra 10^4-10^6
+status: unvalidated
+untestable_reason: null
+physics: [coupled-heat-ns]
+dimension: 2D
+units: SI
+source:
+  citation: "G. de Vahl Davis, Natural convection of air in a square cavity: a bench mark numerical solution, Int. J. Numer. Meth. Fluids 3(3), 249-264 (1983)"
+  doi: 10.1002/fld.1650030305
+  open_access: false
+  open_copy: null
+  retabulation:
+    - {where: "T. Gjesdal, C. E. Wasberg, O. Andreassen, Spectral element simulations of buoyancy-driven flow, arXiv physics/0305049 (2003), Table 1 (de Vahl Davis and Hortmann et al. 1990 rows)", url: "https://arxiv.org/pdf/physics/0305049", cache: cache/eval-b/devahldavis-retab/arxiv-physics-0305049.pdf, sha256: f422f19dc4ccad541e05d40843440e3df273cb2bc9dac272576c1b26378a24ab, licence: "arXiv non-exclusive distribution licence"}
+    - {where: "P. Lallemand, F. Dubois, Comparison of simulations of convective flows, arXiv 1401.0188v2 (2018), Table 1 (de Vahl Davis and Le Quere 1991 columns)", url: "https://arxiv.org/pdf/1401.0188", cache: cache/eval-b/devahldavis-retab/arxiv-1401.0188.pdf, sha256: 5f8762f9c6dc90715b9e939c5f25f8ec61a43572fef4ef5c4f23a32eb10b3354, licence: "arXiv non-exclusive distribution licence"}
+  secondary_references:
+    - {citation: "M. Hortmann, M. Peric, G. Scheuerer, Finite volume multigrid prediction of laminar natural convection: bench-mark solutions, Int. J. Numer. Meth. Fluids 11, 189-207 (1990)", doi: N/A, open_access: false}
+    - {citation: "P. Le Quere, Accurate solutions to the square thermally driven cavity at high Rayleigh number, Computers & Fluids 20, 29-41 (1991)", doi: N/A, open_access: false}
+geometry:
+  kind: analytic
+  spec: {cavity: "unit square, side L", gravity: "-y"}
+  symmetry: none
+materials:
+  fluid: {model: boussinesq, Pr: 0.71, Ra: [1.0e+4, 1.0e+5, 1.0e+6], source: "Gjesdal et al. arXiv physics/0305049 p.6 (problem statement)"}
+bcs:
+  - {selection: left, type: temperature, expr: "T_hot"}
+  - {selection: right, type: temperature, expr: "T_cold"}
+  - {selection: [top, bottom], type: insulated}
+  - {selection: all_walls, type: no_slip}
+initial: null
+study: {type: parametric, param: Ra, values: [1.0e+4, 1.0e+5, 1.0e+6], each: stationary}
+references:
+  - {quantity: Nu_mean, case: {Ra: 1.0e+4}, definition: "mean Nusselt number of the hot wall (equals the global heat-flux Nusselt number at steady state)", value: 2.245, unit: "1", tolerance: {rel: 2.0e-3, after: richardson, note: "proposed (assumption)"}, basis: S, form: paper_sim, extraction: tabulated, provenance: {citation: "Hortmann et al. 1990 via Gjesdal et al. 2003 Table 1", locator: "arXiv physics/0305049v1 p.7, Table 1, row 'Hortmann et al.'", accessed: 2026-11-06}}
+  - {quantity: Nu_mean, case: {Ra: 1.0e+5}, definition: "as above", value: 4.522, unit: "1", tolerance: {rel: 2.0e-3, after: richardson, note: "proposed (assumption)"}, basis: S, form: paper_sim, extraction: tabulated, provenance: {citation: "Hortmann et al. 1990 via Gjesdal et al. 2003 Table 1", locator: "arXiv physics/0305049v1 p.7, Table 1", accessed: 2026-11-06}}
+  - {quantity: Nu_mean, case: {Ra: 1.0e+6}, definition: "as above", value: 8.8252, unit: "1", tolerance: {rel: 2.0e-3, after: richardson, note: "proposed (assumption)"}, basis: S, form: paper_sim, extraction: tabulated, provenance: {citation: "Le Quere 1991 via Lallemand-Dubois Table 1 (Hortmann et al. 1990: 8.825, Gjesdal Table 1)", locator: "arXiv 1401.0188v2 p.15, Table 1, column 'Le Quere'", accessed: 2026-11-06}}
+reference_results:
+  - {solver: "de Vahl Davis 1983 (extrapolated)", Nu_mean: {Ra_1e4: 2.243, Ra_1e5: 4.519, Ra_1e6: 8.800}, locator: "arXiv physics/0305049v1 p.7 Table 1; arXiv 1401.0188v2 p.15 Table 1 (4.519, 8.800)"}
+  - {solver: "Gjesdal et al. 2003, spectral element", Nu_mean: {Ra_1e4: 2.245, Ra_1e5: 4.522, Ra_1e6: 8.825}, locator: "arXiv physics/0305049v1 p.7 Table 1"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no Boussinesq heat + Navier-Stokes coupling yet (C8)"}
+rights:
+  source_license: "de Vahl Davis 1983 Wiley (paywalled); values via arXiv preprints"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: true, why: "R3 hero H10", visual: [temperature, streamlines]}
+missing:
+  - {input: "de Vahl Davis Ra 10^3 Nu, u_max / v_max with locations, Nu_max / Nu_min (original tables)", assumption: "not gated. The R3 digits came from a noisy OCR of a secondary scan and are dropped; no clean open re-tabulation found on 2026-11-06 (arXiv physics/0305049, arXiv 1401.0188, CONEM 2002 CPB0347 checked; Cardinal V&V page returned HTTP 403, not retried). Original on the manual-download list"}
+  - {input: "velocity scale of the reference velocity maxima (alpha / L in de Vahl Davis)", assumption: "not needed for the Nu gate"}
+assumptions:
+  - "Gate on the more accurate later solutions (Hortmann 1990 at 1.0e+4, 1.0e+5; Le Quere 1991 at 1.0e+6); de Vahl Davis 1983 values are reference results (they differ by 0.1-0.3 %)."

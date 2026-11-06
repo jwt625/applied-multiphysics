@@ -1,0 +1,77 @@
+schema: amp-eval/0
+id: CP-42
+class: b
+title: Si optomechanical crystal nanobeam (Eichenfield et al. 2009, Device 1), breathing-mode ladder frequencies
+status: unvalidated
+untestable_reason: null
+physics: [solid-modal, coupled-optomech]
+dimension: 3D
+units: SI
+source:
+  citation: "M. Eichenfield, J. Chan, R. M. Camacho, K. J. Vahala, O. Painter, Optomechanical crystals, Nature 462, 78-82 (2009)"
+  doi: 10.1038/nature08524
+  open_access: true
+  open_copy: {url: "https://arxiv.org/pdf/0906.1236", version: "arXiv 0906.1236 (includes appendices)", cache: cache/eval-b/eichenfield-2009/eichenfield-2009.pdf, sha256: be720061809df35165ae580e6375b0720e84bee70dbc66c490b4cef33567c94f, licence: "arXiv non-exclusive distribution licence"}
+geometry:
+  kind: analytic
+  spec: {lattice_nm: 362, width_nm: 1396, hole_hy_nm: 992, hole_hx_nm: 190, thickness_nm: 220, n_defect_holes: 15, n_total_holes: 75, defect: "lattice constant decreases quadratically to 85 % of 362 nm for the two holes straddling the central cross-bar", holes: "rectangles with two filleted ends (fillet radii not stated)"}
+  symmetry: "x, y, z mirror"
+  source: "arXiv p.1 Fig. 1 caption; p.7 appendix (geometry approximation)"
+materials:
+  silicon_isotropic_fit: {E: 168.5e+9, n_optical: 3.493, source: "arXiv p.7 appendix C.2: E and n tuned so the fundamental optical mode and fundamental breathing mode match measurement"}
+bcs:
+  - {selection: beam_ends, type: fixed, expr: "clamped to the pads (assumption)"}
+initial: null
+study: {type: eigen, n: 5, note: "breathing-mode family near 2.25 GHz"}
+references:
+  - quantity: f_breathing_modes
+    definition: "simulated frequencies of breathing modes 1-5 (Table I, untilded column)"
+    at: {mode: [1, 2, 3, 4, 5]}
+    value: [2.254e+9, 2.275e+9, 2.294e+9, 2.322e+9, 2.369e+9]
+    unit: Hz
+    tolerance: {rel: 5.0e-3, note: "proposed (assumption). Mode 1 is fitted (E tuned to it), so modes 2-5 relative to mode 1 are the informative part"}
+    basis: P
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Eichenfield et al. 2009", locator: "arXiv p.9, Table I, column nu_m (simulated; tilde = measured)", accessed: 2026-11-06}
+  - quantity: m_eff_breathing_modes
+    definition: "simulated motional mass, modes 1-5 (max |Q| normalization, appendix D)"
+    at: {mode: [1, 2, 3, 4, 5]}
+    value: [329.0e-18, 399.0e-18, 628.0e-18, 704.0e-18, 665.0e-18]
+    unit: kg
+    tolerance: {rel: 1.0e-1, note: "proposed (assumption)"}
+    basis: P
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Eichenfield et al. 2009", locator: "arXiv p.9, Table I, column m_eff (fg)", accessed: 2026-11-06}
+  - quantity: f_breathing_modes_measured
+    definition: "measured frequencies, modes 1-5 (tilded column)"
+    at: {mode: [1, 2, 3, 4, 5]}
+    value: [2.254e+9, 2.270e+9, 2.290e+9, 2.326e+9, 2.361e+9]
+    unit: Hz
+    tolerance: {rel: 5.0e-3, note: "informative"}
+    gate: false
+    basis: P
+    form: paper_measured
+    extraction: tabulated
+    provenance: {citation: "Eichenfield et al. 2009", locator: "arXiv p.9, Table I, column nu~_m", accessed: 2026-11-06}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no 3D elastic eigen module yet (C8)"}
+rights:
+  source_license: "Nature version paywalled; arXiv preprint open"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "3D, native", visual: [displacement]}
+missing:
+  - {input: "per-hole measured geometry in the defect region (from SEM line scans, not tabulated)", assumption: "ideal quadratic taper of the lattice constant with the nominal hole size; expect percent-level frequency offsets (est.)"}
+  - {input: "Poisson ratio and density of the isotropic Si model", assumption: "materials-package values with source (to be recorded); state them in the run record"}
+  - {input: "fillet radii, cross-bar width, pad geometry", assumption: "semicircular hole ends (fillet radius = hx/2); pads as clamped ends"}
+assumptions:
+  - "Optical-mode wavelengths in Fig. 2 are not gated."

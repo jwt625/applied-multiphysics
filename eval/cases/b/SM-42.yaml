@@ -1,0 +1,55 @@
+schema: amp-eval/0
+id: SM-42
+class: b
+title: JOINT2 120 x 120 mm substrate with SUS430 stiffener, paper FEM warpage at 260 C vs stiffener footprint (advanced-packaging-atlas C/ectc51529.2024.00155-fem)
+status: unvalidated
+untestable_reason: null
+physics: [solid-thermal-stress]
+dimension: 3D
+units: SI
+source:
+  citation: "K. Hirano et al. (Consortium JOINT2, Resonac), Study of fabrication and reliability for 120 mm x 120 mm extremely large advanced 2.5D package, Proc. IEEE ECTC 2024"
+  doi: 10.1109/ectc51529.2024.00155
+  open_access: false
+  open_copy: null
+  atlas_ref: {repo: advanced-packaging-atlas, path: validation/cases/C/ectc51529.2024.00155-fem.yaml, id: C/ectc51529.2024.00155-fem, commit: d12ff46, sim_case: "sims/si_interposer_peers/120mm_warpage (atlas)"}
+geometry:
+  kind: layer_stack
+  spec: {ref: "advanced-packaging-atlas sims/si_interposer_peers/120mm_warpage; 120 x 120 mm substrate, SUS430 stiffener 2.0 mm thick, stiffener X x Y widths 23 x 25, 28 x 30, 34 x 36 mm (atlas model_facts, paper p.3 Sec. II.E, Fig. 1)"}
+  symmetry: "quarter (assumption, symmetric stack)"
+materials:
+  stack: {source: "paper p.3 Table IV (E / CTE / Tg per material), via the atlas case model_facts; substrate CTE A 11.97, B 12.81 ppm/C (atlas TV rows)"}
+bcs:
+  - {selection: substrate_bottom_centre, type: rigid_body_suppression}
+  - {selection: all, type: thermal_load, expr: "uniform 260 C (paper 'top temperature 260 C'); stress-free temperature N/A (see missing)"}
+initial: null
+study: {type: parametric, param: variant, values: [subA_23x25, subA_28x30, subA_34x36, subB_23x25, subB_28x30, subB_34x36], each: stationary}
+references:
+  - {quantity: warpage, case: {variant: subA_23x25}, definition: "package warpage magnitude at 260 C (paper Fig. 12 bar; definition and sign N/A)", value: 263.0e-6, unit: m, tolerance: {abs: 10.0e-6, note: "atlas tier-C tolerance max(10 um, 10 %); figure read at +-5 um in the atlas"}, basis: P, form: paper_sim, extraction: digitized, provenance: {citation: "Hirano 2024 via advanced-packaging-atlas", locator: "paper p.5 Fig. 12; atlas metric ectc51529.2024.00155-g-m1", accessed: 2026-11-06}}
+  - {quantity: warpage, case: {variant: subA_28x30}, definition: "as above", value: 247.0e-6, unit: m, tolerance: {abs: 10.0e-6, note: "atlas max(10 um, 10 %)"}, basis: P, form: paper_sim, extraction: digitized, provenance: {citation: "Hirano 2024 via atlas", locator: "paper p.5 Fig. 12; atlas metric ectc51529.2024.00155-a-m23", accessed: 2026-11-06}}
+  - {quantity: warpage, case: {variant: subA_34x36}, definition: "as above", value: 216.0e-6, unit: m, tolerance: {abs: 10.0e-6, note: "atlas max(10 um, 10 %)"}, basis: P, form: paper_sim, extraction: digitized, provenance: {citation: "Hirano 2024 via atlas", locator: "paper p.5 Fig. 12; atlas metric ectc51529.2024.00155-b-m4", accessed: 2026-11-06}}
+  - {quantity: warpage, case: {variant: subB_23x25}, definition: "as above", value: 317.0e-6, unit: m, tolerance: {abs: 10.0e-6, note: "atlas max(10 um, 10 %)"}, basis: P, form: paper_sim, extraction: digitized, provenance: {citation: "Hirano 2024 via atlas", locator: "paper p.5 Fig. 12; atlas metric ectc51529.2024.00155-h-m1", accessed: 2026-11-06}}
+  - {quantity: warpage, case: {variant: subB_28x30}, definition: "as above", value: 282.0e-6, unit: m, tolerance: {abs: 10.0e-6, note: "atlas max(10 um, 10 %)"}, basis: P, form: paper_sim, extraction: digitized, provenance: {citation: "Hirano 2024 via atlas", locator: "paper p.5 Fig. 12; atlas metric ectc51529.2024.00155-c-m6", accessed: 2026-11-06}}
+  - {quantity: warpage, case: {variant: subB_34x36}, definition: "as above", value: 249.0e-6, unit: m, tolerance: {abs: 10.0e-6, note: "atlas max(10 um, 10 %)"}, basis: P, form: paper_sim, extraction: digitized, provenance: {citation: "Hirano 2024 via atlas", locator: "paper p.5 Fig. 12; atlas metric ectc51529.2024.00155-d-m4", accessed: 2026-11-06}}
+  - {quantity: warpage_trend, definition: "monotonic decrease with stiffener width per substrate; w(B) > w(A) at equal stiffener (atlas relations)", value: null, unit: m, tolerance: {rule: {type: monotonic, direction: decreasing, note: "per substrate over 23x25, 28x30, 34x36"}}, basis: P, form: paper_sim, extraction: digitized, provenance: {citation: "atlas relations block", locator: "atlas case relations", accessed: 2026-11-06}}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, ref: sims/SM-42.yaml, reason: "atlas sim config not yet ported to amp-spec/0 (C8)"}
+rights:
+  source_license: "IEEE (paywalled); values cited from the atlas database"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "packaging chain validation", visual: [deformation]}
+missing:
+  - {input: "Poisson ratios; core and build-up layer thicknesses; solder resist thickness; stiffener ring geometry beyond X x Y width; glue modulus and thickness", assumption: "atlas L3 template values (flagged there)"}
+  - {input: "stress-free temperature and load path of the paper FEM", assumption: "atlas L3 case value (template, flagged)"}
+  - {input: "warpage definition and sign", assumption: "compare magnitudes"}
+  - {input: "whether the FEM includes the interposer module", assumption: "substrate + stiffener only (atlas TV names)"}
+assumptions:
+  - "Missing list and tolerances carried from the atlas case at commit d12ff46; evidence stays in the atlas."

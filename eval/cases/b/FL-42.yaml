@@ -1,0 +1,60 @@
+schema: amp-eval/0
+id: FL-42
+class: b
+title: Backward-facing step, expansion ratio 2, reattachment length x_r vs Re 100-1000 (Erturk 2008)
+status: unvalidated
+untestable_reason: null
+physics: [laminar-ns]
+dimension: 2D
+units: SI
+source:
+  citation: "E. Erturk, Numerical solutions of 2-D steady incompressible flow over a backward-facing step, Part I: High Reynolds number solutions, Computers & Fluids 37(6), 633-655 (2008)"
+  doi: 10.1016/j.compfluid.2007.09.003
+  open_access: false
+  open_copy: null
+  retabulation: {where: "Lethe examples/incompressible-flow/2d-backward-facing-step/benchmark-data.txt, block '- ERTURK (2008) -'", url: "https://raw.githubusercontent.com/chaos-polymtl/lethe/master/examples/incompressible-flow/2d-backward-facing-step/benchmark-data.txt", cache: cache/eval-b/lethe/benchmark-data.txt, sha256: 60848c03825f0f0b9dba2e79f8d728c7a48a7d1264533314b5b4e1970c3d87e7, licence: Apache-2.0}
+geometry:
+  kind: analytic
+  spec: {step_height_h: 1.0, outlet_height_H: 2.0, expansion_ratio: 2.0, inlet_channel_length: "N/A (see missing)", downstream_length: "N/A (see missing)"}
+  symmetry: none
+materials:
+  fluid: {rho: 1.0, nu: "U_mean * D_h / Re", source: "Re = U_mean D_h / nu with D_h = 2 h (Lethe doc 2d-backward-facing-step.rst L82-87, quoting Erturk's definition; primary not opened)"}
+bcs:
+  - {selection: inlet, type: velocity, expr: "see missing: Erturk inlet profile and location not verified"}
+  - {selection: outlet, type: do_nothing}
+  - {selection: walls, type: no_slip}
+initial: null
+study: {type: parametric, param: Re, values: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000], each: stationary}
+references:
+  - quantity: x_r_over_h
+    definition: "primary (bottom-wall) reattachment length measured from the step, divided by the step height h"
+    at: {Re: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]}
+    value: [2.922, 4.982, 6.761, 8.237, 9.420, 10.349, 11.129, 11.834, 12.494, 13.121]
+    unit: "1"
+    tolerance: {rel: 1.0e-2, after: richardson, note: "proposed (assumption); normalization by h inferred from Lethe's use (L276: x_r = 2.896 vs Erturk at Re 100, 0.8 %)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Erturk 2008 via Lethe benchmark-data.txt", locator: "Erturk 2008 table of x_r (table number N/A, paper not opened); Lethe benchmark-data.txt lines 3-13", accessed: 2026-11-06}
+reference_results:
+  - {solver: "Armaly et al. 1983 (experiment)", note: "Lethe benchmark-data.txt lists digitized Armaly points (Re 100.3369 x_r 3.0353 ...); measured, 3D effects above Re ~ 400; not a gate"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no incompressible Navier-Stokes module yet (C8)"}
+rights:
+  source_license: "paper Elsevier (paywalled; GTU repository record closedAccess); values via Apache-2.0 Lethe data file"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "steady recirculation; long domain at Re 1000", visual: [streamlines]}
+missing:
+  - {input: "inlet: Erturk's inlet location (at the step or upstream channel) and profile (parabolic or uniform)", assumption: "fully developed parabolic profile imposed at the step edge x = 0 over the upper half (h <= y <= 2h); verify against the paper before gating (manual download). Lethe uses a uniform inlet upstream, which is a different problem"}
+  - {input: "downstream domain length used by Erturk", assumption: "outlet at x = 300 h (assumption); report x_r sensitivity to outlet length"}
+  - {input: "normalization of x_r (by h or by H)", assumption: "by step height h (Lethe usage, inferred)"}
+  - {input: "secondary-vortex (top-wall separation and reattachment) values", assumption: "not gated; the re-tabulation lists only x_r"}
+assumptions:
+  - "Re defined with D_h = 2 h and the mean inlet velocity (Lethe documentation, quoting Erturk)."

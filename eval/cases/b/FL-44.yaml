@@ -1,0 +1,79 @@
+schema: amp-eval/0
+id: FL-44
+class: b
+title: Schafer-Turek DFG 3D-1Z, steady flow past a circular cylinder in a square duct, Re 20
+status: unvalidated
+untestable_reason: null
+physics: [laminar-ns]
+dimension: 3D
+units: SI
+source:
+  citation: "M. Schafer, S. Turek, Benchmark computations of laminar flow around a cylinder, Notes Numer. Fluid Mech. 52, 547-566, Vieweg (1996)"
+  doi: 10.1007/978-3-322-89849-4_39
+  open_access: false
+  open_copy: {url: "https://www2.karlin.mff.cuni.cz/~hron/NMMO403/dfg_benchmark_results.pdf", note: "author-group course copy; rights not stated", cache: cache/eval-b/schafer-turek-1996/dfg_benchmark_results.pdf, sha256: e020ab261b2d3a0675edb89c9c5af8b1383ee0584d89f12e3a7dce988be5465b}
+  reference_page: {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_flow3d/dfg_flow3d_results.html", cache: cache/eval-b/featflow/dfg_flow3d_results.html, sha256: 8842aae567fb741bdc3b9de39484f909405f11c4a86b8a429a14845950681c9d}
+  later_reference: {citation: "M. Braack, T. Richter, Solutions of 3D Navier-Stokes benchmark problems with adaptive finite elements, Computers & Fluids 35(4), 372-392 (2006)", doi: 10.1016/j.compfluid.2005.02.001, open_access: false}
+geometry:
+  kind: analytic
+  spec: {duct_m: [2.5, 0.41, 0.41], cylinder: {axis: z, center_xy_m: [0.5, 0.2], radius_m: 0.05, spans_z_m: [0, 0.41]}}
+  symmetry: none
+  source: "Schafer-Turek 1996 Fig. 3 (open copy p.6): cylinder front at x = 0.45, 0.15 m above the bottom; pressure points (0.45, 0.20, 0.205) and (0.55, 0.20, 0.205), p.5"
+materials:
+  fluid: {rho: 1.0, nu: 1.0e-3, source: "Schafer-Turek 1996 sec. 2.1"}
+bcs:
+  - {selection: inlet, type: velocity, expr: "(16*Um*y*z*(H-y)*(H-z)/H^4, 0, 0)", params: {Um: 0.45, H: 0.41}}
+  - {selection: outlet, type: do_nothing}
+  - {selection: [walls, cylinder], type: no_slip}
+initial: null
+study: {type: stationary}
+references:
+  - quantity: c_D
+    definition: "2 F_D / (rho Ubar^2 D H), Ubar = 4 Um / 9 = 0.2, D = 0.1, H = 0.41"
+    value: 6.18533
+    unit: "1"
+    tolerance: {rel: 2.0e-3, after: richardson, note: "proposed (assumption); FEATFLOW level 4 is 0.01 % off"}
+    bounds: [6.05, 6.25]
+    basis: P
+    form: benchmark
+    extraction: text
+    provenance: {citation: "Braack-Richter 2006 via FEATFLOW 3D results page; bounds Schafer-Turek 1996 Table 7", locator: "FEATFLOW 3D 'Results' page, 'reference values: cD = 6.18533 and cL = 0.009401 [2]'; open copy p.16 Table 7", accessed: 2026-11-06}
+  - quantity: c_L
+    definition: "2 F_L / (rho Ubar^2 D H)"
+    value: 0.009401
+    unit: "1"
+    tolerance: {rel: 2.0e-2, after: richardson, note: "proposed (assumption)"}
+    bounds: [0.008, 0.010]
+    basis: P
+    form: benchmark
+    extraction: text
+    provenance: {citation: "Braack-Richter 2006 via FEATFLOW; bounds Schafer-Turek 1996 Table 7", locator: "FEATFLOW 3D results page; open copy p.16 Table 7", accessed: 2026-11-06}
+  - quantity: delta_p
+    definition: "p(0.45, 0.20, 0.205) - p(0.55, 0.20, 0.205)"
+    value: null
+    unit: "Pa (rho = 1)"
+    tolerance: {rule: within_bounds}
+    bounds: [0.165, 0.175]
+    basis: P
+    form: benchmark
+    extraction: tabulated
+    provenance: {citation: "Schafer-Turek 1996 Table 7", locator: "open copy p.16 Table 7", accessed: 2026-11-06}
+reference_results:
+  - {solver: "FEATFLOW L1-L4 (6144 - 3145728 cells)", c_D: [6.13973, 6.17433, 6.18260, 6.18465], c_L: [0.00956, 0.009381, 0.009387, 0.009397], locator: "FEATFLOW 3D results page, Re = 20 table"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no incompressible Navier-Stokes module yet (C8)"}
+rights:
+  source_license: "values cited; NNFM 52 chapter paywalled; FEATFLOW pages no terms stated"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "3D steady; native or precomputed only", visual: [velocity_magnitude_slice]}
+missing:
+  - {input: "Braack-Richter delta_p reference", assumption: "gate delta_p on the 1996 bounds only"}
+assumptions:
+  - "3D-1Z (circular) only; 3D-1Q (square) not included."

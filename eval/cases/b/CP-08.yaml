@@ -1,0 +1,66 @@
+schema: amp-eval/0
+id: CP-08
+class: b
+title: Si optomechanical crystal nanobeam (Chan et al. 2012), simulated optical and breathing-mode frequencies and g_0
+status: unvalidated
+untestable_reason: null
+physics: [coupled-optomech]
+dimension: 3D
+units: SI
+source:
+  citation: "J. Chan, A. H. Safavi-Naeini, J. T. Hill, S. Meenehan, O. Painter, Optimized optomechanical crystal cavity with acoustic radiation shield, Appl. Phys. Lett. 101, 081115 (2012)"
+  doi: 10.1063/1.4747726
+  open_access: true
+  open_copy: {url: "https://arxiv.org/pdf/1206.2099", version: "arXiv 1206.2099v1", cache: cache/eval-b/chan-2012/chan-2012.pdf, sha256: 5050c568012a850641b7c10e2abb2ca5821e4e0c79d95c0f26f81aee065beb24, licence: "arXiv non-exclusive distribution licence"}
+geometry:
+  kind: analytic
+  spec:
+    film_thickness_nm: 220
+    nominal_cell_nm: {a: 436, t: 220, w: 529, hx: 165, hy: 366}
+    defect_cell_nm: {a: 327, t: 220, w: 529, hx: 199, hy: 170}
+    shield_cell_nm: {ca: 534, ch: 454, ct: 134, t: 220}
+    a_profile: "Fig. 2(a) only (a/a_nominal along the beam); digitization pending"
+  symmetry: "x, y, z mirror symmetries of the cavity mode (quarter or eighth model)"
+  source: "arXiv v1 p.2 Fig. 1 caption (cells); p.3 Fig. 3 caption (shield)"
+materials:
+  silicon:
+    photoelastic: {p11: -0.094, p12: 0.017, p44: -0.051}
+    crystal_axes: "x along [100], y along [010]"
+    source: "arXiv v1 p.2 (text after eq. 3, citing refs. 12, 13)"
+bcs:
+  - {selection: beam_ends, type: fixed, expr: "clamped to the shield / slab (assumption, see missing)"}
+  - {selection: outer_optical_boundary, type: scattering_or_pml}
+initial: null
+study: {type: eigen, n: 1, note: "optical eigenmode near 194 THz and mechanical breathing mode near 5.7 GHz, then g_0 by moving-boundary + photoelastic overlap (paper eqs. 1-3)"}
+references:
+  - {quantity: f_optical, definition: "omega_o / 2 pi of the fundamental optical cavity mode (simulated)", value: 194.0e+12, unit: Hz, tolerance: {rel: 1.0e-2, note: "proposed (assumption); depends on n_Si (missing)"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3, paragraph after the fitness definition", accessed: 2026-11-06}}
+  - {quantity: Q_optical_radiation, definition: "radiation-limited optical Q (simulated)", value: 2.2e+7, unit: "1", tolerance: {rule: {type: range, range: [1.0e+7, 5.0e+7], note: "order-of-magnitude check (assumption); radiation Q is mesh- and boundary-sensitive"}}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
+  - {quantity: f_mech, definition: "omega_m / 2 pi of the breathing mode (simulated)", value: 5.7e+9, unit: Hz, tolerance: {rel: 2.0e-2, note: "proposed (assumption); paper quotes 2 significant figures"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
+  - {quantity: m_eff, definition: "motional mass (paper ref. 10 convention)", value: 127.0e-18, unit: kg, tolerance: {rel: 5.0e-2, note: "proposed (assumption)"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3 (127 fg)", accessed: 2026-11-06}}
+  - {quantity: g0_total, definition: "g / 2 pi, zero-point optomechanical coupling, moving boundary + photoelastic", value: 770.0e+3, unit: Hz, tolerance: {rel: 1.0e-1, note: "proposed (assumption); photoelastic part is sensitive to p_ij"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
+  - {quantity: g0_moving_boundary, definition: "moving-boundary part of g / 2 pi", value: -90.0e+3, unit: Hz, tolerance: {rel: 2.0e-1, note: "proposed (assumption)"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
+  - {quantity: g0_photoelastic, definition: "photoelastic part of g / 2 pi", value: 880.0e+3, unit: Hz, tolerance: {rel: 1.0e-1, note: "proposed (assumption)"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
+  - {quantity: f_mech_measured, definition: "measured breathing-mode frequency (fabricated device)", value: 5.1e+9, unit: Hz, tolerance: {rel: 1.5e-1, note: "informative: fabricated geometry differs from the design"}, gate: false, basis: P, form: paper_measured, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.1 abstract; p.3 Fig. 4 caption", accessed: 2026-11-06}}
+  - {quantity: g0_measured, definition: "measured g / 2 pi", value: 1.1e+6, unit: Hz, tolerance: {rel: 3.0e-1, note: "informative"}, gate: false, basis: P, form: paper_measured, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.1 abstract; p.4 text", accessed: 2026-11-06}}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no 3D elastic eigen + vector optical eigen + overlap chain yet (C8)"}
+rights:
+  source_license: "APL (AIP) version paywalled; arXiv preprint open"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "3D, native minutes (R3 est.)", visual: [displacement, E_field]}
+missing:
+  - {input: "number of mirror and defect cells, maximum curvature of the a(x) taper, centre-hole rh (the 8 optimized parameters are not all tabulated)", assumption: "digitize a/a_nominal from Fig. 2(a) with validation/b/digitize.py (arXiv figure; numbers are facts, figure not copied); until then the case is not runnable"}
+  - {input: "hole shape (elliptical with axes hx, hy assumed)", assumption: "ellipses with full axes hx, hy"}
+  - {input: "silicon elastic constants and density", assumption: "anisotropic Si stiffness from the materials package (source to be recorded there), x along [100]"}
+  - {input: "silicon refractive index at 1550 nm", assumption: "materials package value with source"}
+  - {input: "mechanical boundary (shield attachment) and optical computational window", assumption: "beam ends clamped at the shield; PML or scattering boundary 1 um away"}
+assumptions:
+  - "Design (simulated) values are the gate; measured values are informative (fabrication offsets)."

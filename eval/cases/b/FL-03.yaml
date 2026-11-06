@@ -1,0 +1,86 @@
+schema: amp-eval/0
+id: FL-03
+class: b
+title: Schafer-Turek DFG 2D-1, steady flow past a cylinder, Re 20
+status: unvalidated
+untestable_reason: null
+physics: [laminar-ns]
+dimension: 2D
+units: SI
+source:
+  citation: "M. Schafer, S. Turek, Benchmark computations of laminar flow around a cylinder, in E. H. Hirschel (ed.), Flow Simulation with High-Performance Computers II, Notes Numer. Fluid Mech. 52, 547-566, Vieweg (1996)"
+  doi: 10.1007/978-3-322-89849-4_39
+  open_access: false
+  open_copy: {url: "https://www2.karlin.mff.cuni.cz/~hron/NMMO403/dfg_benchmark_results.pdf", note: "author-group course copy (J. Hron, Charles University); rights not stated", cache: cache/eval-b/schafer-turek-1996/dfg_benchmark_results.pdf, sha256: e020ab261b2d3a0675edb89c9c5af8b1383ee0584d89f12e3a7dce988be5465b}
+  reference_page: {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_benchmark1_re20.html", cache: cache/eval-b/featflow/dfg_benchmark1_re20.html, sha256: 371298dc64c409043d69bdb980c972f7df8b6eb33cd7d3296c887de7cbc6472d, note: "www.featflow.de fails the TLS handshake from this machine (2026-11-06); same page served by the TU Dortmund host"}
+geometry:
+  kind: analytic
+  spec: {channel_m: [2.2, 0.41], cylinder: {center_m: [0.2, 0.2], radius_m: 0.05}}
+  symmetry: none
+materials:
+  fluid: {rho: 1.0, nu: 1.0e-3, source: "Schafer-Turek 1996 sec. 2.1 (open copy p.3)"}
+bcs:
+  - {selection: inlet, type: velocity, expr: "(4*Um*y*(H-y)/H^2, 0)", params: {Um: 0.3, H: 0.41}}
+  - {selection: outlet, type: do_nothing}
+  - {selection: [walls, cylinder], type: no_slip}
+initial: null
+study: {type: stationary}
+references:
+  - quantity: c_D
+    definition: "2 F_D / (rho Ubar^2 D), Ubar = 2 Um / 3 = 0.2, D = 0.1"
+    value: 5.57953523384
+    unit: "1"
+    tolerance: {rel: 1.0e-3, after: richardson}
+    bounds: [5.57, 5.59]
+    basis: P
+    form: benchmark
+    extraction: text
+    provenance: {citation: "Nabh 1998 (Heidelberg preprint 42/98) via FEATFLOW DFG 2D-1 page; bounds Schafer-Turek 1996 Table 3", locator: "FEATFLOW 'Reference results' block; open copy p.12 Table 3 lower/upper bound rows", accessed: 2026-11-06}
+  - quantity: c_L
+    definition: "2 F_L / (rho Ubar^2 D)"
+    value: 0.010618948146
+    unit: "1"
+    tolerance: {rel: 1.0e-2, after: richardson, note: "proposed (assumption): lift is small and sensitive"}
+    bounds: [0.0104, 0.0110]
+    basis: P
+    form: benchmark
+    extraction: text
+    provenance: {citation: "Nabh 1998 via FEATFLOW; bounds Schafer-Turek 1996 Table 3", locator: "FEATFLOW 'Reference results'; open copy p.12 Table 3", accessed: 2026-11-06}
+  - quantity: delta_p
+    definition: "p(0.15, 0.2) - p(0.25, 0.2)"
+    value: 0.11752016697
+    unit: "Pa (rho = 1)"
+    tolerance: {rel: 1.0e-3, after: richardson}
+    bounds: [0.1172, 0.1176]
+    basis: P
+    form: benchmark
+    extraction: text
+    provenance: {citation: "Nabh 1998 via FEATFLOW; bounds Schafer-Turek 1996 Table 3", locator: "FEATFLOW 'Reference results'; open copy p.12 Table 3", accessed: 2026-11-06}
+  - quantity: L_a
+    definition: "x_r - 0.25, end of the recirculation zone minus the cylinder rear x"
+    value: null
+    unit: m
+    tolerance: {rule: within_bounds}
+    bounds: [0.0842, 0.0852]
+    basis: P
+    form: benchmark
+    extraction: tabulated
+    provenance: {citation: "Schafer-Turek 1996 Table 3", locator: "open copy p.12, Table 3 bound rows, column La", accessed: 2026-11-06}
+reference_results:
+  - {solver: "Schafer-Turek 1996 participants", note: "Table 3, open copy p.12"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: [{what: "Schafer-Turek 1996 Table 3 CPU time column (1996 hardware)", locator: "open copy p.12"}]
+  note: "budget set after the first timing run (R3 O3); R3 estimate 2-10 s, est."
+dataset: null
+spec: {status: pending, reason: "no incompressible Navier-Stokes module yet (C8)"}
+rights:
+  source_license: "values cited; NNFM 52 chapter paywalled; FEATFLOW page no terms stated"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: true, why: "R3 hero H9; steady wake, fast", visual: [velocity_magnitude, streamlines, pressure]}
+missing: []
+assumptions:
+  - "Drag and lift by the line integral over the cylinder (FEATFLOW page formula) or by the volume (Babuska-Miller) form; report which."

@@ -1,0 +1,64 @@
+schema: amp-eval/0
+id: RF-41
+class: b
+title: 70 ohm microstrip on ABF over Cu ground on a glass core, measured IL per mm 33-200 GHz at 25 / 80 / 115 C (advanced-packaging-atlas D/em_1_abf_microstrip_glass)
+status: unvalidated
+untestable_reason: null
+physics: [rf-waveguide]
+dimension: 2D
+units: SI
+source:
+  citation: "M. Ahamed et al. (Penn State, Georgia Tech, Ajinomoto), Temperature-dependent electrical characterization of new ABF-type A material up to 220 GHz, Proc. IEEE ECTC 2026"
+  doi: 10.1109/ectc51846.2026.00389
+  open_access: false
+  open_copy: null
+  atlas_ref: {repo: advanced-packaging-atlas, path: validation/cases/D/em_1_abf_microstrip_glass.yaml, id: D/em_1_abf_microstrip_glass, commit: d12ff46, sim_case: "sims/em/em1_abf_microstrip_glass (atlas)"}
+geometry:
+  kind: layer_stack
+  spec: {w_um: 34, t_um: 4, Rq_um: 0.19, abf_um: 30, ground: "Cu 3-6 um", lengths_mm: [2, 4, 8], above: air, source: "atlas case inputs.geometry (paper p.3 Sec. II.B / III)"}
+  symmetry: "x mirror"
+materials:
+  abf_type_a: {source: "paper p.5 Table I Dk / Df at 16.5-216 GHz x 25 / 80 / 115 C (atlas metrics -a-m1 .. -a-m36)"}
+  cu: {source: "conductivity N/A in the paper; atlas uses IACS 5.8e+7 S/m at 20 C with TCR 0.00393 1/K (template)"}
+bcs:
+  - {selection: conductors, type: impedance_or_pec}
+  - {selection: outer, type: open}
+initial: null
+study: {type: frequency, f_list: [33.0e+9, 77.0e+9, 140.0e+9, 200.0e+9]}
+references:
+  - {quantity: IL_per_mm, case: {f_GHz: 33, T_C: 25}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.08, unit: dB/mm, tolerance: {abs: 0.033, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m2", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 77, T_C: 25}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.155, unit: dB/mm, tolerance: {abs: 0.0368, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m5", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 140, T_C: 25}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.265, unit: dB/mm, tolerance: {abs: 0.0423, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m8", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 200, T_C: 25}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.45, unit: dB/mm, tolerance: {abs: 0.0515, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m11", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 33, T_C: 80}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.096, unit: dB/mm, tolerance: {abs: 0.0338, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m3", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 77, T_C: 80}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.2, unit: dB/mm, tolerance: {abs: 0.039, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m6", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 140, T_C: 80}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.32, unit: dB/mm, tolerance: {abs: 0.045, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m9", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 200, T_C: 80}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.519, unit: dB/mm, tolerance: {abs: 0.0549, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m12", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 33, T_C: 115}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.11, unit: dB/mm, tolerance: {abs: 0.0345, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m4", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 77, T_C: 115}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.21, unit: dB/mm, tolerance: {abs: 0.0395, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m7", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 140, T_C: 115}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.43, unit: dB/mm, tolerance: {abs: 0.0505, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m10", accessed: 2026-11-06}}
+  - {quantity: IL_per_mm, case: {f_GHz: 200, T_C: 115}, definition: "measured insertion loss per mm of the microstrip (TRL, average over 2 / 4 / 8 mm lines)", value: 0.596, unit: dB/mm, tolerance: {abs: 0.0588, note: "atlas rule 0.029 dB/mm + 5 % of measured (computed here)"}, basis: P, form: paper_measured, extraction: tabulated, provenance: {citation: "Ahamed 2026 via advanced-packaging-atlas", locator: "paper p.5 Table II; atlas metric ectc51846.2026.00389-b-m13", accessed: 2026-11-06}}
+reference_results:
+  - {solver: "atlas em2d engine (L4 run 2026-10-20), cannonball-Huray variant", note: "passes all four 25 C points per the atlas case outcome block"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, ref: sims/RF-41.yaml, reason: "atlas em2d config not yet ported to amp-spec/0 (C8)"}
+rights:
+  source_license: "IEEE (paywalled); values cited from the atlas database"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "packaging RF chain validation", visual: [E_field, current_density]}
+missing:
+  - {input: "plated Cu conductivity", assumption: "IACS with TCR (atlas template); the atlas brackets it with variants"}
+  - {input: "roughness per surface", assumption: "Rq 0.19 um on all Cu surfaces, cannonball-Huray (atlas best-estimate variant)"}
+  - {input: "trace cross-section profile", assumption: "rectangular"}
+  - {input: "ground Cu exact thickness", assumption: "4.5 um (atlas L7 case)"}
+  - {input: "extraction method of the average IL/mm (slope fit or mean)", assumption: "bounding uncertainty 0.029 dB/mm (atlas)"}
+assumptions:
+  - "Tolerance rule and missing list carried from the atlas case at commit d12ff46."
+  - "S11 < -20 dB rule (atlas -b-m14) not carried."

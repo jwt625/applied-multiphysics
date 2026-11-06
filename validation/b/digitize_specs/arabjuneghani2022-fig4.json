@@ -1,0 +1,190 @@
+{
+  "id": "arabjuneghani2022-fig4",
+  "purpose": "Pilot of the digitization protocol on an open-licence figure (CC BY 4.0). Feeds case CP-23 as a cross-check only.",
+  "citation": "F. Arab Juneghani et al., Adv. Photonics Res. 4(1), 2200216, doi:10.1002/adpr.202200216",
+  "licence": "CC-BY-4.0 (rights statement on p.1 of the version of record; eo-modulator-atlas references/arabjuneghani2022/source.json)",
+  "locator": "p.4, Figure 4: RF loss alpha_m, RF effective index n_m, characteristic impedance Z_m vs frequency, modulator #2",
+  "source": {
+    "pdf": "../eo-modulator-atlas/references/arabjuneghani2022/source.pdf",
+    "sha256": "85e8f54cd71d1c99ce5615f9c4fa9b12ca39b1c6d2bccea3d34c345285aa57d8",
+    "page": 4,
+    "dpi": 300
+  },
+  "crop_px": [
+    150,
+    290,
+    1100,
+    780
+  ],
+  "panels": [
+    {
+      "name": "Zm",
+      "box_px": [
+        150,
+        452,
+        1060,
+        700
+      ],
+      "x_ticks": [
+        10,
+        20,
+        30,
+        40,
+        50,
+        60
+      ],
+      "y_ticks": [
+        40,
+        50,
+        60
+      ],
+      "tick_len_px": 10,
+      "curves": [
+        {
+          "name": "Zm_measured_ohm",
+          "rgb": [
+            0,
+            114,
+            189
+          ],
+          "tol": 60,
+          "sample_x": [
+            10,
+            20,
+            30,
+            40,
+            50,
+            60,
+            66
+          ]
+        },
+        {
+          "name": "Zm_simulated_ohm",
+          "rgb": [
+            217,
+            83,
+            25
+          ],
+          "tol": 60,
+          "sample_x": [
+            10,
+            20,
+            30,
+            40,
+            50,
+            60,
+            66
+          ]
+        }
+      ]
+    },
+    {
+      "name": "alpha",
+      "box_px": [
+        150,
+        5,
+        1060,
+        262
+      ],
+      "x_from": "Zm",
+      "y_ticks": [
+        0,
+        2,
+        4,
+        6
+      ],
+      "y_edge_ticks": true,
+      "tick_len_px": 10,
+      "curves": [
+        {
+          "name": "alpha_measured_dB_per_cm",
+          "rgb": [
+            0,
+            114,
+            189
+          ],
+          "tol": 60,
+          "sample_x": [
+            10,
+            30,
+            50,
+            66,
+            67
+          ]
+        },
+        {
+          "name": "alpha_simulated_dB_per_cm",
+          "rgb": [
+            217,
+            83,
+            25
+          ],
+          "tol": 60,
+          "sample_x": [
+            10,
+            30,
+            50,
+            66,
+            67
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nm",
+      "box_px": [
+        150,
+        236,
+        1060,
+        475
+      ],
+      "x_from": "Zm",
+      "y_ticks": [
+        2,
+        2.5,
+        3
+      ],
+      "tick_len_px": 10,
+      "exclude_px": [
+        [
+          600,
+          250,
+          1027,
+          345
+        ]
+      ],
+      "curves": [
+        {
+          "name": "nm_measured",
+          "rgb": [
+            0,
+            114,
+            189
+          ],
+          "tol": 60,
+          "sample_x": [
+            10,
+            30,
+            50,
+            66
+          ]
+        },
+        {
+          "name": "nm_simulated",
+          "rgb": [
+            217,
+            83,
+            25
+          ],
+          "tol": 60,
+          "sample_x": [
+            10,
+            30,
+            50,
+            66
+          ]
+        }
+      ]
+    }
+  ]
+}

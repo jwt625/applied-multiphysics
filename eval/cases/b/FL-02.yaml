@@ -1,0 +1,93 @@
+schema: amp-eval/0
+id: FL-02
+class: b
+title: Lid-driven square cavity, Re 100 and 1000, centreline velocity profiles (Ghia, Ghia, Shin 1982)
+status: unvalidated
+untestable_reason: null
+physics: [laminar-ns]
+dimension: 2D
+units: SI
+source:
+  citation: "U. Ghia, K. N. Ghia, C. T. Shin, High-Re solutions for incompressible flow using the Navier-Stokes equations and a multigrid method, J. Comput. Phys. 48(3), 387-411 (1982)"
+  doi: 10.1016/0021-9991(82)90058-4
+  open_access: false
+  open_copy: null
+  retabulation: {where: "pysph pysph/examples/ghia_cavity_data.py (tables I and II as text)", url: "https://raw.githubusercontent.com/pypr/pysph/master/pysph/examples/ghia_cavity_data.py", cache: cache/eval-b/pysph/ghia_cavity_data.py, sha256: 466d2a28b74304204481a7d8a709864c9c68c4c164907332a404daf98bf571a7, licence: "pysph repository licence (GitHub SPDX NOASSERTION; BSD-style per R3)"}
+geometry:
+  kind: analytic
+  spec: {cavity_m: [1.0, 1.0], origin: [0, 0], lid: "y = 1"}
+  symmetry: none
+materials:
+  fluid: {rho: 1.0, nu: "1/Re", source: "non-dimensional problem: lid speed 1, side 1, nu = 1/Re (standard non-dimensionalization; Ghia 1982 not opened by L7b)"}
+bcs:
+  - {selection: lid, type: velocity, expr: "(1, 0)"}
+  - {selection: [left, right, bottom], type: no_slip}
+  - {selection: point, type: pressure_gauge, expr: "p(0.5, 0.5) = 0 (any gauge; not part of the gate)"}
+initial: null
+study: {type: parametric, param: Re, values: [100, 1000], each: stationary}
+references:
+  - quantity: u_on_vertical_centreline
+    definition: "u(x = 0.5, y) for the y stations listed in `at`"
+    at: {y: [1.0, 0.9766, 0.9688, 0.9609, 0.9531, 0.8516, 0.7344, 0.6172, 0.5, 0.4531, 0.2813, 0.1719, 0.1016, 0.0703, 0.0625, 0.0547, 0.0]}
+    case: {Re: 100}
+    value: [1.0, 0.84123, 0.78871, 0.73722, 0.68717, 0.23151, 0.00332, -0.13641, -0.20581, -0.21090, -0.15662, -0.10150, -0.06434, -0.04775, -0.04192, -0.03717, 0.0]
+    unit: "1"
+    tolerance: {abs: 1.0e-2, after: richardson, note: "proposed (assumption): Ghia's own discretization error is not stated in the re-tabulation"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Ghia et al. 1982 via pysph re-tabulation", locator: "Ghia 1982 Table I, Re 100 column (pysph `table1`, column 2)", accessed: 2026-11-06}
+  - quantity: u_on_vertical_centreline
+    definition: "u(x = 0.5, y), same stations"
+    at: {y: [1.0, 0.9766, 0.9688, 0.9609, 0.9531, 0.8516, 0.7344, 0.6172, 0.5, 0.4531, 0.2813, 0.1719, 0.1016, 0.0703, 0.0625, 0.0547, 0.0]}
+    case: {Re: 1000}
+    value: [1.0, 0.65928, 0.57492, 0.51117, 0.46604, 0.33304, 0.18719, 0.05702, -0.06080, -0.10648, -0.27805, -0.38289, -0.29730, -0.22220, -0.20196, -0.18109, 0.0]
+    unit: "1"
+    tolerance: {abs: 1.0e-2, after: richardson, note: "proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Ghia et al. 1982 via pysph re-tabulation", locator: "Ghia 1982 Table I, Re 1000 column (pysph `table1`, column 4)", accessed: 2026-11-06}
+  - quantity: v_on_horizontal_centreline
+    definition: "v(x, y = 0.5) for the x stations listed in `at`"
+    at: {x: [1.0, 0.9688, 0.9609, 0.9531, 0.9453, 0.9063, 0.8594, 0.8047, 0.5, 0.2344, 0.2266, 0.1563, 0.0938, 0.0781, 0.0703, 0.0625, 0.0]}
+    case: {Re: 100}
+    value: [0.0, -0.05906, -0.07391, -0.08864, -0.10313, -0.16914, -0.22445, -0.24533, 0.05454, 0.17527, 0.17507, 0.16077, 0.12317, 0.10890, 0.10091, 0.09233, 0.0]
+    unit: "1"
+    tolerance: {abs: 1.0e-2, after: richardson, note: "proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Ghia et al. 1982 via pysph re-tabulation", locator: "Ghia 1982 Table II, Re 100 column (pysph `table2`, column 2)", accessed: 2026-11-06}
+  - quantity: v_on_horizontal_centreline
+    definition: "v(x, y = 0.5), same stations"
+    at: {x: [1.0, 0.9688, 0.9609, 0.9531, 0.9453, 0.9063, 0.8594, 0.8047, 0.5, 0.2344, 0.2266, 0.1563, 0.0938, 0.0781, 0.0703, 0.0625, 0.0]}
+    case: {Re: 1000}
+    value: [0.0, -0.21388, -0.27669, -0.33714, -0.39188, -0.51550, -0.42665, -0.31966, 0.02526, 0.32235, 0.33075, 0.37095, 0.32627, 0.30353, 0.29012, 0.27485, 0.0]
+    unit: "1"
+    tolerance: {abs: 1.0e-2, after: richardson, note: "proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Ghia et al. 1982 via pysph re-tabulation", locator: "Ghia 1982 Table II, Re 1000 column (pysph `table2`, column 4)", accessed: 2026-11-06}
+reference_results:
+  - {solver: "Botella-Peyret 1998 (spectral)", note: "tighter Re 1000 targets in FL-41"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3); R3 estimate 1-3 s (Re 100), 3-15 s (Re 1000), est."
+dataset: null
+spec: {status: pending, reason: "no incompressible Navier-Stokes module yet (C8)"}
+rights:
+  source_license: "paper Elsevier (paywalled); re-tabulation in pysph (licence NOASSERTION on GitHub)"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: true, why: "R3 hero H8; Re slider", visual: [streamlines, velocity_magnitude, vorticity]}
+missing:
+  - {input: "Ghia grid size and discretization order per Re", assumption: "not needed to set up the problem; affects only the tolerance (0.01 absolute, assumption)"}
+  - {input: "corner singularity treatment of the lid velocity", assumption: "lid u = 1 on the open top edge, corner nodes u = 0 (common convention; the choice changes near-corner values only)"}
+assumptions:
+  - "Re 400, 3200, 10000 columns are not used (R3 s.8: errata in those rows)."
+  - "Profiles compared by interpolating the computed field to the listed stations."

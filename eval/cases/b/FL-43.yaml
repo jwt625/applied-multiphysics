@@ -1,0 +1,78 @@
+schema: amp-eval/0
+id: FL-43
+class: b
+title: Schafer-Turek DFG 2D-3, cylinder in a channel with sinusoidal inflow ramp, 0 <= t <= 8 s
+status: unvalidated
+untestable_reason: null
+physics: [laminar-ns]
+dimension: 2D
+units: SI
+source:
+  citation: "M. Schafer, S. Turek, Benchmark computations of laminar flow around a cylinder, Notes Numer. Fluid Mech. 52, 547-566, Vieweg (1996)"
+  doi: 10.1007/978-3-322-89849-4_39
+  open_access: false
+  open_copy: {url: "https://www2.karlin.mff.cuni.cz/~hron/NMMO403/dfg_benchmark_results.pdf", note: "author-group course copy; rights not stated", cache: cache/eval-b/schafer-turek-1996/dfg_benchmark_results.pdf, sha256: e020ab261b2d3a0675edb89c9c5af8b1383ee0584d89f12e3a7dce988be5465b}
+  reference_page: {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_benchmark3_re100.html", cache: cache/eval-b/featflow/dfg_benchmark3_re100.html, sha256: 5275756482a88ffcd5867d48b59bce7a918d22f5b2ad6a1a69aadc525f531751}
+  later_reference: {citation: "V. John, Reference values for drag and lift of a two-dimensional time-dependent flow around a cylinder, Int. J. Numer. Meth. Fluids 44, 777-788 (2004)", doi: 10.1002/fld.679, open_access: false}
+geometry:
+  kind: analytic
+  spec: {channel_m: [2.2, 0.41], cylinder: {center_m: [0.2, 0.2], radius_m: 0.05}}
+  symmetry: none
+materials:
+  fluid: {rho: 1.0, nu: 1.0e-3, source: "Schafer-Turek 1996 sec. 2.1"}
+bcs:
+  - {selection: inlet, type: velocity, expr: "(4*Um*y*(H-y)*sin(pi*t/8)/H^2, 0)", params: {Um: 1.5, H: 0.41}}
+  - {selection: outlet, type: do_nothing}
+  - {selection: [walls, cylinder], type: no_slip}
+initial: {u: 0, v: 0, p: 0, source: "Schafer-Turek 1996 sec. 2.2 c (open copy p.4)"}
+study: {type: transient, t_end: 8.0, dt_out: 0.01}
+references:
+  - quantity: c_D_max
+    definition: "max over 0 <= t <= 8 of 2 F_D / (rho Ubar(t)^2 D) with the constant Ubar = 1.0 (2 Um / 3)"
+    value: 2.9437637214
+    unit: "1"
+    tolerance: {rel: 2.0e-3, note: "proposed (assumption); FEATFLOW levels 5 -> 6 change 2.9364 -> 2.9438 (0.25 %)"}
+    bounds: [2.93, 2.97]
+    basis: P
+    form: benchmark
+    extraction: tabulated
+    provenance: {citation: "FEATFLOW 2D-3 page (level 6, dt 1/1600, t = 3.9365625 s); bounds Schafer-Turek 1996 Table 5", locator: "FEATFLOW 'Exemplary Results' table; open copy p.14 Table 5", accessed: 2026-11-06}
+  - quantity: c_L_max
+    definition: "max over 0 <= t <= 8 of 2 F_L / (rho Ubar^2 D)"
+    value: 0.47748781595
+    unit: "1"
+    tolerance: {rel: 5.0e-3, note: "proposed (assumption)"}
+    bounds: [0.47, 0.49]
+    basis: P
+    form: benchmark
+    extraction: tabulated
+    provenance: {citation: "FEATFLOW 2D-3 page (level 6, t = 5.6928125 s); bounds Schafer-Turek 1996 Table 5", locator: "FEATFLOW table; open copy p.14 Table 5", accessed: 2026-11-06}
+  - quantity: delta_p_t8
+    definition: "|p(0.15, 0.2) - p(0.25, 0.2)| at t = 8 s (sign: see assumptions)"
+    value: 0.11154138872
+    unit: "Pa (rho = 1)"
+    tolerance: {rel: 5.0e-3, note: "proposed (assumption)"}
+    bounds: [0.105, 0.115]
+    basis: P
+    form: benchmark
+    extraction: tabulated
+    provenance: {citation: "FEATFLOW 2D-3 page level 6; 1996 Table 5 lists -0.1150 / -0.1050", locator: "FEATFLOW table; open copy p.14 Table 5", accessed: 2026-11-06}
+reference_results:
+  - {solver: "FEATFLOW levels 1-6, dt 1/1600", note: "c_D_max 2.3078 / 2.8120 / 2.8877 / 2.9210 / 2.9364 / 2.9438"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no incompressible Navier-Stokes module yet (C8)"}
+rights:
+  source_license: "values cited; NNFM 52 chapter paywalled; FEATFLOW pages no terms stated"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "8 s transient; replay only", visual: [vorticity]}
+missing:
+  - {input: "sign convention of delta_p at t = 8 s: 1996 Table 5 bounds are negative, FEATFLOW lists +0.1115", assumption: "gate on the magnitude; resolve against John 2004 (manual download)"}
+assumptions:
+  - "Coefficients use the constant Ubar = 1.0 (FEATFLOW page definition), not the instantaneous inflow mean."

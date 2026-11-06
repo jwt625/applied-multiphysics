@@ -1,0 +1,105 @@
+schema: amp-eval/0
+id: FL-41
+class: b
+title: Lid-driven square cavity, Re 1000, spectral reference values (Botella, Peyret 1998)
+status: unvalidated
+untestable_reason: null
+physics: [laminar-ns]
+dimension: 2D
+units: SI
+source:
+  citation: "O. Botella, R. Peyret, Benchmark spectral results on the lid-driven cavity flow, Computers & Fluids 27(4), 421-433 (1998)"
+  doi: 10.1016/S0045-7930(98)00002-4
+  open_access: false
+  open_copy: null
+  retabulation:
+    - {where: "Erturk, Dursun, ZAMM 87, 377-392 (2007), doi:10.1002/zamm.200610322, arXiv physics/0505121, Table 1 (row 'Botella & Peyret [4]')", url: "https://arxiv.org/pdf/physics/0505121", cache: cache/eval-b/erturk-dursun-2005/erturk-dursun-2005.pdf, sha256: a0a18519af90908cf7d27c4700362335591c7e68969574f36b05abbca6d04bf8, licence: "arXiv non-exclusive distribution licence"}
+    - {where: "INS2D case_files/LDC/LDC_pp.m lines 229-234 (Re 1000 'exact' extrema)", url: "https://raw.githubusercontent.com/bsanderse/INS2D/master/case_files/LDC/LDC_pp.m", cache: cache/eval-b/ins2d/LDC_pp.m, sha256: 26aa754900d50d40add1a7deb1a2b5aea7f9c61df8c8a3363bc8bbe3adc38509, licence: LGPL-3.0}
+geometry:
+  kind: analytic
+  spec: {cavity_m: [1.0, 1.0], origin: [0, 0], lid: "y = 1"}
+  symmetry: none
+materials:
+  fluid: {rho: 1.0, nu: 1.0e-3, source: "non-dimensional: lid speed 1, side 1, nu = 1/Re"}
+bcs:
+  - {selection: lid, type: velocity, expr: "(1, 0)"}
+  - {selection: [left, right, bottom], type: no_slip}
+initial: null
+study: {type: stationary, Re: 1000}
+references:
+  - quantity: psi_primary_vortex_abs
+    definition: "|stream function| at the primary vortex centre (psi = 0 on the walls)"
+    value: 0.1189366
+    unit: "1"
+    tolerance: {rel: 1.0e-3, after: richardson, note: "proposed (assumption); Erturk-Dursun report <0.18 % spread among accurate solvers (arXiv v2 p.8 text: less than 0.18 % in psi and 0.14 % in omega vs Botella-Peyret)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Botella-Peyret 1998 via Erturk-Dursun 2007 Table 1", locator: "arXiv physics/0505121v2 p.22, Table 1, row 'Botella & Peyret [4] N=160'", accessed: 2026-11-06}
+  - quantity: omega_primary_vortex
+    definition: "vorticity magnitude at the primary vortex centre"
+    value: 2.067753
+    unit: "1"
+    tolerance: {rel: 1.0e-3, after: richardson, note: "proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Botella-Peyret 1998 via Erturk-Dursun 2007 Table 1", locator: "arXiv physics/0505121v2 p.22, Table 1", accessed: 2026-11-06}
+  - quantity: primary_vortex_centre
+    definition: "(x, y) of the stream-function extremum"
+    value: [0.5308, 0.5652]
+    unit: "1"
+    tolerance: {abs: 2.0e-3, note: "proposed (assumption); tabulated to 4 decimals"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Botella-Peyret 1998 via Erturk-Dursun 2007 Table 1", locator: "arXiv physics/0505121v2 p.22, Table 1", accessed: 2026-11-06}
+  - quantity: u_min_vertical_centreline
+    definition: "min over y of u(0.5, y), lid moving in +x"
+    value: -0.3885698
+    unit: "1"
+    tolerance: {rel: 1.0e-4, after: richardson, note: "proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "INS2D LDC_pp.m (attribution to Botella-Peyret inferred: the file loads 'BP' data, line 7; lines 231-233 do not name the source)", locator: "LDC_pp.m L231 umax_exact = 0.3885698 (INS2D lid moves in -x: it plots -uGhia, L117; sign converted here)", accessed: 2026-11-06}
+  - quantity: v_max_horizontal_centreline
+    definition: "max over x of v(x, 0.5)"
+    value: 0.3769447
+    unit: "1"
+    tolerance: {rel: 1.0e-4, after: richardson, note: "proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "INS2D LDC_pp.m", locator: "LDC_pp.m L233 vmax_exact", accessed: 2026-11-06}
+  - quantity: v_min_horizontal_centreline
+    definition: "min over x of v(x, 0.5)"
+    value: -0.5270771
+    unit: "1"
+    tolerance: {rel: 1.0e-4, after: richardson, note: "proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "INS2D LDC_pp.m", locator: "LDC_pp.m L232 vmin_exact", accessed: 2026-11-06}
+reference_results:
+  - {solver: "Erturk-Dursun 2007, 513 x 513, 2nd order", psi: 0.11872, omega: 2.06476, centre: [0.5313, 0.5645], locator: "arXiv physics/0505121v2 Table 1"}
+  - {solver: "Schreiber-Keller (extrapolated)", psi: 0.11894, omega: 2.0677, locator: "same table"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no incompressible Navier-Stokes module yet (C8)"}
+rights:
+  source_license: "paper Elsevier (paywalled); values via arXiv preprint and LGPL-3.0 code"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: true, why: "same scene as FL-02 (H8), tighter targets", visual: [streamlines, vorticity]}
+missing:
+  - {input: "lid corner treatment and regularization used by Botella-Peyret (spectral methods often regularize the lid)", assumption: "unregularized lid u = 1; if the gate fails by more than the GCI band, re-check against the paper (manual download)"}
+  - {input: "Botella-Peyret Table numbers and page for each value", assumption: "locators are to the re-tabulations until the paper is downloaded (DevLog-007 manual downloads)"}
+assumptions:
+  - "psi sign: the table lists the magnitude; with psi = 0 on walls and the lid moving +x the primary vortex psi is negative in the common convention."
+  - "Splitting from R3 FL-02 (which mixed Ghia and Botella-Peyret): FL-02 keeps Ghia, FL-41 holds Botella-Peyret."

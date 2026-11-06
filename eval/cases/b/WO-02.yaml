@@ -1,0 +1,59 @@
+schema: amp-eval/0
+id: WO-02
+class: b
+title: Hadley 2002 rib waveguide, fundamental mode n_eff vs slab thickness, lambda 1.15 um
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+source:
+  citation: "G. R. Hadley, High-accuracy finite-difference equations for dielectric waveguide analysis II: dielectric corners, J. Lightwave Technol. 20(7), 1219-1231 (2002)"
+  doi: 10.1109/jlt.2002.800371
+  open_access: false
+  open_copy: null
+  retabulation: {where: "femwell docs/benchmarks/mode_solver.py (neff_values_paper; cites Hadley2002)", url: "https://raw.githubusercontent.com/HelgeGehring/femwell/main/docs/benchmarks/mode_solver.py", cache: cache/eval-b/femwell/mode_solver.py, sha256: a5e5c1cfc80e454dbb54a2726775f1753e4423b484659fa0113a3e32f19f5032, licence: GPL-3.0}
+geometry:
+  kind: analytic
+  spec: {rib_width_um: 3.0, rib_height_um: 1.0, slab_thickness_um: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7], note: "rib height measured from the substrate top (femwell core_thickness 1, slab from 0 to t)"}
+  symmetry: none
+materials:
+  core: {n: 3.44, source: "femwell mode_solver.py refractive_indices"}
+  substrate: {n: 3.40, source: "same"}
+  cover: {n: 1.0, source: "same"}
+bcs:
+  - {selection: outer, type: pec_or_far, expr: "domain large enough that the result is insensitive (femwell: 18 um wide, 10 um substrate, 3 um cover)"}
+initial: null
+study: {type: eigen, n: 1, wavelength_um: 1.15}
+references:
+  - quantity: n_eff
+    definition: "effective index of the fundamental (highest n_eff) guided vector mode"
+    at: {slab_thickness_um: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]}
+    value: [3.412022, 3.412126, 3.412279, 3.412492, 3.412774, 3.413132, 3.413571, 3.414100]
+    unit: "1"
+    tolerance: {abs: 5.0e-6, after: richardson, note: "femwell text: Hadley states the error of all modes below +-3e-6; femwell colours differences < 5e-6 green"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Hadley 2002 via femwell re-tabulation", locator: "Hadley 2002 table N/A (paper not opened); femwell mode_solver.py neff_values_paper", accessed: 2026-11-06}
+reference_results:
+  - {solver: "femwell (scikit-fem P2 Nedelec and Julia/Gridap)", note: "computed in its docs build; values not stored in the source file"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no vector mode solver ported yet (C8; EO atlas vector-mode port is lane L4/L5 scope)"}
+rights:
+  source_license: "JLT paywalled; values via GPL-3.0 femwell"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: true, why: "R3 hero H4", visual: [E_field_components]}
+missing:
+  - {input: "polarization of the tabulated mode (quasi-TE or quasi-TM)", assumption: "fundamental vector mode with the highest n_eff (femwell takes modes[0])"}
+  - {input: "Hadley's computational window and boundary condition", assumption: "femwell window (18 um x 14 um) with a sensitivity check on window size"}
+  - {input: "whether 'rib height 1 um' is total height (femwell) or above the slab", assumption: "total height from the substrate top (femwell geometry)"}
+assumptions:
+  - "R3 WO-02 included the metal-box square core; it is split into WO-41."

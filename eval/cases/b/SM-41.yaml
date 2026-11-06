@@ -1,0 +1,57 @@
+schema: amp-eval/0
+id: SM-41
+class: b
+title: Turek-Hron CSM1 and CSM2, elastic flag under gravity, steady, geometrically nonlinear
+status: unvalidated
+untestable_reason: null
+physics: [coupled-fsi]
+tags: [csm-substep, solid-nonlinear-requested]
+dimension: 2D
+units: SI
+source:
+  citation: "S. Turek, J. Hron, Proposal for numerical benchmarking of fluid-structure interaction between an elastic object and laminar incompressible flow, in H.-J. Bungartz, M. Schafer (eds.), Fluid-Structure Interaction, LNCSE 53, 371-385, Springer (2006)"
+  doi: 10.1007/3-540-34596-5_15
+  open_access: false
+  open_copy: null
+  reference_pages:
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_definitions.html", cache: cache/eval-b/featflow/fsi_definitions.html, sha256: 4cc76b09abdd12b1f458e5e61efa9260a8345f114744d6d54546e5eac695bd6e}
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_quantities.html", cache: cache/eval-b/featflow/fsi_quantities.html, sha256: 7de48447a7cecbdf1ffa5b5c765a0cb7aa4863fb76667b78ea5b8246d1ffa70e}
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_tests/fsi_csm_tests.html", cache: cache/eval-b/featflow/fsi_csm_tests.html, sha256: a43e01c09e1bb1792182f4f81021598f1cb12ee6a47ae5e9755bce5f0e2ff365}
+geometry:
+  kind: analytic
+  spec: {channel_m: [2.5, 0.41], cylinder: {center_m: [0.2, 0.2], radius_m: 0.05}, beam: {length_m: 0.35, height_m: 0.02, right_bottom_corner_m: [0.6, 0.19], attached: "left end to the cylinder"}, point_A_t0_m: [0.6, 0.2]}
+  symmetry: none
+  source: "FEATFLOW FSI Definitions page, geometry table and text"
+materials:
+  solid: {model: st_venant_kirchhoff, rho: 1.0e+3, nu: 0.4, mu: {CSM1: 0.5e+6, CSM2: 2.0e+6}, E: {CSM1: 1.4e+6, CSM2: 5.6e+6}, source: "FEATFLOW CSM tests page, parameter table"}
+bcs:
+  - {selection: beam_left_end, type: fixed, expr: "u = 0 (attached to the rigid cylinder)"}
+  - {selection: beam_other_faces, type: traction_free}
+  - {selection: beam, type: body_force, expr: "rho_s * g, g = (0, -2) m/s^2", source: "CSM tests page, g = 2"}
+initial: null
+study: {type: parametric, param: case, values: [CSM1, CSM2], each: stationary}
+references:
+  - {quantity: u_x_A, case: {id: CSM1}, definition: "x-displacement of A", value: -7.18767e-3, unit: m, tolerance: {rel: 1.0e-3, after: richardson}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM1, level 5+1 (435,776 dof), column 'ux of A [x 10^-3]'", accessed: 2026-11-06}}
+  - {quantity: u_y_A, case: {id: CSM1}, definition: "y-displacement of A", value: -66.1023e-3, unit: m, tolerance: {rel: 1.0e-3, after: richardson}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM1, level 5+1", accessed: 2026-11-06}}
+  - {quantity: u_x_A, case: {id: CSM2}, definition: "x-displacement of A", value: -0.469000e-3, unit: m, tolerance: {rel: 2.0e-3, after: richardson}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM2, level 5+1", accessed: 2026-11-06}}
+  - {quantity: u_y_A, case: {id: CSM2}, definition: "y-displacement of A", value: -16.9739e-3, unit: m, tolerance: {rel: 1.0e-3, after: richardson}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM2, level 5+1", accessed: 2026-11-06}}
+reference_results:
+  - {solver: "FEATFLOW levels 2+0 .. 5+1", note: "CSM1 u_y(A) -66.0263e-3 .. -66.1023e-3"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no ALE fluid-structure or St. Venant-Kirchhoff module yet (C8)"}
+rights:
+  source_license: "values cited; LNCSE chapter paywalled; FEATFLOW pages no terms stated"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "structure-only verification step before FSI", visual: [deformation, von_mises]}
+missing:
+  - {input: "CSM3 (dynamic) time steps: the three result blocks on the page lost their dt labels in text extraction", assumption: "CSM3 not included; add after reading the page images"}
+assumptions:
+  - "Structure-only sub-test of the Turek-Hron FSI benchmark, tagged coupled-fsi because the schema has no geometrically nonlinear solid tag; tag solid-nonlinear requested (DevLog-007 contract requests)."
+  - "Linear elasticity would give a different u_x(A) (geometric nonlinearity matters at 66 mm tip deflection on 350 mm)."

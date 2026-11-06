@@ -1,0 +1,67 @@
+schema: amp-eval/0
+id: CP-41
+class: b
+title: Turek-Hron FSI3, self-excited flag oscillation behind a cylinder, Re 200
+status: unvalidated
+untestable_reason: null
+physics: [coupled-fsi]
+dimension: 2D
+units: SI
+source:
+  citation: "S. Turek, J. Hron, Proposal for numerical benchmarking of fluid-structure interaction between an elastic object and laminar incompressible flow, in H.-J. Bungartz, M. Schafer (eds.), Fluid-Structure Interaction, LNCSE 53, 371-385, Springer (2006)"
+  doi: 10.1007/3-540-34596-5_15
+  open_access: false
+  open_copy: null
+  reference_pages:
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_definitions.html", cache: cache/eval-b/featflow/fsi_definitions.html, sha256: 4cc76b09abdd12b1f458e5e61efa9260a8345f114744d6d54546e5eac695bd6e}
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_quantities.html", cache: cache/eval-b/featflow/fsi_quantities.html, sha256: 7de48447a7cecbdf1ffa5b5c765a0cb7aa4863fb76667b78ea5b8246d1ffa70e}
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_tests/fsi_fsi_tests.html", cache: cache/eval-b/featflow/fsi_fsi_tests.html, sha256: fd50baa094bd45d896c19dd776c81eb86619f22322a921c44044624d2fdac024}
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_reference.html", cache: cache/eval-b/featflow/fsi_reference.html, sha256: 63657b3c697ad87fdf256dcc980de4680665ebf3caaad71072dd3b367a85604d, note: "time series ref_fsi3.point listed, not downloaded"}
+geometry:
+  kind: analytic
+  spec: {channel_m: [2.5, 0.41], cylinder: {center_m: [0.2, 0.2], radius_m: 0.05}, beam: {length_m: 0.35, height_m: 0.02, right_bottom_corner_m: [0.6, 0.19], attached: "left end to the cylinder"}, point_A_t0_m: [0.6, 0.2]}
+  symmetry: none
+  source: "FEATFLOW FSI Definitions page, geometry table and text"
+materials:
+  fluid: {rho: 1.0e+3, nu: 1.0e-3, source: "FEATFLOW FSI tests page, parameter table, column FSI3"}
+  solid: {model: st_venant_kirchhoff, rho: 1.0e+3, nu: 0.4, mu: 2.0e+6, source: "same table"}
+bcs:
+  - {selection: inlet, type: velocity, expr: "(1.5*Ubar*y*(H-y)/(H/2)^2, 0)", params: {Ubar: 2.0, H: 0.41}}
+  - {selection: outlet, type: do_nothing}
+  - {selection: [walls, cylinder], type: no_slip}
+  - {selection: beam_fluid_interface, type: fsi_coupling, expr: "sigma_f n = sigma_s n, v_f = v_s"}
+initial: {note: "start from rest; ramp is a solver choice; compare the last full period of the developed oscillation"}
+study: {type: transient, dt_out: 0.0005, note: "run until periodic (t_end not fixed by the benchmark); reference used dt 0.0005"}
+references:
+  - {id: u_x_A_mean, quantity: u_x_A_mean, definition: "x-displacement of A, mean over the last period", value: -0.00286, unit: m, tolerance: {rel: 0.05, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: u_x_A_amplitude, quantity: u_x_A_amplitude, definition: "x-displacement of A, amplitude over the last period", value: 0.0027, unit: m, tolerance: {rel: 0.05, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: u_x_A_frequency, quantity: u_x_A_frequency, definition: "x-displacement of A, oscillation frequency", value: 10.92, unit: Hz, tolerance: {rel: 0.02, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: u_y_A_mean, quantity: u_y_A_mean, definition: "y-displacement of A, mean over the last period", value: 0.00145, unit: m, tolerance: {rel: 0.05, note: "mean is small relative to the amplitude; reported, not gated"}, gate: false, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: u_y_A_amplitude, quantity: u_y_A_amplitude, definition: "y-displacement of A, amplitude over the last period", value: 0.0349, unit: m, tolerance: {rel: 0.05, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: u_y_A_frequency, quantity: u_y_A_frequency, definition: "y-displacement of A, oscillation frequency", value: 5.46, unit: Hz, tolerance: {rel: 0.02, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: drag_mean, quantity: drag_mean, definition: "x-force on cylinder + beam per unit depth, mean over the last period", value: 460.2, unit: N/m, tolerance: {rel: 0.02, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: drag_amplitude, quantity: drag_amplitude, definition: "x-force on cylinder + beam per unit depth, amplitude over the last period", value: 27.47, unit: N/m, tolerance: {rel: 0.02, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: drag_frequency, quantity: drag_frequency, definition: "x-force on cylinder + beam per unit depth, oscillation frequency", value: 10.92, unit: Hz, tolerance: {rel: 0.02, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: lift_mean, quantity: lift_mean, definition: "y-force on cylinder + beam per unit depth, mean over the last period", value: 2.37, unit: N/m, tolerance: {rel: 0.05, note: "mean is small relative to the amplitude; reported, not gated"}, gate: false, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: lift_amplitude, quantity: lift_amplitude, definition: "y-force on cylinder + beam per unit depth, amplitude over the last period", value: 153.75, unit: N/m, tolerance: {rel: 0.05, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+  - {id: lift_frequency, quantity: lift_frequency, definition: "y-force on cylinder + beam per unit depth, oscillation frequency", value: 5.46, unit: Hz, tolerance: {rel: 0.02, note: "proposed (assumption)"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW FSI tests page", locator: "FSI3, dt 0.0005, level 4+0 (304,128 dof); mean = (max+min)/2, amplitude = (max-min)/2 per the Quantities for Comparison page", accessed: 2026-11-06}}
+reference_results:
+  - {solver: "FEATFLOW dt 0.001 / 0.0005 / 0.00025, levels 2+0 .. 4+0", note: "all rows on the FSI tests page"}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no ALE fluid-structure or St. Venant-Kirchhoff module yet (C8)"}
+rights:
+  source_license: "values cited; LNCSE chapter paywalled; FEATFLOW pages no terms stated"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: true, why: "visible flag flutter; precomputed replay only (stiff, long transient)", visual: [vorticity, deformation]}
+missing:
+  - {input: "Turek-Hron 2006 own reference table (paper paywalled)", assumption: "FEATFLOW finest row at dt 0.0005 is the reference"}
+  - {input: "start-up ramp of the inflow", assumption: "smooth ramp over 2 s (assumption; affects only the transient)"}
+assumptions:
+  - "Units as in CP-07 (SI, per unit depth)."

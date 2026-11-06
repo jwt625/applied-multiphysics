@@ -1,0 +1,58 @@
+schema: amp-eval/0
+id: CP-44
+class: b
+title: Arab Juneghani et al. 2022, modulator 2, 5 mm TFLN MZM on Si with SiO2 buffer, measured VpiL, n_RF, RF loss, Z_m (eo-modulator-atlas arabjuneghani2022-b)
+status: unvalidated
+untestable_reason: null
+physics: [electrostatics, optics-modes, rf-waveguide, coupled-electrostatics-optics]
+dimension: 2D
+units: SI
+source:
+  citation: "F. Arab Juneghani, M. Gholipour Vazimali, J. Zhao et al., Thin-film lithium niobate optical modulators with an extrapolated bandwidth of 170 GHz, Adv. Photonics Res. 4(1), 2200216 (Crossref issued 2022-10-26)"
+  doi: 10.1002/adpr.202200216
+  open_access: true
+  open_copy: {url: "https://doi.org/10.1002/adpr.202200216", licence: CC-BY-4.0, note: "licence verified in the atlas (rights statement p.1)"}
+  atlas_ref: {repo: eo-modulator-atlas, path: sims/arabjuneghani2022/config.yaml, id: arabjuneghani2022-b, commit: f418495, evidence: "references/arabjuneghani2022/source.pdf (read in place for the digitization pilot, not copied)"}
+geometry:
+  kind: analytic
+  spec: {ref: "eo-modulator-atlas sims/arabjuneghani2022/config.yaml geometry (device 2; Table 1, Fig. 1(a))"}
+  symmetry: none
+materials:
+  lithium_niobate: {source: "paper gives none; atlas uses engine library values (UNVERIFIED for this paper)"}
+bcs:
+  - {selection: electrodes, type: potential, expr: "GSG, push-pull arms"}
+initial: null
+study: {type: stationary, note: "electrostatics + optical mode + EO overlap; quasi-static RF line"}
+expected: eval/expected/CP-44.json
+references:
+  - {quantity: VpiL_push_pull, definition: "DC VpiL, 5 mm device (6.6 V x 0.5 cm)", value: 3.3, unit: V cm, tolerance: {rel: 1.5e-1, note: "atlas tolerance"}, basis: P, form: paper_measured, extraction: text, provenance: {citation: "Arab Juneghani 2022 via atlas", locator: "paper p.3 (100 kHz triangular sweep); atlas devices.csv vpil_dc_vcm", accessed: 2026-11-06}}
+  - {quantity: n_RF, definition: "RF effective index from measured S-parameters", value: 2.2, unit: "1", tolerance: {abs: 0.1, note: "atlas tolerance"}, basis: P, form: paper_measured, extraction: text, provenance: {citation: "Arab Juneghani 2022 via atlas", locator: "atlas devices.csv n_rf; paper Fig. 4", accessed: 2026-11-06}}
+  - {quantity: RF_loss_67GHz, definition: "RF loss alpha_m at 67 GHz", value: 3.6, unit: dB/cm, tolerance: {rel: 2.0e-1, note: "atlas tolerance"}, basis: P, form: paper_measured, extraction: text, provenance: {citation: "Arab Juneghani 2022", locator: "paper p.4 Sec. 3.2 text ('3.6 dB cm-1 at 67 GHz')", accessed: 2026-11-06}}
+  - {quantity: Z_m, definition: "characteristic impedance, midpoint of the stated 49-52 ohm band", value: 50.5, unit: ohm, tolerance: {abs: 1.5, note: "atlas: midpoint, tolerance covers the stated range"}, basis: P, form: paper_measured, extraction: text, provenance: {citation: "Arab Juneghani 2022 via atlas", locator: "paper p.3 Sec. 3.2, Fig. 4", accessed: 2026-11-06}}
+  - {quantity: n_g_optical, definition: "paper-simulated optical group index", value: 2.23, unit: "1", tolerance: {abs: 0.05}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Arab Juneghani 2022 via atlas", locator: "paper Fig. 1(a) inset; atlas devices.csv ng_opt", accessed: 2026-11-06}}
+  - {quantity: RF_loss_66GHz_digitized, definition: "measured alpha_m at 66 GHz digitized from Fig. 4 (cross-check of the text value; L7b pilot)", value: null, unit: dB/cm, tolerance: {abs: 0.13, note: "U (k = 2) of the digitization"}, gate: false, expected: {metric_id: alpha_measured_66GHz}, basis: S, form: paper_measured, extraction: {method: digitized, protocol: "validation/b/digitize.py", spec: "validation/b/digitize_specs/arabjuneghani2022-fig4.json"}, provenance: {citation: "Arab Juneghani 2022 Fig. 4", locator: "p.4 Figure 4, top panel, blue curve", accessed: 2026-11-06, generator: validation/b/digitize.py}}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, ref: sims/CP-44.yaml, reason: "atlas config not yet ported to amp-spec/0 (C8)"}
+rights:
+  source_license: CC-BY-4.0
+  allowed: [cite_values, re_derive_setup, copy_figures]
+  forbidden: [copy_input_files]
+hero: {suitable: false, why: "chain validation", visual: [E_static, optical_mode]}
+missing:
+  - {input: "BOX thickness", assumption: "2 um (atlas placeholder)"}
+  - {input: "rib sidewall angle; whether 800 nm is top or bottom width", assumption: "vertical walls (atlas)"}
+  - {input: "Si substrate thickness and resistivity", assumption: "materials package; sweep resistivity"}
+  - {input: "LN indices, RF permittivity, Pockels coefficients; SiO2 and Si constants; gold conductivity", assumption: "materials package with sources (atlas library values unverified for this paper)"}
+  - {input: "SiO2 cladding profile and reference plane of Tc", assumption: "flat top above the slab (atlas)"}
+  - {input: "polarization and wavelength of the Vpi sweep", assumption: "TE, 1550 nm"}
+  - {input: "temperature", assumption: "room temperature, 20-25 C"}
+assumptions:
+  - "Atlas limitation carried over: the measured VpiL dependence on waveguide offset D (Fig. 3(c), ratio 2.50) is not reproduced by two solvers (ratio 1.53); only the D = device-2 point is gated here."
+  - "The 170 GHz bandwidth is the authors' extrapolation, not a measurement; not a target."

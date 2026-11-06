@@ -1,0 +1,57 @@
+schema: amp-eval/0
+id: AC-01
+class: b
+title: EAA benchmark duct (Hornikx, Kaltenbacher, Marburg 2015), plane wave in a rigid duct with a matched end
+status: unvalidated
+untestable_reason: null
+physics: [acoustics]
+dimension: 3D
+units: SI
+source:
+  citation: "M. Hornikx, M. Kaltenbacher, S. Marburg, A platform for benchmark cases in computational acoustics, Acta Acust. united Ac. 101(4), 811-820 (2015)"
+  doi: 10.3813/AAA.918875
+  open_access: false
+  open_copy: null
+  note: "R3 read eq. 2 / sec. 4.1 from a 'personal use only' PDF on 2026-11-06; L7b could not locate an open copy (search 2026-11-06). The EAA 'Linear Acoustics 1: Ducts' record (Zenodo 10.5281/zenodo.8419858) returned HTTP 403 (anti-bot) and was not retried"
+geometry:
+  kind: analytic
+  spec: {duct_length_m: 3.4, cross_section_m: [0.2, 0.2]}
+  symmetry: "1D plane-wave field"
+materials:
+  air: {rho: "rho_0", c: "c_0", source: "values N/A in this lane's sources; see missing"}
+bcs:
+  - {selection: inlet_x0, type: normal_velocity, expr: "v_x = 1 m/s"}
+  - {selection: outlet_x3.4, type: impedance, expr: "Z = rho_0 c_0 (matched)"}
+  - {selection: side_walls, type: rigid}
+initial: null
+study: {type: frequency, f_list: "any frequency; the plane-wave solution holds below the first cross mode c_0 / (2 * 0.2 m)"}
+references:
+  - quantity: p_over_rho_c
+    definition: "|p(x)| / (rho_0 c_0 v_x(0)) along the duct axis; exact solution p(x) = -rho_0 c_0 v_x(0) exp(i k x) (sign per the paper's time convention)"
+    value: 1.0
+    unit: "1"
+    tolerance: {rel: 1.0e-3, after: richardson, norm: max, note: "proposed (assumption)"}
+    basis: P
+    form: closed_form
+    extraction: text
+    provenance: {citation: "Hornikx et al. 2015 eq. 2", locator: "sec. 4.1, eq. 2 (as read by R3 on 2026-11-06; not re-read by L7b)", accessed: 2026-11-06}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no Helmholtz module yet (C8)"}
+rights:
+  source_license: "Acta Acustica united with Acustica (S. Hirzel), PDF personal use only"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "verification of impedance BC and phase", visual: [pressure_real]}
+missing:
+  - {input: "rho_0 and c_0 used by the benchmark", assumption: "any values; the gate is normalized by rho_0 c_0"}
+  - {input: "frequency set of the benchmark", assumption: "three frequencies below the first cross-mode cut-off, chosen in the run record"}
+  - {input: "time convention (exp(i omega t) or exp(-i omega t))", assumption: "gate on the magnitude only"}
+assumptions:
+  - "This is a class-b case because the setup comes from the paper; the target itself is the closed-form plane-wave solution."

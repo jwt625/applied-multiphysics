@@ -1,0 +1,104 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "CP-44",
+  "class": "b",
+  "generator": "validation/b/gen_expected.py",
+  "command": "uv run --no-project python validation/b/gen_expected.py",
+  "method": "Code-based digitization of Arab Juneghani 2022 Fig. 4 (CC BY 4.0), p.4; protocol in DevLog-007 s.7; inputs validation/b/digitize_specs/arabjuneghani2022-fig4.json",
+  "inputs": {
+    "digitized": "validation/b/digitized/arabjuneghani2022-fig4.json",
+    "source_sha256": "85e8f54cd71d1c99ce5615f9c4fa9b12ca39b1c6d2bccea3d34c345285aa57d8",
+    "digitized_at": "2026-11-06T15:41:49-08:00"
+  },
+  "generated_at": "2026-11-06T15:42:03-08:00",
+  "versions": {
+    "python": "3.12.11"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "targets": [
+    {
+      "metric_id": "alpha_measured_66GHz",
+      "value": 3.586629,
+      "unit": "dB/cm",
+      "what": "measured RF loss at 66 GHz",
+      "precision": {
+        "method": "digitized (validation/b/digitize.py)",
+        "u_k1": 0.064145,
+        "U_k2": 0.128289
+      }
+    },
+    {
+      "metric_id": "alpha_simulated_66GHz",
+      "value": 3.791267,
+      "unit": "dB/cm",
+      "what": "paper-simulated RF loss at 66 GHz",
+      "precision": {
+        "method": "digitized (validation/b/digitize.py)",
+        "u_k1": 0.04117,
+        "U_k2": 0.08234
+      }
+    },
+    {
+      "metric_id": "nm_measured_50GHz",
+      "value": 2.225465,
+      "unit": "1",
+      "what": "measured RF effective index at 50 GHz",
+      "precision": {
+        "method": "digitized (validation/b/digitize.py)",
+        "u_k1": 0.010842,
+        "U_k2": 0.021684
+      }
+    },
+    {
+      "metric_id": "Zm_measured_40GHz",
+      "value": 50.408163,
+      "unit": "ohm",
+      "what": "measured Z_m at 40 GHz",
+      "precision": {
+        "method": "digitized (validation/b/digitize.py)",
+        "u_k1": 0.068396,
+        "U_k2": 0.136791
+      }
+    },
+    {
+      "metric_id": "Zm_simulated_40GHz",
+      "value": 50.816327,
+      "unit": "ohm",
+      "what": "paper-simulated Z_m at 40 GHz",
+      "precision": {
+        "method": "digitized (validation/b/digitize.py)",
+        "u_k1": 0.204082,
+        "U_k2": 0.408163
+      }
+    },
+    {
+      "metric_id": "Zm_measured_range",
+      "value": [
+        49.1156,
+        51.8367
+      ],
+      "unit": "ohm",
+      "what": "min / max over 2.34-66.58 GHz",
+      "precision": {
+        "method": "digitized",
+        "u_k1_median": 0.204082
+      }
+    },
+    {
+      "metric_id": "Zm_simulated_range",
+      "value": [
+        50.6803,
+        52.9932
+      ],
+      "unit": "ohm",
+      "what": "min / max over 2.34-66.58 GHz",
+      "precision": {
+        "method": "digitized",
+        "u_k1_median": 0.204082
+      }
+    }
+  ]
+}

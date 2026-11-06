@@ -1,0 +1,61 @@
+schema: amp-eval/0
+id: WO-41
+class: b
+title: Hadley 2002 square core in a metal box (quarter symmetry), fundamental mode n_eff, lambda 1.5
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+source:
+  citation: "G. R. Hadley, High-accuracy finite-difference equations for dielectric waveguide analysis II: dielectric corners, J. Lightwave Technol. 20(7), 1219-1231 (2002)"
+  doi: 10.1109/jlt.2002.800371
+  open_access: false
+  open_copy: null
+  retabulation: {where: "femwell docs/benchmarks/mode_solver_rectangle.py (neff_values_paper; cites Hadley2002)", url: "https://raw.githubusercontent.com/HelgeGehring/femwell/main/docs/benchmarks/mode_solver_rectangle.py", cache: cache/eval-b/femwell/mode_solver_rectangle.py, sha256: deb335d9438e86908ac224bc67b80a82b7d8192d8136046df009e618227812b5, licence: GPL-3.0}
+geometry:
+  kind: analytic
+  spec: {window: "[0, 1] x [0, 1] (quarter of the full structure)", core: "[0, 0.5] x [0, 0.5]", length_unit: "same unit as the wavelength (femwell: um)"}
+  symmetry: "quarter; symmetry walls on the edges not listed as metallic"
+materials:
+  core_clad:
+    variants:
+      - {id: A, eps_core: 2.25, eps_clad: 1.0, metallic_edges: [left, right]}
+      - {id: B, eps_core: 8.0, eps_clad: 1.0, metallic_edges: [left, right]}
+      - {id: C, eps_core: 1.0, eps_clad: 2.25, metallic_edges: [left, top]}
+      - {id: D, eps_core: 1.0, eps_clad: 8.0, metallic_edges: [left, top]}
+    source: "femwell mode_solver_rectangle.py epsilons_paper and boundaries"
+bcs:
+  - {selection: metallic_edges, type: pec}
+  - {selection: other_edges, type: pmc, expr: "femwell natural boundary (assumption, see missing)"}
+initial: null
+study: {type: eigen, n: 1, wavelength: 1.5}
+references:
+  - quantity: n_eff
+    definition: "effective index of the fundamental mode, per variant"
+    at: {variant: [A, B, C, D]}
+    value: [1.27627404, 2.65679692, 1.387926425, 2.761465320]
+    unit: "1"
+    tolerance: {abs: 1.0e-7, after: richardson, note: "femwell text: Hadley error below +-1e-8; 1e-7 proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Hadley 2002 via femwell re-tabulation", locator: "Hadley 2002 table N/A (paper not opened); femwell mode_solver_rectangle.py neff_values_paper", accessed: 2026-11-06}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, reason: "no vector mode solver ported yet (C8)"}
+rights:
+  source_license: "JLT paywalled; values via GPL-3.0 femwell"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "verification geometry", visual: [E_field_components]}
+missing:
+  - {input: "boundary condition type on the non-metallic edges and the mode symmetry class", assumption: "PMC (natural boundary of femwell's formulation); verify against the paper"}
+assumptions:
+  - "Variants C and D (low-index core) were not in R3; they come from the same femwell file."

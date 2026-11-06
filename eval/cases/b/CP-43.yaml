@@ -1,0 +1,55 @@
+schema: amp-eval/0
+id: CP-43
+class: b
+title: Pan et al. 2021, 5 mm TFLN MZM at 1957 nm on Si (GSG, push-pull), paper-simulated VpiL, n_g, Z0 (eo-modulator-atlas pan2021-a)
+status: unvalidated
+untestable_reason: null
+physics: [electrostatics, optics-modes, coupled-electrostatics-optics]
+dimension: 2D
+units: SI
+source:
+  citation: "B. Pan, J. Hu, Y. Huang, L. Song et al., Demonstration of high-speed thin-film lithium-niobate-on-insulator optical modulators at the 2-um wavelength, Opt. Express 29(12), 17710 (2021)"
+  doi: 10.1364/oe.416908
+  open_access: true
+  open_copy: {url: "https://doi.org/10.1364/oe.416908", licence: "Optica Open Access Publishing Agreement (Crossref licence URL doi.org/10.1364/OA_License_v1, version of record)"}
+  atlas_ref: {repo: eo-modulator-atlas, path: sims/pan2021/config.yaml, id: pan2021-a, commit: f418495, evidence: "references/pan2021/ (read in place, not copied)"}
+geometry:
+  kind: analytic
+  spec: {ref: "eo-modulator-atlas sims/pan2021/config.yaml geometry (designed parameters, p.3: g 6.5 um, ws 17 um, wg 60 um, electrode t 0.5 um, rib top 1.1 um, etch 300 nm of 600 nm film, BOX 2 um, Si substrate)"}
+  symmetry: none
+materials:
+  lithium_niobate: {crystal: "x-cut", source: "paper p.2 (x-cut); RF permittivity and Pockels tensor not stated in the paper (atlas placeholders, UNVERIFIED)"}
+bcs:
+  - {selection: electrodes, type: potential, expr: "signal 1 V, grounds 0 V (single-ended GSG, push-pull by arm placement)"}
+initial: null
+study: {type: stationary, note: "electrostatics + optical mode at 1957 nm + EO overlap; RF line for Z0"}
+references:
+  - {quantity: VpiL_push_pull, definition: "DC half-wave voltage-length product of the push-pull MZM, designed cross-section", value: 4.06, unit: V cm, tolerance: {rel: 1.0e-1, note: "atlas tolerance"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Pan 2021 via eo-modulator-atlas pan2021-a targets", locator: "paper p.3 Sec. 2; Fig. 2(c) (g = 6.5 um, h = 300 nm)", accessed: 2026-11-06}}
+  - {quantity: n_g_optical, definition: "optical group index of the TE0 mode", value: 2.276, unit: "1", tolerance: {abs: 0.05, note: "atlas tolerance; depends on LN indices the paper does not give"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Pan 2021 via atlas", locator: "paper p.4 Fig. 4(c)", accessed: 2026-11-06}}
+  - {quantity: Z0_real, definition: "Re Z0 plateau of the GSG line", value: 50.0, unit: ohm, tolerance: {abs: 2.0, note: "atlas tolerance"}, basis: P, form: paper_sim, extraction: digitized, provenance: {citation: "Pan 2021 via atlas", locator: "paper Fig. 4(a)", accessed: 2026-11-06}}
+  - {quantity: VpiL_measured, definition: "measured DC VpiL of the fabricated device", value: 3.67, unit: V cm, tolerance: {rel: 1.5e-1}, gate: false, basis: P, form: paper_measured, extraction: text, note: "atlas marks it non-comparable: LN constants at 1957 nm unverified; fabricated electrodes wider than designed", provenance: {citation: "Pan 2021 via atlas devices.csv pan2021-a", locator: "atlas data/devices.csv field vpil_dc_vcm", accessed: 2026-11-06}}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: null, native: null}
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+  note: "budget set after the first timing run (R3 O3)"
+dataset: null
+spec: {status: pending, ref: sims/CP-43.yaml, reason: "atlas config not yet ported to amp-spec/0 (C8); EO chain port is a later lane"}
+rights:
+  source_license: "Optics Express open access; atlas data GPL-3.0 (same owner)"
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: "chain validation, not a scene", visual: [E_static, optical_mode]}
+missing:
+  - {input: "LN ordinary / extraordinary indices at 1957 nm", assumption: "materials-package dispersion fit with source; optical stage blocked in the atlas until sourced"}
+  - {input: "LN RF permittivity and Pockels coefficients", assumption: "materials-package values with source (atlas placeholders are UNVERIFIED)"}
+  - {input: "SiO2 and Si optical indices at 1957 nm; RF permittivities", assumption: "materials package"}
+  - {input: "gold conductivity", assumption: "materials package; only Z0 loss depends on it"}
+  - {input: "waveguide position inside the 6.5 um gap", assumption: "centred (atlas)"}
+  - {input: "rib sidewall angle", assumption: "30 deg from vertical read from Fig. 1(b) (atlas project_inference)"}
+  - {input: "cladding", assumption: "air (none drawn)"}
+  - {input: "fabricated dimensions", assumption: "designed values"}
+assumptions:
+  - "Values and locators are taken from the atlas config as of commit f418495; the atlas is the evidence holder."
