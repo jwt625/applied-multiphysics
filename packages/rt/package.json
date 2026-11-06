@@ -1,0 +1,25 @@
+{
+  "name": "@amp/rt",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "Real-time WebGPU kernels (LBM D2Q9, FDTD TMz, Gray-Scott) with CPU references (DevLog-005)",
+  "exports": {
+    ".": "./src/index.ts",
+    "./cpu": "./src/cpu/index.ts"
+  },
+  "scripts": {
+    "test": "node --max-old-space-size=1536 --test test/*.test.ts",
+    "check": "tsc -p . --noEmit",
+    "emit": "node scripts/emit-browser.ts",
+    "emit:check": "node scripts/emit-browser.ts --check",
+    "gates": "nice -n 10 node --max-old-space-size=1536 scripts/gates.ts",
+    "bench": "nice -n 10 node --max-old-space-size=1536 scripts/bench-node.ts",
+    "shoot": "nice -n 10 node --max-old-space-size=1536 scripts/shoot.ts --bench --gates"
+  },
+  "devDependencies": {
+    "playwright-core": "1.65.0",
+    "webgpu": "0.6.2"
+  }
+}

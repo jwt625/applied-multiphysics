@@ -157,3 +157,7 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - Registry: physics, BC, study, feature, coupling and material-property types are registered by name. The seed in `packages/spec/src/provisional/wave1.ts` is provisional; L4 (physics) and L3 (features) replace it.
   - `degC` is handled in the spec layer for now.
 - 2026-11-06 15:4x PST, from L7b: physics tag `solid-nonlinear` to be added (L8). Class-b `source` sub-keys to be documented in the schema (L8).
+- 2026-11-06 15:5x PST, adopted from L6 (DevLog-005 s.7):
+  - C9 gains the optional members `grid`, `views`, `setView`, `setParams`, `paint`, `overlay` and `info`, defined in `packages/rt/src`.
+  - The grid gains an optional `lengthUnit` (Gray-Scott uses model units).
+  - Eval readback names are listed in DevLog-005 s.7; L8 may wrap the `@amp/rt` gates directly.
