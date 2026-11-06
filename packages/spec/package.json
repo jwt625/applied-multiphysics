@@ -1,0 +1,24 @@
+{
+  "name": "@amp/spec",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "amp-spec/0 model schema (types + JSON Schema from one zod definition), YAML splice I/O, operation log, run records (DevLog-003)",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types/index.ts",
+    "./yaml-edit": "./src/yaml-edit.mjs",
+    "./provisional": "./src/provisional/wave1.ts"
+  },
+  "scripts": {
+    "test": "node --max-old-space-size=1536 --test --test-concurrency=1 test/*.test.ts",
+    "check": "tsc -p . --noEmit",
+    "gates": "nice -n 10 node --max-old-space-size=1536 scripts/gates.ts"
+  },
+  "dependencies": {
+    "yaml": "2.9.1",
+    "zod": "4.6.7",
+    "@amp/core": "workspace:*"
+  }
+}

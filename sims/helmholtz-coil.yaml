@@ -1,0 +1,60 @@
+# H3 Helmholtz coil (DevLog-001 s.8). Eval gate EM-04 (R3): N 1, I 1 A, R 0.1 m, spacing R;
+# B(center) = (4/5)^(3/2) mu0 N I / R = 8.99176 uT, d2B/dz2 = 0 at the center (Biot-Savart closed form).
+# Axisymmetric (r, z) model; the coils are small square cross-sections standing in for the reference filaments.
+schema: amp-spec/0
+id: helmholtz-coil
+title: Helmholtz coil
+description: Two coaxial loops one radius apart; field lines and the uniform region between them.
+params:
+  R: {value: 0.1, unit: m, description: coil radius}
+  d: {value: "R", description: coil spacing}
+  I: {value: 1, unit: A, description: current per turn}
+  s: {value: 1, unit: mm, description: side of the square coil cross-section}
+  Rair: {value: 1, unit: m, description: radial extent of the air domain}
+  Zair: {value: 1, unit: m, description: half height of the air domain}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: air_box, type: rect, settings: {size: ["Rair", "2*Zair"], center: ["Rair/2", "0 m"]}}
+    - {id: coil1, type: rect, settings: {size: ["s", "s"], center: ["R", "d/2"]}}
+    - {id: coil2, type: rect, settings: {size: ["s", "s"], center: ["R", "-d/2"]}}
+    - {id: air, type: difference, settings: {base: air_box, tools: [coil1, coil2], keepTools: true}}
+materials:
+  - {id: air_mat, ref: materials/air, select: ["dom:air"]}
+  - {id: coil_mat, ref: materials/copper, select: ["dom:coil1", "dom:coil2"]}
+physics:
+  - id: mf
+    type: magnetostatics
+    select: ["dom:air", "dom:coil1", "dom:coil2"]
+    bcs:
+      - {id: drive1, type: coil-current, select: ["dom:coil1"], settings: {turns: 1, current: "I"}}
+      - {id: drive2, type: coil-current, select: ["dom:coil2"], settings: {turns: 1, current: "I"}}
+      - {id: outer, type: magnetic-insulation, select: ["bnd:air_box.right", "bnd:air_box.top", "bnd:air_box.bottom"]}
+mesh:
+  size: {hmax: "Rair/20"}
+  refine:
+    - {select: ["dom:coil1", "dom:coil2"], h: "s/4"}
+studies:
+  - {id: std1, type: stationary, physics: [mf]}
+results:
+  - {id: B_center, type: probe, data: std1, expr: mf.Bz, unit: uT, at: ["0 m", "0 m"]}
+  - {id: B_map, type: plot2d, data: std1, expr: mf.normB, unit: uT}
+provenance:
+  values:
+    params.R: {basis: benchmark, source: "R3 EM-04 (Biot-Savart closed form)", date: 2026-11-06}
+    params.d: {basis: benchmark, source: "R3 EM-04: spacing R", date: 2026-11-06}
+    params.I: {basis: benchmark, source: "R3 EM-04", date: 2026-11-06}
+    physics.mf.bcs.drive1.settings.turns: {basis: benchmark, source: "R3 EM-04: N 1", date: 2026-11-06}
+    physics.mf.bcs.drive2.settings.turns: {basis: benchmark, source: "R3 EM-04: N 1", date: 2026-11-06}
+    params.s: {basis: user, date: 2026-11-06, note: "modelling choice (s = R/100); the reference is a filament loop"}
+    params.Rair: {basis: user, date: 2026-11-06, note: "modelling choice (10 R), truncation to be checked by convergence"}
+    params.Zair: {basis: user, date: 2026-11-06, note: "modelling choice (10 R), truncation to be checked by convergence"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
+assumptions:
+  - {text: "Finite square coil cross-section s replaces the filament of the closed form; its effect on B(center) must be bounded in the EM-04 gate", paths: [params.s]}
+  - {text: "r = 0 (air_box.left) is the symmetry axis, handled by the axisymmetric formulation; outer boundaries truncate the open domain with n x A = 0", paths: [physics.mf.bcs.outer]}
+missing:
+  - {path: materials.air_mat.ref, what: "materials/air is not authored yet (materials/ empty on 2026-11-06); magnetostatics needs mu_r", needed_for: [solution]}
+  - {path: materials.coil_mat.ref, what: "materials/copper is not authored yet (materials/ empty on 2026-11-06); magnetostatics needs mu_r", needed_for: [solution]}
