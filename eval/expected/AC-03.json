@@ -1,0 +1,140 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "AC-03",
+  "class": "a",
+  "generator": "validation/a/gen_misc.py",
+  "command": "cd validation && uv run python a/gen_misc.py",
+  "method": "Rigid sphere, plane wave p0 exp(i k z): p_s = -p0 sum i^n (2n+1) [j_n'(ka)/h_n'(ka)] h_n(kr) P_n(cos th) (Morse-Ingard sec. 8.2 form; not fetched). f(th) = (2i/ka) sum (2n+1) (j_n'/h_n') P_n(cos th); sigma/(pi a^2) = (4/(ka)^2) sum (2n+1) |j_n'/h_n'|^2.",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "abs_f_back_ka0.5",
+      "value": 0.36626350678787567,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 15,
+        "change_on_doubling": 0.0
+      },
+      "locator": "|f(pi)|, ka = 0.5"
+    },
+    {
+      "metric_id": "sigma_over_pia2_ka0.5",
+      "value": 0.03874356304363876,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 15,
+        "change_on_doubling": 0.0
+      },
+      "locator": "sigma_s / (pi a^2), ka = 0.5"
+    },
+    {
+      "metric_id": "abs_f_back_ka1.0",
+      "value": 0.9381223076342368,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 16,
+        "change_on_doubling": 0.0
+      },
+      "locator": "|f(pi)|, ka = 1.0"
+    },
+    {
+      "metric_id": "sigma_over_pia2_ka1.0",
+      "value": 0.3216288590901782,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 16,
+        "change_on_doubling": 0.0
+      },
+      "locator": "sigma_s / (pi a^2), ka = 1.0"
+    },
+    {
+      "metric_id": "abs_f_back_ka2.0",
+      "value": 0.7617464315700527,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 19,
+        "change_on_doubling": 0.0
+      },
+      "locator": "|f(pi)|, ka = 2.0"
+    },
+    {
+      "metric_id": "sigma_over_pia2_ka2.0",
+      "value": 0.781500043254246,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 19,
+        "change_on_doubling": 0.0
+      },
+      "locator": "sigma_s / (pi a^2), ka = 2.0"
+    },
+    {
+      "metric_id": "abs_f_back_ka5.0",
+      "value": 1.0398095349049368,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 23,
+        "change_on_doubling": 0.0
+      },
+      "locator": "|f(pi)|, ka = 5.0"
+    },
+    {
+      "metric_id": "sigma_over_pia2_ka5.0",
+      "value": 1.303363484335769,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 23,
+        "change_on_doubling": 0.0
+      },
+      "locator": "sigma_s / (pi a^2), ka = 5.0"
+    },
+    {
+      "metric_id": "abs_f_back_ka10.0",
+      "value": 0.9785784172660011,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 30,
+        "change_on_doubling": 0.0
+      },
+      "locator": "|f(pi)|, ka = 10.0"
+    },
+    {
+      "metric_id": "sigma_over_pia2_ka10.0",
+      "value": 1.569142297237666,
+      "unit": "1",
+      "precision": {
+        "method": "partial-wave series",
+        "terms": 30,
+        "change_on_doubling": 0.0
+      },
+      "locator": "sigma_s / (pi a^2), ka = 10.0"
+    }
+  ],
+  "self_checks": {
+    "rayleigh_ratio_ka0.01_vs_7/9_ka^4": 0.9999057207639609,
+    "sigma_over_pia2_ka200": 1.9478345579872425,
+    "max_|dp/dr|_over_k_at_r=a_ka5": 7.021666937153402e-10
+  },
+  "field_function": "validation/a/fields.py:AC-03 -> gen_misc.ac03_pressure"
+}

@@ -1,0 +1,92 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "EM-04",
+  "class": "a",
+  "generator": "validation/a/gen_em.py",
+  "command": "cd validation && uv run python a/gen_em.py",
+  "method": "Helmholtz pair of filament loops, radius R, spacing R. B0 = (4/5)^(3/2) mu0 N I / R; off-axis field from the elliptic-integral loop formula (Smythe 1950 / Jackson 5.37 form).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "B_center",
+      "value": 8.991762854544924e-06,
+      "unit": "T",
+      "precision": {
+        "method": "closed form",
+        "elliptic_integral_value": 8.991762854544922e-06,
+        "diff": 1.6940658945086007e-21
+      },
+      "r3": {
+        "r3_value": "8.99176",
+        "rel_diff": 3.174623126052517e-07,
+        "agreement": "agree",
+        "note": "compared in uT"
+      },
+      "locator": "(0, 0)"
+    },
+    {
+      "metric_id": "d2Bz_dz2_center",
+      "value": 0.0,
+      "unit": "T/m^2",
+      "precision": {
+        "method": "mpmath numerical derivative, 40 digits"
+      },
+      "locator": "on axis at the centre; zero by construction"
+    },
+    {
+      "metric_id": "d4Bz_dz4_center",
+      "value": -2.4860425940245796,
+      "unit": "T/m^4",
+      "precision": {
+        "method": "mpmath numerical derivative, 40 digits"
+      },
+      "locator": "on axis at the centre; leading non-uniformity term"
+    },
+    {
+      "metric_id": "Br_probe",
+      "value": -8.351160092130362e-09,
+      "unit": "T",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "(rho, z) = (0.02, 0.01) m"
+    },
+    {
+      "metric_id": "Bz_probe",
+      "value": 8.997411609377491e-06,
+      "unit": "T",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "(rho, z) = (0.02, 0.01) m"
+    },
+    {
+      "metric_id": "uniformity_sphere_0.1R",
+      "value": 0.00011394232446984009,
+      "unit": "1",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "max | |B| - B0 | / B0 on a sphere radius 0.1 R"
+    }
+  ],
+  "inputs": {
+    "R_m": 0.1,
+    "I_A": 1.0,
+    "N": 1
+  },
+  "field_function": "validation/a/fields.py:EM-04"
+}

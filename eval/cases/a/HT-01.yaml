@@ -1,0 +1,78 @@
+# HT-01: NAFEMS T4: 2D steady conduction, convection on two edges
+# Built by validation/a/build_cases.py from eval/expected/HT-01.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: HT-01
+class: a
+title: 'NAFEMS T4: 2D steady conduction, convection on two edges'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond, heat-conv]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    plate_m: [0.6, 1.0]
+    origin: corner of the insulated and fixed edges
+    points_m:
+      E: [0.6, 0.2]
+  symmetry: none
+materials:
+  plate: {k: 52.0, source: NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4 (R3 s.3.1)}
+bcs:
+- {selection: y = 0, type: temperature, value: 373.15, note: 100 C}
+- {selection: x = 0, type: insulated}
+- selection: [x = 0.6, y = 1.0]
+  type: convection
+  h: 750.0
+  T_inf: 273.15
+  note: to 0 C
+initial: null
+study: {type: stationary}
+references:
+- quantity: T(E)
+  metric_id: T_E
+  definition: temperature at E = (0.6, 0.2) m
+  value: 18.253756537134215
+  unit: degC
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: separation-of-variables series (this lane), locator: 'validation/a/gen_heat.py::ht01; eval/expected/HT-01.json
+      targets[metric_id=T_E]', accessed: null}
+  expected: {file: eval/expected/HT-01.json, metric_id: T_E}
+- quantity: T(E)
+  metric_id: T_E_nafems
+  definition: NAFEMS target (3 significant figures)
+  value: 18.3
+  unit: degC
+  tolerance: {abs: 0.05}
+  bounds: null
+  basis: P
+  form: benchmark
+  gate: false
+  provenance: {citation: 'NAFEMS T4 (Cameron, Casey, Simpson 1986) via Altair OS-V 0120', locator: 2021.help.altair.com/2021/hwsolvers/os/topics/solvers/os/nafems_test_problem_t4_r.htm;
+      FEATool ex_heattransfer4.m L127 (R3), accessed: '2026-11-06'}
+  note: the D value rounds to 18.3; the gate is the D value
+reference_results:
+- {solver: advanced-packaging-atlas L5 scikit-fem Q2 (read-only pointer), value_degC: 18.25375654, locator: advanced-packaging-atlas
+    validation/cases/B/nafems-T4.yaml}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 s.3.1 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: NAFEMS TNSB booklet paid, site terms bar redistribution; target value cited via a public vendor or open-source
+    page (all rights reserved on vendor pages)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/nafems-t4.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
+    proposal}
+missing: []
+assumptions: [Temperatures in K for the solver; the target is reported in degC (T - 273.15).]

@@ -1,0 +1,96 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "HT-03",
+  "class": "a",
+  "generator": "validation/a/gen_heat.py",
+  "command": "cd validation && uv run python a/gen_heat.py",
+  "method": "Root of k (T_A - T_B)/L = eps sigma (T_B^4 - T_inf^4), 1D, no other loss. Both sigma values shown: the NAFEMS booklet's sigma is not public (missing).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "T_B[k = 55.6 W/(m K); sigma CODATA]",
+      "value": 927.0039504502631,
+      "unit": "K",
+      "precision": {
+        "method": "brentq root",
+        "xtol_K": 1e-13,
+        "residual_W_m2": 4.3655745685100555e-11
+      },
+      "r3": {
+        "r3_value": "927.004",
+        "rel_diff": 5.345148122358652e-08,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "end B, x = L",
+      "inputs": {
+        "k": 55.6,
+        "sigma": 5.6703744191844314e-08
+      }
+    },
+    {
+      "metric_id": "T_B[k = 55.6 W/(m K); sigma 5.67e-8]",
+      "value": 927.0076062462459,
+      "unit": "K",
+      "precision": {
+        "method": "brentq root",
+        "xtol_K": 1e-13,
+        "residual_W_m2": -1.4551915228366852e-11
+      },
+      "locator": "end B, x = L",
+      "inputs": {
+        "k": 55.6,
+        "sigma": 5.67e-08
+      }
+    },
+    {
+      "metric_id": "T_B[k = 55.563 W/(m K) (FEATool); sigma CODATA]",
+      "value": 926.9670882090236,
+      "unit": "K",
+      "precision": {
+        "method": "brentq root",
+        "xtol_K": 1e-13,
+        "residual_W_m2": 2.1827872842550278e-11
+      },
+      "r3": {
+        "r3_value": "926.967",
+        "rel_diff": 9.515875279470408e-08,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "end B, x = L",
+      "inputs": {
+        "k": 55.563,
+        "sigma": 5.6703744191844314e-08
+      }
+    },
+    {
+      "metric_id": "T_B[k = 55.563 W/(m K) (FEATool); sigma 5.67e-8]",
+      "value": 926.970745368368,
+      "unit": "K",
+      "precision": {
+        "method": "brentq root",
+        "xtol_K": 1e-13,
+        "residual_W_m2": -2.1827872842550278e-11
+      },
+      "locator": "end B, x = L",
+      "inputs": {
+        "k": 55.563,
+        "sigma": 5.67e-08
+      }
+    }
+  ]
+}

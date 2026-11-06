@@ -1,0 +1,73 @@
+# SM-22: NAFEMS LE10: thick elliptic plate under uniform pressure
+# Built by validation/a/build_cases.py from eval/expected/SM-22.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: SM-22
+class: a
+title: 'NAFEMS LE10: thick elliptic plate under uniform pressure'
+status: unvalidated
+untestable_reason: null
+physics: [solid-linear]
+dimension: 3D
+units: SI
+geometry:
+  kind: step_ref
+  spec:
+    planform: as SM-02 (inner ellipse 2.0 x 1.0 m, outer 3.25 x 2.75 m)
+    z_range_m: [-0.3, 0.3]
+    point_D_m: [2.0, 0.0, 0.3]
+    cad: FeenoX examples/nafems-le10.step (GPL-3.0-or-later)
+  symmetry: quarter (x = 0, y = 0)
+  source: FeenoX nafems-le10.fee/.step via advanced-packaging-atlas validation/cases/B/nafems-LE10.yaml
+materials:
+  steel: {E: 210000000000.0, nu: 0.3, source: NAFEMS LE10 via FeenoX (E = 210e3 MPa)}
+bcs:
+- {selection: upper face z = +0.3, type: pressure, value: 1000000.0}
+- selection: face y = 0 (DCD'C')
+  type: symmetry
+  fixed: [uy]
+- selection: face x = 0 (ABA'B')
+  type: symmetry
+  fixed: [ux]
+- selection: outer curved face (BCB'C')
+  type: displacement
+  fixed: [ux, uy]
+- selection: mid-plane line of the outer face (EE')
+  type: displacement
+  fixed: [uz]
+initial: null
+study: {type: stationary}
+references:
+- quantity: sigma_yy(D)
+  metric_id: sigma_yy_D
+  definition: direct stress at D = (2.0, 0, 0.3) m
+  value: -5380000.0
+  unit: Pa
+  tolerance: {rel: 0.01, after: richardson}
+  bounds: null
+  basis: P
+  form: benchmark
+  gate: true
+  provenance: {citation: 'NAFEMS TNSB Rev. 3 LE10 via Altair OS-V 0060 (target 5.38 MPa, compressive)', locator: help.altair.com/hwsolvers/os/topics/solvers/os/nafems_test_problem_le10_r.htm
+      ('All results are normalized with the target value (5.38 MPa)'); sign from FeenoX -5.37968 MPa, accessed: '2026-11-06'}
+reference_results:
+- {solver: FeenoX, value_MPa: -5.37968}
+- {solver: advanced-packaging-atlas L5 scikit-fem P2 tets, value_MPa: -5.3847}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 20.0, native: null}
+  budget_basis: by analogy with R3 CP-02 5-20 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: NAFEMS TNSB booklet paid, site terms bar redistribution; target value cited via a public vendor or open-source
+    page (all rights reserved on vendor pages)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/nafems-le10.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
+    a proposal}
+missing: []
+assumptions: [Sign per FeenoX (compressive at the loaded face); Altair states the magnitude only., 'Altair''s page cites
+    ''NAFEMS R0015 - Selected benchmarks for natural frequency analysis'' as its reference, which is a citation slip (LE10
+    is in TNSB); the value matches TNSB as quoted by Abaqus (via advanced-packaging-atlas) and FeenoX.']

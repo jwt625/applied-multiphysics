@@ -1,0 +1,145 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "SC-01",
+  "class": "a",
+  "generator": "validation/a/gen_misc.py",
+  "command": "cd validation && uv run python a/gen_misc.py",
+  "method": "Abrupt pn junction, depletion approximation: V_bi = (kT/q) ln(N_A N_D / n_i^2), W = sqrt(2 eps V_bi (N_A + N_D)/(q N_A N_D)) (Hu eqs. 4.1.2, 4.2.8). eps_r 11.7 and 11.1 as R3 states; 11.9 added for comparison (eps_r source to be verified; see case missing list). E_max_PB: exact peak field of the nonlinear equilibrium Poisson equation, the gate for a drift-diffusion solver.",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "V_T",
+      "value": 0.025851999786435535,
+      "unit": "V",
+      "precision": {
+        "method": "closed form"
+      }
+    },
+    {
+      "metric_id": "V_bi",
+      "value": 0.9524228693173076,
+      "unit": "V",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "0.95242",
+        "rel_diff": 3.012659653860733e-06,
+        "agreement": "agree",
+        "note": "compared at R3's 5 significant digits"
+      }
+    },
+    {
+      "metric_id": "W_0V[eps_r=11.7]",
+      "value": 4.9631454436638445e-08,
+      "unit": "m",
+      "precision": {
+        "method": "closed form, depletion approximation"
+      },
+      "r3": {
+        "r3_value": "49.63",
+        "rel_diff": 2.9305594165623923e-05,
+        "agreement": "agree",
+        "note": "compared in nm"
+      }
+    },
+    {
+      "metric_id": "E_max_0V[eps_r=11.7]",
+      "value": 38379808.93883373,
+      "unit": "V/m",
+      "precision": {
+        "method": "closed form, depletion approximation"
+      }
+    },
+    {
+      "metric_id": "E_max_PB_0V[eps_r=11.7]",
+      "value": 37323514.516489305,
+      "unit": "V/m",
+      "precision": {
+        "method": "closed form, exact first integral of Poisson-Boltzmann",
+        "ratio_to_depletion_approx": 0.9724778613664322,
+        "sze_debye_correction_sqrt(1-2VT/Vbi)": 0.9724778608082003
+      },
+      "locator": "peak field at the junction, equilibrium; gate for a drift-diffusion solve"
+    },
+    {
+      "metric_id": "W_0V[eps_r=11.9]",
+      "value": 5.005385741003641e-08,
+      "unit": "m",
+      "precision": {
+        "method": "closed form, depletion approximation"
+      }
+    },
+    {
+      "metric_id": "E_max_0V[eps_r=11.9]",
+      "value": 38055922.90380941,
+      "unit": "V/m",
+      "precision": {
+        "method": "closed form, depletion approximation"
+      }
+    },
+    {
+      "metric_id": "E_max_PB_0V[eps_r=11.9]",
+      "value": 37008542.5178224,
+      "unit": "V/m",
+      "precision": {
+        "method": "closed form, exact first integral of Poisson-Boltzmann",
+        "ratio_to_depletion_approx": 0.9724778613664321,
+        "sze_debye_correction_sqrt(1-2VT/Vbi)": 0.9724778608082003
+      },
+      "locator": "peak field at the junction, equilibrium; gate for a drift-diffusion solve"
+    },
+    {
+      "metric_id": "W_0V[eps_r=11.1]",
+      "value": 4.8342105385592195e-08,
+      "unit": "m",
+      "precision": {
+        "method": "closed form, depletion approximation"
+      },
+      "r3": {
+        "r3_value": "48.34",
+        "rel_diff": 4.355369450134182e-05,
+        "agreement": "agree",
+        "note": "compared in nm"
+      }
+    },
+    {
+      "metric_id": "E_max_0V[eps_r=11.1]",
+      "value": 39403450.12781202,
+      "unit": "V/m",
+      "precision": {
+        "method": "closed form, depletion approximation"
+      }
+    },
+    {
+      "metric_id": "E_max_PB_0V[eps_r=11.1]",
+      "value": 38318982.9107535,
+      "unit": "V/m",
+      "precision": {
+        "method": "closed form, exact first integral of Poisson-Boltzmann",
+        "ratio_to_depletion_approx": 0.9724778613664322,
+        "sze_debye_correction_sqrt(1-2VT/Vbi)": 0.9724778608082003
+      },
+      "locator": "peak field at the junction, equilibrium; gate for a drift-diffusion solve"
+    }
+  ],
+  "inputs": {
+    "T_K": 300.0,
+    "N_A_m3": 1e+24,
+    "N_D_m3": 1e+24,
+    "n_i_m3": 1e+16
+  }
+}

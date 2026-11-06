@@ -1,0 +1,149 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "TR-01",
+  "class": "a",
+  "generator": "validation/a/gen_misc.py",
+  "command": "cd validation && uv run python a/gen_misc.py",
+  "method": "First-order reaction, steady. PFR: C/C0 = exp(-Da), Da = kL/u. Axial dispersion with Danckwerts BCs: C(L)/C0 = 4 a e^{Pe/2} / ((1 + a)^2 e^{a Pe/2} - (1 - a)^2 e^{-a Pe/2}), a = sqrt(1 + 4 Da/Pe), Pe = uL/D. Inputs are synthetic (R3 gives none).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "pfr.C_L_over_C0",
+      "value": 0.36787944117144233,
+      "unit": "1",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "no dispersion, x = L",
+      "inputs": {
+        "Da": 1.0
+      }
+    },
+    {
+      "metric_id": "danckwerts.C_L_over_C0_Pe1",
+      "value": 0.4676558815014362,
+      "unit": "1",
+      "precision": {
+        "method": "closed form (Danckwerts 1953 / Wehner-Wilhelm)",
+        "profile_route_mpmath": 0.4676558815014362,
+        "diff": 0.0
+      },
+      "locator": "x = L",
+      "inputs": {
+        "Pe": 1.0,
+        "Da": 1.0,
+        "D_m2_s": 0.001
+      }
+    },
+    {
+      "metric_id": "danckwerts.C_0_over_C0_Pe1",
+      "value": 0.6534539341427144,
+      "unit": "1",
+      "precision": {
+        "method": "2x2 linear solve, mpmath 40 digits"
+      },
+      "locator": "x = 0+ (inlet jump)"
+    },
+    {
+      "metric_id": "danckwerts.C_mid_over_C0_Pe1",
+      "value": 0.5184858721078149,
+      "unit": "1",
+      "precision": {
+        "method": "2x2 linear solve, mpmath 40 digits"
+      },
+      "locator": "x = L/2"
+    },
+    {
+      "metric_id": "danckwerts.C_L_over_C0_Pe10",
+      "value": 0.39726677330612664,
+      "unit": "1",
+      "precision": {
+        "method": "closed form (Danckwerts 1953 / Wehner-Wilhelm)",
+        "profile_route_mpmath": 0.39726677330612675,
+        "diff": 1.1102230246251565e-16
+      },
+      "locator": "x = L",
+      "inputs": {
+        "Pe": 10.0,
+        "Da": 1.0,
+        "D_m2_s": 0.0001
+      }
+    },
+    {
+      "metric_id": "danckwerts.C_0_over_C0_Pe10",
+      "value": 0.9160803886574499,
+      "unit": "1",
+      "precision": {
+        "method": "2x2 linear solve, mpmath 40 digits"
+      },
+      "locator": "x = 0+ (inlet jump)"
+    },
+    {
+      "metric_id": "danckwerts.C_mid_over_C0_Pe10",
+      "value": 0.5795719547843906,
+      "unit": "1",
+      "precision": {
+        "method": "2x2 linear solve, mpmath 40 digits"
+      },
+      "locator": "x = L/2"
+    },
+    {
+      "metric_id": "danckwerts.C_L_over_C0_Pe100",
+      "value": 0.3714684754448058,
+      "unit": "1",
+      "precision": {
+        "method": "closed form (Danckwerts 1953 / Wehner-Wilhelm)",
+        "profile_route_mpmath": 0.37146847544480605,
+        "diff": 2.220446049250313e-16
+      },
+      "locator": "x = L",
+      "inputs": {
+        "Pe": 100.0,
+        "Da": 1.0,
+        "D_m2_s": 1e-05
+      }
+    },
+    {
+      "metric_id": "danckwerts.C_0_over_C0_Pe100",
+      "value": 0.9901951359278482,
+      "unit": "1",
+      "precision": {
+        "method": "2x2 linear solve, mpmath 40 digits"
+      },
+      "locator": "x = 0+ (inlet jump)"
+    },
+    {
+      "metric_id": "danckwerts.C_mid_over_C0_Pe100",
+      "value": 0.6035352588287978,
+      "unit": "1",
+      "precision": {
+        "method": "2x2 linear solve, mpmath 40 digits"
+      },
+      "locator": "x = L/2"
+    }
+  ],
+  "inputs": {
+    "L": 1.0,
+    "u": 0.001,
+    "k": 0.001,
+    "Pe_list": [
+      1.0,
+      10.0,
+      100.0
+    ]
+  },
+  "field_function": "validation/a/fields.py:TR-01 -> gen_misc.danckwerts_profile"
+}

@@ -1,0 +1,214 @@
+# WO-03: Mie scattering by a sphere: efficiencies and near field
+# Built by validation/a/build_cases.py from eval/expected/WO-03.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: WO-03
+class: a
+title: 'Mie scattering by a sphere: efficiencies and near field'
+status: unvalidated
+untestable_reason: null
+physics: [optics-scattering]
+dimension: 3D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    dielectric: {radius_m: 5.25e-07, wavelength_m: 6.328e-07, size_parameter: 5.212819668567135}
+    absorbing: {size_parameter: 1.0, note: only x matters}
+    background: vacuum, n = 1
+  symmetry: two mirror planes (x = 0, y = 0) for x-polarized incidence
+materials:
+  sphere_dielectric: {m: '1.55', source: BH appendix example via miepython test_03_bh_dielectric}
+  sphere_absorbing: {m: 1.5 + 1i (BH sign; miepython writes 1.5 - 1j), source: Wiscombe MIEV0 case 14 via miepython test_07}
+bcs:
+- {selection: incident, type: plane_wave, polarization: x, direction: +z, amplitude: 1.0}
+- {selection: outer boundary, type: pml}
+initial: null
+study:
+  type: frequency
+  f_list: [473755464601769.94]
+references:
+- quantity: qext
+  metric_id: dielectric.qext
+  definition: qext efficiency
+  value: 3.1054255314658765
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Bohren-Huffman BHMIE (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
+      targets[metric_id=dielectric.qext]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: dielectric.qext}
+- quantity: qsca
+  metric_id: dielectric.qsca
+  definition: qsca efficiency
+  value: 3.1054255314658765
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Bohren-Huffman BHMIE (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
+      targets[metric_id=dielectric.qsca]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: dielectric.qsca}
+- quantity: g
+  metric_id: dielectric.g
+  definition: g efficiency
+  value: 0.6331367580408945
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Bohren-Huffman BHMIE (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
+      targets[metric_id=dielectric.g]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: dielectric.g}
+- quantity: qback
+  metric_id: dielectric.qback
+  definition: BH backscatter efficiency
+  value: 2.925340649659009
+  unit: '1'
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Bohren-Huffman, locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json targets[metric_id=dielectric.qback]',
+    accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: dielectric.qback}
+- quantity: qext
+  metric_id: absorbing.qext
+  definition: qext efficiency
+  value: 2.3363209846723807
+  unit: '1'
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Bohren-Huffman, locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json targets[metric_id=absorbing.qext]',
+    accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: absorbing.qext}
+- quantity: qsca
+  metric_id: absorbing.qsca
+  definition: qsca efficiency
+  value: 0.6634537615162461
+  unit: '1'
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Bohren-Huffman, locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json targets[metric_id=absorbing.qsca]',
+    accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: absorbing.qsca}
+- quantity: qabs
+  metric_id: absorbing.qabs
+  definition: qabs efficiency
+  value: 1.6728672231561346
+  unit: '1'
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Bohren-Huffman, locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json targets[metric_id=absorbing.qabs]',
+    accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: absorbing.qabs}
+- quantity: g
+  metric_id: absorbing.g
+  definition: g efficiency
+  value: 0.19213639589188622
+  unit: '1'
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Bohren-Huffman, locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json targets[metric_id=absorbing.g]',
+    accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: absorbing.g}
+- quantity: '|E|^2 at z=+1.5a'
+  metric_id: dielectric.near.|E|^2[z=+1.5a]
+  definition: near-field probe
+  value: 5.89099356789645
+  unit: E0^2
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: BH vector harmonics (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
+      targets[metric_id=dielectric.near.|E|^2[z=+1.5a]]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: 'dielectric.near.|E|^2[z=+1.5a]'}
+- quantity: '|E|^2 at z=-1.5a'
+  metric_id: dielectric.near.|E|^2[z=-1.5a]
+  definition: near-field probe
+  value: 0.9823264202269234
+  unit: E0^2
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: BH vector harmonics (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
+      targets[metric_id=dielectric.near.|E|^2[z=-1.5a]]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: 'dielectric.near.|E|^2[z=-1.5a]'}
+- quantity: '|E|^2 at centre'
+  metric_id: dielectric.near.|E|^2[centre]
+  definition: near-field probe
+  value: 2.0313918435786475
+  unit: E0^2
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: BH vector harmonics (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
+      targets[metric_id=dielectric.near.|E|^2[centre]]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: 'dielectric.near.|E|^2[centre]'}
+- quantity: '|E|^2 at x=+1.5a'
+  metric_id: dielectric.near.|E|^2[x=+1.5a]
+  definition: near-field probe
+  value: 0.5893120137814432
+  unit: E0^2
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: BH vector harmonics (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
+      targets[metric_id=dielectric.near.|E|^2[x=+1.5a]]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: 'dielectric.near.|E|^2[x=+1.5a]'}
+reference_results:
+- solver: miepython tests (BHMIE, MIEV0)
+  dielectric: {qext: 3.10543, qback: 2.92534, g: 0.63314}
+  absorbing: {qext: 2.336321, qsca: 0.6634538, g: 0.192136}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 60.0, native: null}
+  budget_basis: R3 s.3.5 browser est. 3D FEM 10-60 s; series < 0.1 s; est., not measured; native budget set after the first
+    timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: formulas textbook (BH); reference digits from miepython tests (MIT)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: [copy_text]
+hero:
+  suitable: true
+  why: R3 hero; near-field and far-field pattern from one solve
+  visual: [E_magnitude, far_field_pattern]
+spec: {status: pending, ref: sims/mie-sphere.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
+    proposal}
+missing: []
+assumptions: [R3's 'x 5.213' is x = 2 pi 0.525/0.6328 = 5.2128197 rounded; at x = 5.213 exactly Qext = 3.104996 and the
+    reference digits fail. The case uses the exact radius and wavelength.]
+field_reference:
+  function: validation/a/fields.py WO-03
+  fields: [Ex, Ey, Ez]
+  complex: true

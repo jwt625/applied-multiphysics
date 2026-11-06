@@ -138,3 +138,14 @@ interface RealtimeKernel {
 ```
 
 A CPU reference implementation of the same kernel, small grids only and runnable in Node, exists for every kernel so the eval harness can gate it without a GPU.
+
+## Changelog
+
+- 2026-11-06 15:45 PST, adopted from L7a (DevLog-006 s.5) and L8:
+  - `eval/schema/amp-eval-0.schema.json` (owned by L8) is now authoritative for C8, including `spec`, `metric_id`, `gate`, `expected`, `field_reference`, structured `tolerance.rule`/`norm`, and `budget_s.native`.
+  - The expected-value file format is `amp-eval-expected/0`, for all lanes.
+  - New reserve case IDs use 21-39 for class a, 41-59 for class b and 61-79 for class c.
+  - CP-05 (electro-osmotic slit) is class a and is filed by L7a only.
+  - Rule targets that need a sequence (mesh levels, radii) report `pending`, not `fail`, when given a single value.
+- 2026-11-06 15:45 PST: tsconfig.base `lib` = ["ES2023"]; packages add DOM or WebWorker themselves, never both (from L1).
+- Open: affine temperature units (`degC`) in `@amp/core/units`, requested by L1 and L7a; to be decided in the core v1 pass.

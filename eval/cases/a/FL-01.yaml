@@ -1,0 +1,122 @@
+# FL-01: Kovasznay flow (Re 10) and planar Poiseuille: exact NS solutions
+# Built by validation/a/build_cases.py from eval/expected/FL-01.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: FL-01
+class: a
+title: 'Kovasznay flow (Re 10) and planar Poiseuille: exact NS solutions'
+status: unvalidated
+untestable_reason: null
+physics: [laminar-ns, stokes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    kovasznay_domain_m:
+    - [-0.5, 1.5]
+    - [-0.5, 1.5]
+    poiseuille_domain_m:
+    - [0.0, 1.0]
+    - [0.0, 1.0]
+  symmetry: none
+materials:
+  kovasznay_fluid: {rho: 1.0, mu: 0.1, source: 'synthetic: Re = 10 with U = L = 1'}
+  poiseuille_fluid: {rho: 1.0, mu: 1.0, source: dolfinx-tutorial ns_code1 set-up (CC BY 4.0)}
+bcs:
+- {selection: 'kovasznay: all boundaries', type: velocity, expr: exact (fields.py FL-01)}
+- {selection: 'kovasznay: pressure', type: gauge, note: zero mean over the domain}
+- {selection: 'poiseuille: y = 0, y = 1', type: no_slip}
+- {selection: 'poiseuille: x = 0', type: pressure, value: 8.0}
+- {selection: 'poiseuille: x = 1', type: pressure, value: 0.0}
+initial: null
+study: {type: stationary}
+references:
+- quantity: velocity field error
+  metric_id: kovasznay.field_rel_L2_u
+  definition: relative L2 velocity error
+  value: 0.0
+  unit: '1'
+  tolerance:
+    abs: 0.0001
+    norm: l2
+    rule: {type: rate, min: 2.0, note: velocity L2 rate p+1 (3 for Taylor-Hood P2/P1); min 2.0 is a proposal}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Kovasznay 1948, locator: 'validation/a/fields.py FL-01; eval/expected/FL-01.json targets[metric_id=kovasznay.field_rel_L2_u]',
+    accessed: null}
+  expected: {file: eval/expected/FL-01.json, metric_id: kovasznay.field_rel_L2_u}
+- quantity: v(0.5, 0.25)
+  metric_id: kovasznay.v(0.5,0.25)
+  definition: probe
+  value: -0.10600296896882014
+  unit: m/s
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Kovasznay 1948, locator: 'validation/a/gen_misc.py::fl01; eval/expected/FL-01.json targets[metric_id=kovasznay.v(0.5,0.25)]',
+    accessed: null}
+  expected: {file: eval/expected/FL-01.json, metric_id: 'kovasznay.v(0.5,0.25)'}
+- quantity: p(1.0, 0.5)
+  metric_id: kovasznay.p(1.0,0.5)
+  definition: probe, zero-mean pressure
+  value: 0.8525855954396337
+  unit: Pa
+  tolerance: {rel: 0.01}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Kovasznay 1948, locator: 'validation/a/gen_misc.py::fl01; eval/expected/FL-01.json targets[metric_id=kovasznay.p(1.0,0.5)]',
+    accessed: null}
+  expected: {file: eval/expected/FL-01.json, metric_id: 'kovasznay.p(1.0,0.5)'}
+- quantity: u_max
+  metric_id: poiseuille.u_max
+  definition: centreline velocity
+  value: 1.0
+  unit: m/s
+  tolerance: {rel: 1.0e-06}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Poiseuille (P2 velocity is exact), locator: 'validation/a/gen_misc.py::fl01; eval/expected/FL-01.json
+      targets[metric_id=poiseuille.u_max]', accessed: null}
+  expected: {file: eval/expected/FL-01.json, metric_id: poiseuille.u_max}
+- quantity: Q
+  metric_id: poiseuille.flow_rate
+  definition: flow rate per unit depth
+  value: 0.6666666666666666
+  unit: m^2/s
+  tolerance: {rel: 1.0e-06}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Poiseuille, locator: 'validation/a/gen_misc.py::fl01; eval/expected/FL-01.json targets[metric_id=poiseuille.flow_rate]',
+    accessed: null}
+  expected: {file: eval/expected/FL-01.json, metric_id: poiseuille.flow_rate}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 2.0, native: null}
+  budget_basis: R3 s.3.7 browser est. < 2 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: exact solutions (facts); set-ups as in deal.II step-55 (Apache-2.0 WITH LLVM-exception) and dolfinx-tutorial
+    (CC BY 4.0)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/kovasznay-poiseuille.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/
+    id is a proposal}
+missing: []
+assumptions: ['Kovasznay domain [-0.5, 1.5]^2 as R3 states; the exact solution holds on any domain.']
+field_reference:
+  function: validation/a/fields.py FL-01 / FL-01-pois
+  fields: [u, v, p]

@@ -1,0 +1,146 @@
+# SM-21: Code_Aster SSLV04A: hollow cylinder under internal pressure (plane stress, Lame)
+# Built by validation/a/build_cases.py from eval/expected/SM-21.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: SM-21
+class: a
+title: 'Code_Aster SSLV04A: hollow cylinder under internal pressure (plane stress, Lame)'
+status: unvalidated
+untestable_reason: null
+physics: [solid-linear]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    inner_radius: 0.1
+    outer_radius: 0.2
+    sector_deg: 45
+    points: {A: 'r = a, 0 deg', E: 'r = a, 45 deg', B: 'r = b, 0 deg', D: 'r = b, 22.5 deg', F: 'r = b, 45 deg'}
+    units_note: length unit of the Code_Aster mesh, E in MPa
+  symmetry: 45 deg sector, normal displacement zero on both cut planes
+materials:
+  solid: {E: 200000.0, nu: 0.3, source: Code_Aster astest/sslv04a.comm DEFI_MATERIAU}
+bcs:
+- {selection: inner surface, type: pressure, value: 60.0, unit: MPa}
+- selection: [cut plane 0 deg, cut plane 45 deg]
+  type: symmetry
+  fixed: [u_normal]
+initial: null
+study:
+  type: stationary
+  settings: {plane: stress}
+references:
+- quantity: DX_A
+  metric_id: DX_A
+  definition: radial displacement at A
+  value: 5.9000000000000004e-05
+  unit: length
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
+      targets[metric_id=DX_A]', accessed: null}
+  expected: {file: eval/expected/SM-21.json, metric_id: DX_A}
+- quantity: DX_B
+  metric_id: DX_B
+  definition: radial displacement at B
+  value: 4.0e-05
+  unit: length
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
+      targets[metric_id=DX_B]', accessed: null}
+  expected: {file: eval/expected/SM-21.json, metric_id: DX_B}
+- quantity: DX_D
+  metric_id: DX_D
+  definition: u_x at D
+  value: 3.695518130045147e-05
+  unit: length
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
+      targets[metric_id=DX_D]', accessed: null}
+  expected: {file: eval/expected/SM-21.json, metric_id: DX_D}
+- quantity: DY_D
+  metric_id: DY_D
+  definition: u_y at D
+  value: 1.530733729460359e-05
+  unit: length
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
+      targets[metric_id=DY_D]', accessed: null}
+  expected: {file: eval/expected/SM-21.json, metric_id: DY_D}
+- quantity: DX_F
+  metric_id: DX_F
+  definition: u_x at F
+  value: 2.8284271247461906e-05
+  unit: length
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
+      targets[metric_id=DX_F]', accessed: null}
+  expected: {file: eval/expected/SM-21.json, metric_id: DX_F}
+- quantity: SIXX_A
+  metric_id: SIXX_A
+  definition: sigma_rr at A
+  value: -59.999999999999986
+  unit: MPa
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
+      targets[metric_id=SIXX_A]', accessed: null}
+  expected: {file: eval/expected/SM-21.json, metric_id: SIXX_A}
+- quantity: SIYY_A
+  metric_id: SIYY_A
+  definition: sigma_tt at A
+  value: 99.99999999999999
+  unit: MPa
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
+      targets[metric_id=SIYY_A]', accessed: null}
+  expected: {file: eval/expected/SM-21.json, metric_id: SIYY_A}
+reference_results:
+- {solver: Code_Aster sslv04a VALE_CALC (3D PENTA6/HEXA8), DX_A: 5.89502757871e-05, DX_B: 3.99591545793e-05, SIXX_A: -59.2225501361,
+  SIYY_A: 100.415918124}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 2.0, native: null}
+  budget_basis: by analogy with R3 SM-02 < 2 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Code_Aster astest files GPL-3.0-or-later (EDF); V-docs GNU FDL not used
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: [copy_v_doc_text]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/lame-cylinder.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
+    a proposal}
+missing: ['Mesh geometry (radii, sector angle) is in the MED mesh, not in the .comm; thickness N/A.']
+assumptions: ['Radii a = 0.1, b = 0.2 inferred from the test''s own ANALYTIQUE values (unique: b/a = 2 from u(a)/u(b) =
+    5.9/4.0, then a from u(b) = 4.0e-5); sector 45 deg inferred from points E, F at 45 deg and D at 22.5 deg (DX = DY at
+    E and F).']
+source_case: {suite: Code_Aster astest, file: astest/sslv04a.comm, url: gitlab.com/codeaster/src/-/raw/main/astest/sslv04a.comm,
+  accessed: '2026-11-06'}

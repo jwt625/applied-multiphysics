@@ -1,0 +1,79 @@
+# EM-01: Coaxial line: Z0, C', L' (TEM)
+# Built by validation/a/build_cases.py from eval/expected/EM-01.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: EM-01
+class: a
+title: 'Coaxial line: Z0, C'', L'' (TEM)'
+status: unvalidated
+untestable_reason: null
+physics: [electrostatics, magnetostatics]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {inner_radius_m: 0.0005, outer_radius_m: 0.00175}
+  symmetry: none
+materials:
+  dielectric: {eps_r: 2.1, mu_r: 1.0, source: synthetic (R3 s.3.3)}
+bcs:
+- {selection: inner conductor, type: potential, value: 1.0}
+- {selection: outer conductor, type: potential, value: 0.0}
+initial: null
+study: {type: stationary}
+references:
+- quantity: C'
+  metric_id: C_per_m
+  definition: capacitance per unit length
+  value: 9.325647296352574e-11
+  unit: F/m
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Pozar ch. 2, locator: 'validation/a/gen_em.py::em01; eval/expected/EM-01.json targets[metric_id=C_per_m]',
+    accessed: null}
+  expected: {file: eval/expected/EM-01.json, metric_id: C_per_m}
+- quantity: L'
+  metric_id: L_per_m
+  definition: inductance per unit length (magnetostatic, surface currents)
+  value: 2.505525936659925e-07
+  unit: H/m
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Pozar ch. 2, locator: 'validation/a/gen_em.py::em01; eval/expected/EM-01.json targets[metric_id=L_per_m]',
+    accessed: null}
+  expected: {file: eval/expected/EM-01.json, metric_id: L_per_m}
+- quantity: Z0
+  metric_id: Z0
+  definition: sqrt(L'/C')
+  value: 51.83343117009897
+  unit: Ohm
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Pozar ch. 2, locator: 'validation/a/gen_em.py::em01; eval/expected/EM-01.json targets[metric_id=Z0]',
+    accessed: null}
+  expected: {file: eval/expected/EM-01.json, metric_id: Z0}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 s.3.3 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: textbook formula (facts); no text, figures or tables copied
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/coax-line.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
+    proposal}
+missing: []
+assumptions: []

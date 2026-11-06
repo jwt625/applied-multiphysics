@@ -1,0 +1,88 @@
+# CP-05: Electro-osmotic flow in a slit (Debye-Hueckel + Stokes)
+# Built by validation/a/build_cases.py from eval/expected/CP-05.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: CP-05
+class: a
+title: Electro-osmotic flow in a slit (Debye-Hueckel + Stokes)
+status: unvalidated
+untestable_reason: null
+physics: [coupled-eof, electrostatics, stokes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {half_gap_m: 1.0e-07, length_m: 1.0e-06, note: periodic in x}
+  symmetry: mirror about y = 0
+materials:
+  electrolyte: {eps_r: 80.0, eta: 0.001, c0: 1.0, valence: 1, T: 298.15, source: 'eps_r, eta per R3 s.3.10; c0, T, half
+      gap synthetic (this lane)'}
+bcs:
+- {selection: walls y = +-h, type: zeta_potential, value: -0.05}
+- {selection: walls, type: no_slip}
+- {selection: x ends, type: periodic}
+- {selection: domain, type: applied_field, E_x: 10000.0}
+initial: null
+study:
+  type: stationary
+  settings: {poisson: linearized (Debye-Hueckel)}
+references:
+- quantity: u_HS
+  metric_id: u_HS
+  definition: -eps zeta E/eta
+  value: 0.000354167512752
+  unit: m/s
+  tolerance: {rel: 1.0e-06}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: Helmholtz-Smoluchowski, locator: 'validation/a/gen_misc.py::cp05; eval/expected/CP-05.json targets[metric_id=u_HS]',
+    accessed: null}
+  expected: {file: eval/expected/CP-05.json, metric_id: u_HS}
+- quantity: u(0)
+  metric_id: u_center
+  definition: centre velocity
+  value: 0.00035414362431580285
+  unit: m/s
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: DH + Stokes closed form, locator: 'validation/a/gen_misc.py::cp05; eval/expected/CP-05.json targets[metric_id=u_center]',
+    accessed: null}
+  expected: {file: eval/expected/CP-05.json, metric_id: u_center}
+- quantity: u_mean
+  metric_id: u_mean
+  definition: slit-averaged velocity
+  value: 0.0003197732278385527
+  unit: m/s
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: DH + Stokes closed form, locator: 'validation/a/gen_misc.py::cp05; eval/expected/CP-05.json targets[metric_id=u_mean]',
+    accessed: null}
+  expected: {file: eval/expected/CP-05.json, metric_id: u_mean}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 s.3.10 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: textbook formula (facts); no text, figures or tables copied
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/eo-slit.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal}
+missing: []
+assumptions: ['Class a (closed form): R3''s table labels CP-05 ''c'', but its basis is D and the R3 count ''a 24'' requires
+    it (contract request).', '|zeta| e/kT = 1.95 > 1: Debye-Hueckel is outside its validity for a real electrolyte; the
+    case defines the linearized PDE, for which the closed form is exact.']
+field_reference:
+  function: validation/a/fields.py CP-05
+  fields: [u]

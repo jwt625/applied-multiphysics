@@ -1,0 +1,76 @@
+# SM-03: Euler column, pinned-pinned, first buckling load
+# Built by validation/a/build_cases.py from eval/expected/SM-03.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: SM-03
+class: a
+title: Euler column, pinned-pinned, first buckling load
+status: unvalidated
+untestable_reason: null
+physics: [solid-buckling]
+dimension: 1D
+units: SI
+geometry:
+  kind: analytic
+  spec: {length_m: 5.08, square_section_side_m: 0.0127, note: '200 in, 0.5 in square (Ansys VM127)'}
+  symmetry: none
+materials:
+  steel: {E: 206842718795.0508, source: 'Ansys VM127 (E = 30e6 psi), exact unit conversion'}
+bcs:
+- selection: end 0
+  type: pinned
+  fixed: [ux, uy]
+- selection: end L
+  type: pinned
+  fixed: [uy]
+  load: axial compression, unit reference load
+initial: null
+study:
+  type: eigen
+  n: 3
+  shift: 0.0
+  settings: {kind: linear_buckling}
+references:
+- quantity: F_cr
+  metric_id: F_cr
+  definition: pi^2 E I / L^2
+  value: 171.49292043357744
+  unit: N
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: 'Timoshenko, Strength of Materials II, p. 148 (via Ansys VM127)', locator: 'validation/a/gen_solid.py::sm03;
+      eval/expected/SM-03.json targets[metric_id=F_cr]', accessed: null}
+  expected: {file: eval/expected/SM-03.json, metric_id: F_cr}
+- quantity: F_cr
+  metric_id: F_cr_lbf
+  definition: same in lbf
+  value: 38.55314219175529
+  unit: lbf
+  tolerance: {rel: 0.0001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: Ansys VM127, locator: 'validation/a/gen_solid.py::sm03; eval/expected/SM-03.json targets[metric_id=F_cr_lbf]',
+    accessed: null}
+  expected: {file: eval/expected/SM-03.json, metric_id: F_cr_lbf}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 s.3.2 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Ansys VM page public, (c) ANSYS, Inc., all rights reserved, no reuse grant; formula and cited textbook
+    are the reference
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/euler-column.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
+    a proposal}
+missing: []
+assumptions: []

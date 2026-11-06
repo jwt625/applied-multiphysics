@@ -1,0 +1,266 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-03",
+  "class": "a",
+  "generator": "validation/a/gen_optics.py",
+  "command": "cd validation && uv run python a/gen_optics.py",
+  "method": "Mie (Bohren-Huffman ch. 4): efficiencies from a_n, b_n; near field from the vector spherical harmonic expansion (incident + scattered outside, c_n, d_n inside).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "dielectric.qext",
+      "value": 3.1054255314658765,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 14,
+        "change_on_doubling": 0.0
+      },
+      "r3": {
+        "r3_value": "3.10543",
+        "rel_diff": 1.438942150882139e-06,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "m = (1.55+0j) (BH sign), x = 5.212819668567135"
+    },
+    {
+      "metric_id": "dielectric.qsca",
+      "value": 3.1054255314658765,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 14,
+        "change_on_doubling": 0.0
+      },
+      "r3": {
+        "r3_value": "3.10543",
+        "rel_diff": 1.438942150882139e-06,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "m = (1.55+0j) (BH sign), x = 5.212819668567135"
+    },
+    {
+      "metric_id": "dielectric.qabs",
+      "value": 0.0,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 14,
+        "change_on_doubling": 0.0
+      },
+      "locator": "m = (1.55+0j) (BH sign), x = 5.212819668567135"
+    },
+    {
+      "metric_id": "dielectric.qback",
+      "value": 2.925340649659009,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 14,
+        "change_on_doubling": 4.700506650578973e-11
+      },
+      "r3": {
+        "r3_value": "2.92534",
+        "rel_diff": 2.2207982978227757e-07,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "m = (1.55+0j) (BH sign), x = 5.212819668567135"
+    },
+    {
+      "metric_id": "dielectric.g",
+      "value": 0.6331367580408945,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 14,
+        "change_on_doubling": 0.0
+      },
+      "r3": {
+        "r3_value": "0.63314",
+        "rel_diff": 5.120445881644501e-06,
+        "agreement": "agree",
+        "note": "compared at R3's 5 significant digits"
+      },
+      "locator": "m = (1.55+0j) (BH sign), x = 5.212819668567135"
+    },
+    {
+      "metric_id": "absorbing.qext",
+      "value": 2.3363209846723807,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 7,
+        "change_on_doubling": 2.3359092438113294e-13
+      },
+      "r3": {
+        "r3_value": "2.336321",
+        "rel_diff": 6.56057929278051e-09,
+        "agreement": "agree",
+        "note": "compared at R3's 7 significant digits"
+      },
+      "locator": "m = (1.5+1j) (BH sign), x = 1.0"
+    },
+    {
+      "metric_id": "absorbing.qsca",
+      "value": 0.6634537615162461,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 7,
+        "change_on_doubling": 0.0
+      },
+      "r3": {
+        "r3_value": "0.6634538",
+        "rel_diff": 5.800517511587629e-08,
+        "agreement": "agree",
+        "note": "compared at R3's 7 significant digits"
+      },
+      "locator": "m = (1.5+1j) (BH sign), x = 1.0"
+    },
+    {
+      "metric_id": "absorbing.qabs",
+      "value": 1.6728672231561346,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 7,
+        "change_on_doubling": 2.3359092438113294e-13
+      },
+      "locator": "m = (1.5+1j) (BH sign), x = 1.0"
+    },
+    {
+      "metric_id": "absorbing.qback",
+      "value": 0.5730025552391782,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 7,
+        "change_on_doubling": 2.559064071760986e-13
+      },
+      "locator": "m = (1.5+1j) (BH sign), x = 1.0"
+    },
+    {
+      "metric_id": "absorbing.g",
+      "value": 0.19213639589188622,
+      "unit": "1",
+      "precision": {
+        "method": "BHMIE log-derivative series",
+        "terms": 7,
+        "change_on_doubling": 0.0
+      },
+      "r3": {
+        "r3_value": "0.192136",
+        "rel_diff": 2.0604774025581566e-06,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "m = (1.5+1j) (BH sign), x = 1.0"
+    },
+    {
+      "metric_id": "dielectric.near.|E|^2[z=+1.5a]",
+      "value": 5.89099356789645,
+      "unit": "E0^2",
+      "precision": {
+        "method": "BH vector-harmonic series",
+        "terms": 24,
+        "change_on_doubling": 0.0,
+        "bc_checks": {
+          "tangential_E_jump_max_rel": 4.794047621144022e-09,
+          "normal_D_jump_max_rel": 8.451661199058169e-09,
+          "probe_points": 200,
+          "offset_rel": 1e-09
+        }
+      },
+      "locator": "lambda0 = 0.6328 um, radius = 0.525 um, vacuum, point z=+1.5a"
+    },
+    {
+      "metric_id": "dielectric.near.|E|^2[z=-1.5a]",
+      "value": 0.9823264202269234,
+      "unit": "E0^2",
+      "precision": {
+        "method": "BH vector-harmonic series",
+        "terms": 24,
+        "change_on_doubling": 0.0,
+        "bc_checks": {
+          "tangential_E_jump_max_rel": 4.794047621144022e-09,
+          "normal_D_jump_max_rel": 8.451661199058169e-09,
+          "probe_points": 200,
+          "offset_rel": 1e-09
+        }
+      },
+      "locator": "lambda0 = 0.6328 um, radius = 0.525 um, vacuum, point z=-1.5a"
+    },
+    {
+      "metric_id": "dielectric.near.|E|^2[centre]",
+      "value": 2.0313918435786475,
+      "unit": "E0^2",
+      "precision": {
+        "method": "BH vector-harmonic series",
+        "terms": 24,
+        "change_on_doubling": 0.0,
+        "bc_checks": {
+          "tangential_E_jump_max_rel": 4.794047621144022e-09,
+          "normal_D_jump_max_rel": 8.451661199058169e-09,
+          "probe_points": 200,
+          "offset_rel": 1e-09
+        }
+      },
+      "locator": "lambda0 = 0.6328 um, radius = 0.525 um, vacuum, point centre"
+    },
+    {
+      "metric_id": "dielectric.near.|E|^2[x=+1.5a]",
+      "value": 0.5893120137814432,
+      "unit": "E0^2",
+      "precision": {
+        "method": "BH vector-harmonic series",
+        "terms": 24,
+        "change_on_doubling": 0.0,
+        "bc_checks": {
+          "tangential_E_jump_max_rel": 4.794047621144022e-09,
+          "normal_D_jump_max_rel": 8.451661199058169e-09,
+          "probe_points": 200,
+          "offset_rel": 1e-09
+        }
+      },
+      "locator": "lambda0 = 0.6328 um, radius = 0.525 um, vacuum, point x=+1.5a"
+    }
+  ],
+  "terms": {
+    "dielectric": {
+      "nmax": 14,
+      "nmax_doubled": 28
+    },
+    "absorbing": {
+      "nmax": 7,
+      "nmax_doubled": 14
+    }
+  },
+  "near_field_bc_checks": {
+    "tangential_E_jump_max_rel": 4.794047621144022e-09,
+    "normal_D_jump_max_rel": 8.451661199058169e-09,
+    "probe_points": 200,
+    "offset_rel": 1e-09
+  },
+  "a1_b1_dielectric": [
+    "(0.03443040194696651+0.18233197571664944j)",
+    "(0.20041665941248646+0.40031215575151585j)"
+  ],
+  "field_function": "validation/a/fields.py:WO-03 -> gen_optics.mie_field",
+  "sign_note": "miepython test values use m = n - i k; BH m = n + i k is the same medium"
+}

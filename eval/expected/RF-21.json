@@ -1,0 +1,174 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "RF-21",
+  "class": "a",
+  "generator": "validation/a/gen_em.py",
+  "command": "cd validation && uv run python a/gen_em.py",
+  "method": "PEC circular cylinder cavity filled with eps_r: f = c/(2 pi sqrt(eps_r)) sqrt((x/a)^2 + (p pi/d)^2), x = Bessel zero (TM) or derivative zero (TE).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "f_TM010",
+      "value": 2903636072.3343897,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form",
+        "mpmath_30digit": 2903636072.33439,
+        "diff": 4.76837158203125e-07
+      },
+      "r3": {
+        "r3_value": "2.903605",
+        "rel_diff": 1.0701295248314224e-05,
+        "agreement": "disagree",
+        "note": "vs Palace cylinder.md analytic table, in GHz"
+      },
+      "ten_digits_GHz": "2.903636072"
+    },
+    {
+      "metric_id": "f_TE111",
+      "value": 2922197191.014636,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form",
+        "mpmath_30digit": 2922197191.0146365,
+        "diff": 4.76837158203125e-07
+      },
+      "r3": {
+        "r3_value": "2.922212",
+        "rel_diff": 5.067731350159378e-06,
+        "agreement": "disagree",
+        "note": "vs Palace cylinder.md analytic table, in GHz"
+      },
+      "ten_digits_GHz": "2.922197191"
+    },
+    {
+      "metric_id": "f_TM011",
+      "value": 3468175212.9848056,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form",
+        "mpmath_30digit": 3468175212.984806,
+        "diff": 4.76837158203125e-07
+      },
+      "r3": {
+        "r3_value": "3.468149",
+        "rel_diff": 7.558206064927839e-06,
+        "agreement": "disagree",
+        "note": "vs Palace cylinder.md analytic table, in GHz"
+      },
+      "ten_digits_GHz": "3.468175213"
+    },
+    {
+      "metric_id": "f_TM110",
+      "value": 4626480967.847846,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form",
+        "mpmath_30digit": 4626480967.847846,
+        "diff": 0.0
+      },
+      "r3": {
+        "r3_value": "4.626474",
+        "rel_diff": 1.5060817041794748e-06,
+        "agreement": "disagree",
+        "note": "vs Palace cylinder.md analytic table, in GHz"
+      },
+      "ten_digits_GHz": "4.626480968"
+    },
+    {
+      "metric_id": "f_TE211",
+      "value": 4146881712.463177,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form",
+        "mpmath_30digit": 4146881712.463177,
+        "diff": 0.0
+      },
+      "r3": {
+        "r3_value": "4.146842",
+        "rel_diff": 9.576555648027518e-06,
+        "agreement": "disagree",
+        "note": "vs Palace cylinder.md analytic table, in GHz"
+      },
+      "ten_digits_GHz": "4.146881712"
+    },
+    {
+      "metric_id": "f_TE011",
+      "value": 5000146299.18556,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form",
+        "mpmath_30digit": 5000146299.185561,
+        "diff": 9.5367431640625e-07
+      },
+      "r3": {
+        "r3_value": "5.000140",
+        "rel_diff": 1.2598018375150826e-06,
+        "agreement": "disagree",
+        "note": "vs Palace cylinder.md analytic table, in GHz"
+      },
+      "ten_digits_GHz": "5.000146299"
+    },
+    {
+      "metric_id": "Q_dielectric",
+      "value": 2500.0,
+      "unit": "1",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "2.50e3",
+        "rel_diff": 0.0,
+        "agreement": "agree",
+        "note": "compared at R3's 3 significant digits"
+      },
+      "locator": "Q_d = 1/tan(delta) for a uniformly filled cavity, every mode"
+    }
+  ],
+  "inputs": {
+    "a_m": 0.0274,
+    "d_m": 0.0548,
+    "eps_r": 2.08,
+    "tan_delta": 0.0004
+  },
+  "bessel_zeros": {
+    "TM01": 2.404825557695773,
+    "TM11": 3.8317059702075125,
+    "TE11": 1.8411837813406593,
+    "TE21": 3.0542369282271404,
+    "TE01": 3.8317059702075125
+  },
+  "flag_resolution": {
+    "TM010": "x01 c/(2 pi a sqrt(eps_r)) = 2.903636072 GHz (x01 = 2.404825557695773). Palace's analytic-table 2.903605 GHz is reproduced by rounding x01 to 2.4048: 2.903605 GHz. Gate on the closed form.",
+    "all_modes": "Every Palace analytic-table entry is reproduced within 1.1e-7 rel. by Bessel zeros rounded to 4 decimals (2.4048, 1.8412, 3.8317, 3.0542, 3.8317); exact zeros differ from the table by up to 1.1e-5 rel.",
+    "palace_table_vs_4_decimal_zeros_rel": {
+      "TM010": 7.351013039613142e-08,
+      "TE111": 3.037473135032281e-08,
+      "TM011": 1.0877654095852134e-07,
+      "TM110": -5.202754288689253e-08,
+      "TE211": 1.4776562608348873e-08,
+      "TE011": -7.413076180737941e-08
+    },
+    "frequencies_with_4_decimal_zeros_Hz": {
+      "TM010": 2903605213.444382,
+      "TE111": 2922212088.7614045,
+      "TM011": 3468149377.2532516,
+      "TM110": 4626473759.295925,
+      "TE211": 4146842061.2760706,
+      "TE011": 5000139629.335813
+    }
+  }
+}

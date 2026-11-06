@@ -1,0 +1,89 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "EM-01",
+  "class": "a",
+  "generator": "validation/a/gen_em.py",
+  "command": "cd validation && uv run python a/gen_em.py",
+  "method": "Coax TEM: Z0 = eta0 ln(b/a)/(2 pi sqrt(eps_r)), C' = 2 pi eps0 eps_r / ln(b/a), L' = mu0 ln(b/a)/(2 pi)",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "Z0",
+      "value": 51.83343117009897,
+      "unit": "Ohm",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "51.8334",
+        "rel_diff": 6.013516182856015e-07,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      }
+    },
+    {
+      "metric_id": "C_per_m",
+      "value": 9.325647296352574e-11,
+      "unit": "F/m",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "93.2565",
+        "rel_diff": 2.899151722906059e-07,
+        "agreement": "agree",
+        "note": "compared in pF/m"
+      }
+    },
+    {
+      "metric_id": "L_per_m",
+      "value": 2.505525936659925e-07,
+      "unit": "H/m",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "250.5526",
+        "rel_diff": 2.5280150902981297e-08,
+        "agreement": "agree",
+        "note": "compared in nH/m"
+      }
+    },
+    {
+      "metric_id": "LC_over_mu0eps0epsr",
+      "value": 1.0,
+      "unit": "1",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "TEM identity, exactly 1"
+    },
+    {
+      "metric_id": "Z0_from_sqrt_L_over_C",
+      "value": 51.83343117009896,
+      "unit": "Ohm",
+      "precision": {
+        "method": "closed form"
+      }
+    }
+  ],
+  "inputs": {
+    "a_m": 0.0005,
+    "b_m": 0.00175,
+    "eps_r": 2.1,
+    "eta0_Ohm": 376.7303134118051
+  }
+}

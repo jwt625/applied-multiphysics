@@ -1,0 +1,68 @@
+# HT-02: NAFEMS T3: 1D transient conduction, sinusoidal end temperature
+# Built by validation/a/build_cases.py from eval/expected/HT-02.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: HT-02
+class: a
+title: 'NAFEMS T3: 1D transient conduction, sinusoidal end temperature'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond, heat-transient]
+dimension: 1D
+units: SI
+geometry:
+  kind: analytic
+  spec: {bar_m: 0.1, x_origin: end held at 0 C}
+  symmetry: none
+materials:
+  bar: {k: 35.0, cp: 440.5, rho: 7200.0, source: NAFEMS T3 via Altair OS-V 0110 (R3 s.3.1)}
+bcs:
+- {selection: x = 0, type: temperature, value: 273.15, note: 0 C}
+- {selection: x = 0.1, type: temperature, expr: 273.15 + 100 sin(pi t / 40), unit: K}
+initial: {T: 273.15, note: 0 C everywhere}
+study: {type: transient, t_end: 32.0, dt_out: 1.0}
+references:
+- quantity: T(0.08 m, 32 s)
+  metric_id: T_x0.08_t32
+  definition: x measured from the 0 C end
+  value: 36.603115959084604
+  unit: degC
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: two independent eigen series (this lane), locator: 'validation/a/gen_heat.py::ht02; eval/expected/HT-02.json
+      targets[metric_id=T_x0.08_t32]', accessed: null}
+  expected: {file: eval/expected/HT-02.json, metric_id: T_x0.08_t32}
+- quantity: T(0.08 m, 32 s)
+  metric_id: T_C_nafems
+  definition: NAFEMS target
+  value: 36.6
+  unit: degC
+  tolerance: {abs: 0.005}
+  bounds: null
+  basis: P
+  form: benchmark
+  gate: false
+  provenance: {citation: NAFEMS T3 via Altair OS-V 0110, locator: 2021.help.altair.com/2021/hwsolvers/os/topics/solvers/os/nafems_test_problem_t3_r.htm
+      (R3), accessed: '2026-11-06'}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, note: refine both h and dt; report
+    dt and h levels separately}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 s.3.1 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: NAFEMS TNSB booklet paid, site terms bar redistribution; target value cited via a public vendor or open-source
+    page (all rights reserved on vendor pages)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/nafems-t3.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
+    proposal}
+missing: []
+assumptions: ['Locator resolved (R3 s.8 flag): target point is 0.08 m from the 0 C end at t = 32 s; FEATool''s x = 0.02
+    m is the same point from the heated end, and its t = 36 s gives 36.681 C (eval/expected/HT-02.json T_x0.08_t36).']

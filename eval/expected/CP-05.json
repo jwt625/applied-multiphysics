@@ -1,0 +1,84 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "CP-05",
+  "class": "a",
+  "generator": "validation/a/gen_misc.py",
+  "command": "cd validation && uv run python a/gen_misc.py",
+  "method": "Helmholtz-Smoluchowski u_HS = -eps zeta E/eta; Debye-Hueckel potential psi = zeta cosh(y/lD)/cosh(h/lD); Stokes u = u_HS (1 - psi/zeta); lD = sqrt(eps kT / (2 N_A c0 e^2)).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "u_HS",
+      "value": 0.000354167512752,
+      "unit": "m/s",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "3.5417e-4",
+        "rel_diff": 7.022751785889126e-06,
+        "agreement": "agree",
+        "note": "sign: flow along +E for zeta < 0"
+      }
+    },
+    {
+      "metric_id": "lambda_D",
+      "value": 9.711304327274293e-09,
+      "unit": "m",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "1:1 electrolyte, c0 = 1 mol/m^3 (synthetic), T = 298.15 K"
+    },
+    {
+      "metric_id": "u_center",
+      "value": 0.00035414362431580285,
+      "unit": "m/s",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "y = 0"
+    },
+    {
+      "metric_id": "u_mean",
+      "value": 0.0003197732278385527,
+      "unit": "m/s",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "slit-averaged velocity"
+    },
+    {
+      "metric_id": "zeta_over_V_T",
+      "value": 1.9460872248113503,
+      "unit": "1",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "Debye-Hueckel linearization parameter (>1 here: the case defines the linearized PDE)"
+    }
+  ],
+  "inputs": {
+    "eps_r": 80.0,
+    "zeta_V": -0.05,
+    "E_V_m": 10000.0,
+    "eta_Pa_s": 0.001,
+    "c0_mol_m3": 1.0,
+    "T_K": 298.15,
+    "h_m": 1e-07
+  },
+  "field_function": "validation/a/fields.py:CP-05 -> gen_misc.eof_profile"
+}

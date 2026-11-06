@@ -1,0 +1,64 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "RF-04",
+  "class": "a",
+  "generator": "validation/a/gen_em.py",
+  "command": "cd validation && uv run python a/gen_em.py",
+  "method": "Infinitely thin centre-fed half-wave dipole, sinusoidal current (induced-EMF method). Balanis eq. 4-79 with kl = pi: cos(kl) = -1, sin(kl) = 0, so X_m = (eta0/4pi) Si(2 pi) (the radius term multiplies sin(kl) and vanishes) and R_r = (eta0/4pi) Cin(2 pi); Z_in = Z_m / sin^2(kl/2) = Z_m. Cin(x) = gamma + ln x - Ci(x).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "R_in",
+      "value": 73.07901023597411,
+      "unit": "Ohm",
+      "precision": {
+        "method": "closed form",
+        "mpmath_30digit": 73.07901023597411,
+        "diff": 0.0
+      },
+      "r3": {
+        "r3_value": "73.079",
+        "rel_diff": 1.4006724389103188e-07,
+        "agreement": "agree",
+        "note": "compared at R3's 5 significant digits"
+      }
+    },
+    {
+      "metric_id": "X_in",
+      "value": 42.515114676898726,
+      "unit": "Ohm",
+      "precision": {
+        "method": "closed form",
+        "mpmath_30digit": 42.515114676898726,
+        "diff": 0.0
+      },
+      "r3": {
+        "r3_value": "42.515",
+        "rel_diff": 2.6973279719031674e-06,
+        "agreement": "agree",
+        "note": "compared at R3's 5 significant digits"
+      }
+    }
+  ],
+  "inputs": {
+    "eta0_Ohm": 376.7303134118051,
+    "Si_2pi": 1.4181515761326284,
+    "Cin_2pi": 2.437653393057224
+  },
+  "flag_resolution": {
+    "dipole": "Z_in = 73.079010 + j42.515115 Ohm with eta0 = 376.730313412 Ohm (CODATA mu0); with the eta0 ~ 120 pi = 30 * 4 pi convention: 73.129602 + j42.544547 Ohm. Textbook 73 + j42.5 is the rounded form. Independent of wire radius only in the thin limit; FEM gates on the trend."
+  }
+}

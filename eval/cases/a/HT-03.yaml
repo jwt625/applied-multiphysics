@@ -1,0 +1,71 @@
+# HT-03: NAFEMS T2: 1D conduction with end radiation
+# Built by validation/a/build_cases.py from eval/expected/HT-03.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: HT-03
+class: a
+title: 'NAFEMS T2: 1D conduction with end radiation'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond, heat-rad]
+dimension: 1D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    rod_m: 0.1
+    ends: {A: 0.0, B: 0.1}
+  symmetry: none
+materials:
+  rod: {k: 55.6, emissivity_B: 0.98, source: R3 s.3.1 (NAFEMS T2 via Abaqus/CalculiX forum)}
+bcs:
+- {selection: A, type: temperature, value: 1000.0}
+- {selection: B, type: radiation, emissivity: 0.98, T_amb: 300.0, sigma: CODATA (scipy.constants.Stefan_Boltzmann)}
+- {selection: lateral surface, type: insulated}
+initial: null
+study: {type: stationary}
+references:
+- quantity: T_B
+  metric_id: T_B[k = 55.6 W/(m K); sigma CODATA]
+  definition: temperature at end B
+  value: 927.0039504502631
+  unit: K
+  tolerance: {rel: 1.0e-06}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: brentq root of the 1D balance (this lane), locator: 'validation/a/gen_heat.py::ht03; eval/expected/HT-03.json
+      targets[metric_id=T_B[k = 55.6 W/(m K); sigma CODATA]]', accessed: null}
+  expected: {file: eval/expected/HT-03.json, metric_id: 'T_B[k = 55.6 W/(m K); sigma CODATA]'}
+- quantity: T_B
+  metric_id: T_B_nafems
+  definition: NAFEMS target
+  value: 927.0
+  unit: K
+  tolerance: {abs: 0.5}
+  bounds: null
+  basis: P
+  form: benchmark
+  gate: false
+  provenance: {citation: NAFEMS T2 via CalculiX forum (C3D20 927.004 K) (R3 s.3.1), locator: calculix.discourse.group/t/t2-and-t3-one-dimensional-with-radiation-and-heat-transfer-b32-discrepancy/2534,
+    accessed: '2026-11-06'}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, note: '1D linear conduction is
+    exact for P1 with the nonlinear BC: one mesh suffices'}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 s.3.1 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: NAFEMS TNSB booklet paid, site terms bar redistribution; target value cited via a public vendor or open-source
+    page (all rights reserved on vendor pages)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/nafems-t2.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
+    proposal}
+missing: ['NAFEMS booklet''s sigma value and k digits (55.6 vs FEATool 55.563): sensitivity in eval/expected/HT-03.json
+    (sigma 5.67e-8 shifts T_B by +0.0037 K; k 55.563 by -0.037 K)']
+assumptions: [Nonlinear radiation BC solved to |residual| < 1e-9 W/m^2.]

@@ -1,0 +1,98 @@
+# HT-04: Semi-infinite solid with sudden surface convection (Carslaw-Jaeger)
+# Built by validation/a/build_cases.py from eval/expected/HT-04.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: HT-04
+class: a
+title: Semi-infinite solid with sudden surface convection (Carslaw-Jaeger)
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond, heat-conv, heat-transient]
+dimension: 1D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    domain_m: [0.0, 2.0]
+    note: truncate at 2.0 m (>> 4 sqrt(a t) = 0.44 m)
+  symmetry: none
+materials:
+  steel: {k: 54.0, rho: 7833.0, c: 465.0, source: Ansys VM28 (cites Holman 4th ed. p. 106) (R3)}
+bcs:
+- {selection: x = 0, type: convection, h: 50.0, T_inf: 1273.15, note: 1000 C}
+- {selection: x = 2.0, type: insulated, note: far field; temperature rise < 1e-12 K at t = 2000 s}
+initial: {T: 273.15, note: 0 C}
+study: {type: transient, t_end: 2000.0, dt_out: 100.0}
+references:
+- quantity: T(0.0223 m, 2000 s)
+  metric_id: T_x0.0223_t2000
+  definition: depth below the surface
+  value: 140.41883083582596
+  unit: degC
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Carslaw-Jaeger closed form (Holman eq. 4-15 form), locator: 'validation/a/gen_heat.py::ht04; eval/expected/HT-04.json
+      targets[metric_id=T_x0.0223_t2000]', accessed: null}
+  expected: {file: eval/expected/HT-04.json, metric_id: T_x0.0223_t2000}
+- quantity: T(0.0859 m, 2000 s)
+  metric_id: T_x0.0859_t2000
+  definition: depth below the surface
+  value: 98.85282526073547
+  unit: degC
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Carslaw-Jaeger closed form (Holman eq. 4-15 form), locator: 'validation/a/gen_heat.py::ht04; eval/expected/HT-04.json
+      targets[metric_id=T_x0.0859_t2000]', accessed: null}
+  expected: {file: eval/expected/HT-04.json, metric_id: T_x0.0859_t2000}
+- quantity: T(0.1866 m, 2000 s)
+  metric_id: T_x0.1866_t2000
+  definition: depth below the surface
+  value: 51.76276977620825
+  unit: degC
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Carslaw-Jaeger closed form (Holman eq. 4-15 form), locator: 'validation/a/gen_heat.py::ht04; eval/expected/HT-04.json
+      targets[metric_id=T_x0.1866_t2000]', accessed: null}
+  expected: {file: eval/expected/HT-04.json, metric_id: T_x0.1866_t2000}
+- quantity: T(0.3462 m, 2000 s)
+  metric_id: T_x0.3462_t2000
+  definition: depth below the surface
+  value: 14.454006575038287
+  unit: degC
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Carslaw-Jaeger closed form (Holman eq. 4-15 form), locator: 'validation/a/gen_heat.py::ht04; eval/expected/HT-04.json
+      targets[metric_id=T_x0.3462_t2000]', accessed: null}
+  expected: {file: eval/expected/HT-04.json, metric_id: T_x0.3462_t2000}
+reference_results:
+- solver: Ansys VM28 target (Holman)
+  values_degC: [140.0, 98.9, 51.8, 14.5]
+  note: first point 0.3 % below the closed form (R3 s.8)
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 s.3.1 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Ansys VM page public, (c) ANSYS, Inc., all rights reserved, no reuse grant; formula and cited textbook
+    are the reference
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/semi-infinite-convection.yaml, reason: amp-spec/0 models not yet published by lane L2;
+    sims/ id is a proposal}
+missing: []
+assumptions: [Truncation depth 2.0 m chosen by this lane (synthetic); its effect is below the tolerance.]

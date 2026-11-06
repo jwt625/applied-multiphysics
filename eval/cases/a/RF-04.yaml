@@ -1,0 +1,73 @@
+# RF-04: Thin centre-fed half-wave dipole: input impedance
+# Built by validation/a/build_cases.py from eval/expected/RF-04.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: RF-04
+class: a
+title: 'Thin centre-fed half-wave dipole: input impedance'
+status: unvalidated
+untestable_reason: null
+physics: [rf-antenna]
+dimension: 2D-axisym
+units: SI
+geometry:
+  kind: analytic
+  spec: {length: lambda/2, radius: 'sweep, e.g. lambda/1000 .. lambda/100', gap: delta-gap feed}
+  symmetry: axisymmetric
+materials:
+  air: {eps_r: 1.0, mu_r: 1.0, source: vacuum}
+  wire: {type: pec, source: ideal conductor}
+bcs:
+- {selection: wire, type: pec}
+- {selection: gap, type: lumped_port, impedance: 50.0}
+- {selection: outer boundary, type: absorbing, note: PML or first-order ABC}
+initial: null
+study: {type: frequency, f_list: f such that L = lambda/2; plus a sweep for the resonant length}
+references:
+- quantity: R_in
+  metric_id: R_in
+  definition: thin-wire limit, sinusoidal current
+  value: 73.07901023597411
+  unit: Ohm
+  tolerance:
+    rule: {type: monotonic, direction: decreasing, of: error, note: '|R_in(radius) - value| over radii lambda/100, lambda/300,
+        lambda/1000 (ordered toward radius -> 0) at L = lambda/2; second condition X_in = 0 at a length < lambda/2 (not
+        yet a structured target)'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Balanis ch. 4 (eq. 4-79 form; formula not fetched), locator: 'validation/a/gen_em.py::rf04; eval/expected/RF-04.json
+      targets[metric_id=R_in]', accessed: null}
+  expected: {file: eval/expected/RF-04.json, metric_id: R_in}
+  note: FEM on a finite radius cannot hit the thin-wire value; the gate is the trend rule (R3)
+- quantity: X_in
+  metric_id: X_in
+  definition: thin-wire limit, sinusoidal current
+  value: 42.515114676898726
+  unit: Ohm
+  tolerance: {rel: 0.1}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: Balanis ch. 4, locator: 'validation/a/gen_em.py::rf04; eval/expected/RF-04.json targets[metric_id=X_in]',
+    accessed: null}
+  expected: {file: eval/expected/RF-04.json, metric_id: X_in}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 10.0, native: null}
+  budget_basis: R3 s.3.4 browser est. 3-10 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: textbook formula (facts); no text, figures or tables copied
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/half-wave-dipole.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id
+    is a proposal}
+missing: []
+assumptions: [The finite-radius impedance at L = lambda/2 is not a closed form; no finite-radius value is claimed here (King-Middleton
+    or Hallen tables would be a class-b addition).]

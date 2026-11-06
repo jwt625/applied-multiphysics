@@ -1,0 +1,124 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "SM-07",
+  "class": "a",
+  "generator": "validation/a/gen_solid.py",
+  "command": "cd validation && uv run python a/gen_solid.py",
+  "method": "Rectangular section, elastic-perfectly plastic: M/M_yp = 1.5 (1 - (kappa_yp/kappa)^2 / 3), so theta = kappa L = (2 sigma_y L / (E h)) / sqrt(3 - 2 M/M_yp); collapse at M/M_yp = 1.5 (theta -> inf).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "M_yp",
+      "value": 2711.6358966628,
+      "unit": "N m",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "24000",
+        "rel_diff": 1.5158245029548803e-16,
+        "agreement": "agree",
+        "note": "compared in in-lb"
+      },
+      "locator": "first yield moment"
+    },
+    {
+      "metric_id": "rotation_M/Myp=1.0[literal]",
+      "value": 0.012000000000000004,
+      "unit": "rad",
+      "precision": {
+        "method": "closed form",
+        "M_over_Myp": 1.0
+      },
+      "r3": {
+        "r3_value": "0.01200",
+        "rel_diff": 2.8912057932946783e-16,
+        "agreement": "agree",
+        "note": "compared at R3's 4 significant digits"
+      },
+      "locator": "end-to-end rotation over L = 10 in under pure bending"
+    },
+    {
+      "metric_id": "rotation_M/Myp=1.0[exact_fraction]",
+      "value": 0.012000000000000004,
+      "unit": "rad",
+      "precision": {
+        "method": "closed form",
+        "M_over_Myp": 1.0
+      },
+      "locator": "end-to-end rotation over L = 10 in under pure bending"
+    },
+    {
+      "metric_id": "rotation_M/Myp=1.1666[literal]",
+      "value": 0.014695468983270746,
+      "unit": "rad",
+      "precision": {
+        "method": "closed form",
+        "M_over_Myp": 1.1666
+      },
+      "r3": {
+        "r3_value": "0.01469",
+        "rel_diff": 0.00037229293878460635,
+        "agreement": "disagree",
+        "note": "compared at R3's 4 significant digits"
+      },
+      "locator": "end-to-end rotation over L = 10 in under pure bending"
+    },
+    {
+      "metric_id": "rotation_M/Myp=1.1666[exact_fraction]",
+      "value": 0.014696938456699076,
+      "unit": "rad",
+      "precision": {
+        "method": "closed form",
+        "M_over_Myp": 1.1666666666666667
+      },
+      "locator": "end-to-end rotation over L = 10 in under pure bending"
+    },
+    {
+      "metric_id": "rotation_M/Myp=1.3333[literal]",
+      "value": 0.02078253154157464,
+      "unit": "rad",
+      "precision": {
+        "method": "closed form",
+        "M_over_Myp": 1.3333
+      },
+      "r3": {
+        "r3_value": "0.02078",
+        "rel_diff": 0.00012182586980940145,
+        "agreement": "agree",
+        "note": "compared at R3's 4 significant digits"
+      },
+      "locator": "end-to-end rotation over L = 10 in under pure bending"
+    },
+    {
+      "metric_id": "rotation_M/Myp=1.3333[exact_fraction]",
+      "value": 0.02078460969082653,
+      "unit": "rad",
+      "precision": {
+        "method": "closed form",
+        "M_over_Myp": 1.3333333333333333
+      },
+      "locator": "end-to-end rotation over L = 10 in under pure bending"
+    }
+  ],
+  "inputs_SI": {
+    "L_m": 0.254,
+    "b_m": 0.0254,
+    "h_m": 0.0508,
+    "E_Pa": 206842718795.0508,
+    "sigma_y_Pa": 248211262.554061
+  }
+}

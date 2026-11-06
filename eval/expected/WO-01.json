@@ -1,0 +1,64 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-01",
+  "class": "a",
+  "generator": "validation/a/gen_optics.py",
+  "command": "cd validation && uv run python a/gen_optics.py",
+  "method": "Symmetric slab: kappa tan(kappa d) = r gamma, r = 1 (TE) or (n1/n2)^2 (TM), d = t/2",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "neff_TE0",
+      "value": 2.8494894672390987,
+      "unit": "1",
+      "precision": {
+        "method": "brentq",
+        "xtol": 1e-15,
+        "mpmath_30digit": "2.849489467239099",
+        "diff": 4.440892098500626e-16
+      },
+      "r3": {
+        "r3_value": "2.849489",
+        "rel_diff": 1.6397294340239728e-07,
+        "agreement": "agree",
+        "note": "compared at R3's 7 significant digits"
+      }
+    },
+    {
+      "metric_id": "neff_TM0",
+      "value": 2.054618547456925,
+      "unit": "1",
+      "precision": {
+        "method": "brentq",
+        "xtol": 1e-15,
+        "mpmath_30digit": "2.054618547456925",
+        "diff": 0.0
+      },
+      "r3": {
+        "r3_value": "2.054619",
+        "rel_diff": 2.2025644414537333e-07,
+        "agreement": "agree",
+        "note": "compared at R3's 7 significant digits"
+      }
+    }
+  ],
+  "inputs": {
+    "lambda_m": 1.55e-06,
+    "t_m": 2.2e-07,
+    "n_core": 3.477723756,
+    "n_clad": 1.444023622
+  }
+}

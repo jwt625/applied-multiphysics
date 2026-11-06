@@ -1,0 +1,66 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "SM-04",
+  "class": "a",
+  "generator": "validation/a/gen_solid.py",
+  "command": "cd validation && uv run python a/gen_solid.py",
+  "method": "Hertz (Timoshenko-Goodier art. 140): a = (3 F R / (4 E*))^(1/3), E* = E/(1 - nu^2) for a rigid plane, p0 = 3F/(2 pi a^2), delta = a^2/R",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "a_contact",
+      "value": 0.00100963544445813,
+      "unit": "m",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "1.00964",
+        "rel_diff": 4.512045748935257e-06,
+        "agreement": "agree",
+        "note": "compared in mm"
+      },
+      "locator": "contact radius",
+      "informative": {
+        "ansys_vm63_target_mm": 1.01
+      }
+    },
+    {
+      "metric_id": "p0",
+      "value": 88290369.06939228,
+      "unit": "Pa",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "peak contact pressure, r = 0"
+    },
+    {
+      "metric_id": "delta",
+      "value": 0.00012742046633827073,
+      "unit": "m",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "approach of the sphere centre relative to the plane"
+    }
+  ],
+  "inputs": {
+    "R_m": 0.008,
+    "E_Pa": 1000000000.0,
+    "nu": 0.3,
+    "F_N": 188.49555921538757
+  }
+}

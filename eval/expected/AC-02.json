@@ -1,0 +1,144 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "AC-02",
+  "class": "a",
+  "generator": "validation/a/gen_misc.py",
+  "command": "cd validation && uv run python a/gen_misc.py",
+  "method": "Rigid-walled box: f = (c/2) sqrt((l/Lx)^2 + (m/Ly)^2 + (n/Lz)^2), lowest 10 non-zero modes (index search to 7 per axis covers them)",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "f_mode1",
+      "value": 171.5,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "171.500",
+        "rel_diff": 0.0,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "(l, m, n) = (1, 0, 0)"
+    },
+    {
+      "metric_id": "f_mode2",
+      "value": 214.375,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "214.375",
+        "rel_diff": 0.0,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "(l, m, n) = (0, 1, 0)"
+    },
+    {
+      "metric_id": "f_mode3",
+      "value": 274.53395167993335,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "274.534",
+        "rel_diff": 1.760075860893817e-07,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "(l, m, n) = (1, 1, 0)"
+    },
+    {
+      "metric_id": "f_mode4",
+      "value": 285.83333333333337,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "285.833",
+        "rel_diff": 1.1661821180353523e-06,
+        "agreement": "agree",
+        "note": "compared at R3's 6 significant digits"
+      },
+      "locator": "(l, m, n) = (0, 0, 1)"
+    },
+    {
+      "metric_id": "f_mode5",
+      "value": 333.3360833219897,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "(l, m, n) = (1, 0, 1)"
+    },
+    {
+      "metric_id": "f_mode6",
+      "value": 343.0,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "(l, m, n) = (2, 0, 0)"
+    },
+    {
+      "metric_id": "f_mode7",
+      "value": 357.2916666666667,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "(l, m, n) = (0, 1, 1)"
+    },
+    {
+      "metric_id": "f_mode8",
+      "value": 396.3200538320569,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "(l, m, n) = (1, 1, 1)"
+    },
+    {
+      "metric_id": "f_mode9",
+      "value": 404.48194103692686,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "(l, m, n) = (2, 1, 0)"
+    },
+    {
+      "metric_id": "f_mode10",
+      "value": 428.75,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "(l, m, n) = (0, 2, 0)"
+    }
+  ],
+  "inputs": {
+    "Lx": 1.0,
+    "Ly": 0.8,
+    "Lz": 0.6,
+    "c": 343.0
+  }
+}

@@ -1,0 +1,85 @@
+# CP-21: NAFEMS T1: plane-stress membrane with a circular hot spot
+# Built by validation/a/build_cases.py from eval/expected/CP-21.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: CP-21
+class: a
+title: 'NAFEMS T1: plane-stress membrane with a circular hot spot'
+status: unvalidated
+untestable_reason: null
+physics: [solid-thermal-stress]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    quarter_membrane: [10.0, 10.0]
+    hot_spot_radius: 1.0
+    point_D: [1.0, 0.0]
+    units_note: length unit cancels for plane-stress stresses
+  symmetry: quarter (x = 0, y = 0)
+  source: Abaqus deck nt1xxf8x.inp via advanced-packaging-atlas validation/cases/B/nafems-T1.yaml (abaqus-docs.mit.edu now
+    410 Gone)
+materials:
+  hot_spot: {E: 100000000000.0, nu: 0.3, alpha: 1.0e-05, source: Altair OS-V 0100 (NAFEMS T1)}
+  membrane: {E: 100000000000.0, nu: 0.3, alpha: 0.0, source: Altair OS-V 0100}
+bcs:
+- selection: x = 0
+  type: symmetry
+  fixed: [ux]
+- selection: y = 0
+  type: symmetry
+  fixed: [uy]
+- {selection: outer edges, type: free}
+- {selection: hot spot, type: temperature_load, value: 100.0, unit: degC, T_ref: 0.0}
+initial: null
+study:
+  type: stationary
+  settings: {plane: stress}
+references:
+- quantity: sigma_yy(D)
+  metric_id: sigma_yy_D
+  definition: direct stress at D = (1, 0), just outside the hot spot
+  value: 50000000.0
+  unit: Pa
+  tolerance: {rel: 0.015, after: richardson}
+  bounds: null
+  basis: P
+  form: benchmark
+  gate: true
+  provenance: {citation: NAFEMS TNSB Rev. 3 T1 via Altair OS-V 0100, locator: 2021.help.altair.com/2021/hwsolvers/os/topics/solvers/os/nafems_test_problem_t1_r.htm
+      (fetched 2026-11-06), accessed: '2026-11-06'}
+  note: '1.5 % band: the target equals the infinite-plate value; the finite quarter lies between the infinite (50.0 MPa)
+    and free-disk (50.5 MPa) bounds'
+- quantity: sigma_yy(D), infinite plate
+  metric_id: sigma_yy_D_infinite
+  definition: E e*/2
+  value: 50000000.0
+  unit: Pa
+  tolerance: {rel: 0.015}
+  bounds: [50000000.0, 50500000.0]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Eshelby-type circular inclusion, plane stress', locator: 'validation/a/gen_solid.py::cp21; eval/expected/CP-21.json
+      targets[metric_id=sigma_yy_D_infinite]', accessed: null}
+  expected: {file: eval/expected/CP-21.json, metric_id: sigma_yy_D_infinite}
+reference_results:
+- {solver: advanced-packaging-atlas L5 scikit-fem P2 Richardson, value_MPa: 50.4475}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 2.0, native: null}
+  budget_basis: by analogy with R3 SM-02 < 2 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: NAFEMS TNSB booklet paid, site terms bar redistribution; target value cited via a public vendor or open-source
+    page (all rights reserved on vendor pages)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/nafems-t1.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
+    proposal}
+missing: ['Membrane geometry from the Abaqus deck, now unreachable at its MIT URL; no live public page states the 10 x 10
+    quarter size (Altair page omits geometry).']
+assumptions: []

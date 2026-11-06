@@ -1,0 +1,83 @@
+# SC-01: Abrupt Si pn junction at equilibrium
+# Built by validation/a/build_cases.py from eval/expected/SC-01.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: SC-01
+class: a
+title: Abrupt Si pn junction at equilibrium
+status: unvalidated
+untestable_reason: null
+physics: [semiconductor-dd, electrostatics]
+dimension: 1D
+units: SI
+geometry:
+  kind: analytic
+  spec: {length_m: 1.0e-06, junction_at_m: 5.0e-07, note: length >> W = 50 nm; synthetic}
+  symmetry: none
+materials:
+  Si: {N_A: 1.0e+24, N_D: 1.0e+24, n_i: 1.0e+16, eps_r: 11.7, T: 300.0, source: 'R3 s.3.9 (doping 1e18 cm^-3, n_i 1e10 cm^-3);
+      eps_r 11.7 per R3, source to verify'}
+bcs:
+- {selection: x = 0, type: ohmic, bias: 0.0}
+- {selection: x = L, type: ohmic, bias: 0.0}
+initial: null
+study:
+  type: stationary
+  settings: {statistics: Boltzmann, ionization: full}
+references:
+- quantity: V_bi
+  metric_id: V_bi
+  definition: (kT/q) ln(N_A N_D/n_i^2)
+  value: 0.9524228693173076
+  unit: V
+  tolerance: {rel: 1.0e-05}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Hu eq. 4.1.2, locator: 'validation/a/gen_misc.py::sc01; eval/expected/SC-01.json targets[metric_id=V_bi]',
+    accessed: null}
+  expected: {file: eval/expected/SC-01.json, metric_id: V_bi}
+- quantity: E_max
+  metric_id: E_max_PB_0V[eps_r=11.7]
+  definition: peak field, exact Poisson-Boltzmann first integral
+  value: 37323514.516489305
+  unit: V/m
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: first integral (this lane), locator: 'validation/a/gen_misc.py::sc01; eval/expected/SC-01.json
+      targets[metric_id=E_max_PB_0V[eps_r=11.7]]', accessed: null}
+  expected: {file: eval/expected/SC-01.json, metric_id: 'E_max_PB_0V[eps_r=11.7]'}
+- quantity: W
+  metric_id: W_0V[eps_r=11.7]
+  definition: depletion width, depletion approximation
+  value: 4.9631454436638445e-08
+  unit: m
+  tolerance: {rel: 0.05}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: Hu eq. 4.2.8, locator: 'validation/a/gen_misc.py::sc01; eval/expected/SC-01.json targets[metric_id=W_0V[eps_r=11.7]]',
+    accessed: null}
+  expected: {file: eval/expected/SC-01.json, metric_id: 'W_0V[eps_r=11.7]'}
+  note: depletion approximation; a drift-diffusion solve has no sharp edge
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 0.5, native: null}
+  budget_basis: R3 s.3.9 browser est. < 0.5 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: Hu textbook free author PDF, all rights reserved; formulas only
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/pn-junction.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
+    a proposal}
+missing: [Source for eps_r of Si (R3 lists 11.7 and 11.1; 11.1 has no source).]
+assumptions: []

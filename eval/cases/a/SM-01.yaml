@@ -1,0 +1,132 @@
+# SM-01: Kirsch: circular hole in a plate under uniaxial tension (plane stress)
+# Built by validation/a/build_cases.py from eval/expected/SM-01.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: SM-01
+class: a
+title: 'Kirsch: circular hole in a plate under uniaxial tension (plane stress)'
+status: unvalidated
+untestable_reason: null
+physics: [solid-linear]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    quarter_domain_m:
+    - [0, 0.05]
+    - [0, 0.05]
+    hole_radius_m: 0.005
+    hole_centre_m: [0, 0]
+  symmetry: quarter (x = 0, y = 0)
+materials:
+  plate: {E: 200000000000.0, nu: 0.3, source: 'synthetic (stresses independent of E, nu)'}
+bcs:
+- selection: x = 0
+  type: symmetry
+  fixed: [ux]
+- selection: y = 0
+  type: symmetry
+  fixed: [uy]
+- {selection: hole, type: free}
+- selection: [x = L, y = L]
+  type: traction
+  expr: sigma_Kirsch(x, y) . n
+  params: {s_inf: 100000000.0, a: 0.005}
+  note: exact Kirsch traction from validation/a/fields.py SM-01, so the finite domain carries the infinite-plate field exactly
+initial: null
+study:
+  type: stationary
+  settings: {plane: stress}
+references:
+- quantity: K_t
+  metric_id: K_t
+  definition: sigma_xx(0, a) / sigma_inf
+  value: 3.0
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Kirsch 1898, locator: 'validation/a/gen_solid.py::sm01; eval/expected/SM-01.json targets[metric_id=K_t]',
+    accessed: null}
+  expected: {file: eval/expected/SM-01.json, metric_id: K_t}
+- quantity: sigma_yy(a, 0)
+  metric_id: syy_hole_side
+  definition: hoop stress at the hole on the load axis
+  value: -100000000.0
+  unit: Pa
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Kirsch 1898, locator: 'validation/a/gen_solid.py::sm01; eval/expected/SM-01.json targets[metric_id=syy_hole_side]',
+    accessed: null}
+  expected: {file: eval/expected/SM-01.json, metric_id: syy_hole_side}
+- quantity: u_x(L, 0)
+  metric_id: ux_at_L_0
+  definition: displacement
+  value: 2.5660875000000005e-05
+  unit: m
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Kirsch / Barber sec. 8.4, locator: 'validation/a/gen_solid.py::sm01; eval/expected/SM-01.json targets[metric_id=ux_at_L_0]',
+    accessed: null}
+  expected: {file: eval/expected/SM-01.json, metric_id: ux_at_L_0}
+- quantity: u_y(0, L)
+  metric_id: uy_at_0_L
+  definition: displacement
+  value: -7.835875e-06
+  unit: m
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Kirsch / Barber sec. 8.4, locator: 'validation/a/gen_solid.py::sm01; eval/expected/SM-01.json targets[metric_id=uy_at_0_L]',
+    accessed: null}
+  expected: {file: eval/expected/SM-01.json, metric_id: uy_at_0_L}
+- quantity: field error
+  metric_id: field_rel_L2_stress
+  definition: relative L2 stress error vs the exact field
+  value: 0.0
+  unit: '1'
+  tolerance:
+    abs: 0.001
+    norm: l2
+    rule: {type: rate, min: 1.0, note: stress L2 error rate >= p over 3 meshes; min 1.0 is the P1 value (proposal)}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Kirsch 1898, locator: 'validation/a/fields.py SM-01; eval/expected/SM-01.json targets[metric_id=field_rel_L2_stress]',
+    accessed: null}
+  expected: {file: eval/expected/SM-01.json, metric_id: field_rel_L2_stress}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 s.3.2 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: textbook formula (facts); no text, figures or tables copied
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero:
+  suitable: true
+  why: R3 hero; stress concentration with a closed-form field to compare live
+  visual: [sigma_xx, von_mises, deformed_shape]
+spec: {status: pending, ref: sims/kirsch-plate.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
+    a proposal}
+missing: []
+assumptions: [Exact-traction outer BC chosen by this lane so the target is exact; the uniform-tension variant with W/D >=
+    20 (R3) differs from Kirsch by the finite-width effect and is not gated.]
+field_reference:
+  function: validation/a/fields.py SM-01
+  fields: [sxx, syy, sxy, ux, uy]

@@ -1,0 +1,104 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "HT-04",
+  "class": "a",
+  "generator": "validation/a/gen_heat.py",
+  "command": "cd validation && uv run python a/gen_heat.py",
+  "method": "Carslaw-Jaeger / Holman semi-infinite solid with surface convection: (T - Ti)/(Tinf - Ti) = erfc(xi) - exp(h x/k + h^2 a t/k^2) erfc(xi + h sqrt(a t)/k), xi = x / (2 sqrt(a t)).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "T_x0.0223_t2000",
+      "value": 140.41883083582596,
+      "unit": "degC",
+      "precision": {
+        "method": "closed form (erfc, erfcx)",
+        "mpmath_40digit": 140.41883083582567,
+        "diff_vs_mpmath": 2.8421709430404007e-13
+      },
+      "r3": {
+        "r3_value": "140.42",
+        "rel_diff": 8.326194089374035e-06,
+        "agreement": "agree",
+        "note": "compared at R3's 5 significant digits"
+      },
+      "locator": "depth x = 0.0223 m, t = 2000 s",
+      "informative": {
+        "ansys_vm28_value": 140.0
+      }
+    },
+    {
+      "metric_id": "T_x0.0859_t2000",
+      "value": 98.85282526073547,
+      "unit": "degC",
+      "precision": {
+        "method": "closed form (erfc, erfcx)",
+        "mpmath_40digit": 98.85282526073567,
+        "diff_vs_mpmath": 1.9895196601282805e-13
+      },
+      "r3": {
+        "r3_value": "98.85",
+        "rel_diff": 2.8581292215248218e-05,
+        "agreement": "agree",
+        "note": "compared at R3's 4 significant digits"
+      },
+      "locator": "depth x = 0.0859 m, t = 2000 s",
+      "informative": {
+        "ansys_vm28_value": 98.9
+      }
+    },
+    {
+      "metric_id": "T_x0.1866_t2000",
+      "value": 51.76276977620825,
+      "unit": "degC",
+      "precision": {
+        "method": "closed form (erfc, erfcx)",
+        "mpmath_40digit": 51.762769776208316,
+        "diff_vs_mpmath": 6.394884621840902e-14
+      },
+      "r3": {
+        "r3_value": "51.76",
+        "rel_diff": 5.351190510536932e-05,
+        "agreement": "agree",
+        "note": "compared at R3's 4 significant digits"
+      },
+      "locator": "depth x = 0.1866 m, t = 2000 s",
+      "informative": {
+        "ansys_vm28_value": 51.8
+      }
+    },
+    {
+      "metric_id": "T_x0.3462_t2000",
+      "value": 14.454006575038287,
+      "unit": "degC",
+      "precision": {
+        "method": "closed form (erfc, erfcx)",
+        "mpmath_40digit": 14.454006575038273,
+        "diff_vs_mpmath": 1.4210854715202004e-14
+      },
+      "r3": {
+        "r3_value": "14.45",
+        "rel_diff": 0.0002772716289472393,
+        "agreement": "agree",
+        "note": "compared at R3's 4 significant digits"
+      },
+      "locator": "depth x = 0.3462 m, t = 2000 s",
+      "informative": {
+        "ansys_vm28_value": 14.5
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+[project]
+name = "amp-validation"
+version = "0.0.0"
+description = "Open reference generators and solvers for the applied-multiphysics eval set (amp-eval/0)"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy",
+    "scipy",
+    "mpmath",
+    "pyyaml",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "UP"]

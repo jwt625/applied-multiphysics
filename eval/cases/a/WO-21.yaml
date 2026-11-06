@@ -1,0 +1,84 @@
+# WO-21: Quarter-wave Bragg stack (Si/SiO2, 1550 nm): first gap edges
+# Built by validation/a/build_cases.py from eval/expected/WO-21.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: WO-21
+class: a
+title: 'Quarter-wave Bragg stack (Si/SiO2, 1550 nm): first gap edges'
+status: unvalidated
+untestable_reason: null
+physics: [optics-phc]
+dimension: 1D
+units: SI
+geometry:
+  kind: layer_stack
+  spec: {lambda0_m: 1.55e-06, d_Si_m: 1.1142345602679318e-07, d_SiO2_m: 2.683474107323156e-07, period: Bloch-periodic unit
+      cell}
+  symmetry: none
+materials:
+  Si: {n: 3.477723756, source: as WO-01}
+  SiO2: {n: 1.444023622, source: as WO-01}
+bcs:
+- {selection: cell ends, type: bloch_periodic, k: sweep 0 .. pi/Lambda}
+initial: null
+study:
+  type: eigen
+  n: 4
+  shift: 0.0
+  settings: {kind: 'band structure, normal incidence'}
+references:
+- quantity: omega_lower / omega0
+  metric_id: w_lower_over_w0
+  definition: lower gap edge
+  value: 0.7288172322180982
+  unit: '1'
+  tolerance: {rel: 1.0e-06}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: transfer-matrix closed form (JJ ch. 4), locator: 'validation/a/gen_optics.py::wo21; eval/expected/WO-21.json
+      targets[metric_id=w_lower_over_w0]', accessed: null}
+  expected: {file: eval/expected/WO-21.json, metric_id: w_lower_over_w0}
+- quantity: omega_upper / omega0
+  metric_id: w_upper_over_w0
+  definition: upper gap edge
+  value: 1.2711827677819016
+  unit: '1'
+  tolerance: {rel: 1.0e-06}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: transfer-matrix closed form (JJ ch. 4), locator: 'validation/a/gen_optics.py::wo21; eval/expected/WO-21.json
+      targets[metric_id=w_upper_over_w0]', accessed: null}
+  expected: {file: eval/expected/WO-21.json, metric_id: w_upper_over_w0}
+- quantity: gap / midgap
+  metric_id: gap_to_midgap
+  definition: (4/pi) asin(|n1 - n2|/(n1 + n2))
+  value: 0.5423655355638035
+  unit: '1'
+  tolerance: {rel: 1.0e-06}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: closed form, locator: 'validation/a/gen_optics.py::wo21; eval/expected/WO-21.json targets[metric_id=gap_to_midgap]',
+    accessed: null}
+  expected: {file: eval/expected/WO-21.json, metric_id: gap_to_midgap}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 0.5, native: null}
+  budget_basis: by analogy with R3 WO-01 < 0.5 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: textbook formula (facts); no text, figures or tables copied
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/bragg-stack.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
+    a proposal}
+missing: []
+assumptions: [Inputs chosen by this lane (reuse WO-01 indices); nondispersive.]

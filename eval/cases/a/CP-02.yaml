@@ -1,0 +1,74 @@
+# CP-02: NAFEMS LE11: cylinder / taper / sphere under a temperature field
+# Built by validation/a/build_cases.py from eval/expected/CP-02.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: CP-02
+class: a
+title: 'NAFEMS LE11: cylinder / taper / sphere under a temperature field'
+status: unvalidated
+untestable_reason: null
+physics: [solid-thermal-stress]
+dimension: 3D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    meridian_points_m:
+      A: [1.0, 0.0]
+      B: [1.4, 0.0]
+      H: [0.70711, 1.79711]
+      I: [1.0, 1.79711]
+    note: full profile in FeenoX examples/nafems-le11.geo
+  symmetry: axisymmetric body, quarter model
+  source: FeenoX nafems-le11.geo via advanced-packaging-atlas validation/cases/B/nafems-LE11.yaml
+materials:
+  steel: {E: 210000000000.0, nu: 0.3, alpha: 0.00023, source: NAFEMS LE11 via Altair OS-V 0070 / FeenoX}
+bcs:
+- selection: plane y = 0
+  type: symmetry
+  fixed: [uy]
+- selection: plane x = 0
+  type: symmetry
+  fixed: [ux]
+- selection: plane z = 0
+  type: displacement
+  fixed: [uz]
+- selection: top face z = 1.79711
+  type: displacement
+  fixed: [uz]
+- {selection: domain, type: temperature_load, expr: sqrt(x^2 + y^2) + z, unit: degC, T_ref: 0.0}
+initial: null
+study: {type: stationary}
+references:
+- quantity: sigma_zz(A)
+  metric_id: sigma_zz_A
+  definition: direct stress at A = (1.0, 0, 0) m
+  value: -105000000.0
+  unit: Pa
+  tolerance: {rel: 0.01, after: richardson}
+  bounds: null
+  basis: P
+  form: benchmark
+  gate: true
+  provenance: {citation: NAFEMS LE11 via Altair OS-V 0070, locator: help.altair.com/2023/hwsolvers/os/topics/solvers/os/nafems_test_problem_le11_r.htm
+      (R3), accessed: '2026-11-06'}
+reference_results:
+- {solver: FeenoX, value_MPa: -105.04}
+- {solver: advanced-packaging-atlas L5 scikit-fem Q2s finest, value_MPa: -105.54}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 20.0, native: null}
+  budget_basis: R3 s.3.10 browser est. 5-20 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: NAFEMS TNSB booklet paid, site terms bar redistribution; target value cited via a public vendor or open-source
+    page (all rights reserved on vendor pages)
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/nafems-le11.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
+    a proposal}
+missing: [Reference temperature not stated on the public pages (0 C assumed).]
+assumptions: ['Temperature field sqrt(x^2 + y^2) + z (FeenoX, Altair 2023, CAST3M); the Abaqus-page rendering (x^2 + y^2)
+    + z is taken as a lost exponent (R3 s.8).']

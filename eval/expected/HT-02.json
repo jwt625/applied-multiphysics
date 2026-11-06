@@ -1,0 +1,111 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "HT-02",
+  "class": "a",
+  "generator": "validation/a/gen_heat.py",
+  "command": "cd validation && uv run python a/gen_heat.py",
+  "method": "NAFEMS T3 1D bar: alpha = k/(rho cp); T(0,t) = 0, T(L,t) = 100 sin(pi t/40), T(x,0) = 0. Two independent series. R3 flag resolved: 36.60 C is at x = 0.08 m from the T = 0 end at t = 32 s.",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "T_x0.08_t32",
+      "value": 36.603115959084604,
+      "unit": "degC",
+      "precision": {
+        "method": "periodic + transient eigen series (mpmath 40 digits)",
+        "terms": 40,
+        "change_on_doubling": 0.0,
+        "cross_check": {
+          "method": "shifted-BC eigen series",
+          "terms": 4000,
+          "value": 36.60311595015462,
+          "change_on_doubling": 7.813738989170815e-09,
+          "diff_vs_primary": 8.929987416195218e-09
+        }
+      },
+      "r3": {
+        "r3_value": "36.60",
+        "rel_diff": 8.513549411483737e-05,
+        "agreement": "agree",
+        "note": "compared at R3's 4 significant digits"
+      },
+      "locator": "x = 0.08 m from the T = 0 end, t = 32 s (Altair OS-V 0110)"
+    },
+    {
+      "metric_id": "T_x0.08_t36",
+      "value": 36.68130080395611,
+      "unit": "degC",
+      "precision": {
+        "method": "periodic + transient eigen series (mpmath 40 digits)",
+        "terms": 40,
+        "change_on_doubling": 0.0,
+        "cross_check": {
+          "method": "shifted-BC eigen series",
+          "terms": 4000,
+          "value": 36.68130079345828,
+          "change_on_doubling": 9.185605165384914e-09,
+          "diff_vs_primary": 1.0497835489786667e-08
+        }
+      },
+      "r3": {
+        "r3_value": "36.68",
+        "rel_diff": 3.5463575684647565e-05,
+        "agreement": "agree",
+        "note": "compared at R3's 4 significant digits"
+      },
+      "locator": "x = 0.08 m from the T = 0 end, t = 36 s (FEATool time, flag check)"
+    },
+    {
+      "metric_id": "T_x0.02_t36",
+      "value": 0.18642786771076644,
+      "unit": "degC",
+      "precision": {
+        "method": "periodic + transient eigen series (mpmath 40 digits)",
+        "terms": 40,
+        "change_on_doubling": 0.0,
+        "cross_check": {
+          "method": "shifted-BC eigen series",
+          "terms": 4000,
+          "value": 0.1864278666024779,
+          "change_on_doubling": 9.697522784790635e-10,
+          "diff_vs_primary": 1.108288544271474e-09
+        }
+      },
+      "locator": "x = 0.02 m from the T = 0 end, t = 36 s (FEATool literal reading)"
+    },
+    {
+      "metric_id": "T_x0.02_t32",
+      "value": 0.09090702245860063,
+      "unit": "degC",
+      "precision": {
+        "method": "periodic + transient eigen series (mpmath 40 digits)",
+        "terms": 40,
+        "change_on_doubling": 0.0,
+        "cross_check": {
+          "method": "shifted-BC eigen series",
+          "terms": 4000,
+          "value": 0.09090702151583052,
+          "change_on_doubling": 8.249205762922429e-10,
+          "diff_vs_primary": 9.427701119779641e-10
+        }
+      },
+      "locator": "x = 0.02 m from the T = 0 end, t = 32 s"
+    }
+  ],
+  "flag_resolution": {
+    "HT-02_locator": "Target 36.60 C = T(x = 0.08 m measured from the fixed-zero end, t = 32 s). FEATool's (x = 0.02 m, t = 36 s) is a reversed coordinate (0.02 m from the heated end = 0.08 m from the zero end) with the wrong time: at t = 36 s the value is 36.68 C."
+  }
+}

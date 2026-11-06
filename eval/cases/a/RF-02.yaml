@@ -1,0 +1,117 @@
+# RF-02: WR-90 rectangular waveguide: cutoffs and straight-section S-parameters
+# Built by validation/a/build_cases.py from eval/expected/RF-02.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: RF-02
+class: a
+title: 'WR-90 rectangular waveguide: cutoffs and straight-section S-parameters'
+status: unvalidated
+untestable_reason: null
+physics: [rf-waveguide, rf-sparams]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {a_m: 0.02286, b_m: 0.01016, section_length_m: 0.05}
+  symmetry: none
+materials:
+  air: {eps_r: 1.0, mu_r: 1.0, source: vacuum}
+bcs:
+- {selection: walls, type: pec}
+- selection: [port1, port2]
+  type: port
+  mode: TE10
+  note: 3D S-parameter variant only
+initial: null
+study:
+  type: eigen
+  n: 4
+  shift: 0.0
+  settings:
+    kind: 2D cross-section cutoff
+    frequency_variant_f_list: [10000000000.0]
+references:
+- quantity: f_c TE10
+  metric_id: fc_TE10
+  definition: cutoff
+  value: 6557140376.202975
+  unit: Hz
+  tolerance: {rel: 1.0e-05, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Pozar ch. 3, locator: 'validation/a/gen_em.py::rf02; eval/expected/RF-02.json targets[metric_id=fc_TE10]',
+    accessed: null}
+  expected: {file: eval/expected/RF-02.json, metric_id: fc_TE10}
+- quantity: f_c TE20
+  metric_id: fc_TE20
+  definition: cutoff
+  value: 13114280752.40595
+  unit: Hz
+  tolerance: {rel: 1.0e-05, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Pozar ch. 3, locator: 'validation/a/gen_em.py::rf02; eval/expected/RF-02.json targets[metric_id=fc_TE20]',
+    accessed: null}
+  expected: {file: eval/expected/RF-02.json, metric_id: fc_TE20}
+- quantity: f_c TE01
+  metric_id: fc_TE01
+  definition: cutoff
+  value: 14753565846.456692
+  unit: Hz
+  tolerance: {rel: 1.0e-05, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Pozar ch. 3, locator: 'validation/a/gen_em.py::rf02; eval/expected/RF-02.json targets[metric_id=fc_TE01]',
+    accessed: null}
+  expected: {file: eval/expected/RF-02.json, metric_id: fc_TE01}
+- quantity: arg S21
+  metric_id: S21_phase_10GHz_L50mm
+  definition: -beta L wrapped, f = 10 GHz
+  value: -1.6287275084713997
+  unit: rad
+  tolerance: {abs: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: Pozar ch. 3, locator: 'validation/a/gen_em.py::rf02; eval/expected/RF-02.json targets[metric_id=S21_phase_10GHz_L50mm]',
+    accessed: null}
+  expected: {file: eval/expected/RF-02.json, metric_id: S21_phase_10GHz_L50mm}
+  note: 3D S-parameter variant
+- quantity: '|S11|'
+  metric_id: S11_mag
+  definition: matched straight section
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: Pozar ch. 3, locator: 'validation/a/gen_em.py::rf02; eval/expected/RF-02.json targets[metric_id=S11_mag]',
+    accessed: null}
+  expected: {file: eval/expected/RF-02.json, metric_id: S11_mag}
+  note: 3D S-parameter variant
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 1.0, native: null}
+  budget_basis: R3 s.3.4 browser est. 2D eig < 1 s (3D S 5-20 s); est., not measured; native budget set after the first
+    timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: textbook formula (facts); no text, figures or tables copied
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/wr90-guide.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
+    proposal}
+missing: []
+assumptions: []

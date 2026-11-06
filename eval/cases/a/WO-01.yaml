@@ -1,0 +1,70 @@
+# WO-01: Symmetric Si slab in SiO2 at 1550 nm: TE0 and TM0
+# Built by validation/a/build_cases.py from eval/expected/WO-01.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: WO-01
+class: a
+title: 'Symmetric Si slab in SiO2 at 1550 nm: TE0 and TM0'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 1D
+units: SI
+geometry:
+  kind: layer_stack
+  spec: {core_thickness_m: 2.2e-07, cladding: semi-infinite both sides, computational_cladding_m: '>= 2 um each side with
+      PML or decaying BC'}
+  symmetry: mirror (even modes)
+materials:
+  Si: {n: 3.477723756, source: eo-modulator-atlas K1 value (Salzberg-Tatian fit at 1550 nm) (R3)}
+  SiO2: {n: 1.444023622, source: eo-modulator-atlas K1 value (Malitson fit at 1550 nm) (R3)}
+bcs:
+- {selection: outer ends, type: pec_or_decay, note: field decays as exp(-gamma |x|)}
+initial: null
+study:
+  type: eigen
+  n: 2
+  shift: n_eff near 3.0
+  settings: {wavelength_m: 1.55e-06}
+references:
+- quantity: n_eff TE0
+  metric_id: neff_TE0
+  definition: fundamental TE
+  value: 2.8494894672390987
+  unit: '1'
+  tolerance: {rel: 1.0e-06, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: slab dispersion relation, locator: 'validation/a/gen_optics.py::wo01; eval/expected/WO-01.json
+      targets[metric_id=neff_TE0]', accessed: null}
+  expected: {file: eval/expected/WO-01.json, metric_id: neff_TE0}
+- quantity: n_eff TM0
+  metric_id: neff_TM0
+  definition: fundamental TM
+  value: 2.054618547456925
+  unit: '1'
+  tolerance: {rel: 1.0e-06, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: slab dispersion relation, locator: 'validation/a/gen_optics.py::wo01; eval/expected/WO-01.json
+      targets[metric_id=neff_TM0]', accessed: null}
+  expected: {file: eval/expected/WO-01.json, metric_id: neff_TM0}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 0.5, native: null}
+  budget_basis: R3 s.3.5 browser est. < 0.5 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: textbook formula (facts); no text, figures or tables copied
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/si-slab.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal}
+missing: []
+assumptions: [Indices treated as constants at 1550 nm.]

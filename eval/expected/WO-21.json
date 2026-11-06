@@ -1,0 +1,83 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-21",
+  "class": "a",
+  "generator": "validation/a/gen_optics.py",
+  "command": "cd validation && uv run python a/gen_optics.py",
+  "method": "Quarter-wave stack (n1 d1 = n2 d2 = lambda0/4), normal incidence: cos(K Lambda) = cos^2(phi) - (1/2)(n1/n2 + n2/n1) sin^2(phi), phi = (pi/2)(w/w0). Edges at |rhs| = 1: w/w0 = 1 -+ (2/pi) asin(|n1 - n2|/(n1 + n2)) (Joannopoulos et al., Photonic Crystals 2nd ed., ch. 4; formula, not fetched).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "w_lower_over_w0",
+      "value": 0.7288172322180982,
+      "unit": "1",
+      "precision": {
+        "method": "closed form",
+        "root_of_dispersion_relation": 0.7288172322180986,
+        "diff": 3.3306690738754696e-16
+      },
+      "locator": "lower edge of the first gap, normal incidence"
+    },
+    {
+      "metric_id": "w_upper_over_w0",
+      "value": 1.2711827677819016,
+      "unit": "1",
+      "precision": {
+        "method": "closed form",
+        "root_of_dispersion_relation": 1.2711827677819012,
+        "diff": 4.440892098500626e-16
+      },
+      "locator": "upper edge of the first gap"
+    },
+    {
+      "metric_id": "gap_to_midgap",
+      "value": 0.5423655355638035,
+      "unit": "1",
+      "precision": {
+        "method": "closed form",
+        "root_of_dispersion_relation": null
+      },
+      "locator": "(w_upper - w_lower)/w0"
+    },
+    {
+      "metric_id": "lambda_lower_edge",
+      "value": 1.2193368564180658e-06,
+      "unit": "m",
+      "precision": {
+        "method": "closed form",
+        "root_of_dispersion_relation": null
+      },
+      "locator": "vacuum wavelength at the upper frequency edge"
+    },
+    {
+      "metric_id": "lambda_upper_edge",
+      "value": 2.1267334682560896e-06,
+      "unit": "m",
+      "precision": {
+        "method": "closed form",
+        "root_of_dispersion_relation": null
+      },
+      "locator": "vacuum wavelength at the lower frequency edge"
+    }
+  ],
+  "inputs": {
+    "n1": 3.477723756,
+    "n2": 1.444023622,
+    "lambda0_m": 1.55e-06,
+    "d1_m": 1.1142345602679318e-07,
+    "d2_m": 2.683474107323156e-07
+  }
+}

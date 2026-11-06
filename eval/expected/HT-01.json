@@ -1,0 +1,42 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "HT-01",
+  "class": "a",
+  "generator": "validation/a/gen_heat.py",
+  "command": "cd validation && uv run python a/gen_heat.py",
+  "method": "Separation of variables: T = sum a_n cos(b_n x) Y_n(y)/Y_n(0), b_n tan(b_n W) = h/k, a_n = T_b (sin(b_n W)/b_n) / (W/2 + sin(2 b_n W)/(4 b_n)). Independent check of the NAFEMS T4 target.",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "T_E",
+      "value": 18.253756537134215,
+      "unit": "degC",
+      "precision": {
+        "method": "eigenfunction series",
+        "terms": 400,
+        "change_on_doubling": 0.0,
+        "bc_check_T(0.3,0)_4000_terms": 99.99999451526402
+      },
+      "r3": {
+        "r3_value": "18.3",
+        "rel_diff": 0.0025269651839226934,
+        "agreement": "agree",
+        "note": "compared at R3's 3 significant digits"
+      },
+      "locator": "point E = (0.6, 0.2) m"
+    }
+  ]
+}

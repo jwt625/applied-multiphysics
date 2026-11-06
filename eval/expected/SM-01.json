@@ -1,0 +1,134 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "SM-01",
+  "class": "a",
+  "generator": "validation/a/gen_solid.py",
+  "command": "cd validation && uv run python a/gen_solid.py",
+  "method": "Kirsch 1898 stress field; plane-stress displacement field (Barber sec. 8.4 form). Quarter domain with exact Kirsch traction on the outer edges reproduces the infinite-plate field exactly.",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "K_t",
+      "value": 3.0,
+      "unit": "1",
+      "precision": {
+        "method": "closed form",
+        "self_check": {
+          "hooke_max_rel_fd": 1.938677951693535e-10,
+          "equilibrium_max_rel_fd": 1.0272487998008728e-09,
+          "sxx_at_r_1000a_over_s_inf": 0.9999975000015,
+          "fd_step_m": 1e-07,
+          "points": 391
+        }
+      },
+      "r3": {
+        "r3_value": "3",
+        "rel_diff": 0.0,
+        "agreement": "agree",
+        "note": "compared at R3's 1 significant digits"
+      },
+      "locator": "sigma_xx / sigma_inf at (0, a), hole edge"
+    },
+    {
+      "metric_id": "sxx_hole_top",
+      "value": 300000000.0,
+      "unit": "Pa",
+      "precision": {
+        "method": "closed form",
+        "self_check": {
+          "hooke_max_rel_fd": 1.938677951693535e-10,
+          "equilibrium_max_rel_fd": 1.0272487998008728e-09,
+          "sxx_at_r_1000a_over_s_inf": 0.9999975000015,
+          "fd_step_m": 1e-07,
+          "points": 391
+        }
+      },
+      "locator": "(0, a)"
+    },
+    {
+      "metric_id": "syy_hole_side",
+      "value": -100000000.0,
+      "unit": "Pa",
+      "precision": {
+        "method": "closed form",
+        "self_check": {
+          "hooke_max_rel_fd": 1.938677951693535e-10,
+          "equilibrium_max_rel_fd": 1.0272487998008728e-09,
+          "sxx_at_r_1000a_over_s_inf": 0.9999975000015,
+          "fd_step_m": 1e-07,
+          "points": 391
+        }
+      },
+      "locator": "(a, 0); = -sigma_inf"
+    },
+    {
+      "metric_id": "ux_at_L_0",
+      "value": 2.5660875000000005e-05,
+      "unit": "m",
+      "precision": {
+        "method": "closed form",
+        "self_check": {
+          "hooke_max_rel_fd": 1.938677951693535e-10,
+          "equilibrium_max_rel_fd": 1.0272487998008728e-09,
+          "sxx_at_r_1000a_over_s_inf": 0.9999975000015,
+          "fd_step_m": 1e-07,
+          "points": 391
+        }
+      },
+      "locator": "(L, 0)"
+    },
+    {
+      "metric_id": "uy_at_0_L",
+      "value": -7.835875e-06,
+      "unit": "m",
+      "precision": {
+        "method": "closed form",
+        "self_check": {
+          "hooke_max_rel_fd": 1.938677951693535e-10,
+          "equilibrium_max_rel_fd": 1.0272487998008728e-09,
+          "sxx_at_r_1000a_over_s_inf": 0.9999975000015,
+          "fd_step_m": 1e-07,
+          "points": 391
+        }
+      },
+      "locator": "(0, L)"
+    },
+    {
+      "metric_id": "field_rel_L2_stress",
+      "value": 0.0,
+      "unit": "1",
+      "precision": {
+        "method": "closed form",
+        "self_check": {
+          "hooke_max_rel_fd": 1.938677951693535e-10,
+          "equilibrium_max_rel_fd": 1.0272487998008728e-09,
+          "sxx_at_r_1000a_over_s_inf": 0.9999975000015,
+          "fd_step_m": 1e-07,
+          "points": 391
+        }
+      },
+      "locator": "||sigma_h - sigma_exact||_L2 / ||sigma_exact||_L2 over the quarter domain; exact field from validation/a/fields.py SM-01"
+    }
+  ],
+  "inputs": {
+    "a": 0.005,
+    "L": 0.05,
+    "s_inf": 100000000.0,
+    "E": 200000000000.0,
+    "nu": 0.3
+  },
+  "field_function": "validation/a/fields.py:SM-01 -> gen_solid.kirsch_field"
+}

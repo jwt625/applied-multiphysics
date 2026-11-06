@@ -1,0 +1,143 @@
+# TR-01: Isothermal tubular reactor, first-order reaction: plug flow and axial dispersion
+# Built by validation/a/build_cases.py from eval/expected/TR-01.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: TR-01
+class: a
+title: 'Isothermal tubular reactor, first-order reaction: plug flow and axial dispersion'
+status: unvalidated
+untestable_reason: null
+physics: [transport-reaction, transport-diffusion]
+dimension: 1D
+units: SI
+geometry:
+  kind: analytic
+  spec: {length_m: 1.0}
+  symmetry: none
+materials:
+  fluid:
+    u: 0.001
+    k: 0.001
+    D_list: [0.001, 0.0001, 1.0e-05]
+    source: 'synthetic: Da = 1, Pe = 1, 10, 100 (R3 gives no inputs)'
+bcs:
+- {selection: x = 0, type: danckwerts_inlet, expr: u C0 = u C - D dC/dx, C0: 1.0}
+- {selection: x = L, type: danckwerts_outlet, expr: dC/dx = 0}
+initial: null
+study:
+  type: parametric
+  settings:
+    parameter: Pe
+    values: [1.0, 10.0, 100.0]
+references:
+- quantity: C(L)/C0, plug flow
+  metric_id: pfr.C_L_over_C0
+  definition: exp(-Da)
+  value: 0.36787944117144233
+  unit: '1'
+  tolerance: {rel: 0.0001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: closed form, locator: 'validation/a/gen_misc.py::tr01; eval/expected/TR-01.json targets[metric_id=pfr.C_L_over_C0]',
+    accessed: null}
+  expected: {file: eval/expected/TR-01.json, metric_id: pfr.C_L_over_C0}
+  note: plug-flow model (no dispersion), e.g. an ODE in x
+- quantity: C(L)/C0, Pe = 1
+  metric_id: danckwerts.C_L_over_C0_Pe1
+  definition: outlet conversion
+  value: 0.4676558815014362
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Danckwerts 1953 (formula not fetched), locator: 'validation/a/gen_misc.py::tr01; eval/expected/TR-01.json
+      targets[metric_id=danckwerts.C_L_over_C0_Pe1]', accessed: null}
+  expected: {file: eval/expected/TR-01.json, metric_id: danckwerts.C_L_over_C0_Pe1}
+- quantity: C(L)/C0, Pe = 10
+  metric_id: danckwerts.C_L_over_C0_Pe10
+  definition: outlet conversion
+  value: 0.39726677330612664
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Danckwerts 1953 (formula not fetched), locator: 'validation/a/gen_misc.py::tr01; eval/expected/TR-01.json
+      targets[metric_id=danckwerts.C_L_over_C0_Pe10]', accessed: null}
+  expected: {file: eval/expected/TR-01.json, metric_id: danckwerts.C_L_over_C0_Pe10}
+- quantity: C(L)/C0, Pe = 100
+  metric_id: danckwerts.C_L_over_C0_Pe100
+  definition: outlet conversion
+  value: 0.3714684754448058
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Danckwerts 1953 (formula not fetched), locator: 'validation/a/gen_misc.py::tr01; eval/expected/TR-01.json
+      targets[metric_id=danckwerts.C_L_over_C0_Pe100]', accessed: null}
+  expected: {file: eval/expected/TR-01.json, metric_id: danckwerts.C_L_over_C0_Pe100}
+- quantity: C(0+)/C0, Pe = 1
+  metric_id: danckwerts.C_0_over_C0_Pe1
+  definition: inlet jump
+  value: 0.6534539341427144
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Danckwerts 1953, locator: 'validation/a/gen_misc.py::tr01; eval/expected/TR-01.json targets[metric_id=danckwerts.C_0_over_C0_Pe1]',
+    accessed: null}
+  expected: {file: eval/expected/TR-01.json, metric_id: danckwerts.C_0_over_C0_Pe1}
+- quantity: C(0+)/C0, Pe = 10
+  metric_id: danckwerts.C_0_over_C0_Pe10
+  definition: inlet jump
+  value: 0.9160803886574499
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Danckwerts 1953, locator: 'validation/a/gen_misc.py::tr01; eval/expected/TR-01.json targets[metric_id=danckwerts.C_0_over_C0_Pe10]',
+    accessed: null}
+  expected: {file: eval/expected/TR-01.json, metric_id: danckwerts.C_0_over_C0_Pe10}
+- quantity: C(0+)/C0, Pe = 100
+  metric_id: danckwerts.C_0_over_C0_Pe100
+  definition: inlet jump
+  value: 0.9901951359278482
+  unit: '1'
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Danckwerts 1953, locator: 'validation/a/gen_misc.py::tr01; eval/expected/TR-01.json targets[metric_id=danckwerts.C_0_over_C0_Pe100]',
+    accessed: null}
+  expected: {file: eval/expected/TR-01.json, metric_id: danckwerts.C_0_over_C0_Pe100}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 0.5, native: null}
+  budget_basis: R3 s.3.8 browser est. < 0.5 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: textbook formula (facts); no text, figures or tables copied
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/dispersion-reactor.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/
+    id is a proposal}
+missing: []
+assumptions: []
+field_reference:
+  function: validation/a/fields.py TR-01
+  fields: [C_over_C0]

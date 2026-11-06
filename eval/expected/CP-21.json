@@ -1,0 +1,50 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "CP-21",
+  "class": "a",
+  "generator": "validation/a/gen_solid.py",
+  "command": "cd validation && uv run python a/gen_solid.py",
+  "method": "Circular eigenstrain inclusion e* = alpha dT (alpha 1e-5 /C, dT 100 C), plane stress, same E, nu inside and out: sigma_theta(a+) = E e*/2 (infinite plate), E e* (R^2 + a^2)/(2 R^2) (free disk R).",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "sigma_yy_D_infinite",
+      "value": 50000000.0,
+      "unit": "Pa",
+      "precision": {
+        "method": "closed form E e*/2"
+      },
+      "locator": "D = (a+, 0), infinite plane-stress plate"
+    },
+    {
+      "metric_id": "sigma_yy_D_free_disk_R10",
+      "value": 50500000.0,
+      "unit": "Pa",
+      "precision": {
+        "method": "3x3 linear solve",
+        "closed_form": 50500000.0,
+        "diff": 0.0
+      },
+      "locator": "D, free disk R = 10 a (inscribed circle of the 10 x 10 quarter); bound, not the gate"
+    }
+  ],
+  "inputs": {
+    "E_Pa": 100000000000.0,
+    "nu": 0.3,
+    "eigenstrain": 0.001,
+    "a": 1.0
+  }
+}

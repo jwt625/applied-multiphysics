@@ -1,0 +1,126 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "RF-02",
+  "class": "a",
+  "generator": "validation/a/gen_em.py",
+  "command": "cd validation && uv run python a/gen_em.py",
+  "method": "Rectangular PEC guide: f_c = (c/2) sqrt((m/a)^2 + (n/b)^2); TE10 beta = sqrt(k0^2 - (pi/a)^2); lossless matched straight section S21 = exp(-j beta L), S11 = 0",
+  "generated_at": "2026-11-06T15:32:52-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "fc_TE10",
+      "value": 6557140376.202975,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "6.55714",
+        "rel_diff": 5.737302765385678e-08,
+        "agreement": "agree",
+        "note": "compared in GHz"
+      }
+    },
+    {
+      "metric_id": "fc_TE20",
+      "value": 13114280752.40595,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "13.11428",
+        "rel_diff": 5.737302765385678e-08,
+        "agreement": "agree",
+        "note": "compared in GHz"
+      }
+    },
+    {
+      "metric_id": "fc_TE01",
+      "value": 14753565846.456692,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      },
+      "r3": {
+        "r3_value": "14.75357",
+        "rel_diff": 2.8152801717855445e-07,
+        "agreement": "agree",
+        "note": "compared in GHz"
+      }
+    },
+    {
+      "metric_id": "fc_TE11_TM11",
+      "value": 16145085787.909729,
+      "unit": "Hz",
+      "precision": {
+        "method": "closed form"
+      }
+    },
+    {
+      "metric_id": "beta_TE10_10GHz",
+      "value": 158.23825631301972,
+      "unit": "rad/m",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "f = 10 GHz"
+    },
+    {
+      "metric_id": "S21_phase_10GHz_L50mm",
+      "value": -1.6287275084713997,
+      "unit": "rad",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "arg S21 = -beta L wrapped to (-pi, pi], L = 50 mm, ports de-embedded to the section ends"
+    },
+    {
+      "metric_id": "S21_mag",
+      "value": 1.0,
+      "unit": "1",
+      "precision": {
+        "method": "closed form"
+      }
+    },
+    {
+      "metric_id": "S11_mag",
+      "value": 0.0,
+      "unit": "1",
+      "precision": {
+        "method": "closed form"
+      },
+      "tolerance_hint": {
+        "abs": 0.001
+      }
+    },
+    {
+      "metric_id": "Z_TE10_10GHz",
+      "value": 498.97437596919696,
+      "unit": "Ohm",
+      "precision": {
+        "method": "closed form"
+      },
+      "locator": "TE10 wave impedance"
+    }
+  ],
+  "inputs": {
+    "a_m": 0.02286,
+    "b_m": 0.01016,
+    "f_Hz": 10000000000.0,
+    "L_m": 0.05
+  }
+}

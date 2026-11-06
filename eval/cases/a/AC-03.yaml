@@ -1,0 +1,177 @@
+# AC-03: Plane wave scattering by a rigid sphere
+# Built by validation/a/build_cases.py from eval/expected/AC-03.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+schema: amp-eval/0
+id: AC-03
+class: a
+title: Plane wave scattering by a rigid sphere
+status: unvalidated
+untestable_reason: null
+physics: [acoustics]
+dimension: 2D-axisym
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    sphere_radius_m: 1.0
+    ka_list: [0.5, 1.0, 2.0, 5.0, 10.0]
+  symmetry: axisymmetric (incidence along the axis)
+materials:
+  air: {c: 343.0, rho: 1.2, source: synthetic; results depend on ka only}
+bcs:
+- {selection: sphere, type: rigid}
+- {selection: incident, type: plane_wave, amplitude: 1.0, direction: +z}
+- {selection: outer boundary, type: pml_or_radiation}
+initial: null
+study: {type: frequency, f_list: c ka / (2 pi a) for each ka}
+references:
+- quantity: sigma_s/(pi a^2), ka = 0.5
+  metric_id: sigma_over_pia2_ka0.5
+  definition: total scattering cross-section
+  value: 0.03874356304363876
+  unit: '1'
+  tolerance: {rel: 0.002}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series (Morse-Ingard; not fetched), locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json
+      targets[metric_id=sigma_over_pia2_ka0.5]', accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: sigma_over_pia2_ka0.5}
+- quantity: sigma_s/(pi a^2), ka = 1.0
+  metric_id: sigma_over_pia2_ka1.0
+  definition: total scattering cross-section
+  value: 0.3216288590901782
+  unit: '1'
+  tolerance: {rel: 0.002}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series (Morse-Ingard; not fetched), locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json
+      targets[metric_id=sigma_over_pia2_ka1.0]', accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: sigma_over_pia2_ka1.0}
+- quantity: sigma_s/(pi a^2), ka = 2.0
+  metric_id: sigma_over_pia2_ka2.0
+  definition: total scattering cross-section
+  value: 0.781500043254246
+  unit: '1'
+  tolerance: {rel: 0.002}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series (Morse-Ingard; not fetched), locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json
+      targets[metric_id=sigma_over_pia2_ka2.0]', accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: sigma_over_pia2_ka2.0}
+- quantity: sigma_s/(pi a^2), ka = 5.0
+  metric_id: sigma_over_pia2_ka5.0
+  definition: total scattering cross-section
+  value: 1.303363484335769
+  unit: '1'
+  tolerance: {rel: 0.002}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series (Morse-Ingard; not fetched), locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json
+      targets[metric_id=sigma_over_pia2_ka5.0]', accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: sigma_over_pia2_ka5.0}
+- quantity: sigma_s/(pi a^2), ka = 10.0
+  metric_id: sigma_over_pia2_ka10.0
+  definition: total scattering cross-section
+  value: 1.569142297237666
+  unit: '1'
+  tolerance: {rel: 0.002}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series (Morse-Ingard; not fetched), locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json
+      targets[metric_id=sigma_over_pia2_ka10.0]', accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: sigma_over_pia2_ka10.0}
+- quantity: '|f(pi)|, ka = 0.5'
+  metric_id: abs_f_back_ka0.5
+  definition: backscatter form function
+  value: 0.36626350678787567
+  unit: '1'
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series, locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json targets[metric_id=abs_f_back_ka0.5]',
+    accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: abs_f_back_ka0.5}
+- quantity: '|f(pi)|, ka = 1.0'
+  metric_id: abs_f_back_ka1.0
+  definition: backscatter form function
+  value: 0.9381223076342368
+  unit: '1'
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series, locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json targets[metric_id=abs_f_back_ka1.0]',
+    accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: abs_f_back_ka1.0}
+- quantity: '|f(pi)|, ka = 2.0'
+  metric_id: abs_f_back_ka2.0
+  definition: backscatter form function
+  value: 0.7617464315700527
+  unit: '1'
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series, locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json targets[metric_id=abs_f_back_ka2.0]',
+    accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: abs_f_back_ka2.0}
+- quantity: '|f(pi)|, ka = 5.0'
+  metric_id: abs_f_back_ka5.0
+  definition: backscatter form function
+  value: 1.0398095349049368
+  unit: '1'
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series, locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json targets[metric_id=abs_f_back_ka5.0]',
+    accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: abs_f_back_ka5.0}
+- quantity: '|f(pi)|, ka = 10.0'
+  metric_id: abs_f_back_ka10.0
+  definition: backscatter form function
+  value: 0.9785784172660011
+  unit: '1'
+  tolerance: {rel: 0.005}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: partial-wave series, locator: 'validation/a/gen_misc.py::ac03; eval/expected/AC-03.json targets[metric_id=abs_f_back_ka10.0]',
+    accessed: null}
+  expected: {file: eval/expected/AC-03.json, metric_id: abs_f_back_ka10.0}
+reference_results: []
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+speed:
+  budget_s: {browser: 5.0, native: null}
+  budget_basis: R3 s.3.6 browser est. 1-5 s; est., not measured; native budget set after the first timing run (R3 O3)
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: textbook formula (facts); no text, figures or tables copied
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: {status: pending, ref: sims/rigid-sphere-scattering.yaml, reason: amp-spec/0 models not yet published by lane L2;
+    sims/ id is a proposal}
+missing: []
+assumptions: [ka list chosen by this lane within R3's range 0.5-10.]
+field_reference:
+  function: validation/a/fields.py AC-03
+  fields: [p]
+  complex: true
