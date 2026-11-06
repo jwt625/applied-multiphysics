@@ -5,11 +5,17 @@
   "type": "module",
   "license": "GPL-3.0-or-later",
   "description": "Browser-native, agent-native multiphysics simulation (see DevLog-001)",
-  "engines": { "node": ">=23.6" },
+  "engines": {
+    "node": ">=23.6"
+  },
   "packageManager": "pnpm@10.12.4",
   "scripts": {
     "check": "pnpm -r --if-present check",
     "test": "pnpm -r --if-present test",
     "eval": "pnpm --filter @amp/eval --if-present eval"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "24.19.2"
   }
 }

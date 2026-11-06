@@ -195,9 +195,12 @@ Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope f
 
 - [x] Research R1-R5
 - [x] This plan (proposed decisions, guidelines, lanes)
-- [ ] Answers Q1-Q8 recorded in section 5
-- [ ] L0 scaffold and contracts
-- [ ] Wave 1 lanes launched
+- [x] Answers Q1-Q8 recorded in section 5
+- [x] L0 scaffold and contracts (`DevLog/contracts/CONTRACTS-v0.md`, `CLAUDE.md`, workspace root; local git `main`, no remote)
+- [x] Wave 1 lanes launched: L1 DevLog-002, L2 DevLog-003, L3 DevLog-004, L6 DevLog-005, L7a DevLog-006, L7b DevLog-007, L7c DevLog-008, L8 DevLog-009
+- [ ] Wave 1b: L4 physics H1-H6 (DevLog-010) and L5 workbench + Play view (DevLog-011), once the L1/L2 interfaces exist
+- [ ] Wave 2: L9 agent (DevLog-012; BYO key only), heroes H7-H13
+- [ ] Fresh-context audit after each wave-1 lane hand-off
 - [ ] Fresh-context audit of the research reports R3-R5 (unaudited at hand-off)
 - [ ] Fresh-context audit of this plan
 
@@ -205,3 +208,5 @@ Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope f
 
 - 2026-11-06 14:30 PST: Read DevLog-000 and the sim DevLogs of both atlases (APA 010, 014; EO 023 decisions). Five read-only research lanes launched: R1 EO engine/UI, R2 APA engine/UI, R3 eval sources, R4 browser tech, R5 landscape and agent-native.
 - 2026-11-06 15:00 PST: R1-R5 reports in `DevLog/research/`. This plan written. No code, no git, no installs.
+- 2026-11-06 15:10 PST: Wentao answered Q1-Q8 plus git (section 5), then went out.
+- 2026-11-06 15:20 PST: L0 scaffold: LICENSE (GPL-3.0, same sha1 as both atlases), root package.json / pnpm-workspace / tsconfig.base, .gitignore, README, CLAUDE.md, contracts v0; `git init`, first commit on `main`. Wave 1 launched with 8 background lanes (L1, L2, L3, L6, L7a, L7b, L7c, L8).

@@ -1,0 +1,21 @@
+@amp/core - third-party attribution
+
+Parts of this package are adapted from AWS Palace (https://github.com/awslabs/palace), commit
+29ad351f916e47e005a43730513f155eeb634e3e (2026-10-21), licensed under the Apache License, Version 2.0. A copy of that
+licence is in LICENSE-APACHE-2.0 in this directory. Palace NOTICE text:
+
+  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+The adapted files re-implement Palace algorithms and structure in JavaScript; no Palace source text is copied. Each
+adapted file states in its header the Palace files it follows and what was changed. They came to this package from
+advanced-packaging-atlas engine/src/em3d/ at fe39985 (whose em3d/NOTICE this file carries over for the files ported
+here). These files are distributed under GPL-3.0-or-later (repository LICENSE); the Apache-2.0 terms continue to
+apply to the portions derived from Palace.
+
+Adapted files:
+- src/la/krylov.mjs  <- palace/linalg/iterative.cpp (GMRES)
+- src/la/pmg.mjs     <- palace/linalg/gmg.cpp, palace/linalg/distrelaxation.cpp, palace/models/spaceoperator.cpp
+                        (p-multigrid V-cycle, Hiptmair distributive relaxation, preconditioner from the complex system)
+- src/la/ams.mjs     <- palace/linalg/ams.cpp (AMS structure; not wired into a solver yet)
+
+Not ported to this package (stay in advanced-packaging-atlas em3d/): lumped.mjs, prom.mjs.
