@@ -149,3 +149,11 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - Rule targets that need a sequence (mesh levels, radii) report `pending`, not `fail`, when given a single value.
 - 2026-11-06 15:45 PST: tsconfig.base `lib` = ["ES2023"]; packages add DOM or WebWorker themselves, never both (from L1).
 - Open: affine temperature units (`degC`) in `@amp/core/units`, requested by L1 and L7a; to be decided in the core v1 pass.
+- 2026-11-06 16:10 PST, adopted from L2 (DevLog-003 s.5):
+  - C3 detail is now authoritative in `packages/spec` (zod schema, exported JSON Schema). The C3 text above is a summary only.
+  - C7 gains the fields `kind`, `target`, `text`, `textHash` and a genesis line; the authoritative definition is in `packages/spec/src/types/`.
+  - Shared C2/C4/C5/C6/C7 types are published in `packages/spec/src/types/`. Lanes drop their `contract-shim.ts`.
+  - C1: `zod` (4.6.7, MIT) is an approved runtime dependency of `@amp/spec`.
+  - Registry: physics, BC, study, feature, coupling and material-property types are registered by name. The seed in `packages/spec/src/provisional/wave1.ts` is provisional; L4 (physics) and L3 (features) replace it.
+  - `degC` is handled in the spec layer for now.
+- 2026-11-06 16:10 PST, from L7b: physics tag `solid-nonlinear` to be added (L8). Class-b `source` sub-keys to be documented in the schema (L8).
