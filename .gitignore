@@ -1,0 +1,28 @@
+# Secrets and environments
+.env
+.env.*
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.claude/settings.local.json
+
+# Build and dependency artifacts
+node_modules/
+dist/
+build/
+.svelte-kit/
+apps/*/build/
+
+# Logs, bench output, solver outputs, scratch (never committed; DevLog-001 A5)
+logs/
+.request-tmp/
+outputs/
+eval/results/
+
+# Third-party clones kept for reading only
+cache/
+
+# Claude Code local state
+.claude/*.lock
+.claude/settings.local.json

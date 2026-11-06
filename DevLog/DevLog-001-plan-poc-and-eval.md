@@ -1,0 +1,207 @@
+# DevLog-001: Plan - browser-native PoC with hero examples, and the evaluation set
+
+| Field | Value |
+|---|---|
+| Date | 2026-11-06 |
+| Status | Plan (research R1-R5 done; proposed decisions awaiting Wentao's answers, section 4) |
+| Scope | Goal reset vs DevLog-000, inherited findings from eo-modulator-atlas and advanced-packaging-atlas, architecture, guidelines, workstreams, lanes, milestones |
+| Authors | Claude (Opus 5.5, coordinator), at Wentao Jiang's request |
+| Research | `DevLog/research/2026-11-06-R1..R5-*.md` |
+
+## 1. Request (Wentao, 2026-11-06)
+
+Two parallel efforts:
+1. PoC running with a list of hero / canonical examples.
+2. Evaluation set (accuracy and solver speed), classes: (a) analytic / textbook, (b) reproducible results from papers and proceedings, (c) reproducible results from other simulation software public libraries and physics datasets (e.g. COMSOL library, The Well).
+
+Grand goal: a multiphysics solver that runs in the browser as far as possible. It should democratize simulation and give kids and students an exciting, satisfying tool. It must be snappy, with smooth, beautiful visualization, and good enough that incumbent vendors feel threatened. Agent native:
+- (a) a chatbot navigates to the place to change, or implements the change;
+- (b) it builds memory of the user's simulation types and configs, like Claude and Codex memory;
+- (c) every AI operation is visualizable, inspectable and modifiable by the human: geometry, physics, mesh, solver, visualization and numeric-evaluation settings.
+
+## 2. What changed since DevLog-000 (2026-09-28)
+
+| DevLog-000 | Status now | Reason |
+|---|---|---|
+| D1 first vertical = photonics + RF + thermal for packaging | Superseded (proposed): general multiphysics via a hero set; packaging and photonics stay the depth verticals through the atlases | New goal is general + educational |
+| D2 local-first web app with native backends (Palace, MOOSE) | Superseded (proposed): browser-native engine; native solvers only as desktop references in `validation/` | Both atlases already run native JS engines in the browser; Wentao 2026-10-21 (APA DevLog-013:71): "no Palace. Make native EM solver in browser" |
+| D3 direct edits with rollback, no approval gate | Kept; now implemented as an operation log (A4) | Neither atlas has undo/rollback for model edits (R1 s.2, R2 s.7) |
+| D4 COMSOL as reference | Superseded (Q5) | COMSOL is not used as a reference in this project |
+| D5 GPL-3.0-or-later | Kept | Atlas engines are GPL-3.0-or-later; Palace-derived algorithms carry Apache-2.0 NOTICE (compatible) |
+| D7 monorepo, materials package | Kept | |
+| D8 3D RF and package priority | Superseded (proposed) by the hero set | |
+| Section 4 Gmsh + OCC + Pydantic spec + scikit-fem light backend | Superseded (proposed): TS typed spec; JS 2D mesher + structured/prism meshers; fTetWild/MMG/manifold WASM for 3D (R4) | Browser-only constraint |
+
+## 3. Inherited state (facts from R1, R2, R4)
+
+| Item | Finding | Source |
+|---|---|---|
+| Existing engine code | EO 18.1k LOC (2D: P1/P2, Nedelec 1-2 on triangles, supernodal Cholesky + AMD, indefinite/complex LDLT, Arnoldi, GMRES, drift-diffusion, postproc expressions/units/refine). APA 34.8k LOC (3D thermal, elasticity Q1im + GMG, em2d RLGC, em3d Nedelec 1-2 + p-MG + PROM sweep, homogenization, families). Deps: `yaml` (+ `robust-predicates` in EO). Same code in Worker and Node | R1 s.1, R2 s.1 |
+| Shared modules | sparse, ldlt, complex, params, geometry identical except header; APA's own extraction rule (5 identical modules) is met | R2 s.2 |
+| Speed | 2D ES 27-49k nodes 0.17-0.32 s; vector modes 32-56k DOF 0.25-0.39 s (Node, M4 Pro). Browser thermal 1.12e6 nodes 17.9 s; mechanics 1.08e6 DOF 106-226 s at 1.29-1.54 GiB; EM direct ~6e4 DOF | R1 s.3, R2 s.4 |
+| Accelerators | WASM SIMD: EO 3.8x kernel / ~2.2x est. end-to-end, never built; APA 1.37-1.82x, opt-in. WebGPU and threads never tried. No f64 in WGSL | R1, R2, R4 s.1 |
+| Binding limit | Geometry and meshing: EO polygons only, painter-order regions, 80k-vertex cap; APA axis-aligned boxes and layered extrusions; no persistent entity IDs anywhere | R1 s.2, R2 s.8 |
+| Spec | YAML canonical text with comment-preserving splice, strict keys, provenance per value, `missing`/`assumptions`. Gaps: units in key suffixes, no boundary selections, no entity IDs, no run records (no engine version, input hash, timestamp), hand-kept 2.9k-line JSON Schema (EO) or none (APA) | R1 s.2, R2 s.3 |
+| Validation | Same case YAML read by engine and Python references; Richardson uncertainty; EO 15/15 cross-solver gates; APA 62 cases, tiers A-D + H, scikit-fem 1e-10 K / 1e-8 agreement; paper cases limited by undisclosed inputs | R1 s.4, R2 s.5 |
+| UI to carry over | EO WebGL2 layered field renderer (vsync at ~1M sub-triangles, first paint 78 ms), refined-lattice smoothing, worker hover probe, COMSOL-style Results model; APA three.js field material, worker slices/isosurfaces/arrows, compare A/B, VTU export, provenance badges; <100 ms tab load (shell + lazy workbench + service worker) | R1 s.5, R2 s.6 |
+| Agent surface | CLI only (JSON, exit 2 on missed target) and `window.__sim*` hooks; no API, MCP or run records | R1 s.6, R2 s.7 |
+| Browser 3D meshing | WASM builds exist since 2026-07..10: fTetWild (MPL-2.0, 0.7 MB gz, serial), MMG (LGPL-3.0+, 0.4 MB), gmsh (GPL-2.0+, 11.6 MB, needs cross-origin isolation), manifold-3d (0.2 MB). Single maintainer, so pin and keep build scripts | R4 s.2 |
+| Hosting | GitHub Pages cannot set COOP/COEP (no threads/SharedArrayBuffer); Cloudflare Pages, Netlify can | R4 s.1 |
+| Competitors | COMSOL 2027 MCP server announced 2026-09-16; SimScale agent free on all plans 2026-09-29; Tidy3D FlexAgent MCP; none publishes a typed diffable spec with a reversible per-operation timeline | R5 s.1-2 |
+| Agent evidence | FEABench: 88 % executable COMSOL API calls, at best 1/15 valid targets. FoamBench: single agent 96.4 %, minus error-feedback repair 71.8 % | R5 s.3 |
+
+## 4. Proposed decisions (awaiting answers; final versions go to section 5)
+
+Architecture:
+
+| # | Proposal |
+|---|---|
+| A1 | **Engine home.** This repo becomes the canonical engine. Generic modules are extracted from both atlases into `packages/` here, with a port header (source repo, path, commit). The atlases are not touched; they migrate later on their own schedule. (Q1) |
+| A2 | **Language.** New code in TypeScript, erasable syntax only, so Node 23 runs it without a build and Vite bundles it for the browser. Ported `.mjs` numerics come in as-is with `.d.mts` types and are converted when they are next edited. (Q2) |
+| A3 | **Model spec.** One typed schema, defined in TS and exported as JSON Schema for agents and validation (no second hand-kept schema). YAML is the canonical text, keeping the atlas comment-preserving splice. Units are values (`{value, unit}` or `"2 mm"`), not key suffixes. Domains, boundaries, edges and points carry persistent entity IDs taken from the geometry construction history; selections are explicit ID sets, with no painter-order semantics. Provenance per value, and `missing`/`assumptions` blocks, come over from the atlases. |
+| A4 | **Operation log.** Every edit, from the UI or the agent, is an operation: JSON patch, inverse patch, actor (`user` or `agent:<session>`), reason, validation result and invalidated artifacts (mesh, solution, plots). The log is hash-chained. Revert appends inverse operations, and undo/redo/timeline are built on the log. Agents edit only through operations. |
+| A5 | **Run records.** Every solve stores engine version, spec hash, mesh hash, timings per stage, DOF, solver stats, platform probe (browser, cores, GPU) and ISO timestamp. Results are typed arrays, never nested JSON. Solver outputs are never committed. |
+| A6 | **Geometry.** Tier 1 (PoC): 2D sketch plus CSG primitives (in-house, with robust predicates), axisymmetric, extrusion and revolve. Tier 2: 3D CSG via manifold-3d; STEP import via occt-wasm or replicad, lazy-loaded. Persistent IDs on every tier. |
+| A7 | **Meshing.** 2D: the EO constrained-Delaunay mesher, generalized and with its vertex cap lifted. 3D: APA structured/prism meshers for layered parts, and fTetWild plus MMG (WASM, lazy) for general tets, via a spike in wave 1. gmsh-wasm only as an expert mode on a cross-origin-isolated host. |
+| A8 | **Solvers.** Direct: supernodal LDLT (real, complex, indefinite). Iterative: PCG + GMG/AMG and GMRES + p-MG, with AMS wired for H(curl). Eigen: shift-invert Arnoldi. Time stepping: BDF/generalized-alpha. Newton for nonlinear problems. Accelerators sit behind measured gates (EO D4, APA A9): WASM SIMD at >2x end-to-end; WebGPU f32 inner solves inside f64 refinement at >=5x with the same answer. |
+| A9 | **Two engine tiers.** (i) Rigorous: implicit FEM, validated by the eval set. (ii) Real-time: explicit WebGPU kernels (LBM, FDTD, reaction-diffusion, split-step BPM) for instant, interactive play. Real-time results carry a `fidelity: realtime` badge and have their own eval gates against the rigorous tier or the class-c datasets. (Q3) |
+| A10 | **Visualization.** three.js r187 WebGLRenderer with field materials written in TSL (runs on WebGL now and ports to WebGPU later). The EO WebGL2 2D renderer is ported, along with worker postprocessing: slices, isosurfaces, streamlines/LIC, arrows, deformation, animation of time and phase. Smooth by default: refined-lattice interpolation and perceptual colormaps. |
+| A11 | **Agent.** The tool API is the operation API (A4) plus navigation tools: focus node, open settings, highlight a selection in the 3D view, set a camera, take a screenshot. Navigation changes UI state only. Memory is plain, user-editable files (local OPFS, exportable to a folder) recording sim types, preferred materials, mesh/solver defaults and units; memory writes are also operations. Text inside shared models is untrusted data. (Q7) |
+| A12 | **Eval.** Schema `amp-eval/0` (R3 s.2) in `eval/cases/<class>/<id>.yaml`. The engine and the Python references read the same case file. Metrics: accuracy per target with tolerance and locator; speed as time-to-accuracy plus CEED-style DOF x iterations/s; median of 5 runs after one warm-up. Results go to JSONL with the run record. Large reference fields go to a Hugging Face dataset, referenced by hash. |
+| A13 | **Hosting.** Static, no server. Cloudflare Pages with COOP/COEP, which enables threads and gmsh-wasm; worker-pool fallback when not cross-origin isolated. (Q6) |
+
+Performance targets (R5 s.2, Nielsen limits; atlas targets):
+- Drag-to-repaint (visualization-only change) < 100 ms.
+- Coarse re-solve on a parameter drag < 1 s.
+- Hero full-accuracy solve < 5 s on an M-series laptop in Chrome or Safari.
+- Anything over 10 s runs in the background with progress.
+- First paint < 100 ms on tab switch.
+
+## 5. Decisions (Wentao)
+
+Answers received 2026-11-06, about 15:10 PST, via the question dialog.
+
+| Q | Decision | Effect |
+|---|---|---|
+| Q1 | Extract here | A1 adopted. The atlases are untouched and migrate later |
+| Q2 | TS for new code, ported `.mjs` kept with `.d.mts` | A2 adopted |
+| Q3 | All four bundles: wave-1 FEM classics, fluids, real-time GPU tier, coupled + periodic | H1-H13 all in PoC scope (wave 1 first). A9 two-tier engine adopted. Lane L6 launches in wave 1 |
+| Q4 | 2D / axisym / extruded + 3D tet spike | A6 tier 1 and A7 adopted; the L3 spike is in wave 1 |
+| Q5 | Not used | No COMSOL runs, COMSOL files or COMSOL-generated values in this repo. Class c uses open solvers and datasets |
+| Q6 | Cloudflare Pages | A13 adopted: COOP/COEP headers, threads allowed, worker-pool fallback. Domain name: TBD (Wentao) |
+| Q7 | Bring-your-own key in the browser only | A11 provider is BYO key, stored locally only and never sent anywhere except the provider. MCP server, hosted proxy and local models were not selected and are out of scope for now; L9 drops the MCP server |
+| Q8 | Pro workbench + Play view per hero | One COMSOL-grade workbench; each hero also gets a Play view (big canvas, few sliders, presets, share URL) |
+| Git | Local git only | `git init`, commits to `main`, no remote until Wentao says |
+
+## 6. Guidelines (binding for all lanes)
+
+- **Style:** no emoji anywhere. ISO dates. Dark by default. Sharp corners on every element, fixed per style with no global override; spinners exempt. Dense layout, minimal text, details in hover tooltips. COMSOL-grade layout: Model Builder tree, Settings, Graphics, Messages/Log/Progress. Log rows start with a timestamp.
+- **Plots:** data only, with no titles, captions or takeaways. Absolute units, log toggles, 3 significant figures in hover. Generated by code.
+- **Field visuals:** perceptual colormaps (viridis/cividis/cmocean family, diverging for signed quantities). Smooth interpolation by default, wireframe toggle, colorbar in absolute units, deformation scale automatic at about 10 % of geometry size, shown and editable (APA decision 2026-10-20). Animation for time and phase. Every effect encodes a physical quantity.
+- **Interaction (R5 s.2):**
+  - Direct manipulation on the canvas first.
+  - Every parameter has a slider plus an exact field.
+  - Presets, and share-by-URL that holds the full spec.
+  - A calm start scene.
+  - No UI option that the backend does not implement.
+  - Missing evidence shows as unavailable, never green.
+- **Physics honesty:** never invent a number. Every material value has a basis and source, or `N/A`. No physical defaults hidden in code. Readiness and limitations are shown per study. No stage rules that are not physics (EO correction, DevLog-043).
+- **Validation first:** a hero ships only with at least one passing eval gate and a convergence study. Analytic cases first, then open reference solvers, then papers. Never tune to a target.
+- **Rights:** per-file provenance check before porting. Apache-2.0-derived files keep their NOTICE and change headers. No COMSOL files or COMSOL-generated values (Q5). Cite original sources, not vendor manuals. Licences to exclude: Triangle, MUMPS, unlicensed repos, non-commercial or no-derivatives documentation (R3 s.6, R4 s.7).
+- **Machine:** one CPU-heavy process per lane, `nice -n 10`, Node heap capped at 1.5 GB, Python BLAS threads 1-2. Check ports before binding; ad-hoc servers use uncommon ports. Long jobs run in tmux. Logs carry a timestamp in the filename under `logs/`.
+- **Process:**
+  - Each lane writes its plan into its own DevLog before coding and owns only its listed paths.
+  - Subagents do not run git; the coordinator commits.
+  - A fresh-context audit follows each lane's hand-off.
+
+## 7. Repository layout (proposed)
+
+```
+packages/core       la (sparse, ldlt, krylov, mg, amg, arnoldi), fem (H1 P1-P2, Nedelec 1-2, quadrature), expr, units, params, sweep
+packages/geom       sketch, CSG, extrude/revolve, structured grid, persistent IDs; adapters for manifold/fTetWild/MMG (lazy)
+packages/mesh       2D CDT (EO), prism/structured (APA), tet adapters, quality, refinement
+packages/spec       TS schema -> JSON Schema, YAML splice, operation log, run records, migrations
+packages/physics    heat, elastic, electrostatics, magnetostatics (axisym), currents, acoustics, modes (scalar/vector), em3d, flow (Stokes/NS), transport, couplings
+packages/rt         WebGPU real-time kernels (LBM, FDTD, reaction-diffusion, BPM)
+packages/post       solution store, expressions on fields, slices/isosurfaces/streamlines, probes, derived values, export (CSV, VTU)
+packages/agent      tool schemas, navigation tools, memory store, provider adapters, MCP server (Node)
+packages/eval       case loader (amp-eval/0), runner (Node + browser), metrics, speed bench, report
+apps/web            SvelteKit static workbench + Play view per hero
+eval/cases/{a,b,c}  case YAML; eval/expected/ generated reference JSON
+validation/         uv project: scikit-fem, NGSolve, femwell, DEVSIM, MPB/Meep where installable; reference generators
+materials/          YAML per material, value + unit + basis + source + ISO date + range
+DevLog/             DevLog-NNN, research/, audits/, lanes/
+```
+
+## 8. Hero examples (proposed; final list after Q3 and the first timing run)
+
+Wave 1 reuses existing solvers. Wave 2 needs new physics.
+
+| ID | Hero | Physics / method | Eval gate (R3 id) | Reuse | Wave |
+|---|---|---|---|---|---|
+| H1 | Plate with a hole: drag the hole, watch the stress concentration | 2D elasticity P2 | SM-01 Kirsch K_t = 3; SM-02 LE1 92.7 MPa | EO fem/mesh (new 2D vector elasticity) | 1 |
+| H2 | Heat-spreading plate and fin, steady and transient | heat P1/P2 | HT-01 T4 18.3 C; HT-02 T3 36.60 C; HT-03 T2 927 K | EO fem, APA thermal BCs | 1 |
+| H3 | Helmholtz coil, field lines and uniformity | axisym magnetostatics | EM-04 8.99176 uT; EM-03 Palace rings | EO fem (axisym weights) | 1 |
+| H4 | Si rib waveguide modes, vector fields | vector mode solver | WO-01 slab; WO-02 Hadley rib | EO vector-mode | 1 |
+| H5 | Cylindrical cavity eigenmodes, animated E/H | 3D Nedelec eigen | RF-01 TM010 2.9036 GHz | APA em3d + EO Arnoldi | 1 |
+| H6 | Room acoustics: box modes, then a driven room | 3D Helmholtz | AC-02 171.500 Hz ... | APA grid + Arnoldi | 1 |
+| H7 | Photonic crystal band diagram | 2D Bloch-periodic eigen | WO-04 MPB gap 0.2826-0.4193 | new periodic BCs | 2 |
+| H8 | Lid-driven cavity, Re slider | 2D NS, Taylor-Hood + Newton | FL-02 Ghia / Botella-Peyret | new | 2 |
+| H9 | Cylinder in a channel: steady to vortex street | 2D NS (rigorous) + LBM (real-time) | FL-03 c_D 5.5795; FL-04 St 0.295-0.305 | new | 2 |
+| H10 | Natural convection in a heated box | heat + NS | CP-01 de Vahl Davis Nu | new | 2 |
+| H11 | Microheater on a Si waveguide: Joule heat, thermal stress, thermo-optic shift | currents + heat + elasticity + modes | CP-03/CP-05-style gates; CP-09 proposed | EO + APA chain | 2 |
+| H12 | Turing patterns (Gray-Scott), live on the GPU | WebGPU reaction-diffusion | TR-03 The Well VRMSE | new rt | 2 |
+| H13 | Wave tank / antenna, live | WebGPU FDTD | RF-04 dipole trend; AC-01 duct | new rt (volna/webantenna MIT as reference) | 2 |
+
+## 9. Workstreams and lanes (proposed)
+
+Lanes own disjoint paths. The coordinator owns `DevLog/DevLog-001*`, root config and contracts, and does all git. At most 10 subagents run at once.
+
+| Lane | Scope | Owns | Depends on | Wave |
+|---|---|---|---|---|
+| L0 | Scaffold: git init, pnpm workspace, LICENSE, README, CLAUDE.md for agents, test/check scripts, contracts doc (spec v0 types, result format, worker protocol) | root, `DevLog/contracts/` | Q1, Q2 | coordinator, first |
+| L1 | Core extraction: la, fem, expr, units, params, sweep from EO/APA with port headers and their tests | `packages/core` | L0 | 1 |
+| L2 | Spec v0, YAML splice, entity IDs, operation log, run records | `packages/spec` | L0 contracts | 1 |
+| L3 | Geometry + 2D mesh generalization; 3D tet spike (fTetWild + MMG + manifold in a worker) with a timing table | `packages/geom`, `packages/mesh` | L0 | 1 |
+| L4 | Physics wave 1 (H1-H6) on core + spec | `packages/physics`, `packages/post` | L1, L2 (stubs allowed) | 1b |
+| L5 | Workbench + Play view, renderer ports, operation timeline UI | `apps/web` | L0 contracts; L4 results | 1b |
+| L6 | Real-time WebGPU kernels (H12, H13, LBM for H9) and a platform probe | `packages/rt` | L0 | 1 (if Q3 includes it) |
+| L7a | Eval class a: case YAML + reference generators (closed forms, series) | `eval/cases/a`, `validation/a/` | R3 schema | 1 |
+| L7b | Eval class b: paper cases, digitization protocol, locators | `eval/cases/b`, `validation/b/` | R3 schema | 1 |
+| L7c | Eval class c: open-solver suites (Palace docs, Code_Aster, deal.II, MPB/Meep, DEVSIM, FEATFLOW, NASA TMR) and datasets (The Well, PDEBench) metadata | `eval/cases/c`, `validation/c/` | R3 schema; Q5 | 1 |
+| L8 | Eval harness: loader, runner (Node + browser), metrics, speed bench, JSONL, report page | `packages/eval` | L0, L7 schema | 1 |
+| L9 | Agent: tool schemas generated from operations, navigation tools, memory store, provider adapters, MCP server, agent task suite | `packages/agent` | L2 | 2 |
+
+Wave 1 at launch: L1, L2, L3, L6, L7a, L7b, L7c, L8 (8 lanes). L4 and L5 start once the L1/L2 interfaces exist (stubs are fine), within the 10-lane cap.
+
+## 10. Milestones
+
+| M | Exit criteria |
+|---|---|
+| M0 | Scaffold; contracts; `pnpm check` and `pnpm test` green on an empty workspace |
+| M1 | Eval set v0: at least 30 cases with schema-valid YAML and generated expected values, in all three classes; harness runs them in Node and reports accuracy + time |
+| M2 | PoC: H1-H6 run in the browser end to end (spec -> mesh -> solve -> beautiful results), each passing its eval gate and meeting the <5 s target on an M-series laptop; operation log with undo |
+| M3 | Agent v0: chat panel drives the operation and navigation tools, memory files, agent task suite with code checkers |
+| M4 | Wave-2 heroes (NS, periodic, coupled, real-time GPU) |
+| M5 | Public deployment; atlas migration plan |
+
+Fresh-context audits follow M1, M2 and M3 (twice for M2).
+
+## 11. Open questions (for Wentao)
+
+Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope for the PoC, Q5 COMSOL as reference, Q6 hosting, Q7 LLM providers, Q8 audience modes. Asked 2026-11-06 via the question dialog; answers go to section 5.
+
+## 12. TODO
+
+- [x] Research R1-R5
+- [x] This plan (proposed decisions, guidelines, lanes)
+- [ ] Answers Q1-Q8 recorded in section 5
+- [ ] L0 scaffold and contracts
+- [ ] Wave 1 lanes launched
+- [ ] Fresh-context audit of the research reports R3-R5 (unaudited at hand-off)
+- [ ] Fresh-context audit of this plan
+
+## 13. Progress log
+
+- 2026-11-06 14:30 PST: Read DevLog-000 and the sim DevLogs of both atlases (APA 010, 014; EO 023 decisions). Five read-only research lanes launched: R1 EO engine/UI, R2 APA engine/UI, R3 eval sources, R4 browser tech, R5 landscape and agent-native.
+- 2026-11-06 15:00 PST: R1-R5 reports in `DevLog/research/`. This plan written. No code, no git, no installs.
