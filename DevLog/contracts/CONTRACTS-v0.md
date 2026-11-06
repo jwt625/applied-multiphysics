@@ -168,3 +168,9 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   4. Approved: `zod` and `@amp/spec` as dependencies of the `@amp/geom/spec` and `@amp/mesh/spec` subpaths only. Core geom/mesh stays free of the spec dependency.
   5. `mesh.size.grading` = maximum ratio of size growth per unit distance (L3 mapping), to be documented in the spec schema description (contracts v1).
   6. Selections match split pieces: selecting `dom:X` selects every `dom:X#k` (expansion via parent links). Readiness messages report the expansion so the user sees which pieces were included.
+- 2026-11-06 16:0x PST, adopted from L8 (DevLog-009 s.7):
+  - `yaml` is approved as a runtime dependency of `@amp/eval`, which now also depends on `@amp/spec` (workspace).
+  - C4 gains `prepareRun(spec, caseCtx)` on the physics package export (module registry `modules` plus `prepareRun`). L4 implements it.
+  - C5: `@amp/post` exports `sample(solution, field, points)` returning values at points, used for probe and field targets. L4 implements it.
+  - Units not yet supported: `lbf` and non-SI length units in case statements. Cases restate them in SI (L7a: SM-21).
+- 2026-11-06 16:0x PST, from the L2 audit (DevLog/audits/2026-11-06-L2-spec-audit.md): operation log v1 work (id-anchored array paths, guarded inverses, replay recomputes derived fields, external head hash) is assigned back to L2. It is a dependency of L9 (agent).

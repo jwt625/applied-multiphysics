@@ -1,0 +1,1384 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://applied-multiphysics.local/eval/schema/amp-eval-0.schema.json",
+  "title": "amp-eval/0 evaluation case",
+  "description": "One YAML file per case at eval/cases/<class>/<id>.yaml. Derived from DevLog/research/2026-11-06-R3-eval-set-sources.md section 2 and CONTRACTS-v0 C8. Changelog: DevLog/DevLog-009-eval-harness.md section 3. Unknown keys are errors except extension keys starting with 'x-'.",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "class",
+    "title",
+    "status",
+    "physics",
+    "dimension",
+    "spec",
+    "references",
+    "rights"
+  ],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": true
+  },
+  "properties": {
+    "schema": {
+      "const": "amp-eval/0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]{2,4}-[0-9]{2,3}[A-Za-z0-9._-]*$",
+      "description": "<physics prefix>-<NN>; stable, never reused; equals the file name without .yaml"
+    },
+    "class": {
+      "enum": [
+        "a",
+        "b",
+        "c"
+      ],
+      "description": "a analytic/textbook; b paper result; c other software or dataset. Equals the directory name"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "unvalidated",
+        "verified",
+        "validated",
+        "measured_regression",
+        "untestable"
+      ]
+    },
+    "untestable_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "activation": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "what makes an untestable case testable"
+    },
+    "physics": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/physicsTag"
+      }
+    },
+    "dimension": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/dimension"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/dimension"
+          }
+        }
+      ]
+    },
+    "units": {
+      "enum": [
+        "SI"
+      ],
+      "description": "all values SI unless a target states otherwise"
+    },
+    "geometry": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "analytic",
+            "layer_stack",
+            "step_ref",
+            "dataset_grid",
+            "none"
+          ]
+        },
+        "spec": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "symmetry": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "materials": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/material"
+      }
+    },
+    "bcs": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/bc"
+      }
+    },
+    "initial": {
+      "type": [
+        "object",
+        "string",
+        "null"
+      ]
+    },
+    "study": {
+      "$ref": "#/$defs/study"
+    },
+    "spec": {
+      "$ref": "#/$defs/specRef"
+    },
+    "references": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/reference"
+      }
+    },
+    "reference_results": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object"
+      },
+      "description": "other codes' numbers; informative, never the gate"
+    },
+    "convergence": {
+      "$ref": "#/$defs/convergence"
+    },
+    "speed": {
+      "$ref": "#/$defs/speed"
+    },
+    "dataset": {
+      "$ref": "#/$defs/dataset"
+    },
+    "adapter": {
+      "$ref": "#/$defs/adapter"
+    },
+    "expected": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^eval/expected/[A-Za-z0-9._-]+\\.json$",
+      "description": "path of the generated expected-value file; default eval/expected/<id>.json"
+    },
+    "rights": {
+      "$ref": "#/$defs/rights"
+    },
+    "hero": {
+      "$ref": "#/$defs/hero"
+    },
+    "missing": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/note"
+      }
+    },
+    "assumptions": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/note"
+      }
+    },
+    "notes": {
+      "type": [
+        "array",
+        "string",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created": {
+      "type": "string",
+      "format": "date"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date"
+    },
+    "lane": {
+      "type": "string"
+    },
+    "field_reference": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "function"
+      ],
+      "properties": {
+        "function": {
+          "type": "string",
+          "minLength": 1,
+          "description": "exact-field evaluator, e.g. 'validation/a/fields.py SM-01'"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "complex": {
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "informative pointer to the exact-field evaluator of this case"
+    },
+    "source_case": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "suite": {
+          "type": "string"
+        },
+        "file": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "accessed": {
+          "type": "string",
+          "format": "date"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "the open-suite test this case re-derives (class-c origin)"
+    },
+    "source": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "citation"
+      ],
+      "description": "primary publication of a class-b case and where its numbers were read (CR-2 from L7b)",
+      "properties": {
+        "citation": {
+          "type": "string",
+          "minLength": 1,
+          "description": "full reference of the primary paper"
+        },
+        "doi": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "open_access": {
+          "type": "boolean",
+          "description": "primary paper free to read"
+        },
+        "open_copy": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/fileRef"
+            }
+          ],
+          "description": "open (author / arXiv / course) copy of the paper"
+        },
+        "retabulation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/fileRef"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/fileRef"
+              }
+            }
+          ],
+          "description": "open re-tabulation of the paper's numbers (basis S)"
+        },
+        "reference_page": {
+          "$ref": "#/$defs/fileRef",
+          "description": "benchmark web page carrying the reference values"
+        },
+        "reference_pages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fileRef"
+          }
+        },
+        "secondary_references": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/citationRef"
+          }
+        },
+        "later_reference": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/citationRef"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/citationRef"
+              }
+            }
+          ]
+        },
+        "atlas_ref": {
+          "type": "object",
+          "description": "the same case in a sibling atlas repo (read-only)",
+          "properties": {
+            "repo": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "commit": {
+              "type": "string"
+            },
+            "sim_case": {
+              "type": "string"
+            },
+            "evidence": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "untestable"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "untestable_reason"
+        ],
+        "properties": {
+          "untestable_reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "physicsTag": {
+      "anyOf": [
+        {
+          "enum": [
+            "heat-cond",
+            "heat-conv",
+            "heat-rad",
+            "heat-transient",
+            "solid-linear",
+            "solid-thermal-stress",
+            "solid-modal",
+            "solid-buckling",
+            "solid-contact",
+            "solid-plasticity",
+            "solid-nonlinear",
+            "electrostatics",
+            "magnetostatics",
+            "currents",
+            "eddy",
+            "rf-waveguide",
+            "rf-sparams",
+            "rf-antenna",
+            "rf-resonator",
+            "optics-modes",
+            "optics-scattering",
+            "optics-phc",
+            "acoustics",
+            "stokes",
+            "laminar-ns",
+            "porous",
+            "turbulent",
+            "transport-diffusion",
+            "transport-reaction",
+            "semiconductor-dd"
+          ]
+        },
+        {
+          "type": "string",
+          "pattern": "^coupled-[a-z0-9]+(-[a-z0-9]+)*$"
+        }
+      ]
+    },
+    "dimension": {
+      "enum": [
+        "1D",
+        "1D-axisym",
+        "1D-spherical",
+        "2D",
+        "2D-axisym",
+        "2D-periodic",
+        "3D",
+        "3D-periodic",
+        "0D"
+      ]
+    },
+    "material": {
+      "type": "object",
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "citation with locator, or 'synthetic'"
+        },
+        "ref": {
+          "type": "string",
+          "description": "materials/<key> in the materials package"
+        }
+      },
+      "additionalProperties": true
+    },
+    "bc": {
+      "type": "object",
+      "required": [
+        "selection",
+        "type"
+      ],
+      "properties": {
+        "selection": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expr": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "value": {},
+        "unit": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": true
+    },
+    "study": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "stationary",
+            "transient",
+            "eigen",
+            "frequency",
+            "parametric",
+            "none"
+          ]
+        },
+        "t_end": {
+          "type": "number"
+        },
+        "dt_out": {
+          "type": "number"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "shift": {
+          "type": [
+            "number",
+            "string"
+          ],
+          "description": "number, or a description where the shift depends on the case"
+        },
+        "f_list": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "frequencies (Hz), or a rule in words"
+        }
+      },
+      "additionalProperties": true
+    },
+    "specRef": {
+      "description": "C8: embedded amp-spec/0 model, a reference to sims/<id>.yaml, or pending with a reason",
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^sims/[A-Za-z0-9._/-]+\\.ya?ml$"
+        },
+        {
+          "type": "object",
+          "required": [
+            "schema"
+          ],
+          "properties": {
+            "schema": {
+              "const": "amp-spec/0"
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "status": {
+              "const": "pending"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ref": {
+              "type": "string",
+              "pattern": "^sims/[A-Za-z0-9._/-]+\\.ya?ml$",
+              "description": "proposed sims/ path"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "number": {
+      "type": "number"
+    },
+    "reference": {
+      "type": "object",
+      "required": [
+        "quantity",
+        "unit",
+        "tolerance",
+        "basis",
+        "form",
+        "provenance"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "required": [
+            "expected"
+          ]
+        }
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "target id, unique in the case; default = quantity"
+        },
+        "quantity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "definition": {
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "type": "string",
+          "description": "'1' for dimensionless"
+        },
+        "at": {
+          "description": "locations or parameters of an array value, same length as value"
+        },
+        "tolerance": {
+          "$ref": "#/$defs/tolerance"
+        },
+        "bounds": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          ]
+        },
+        "basis": {
+          "enum": [
+            "P",
+            "S",
+            "D"
+          ]
+        },
+        "form": {
+          "enum": [
+            "closed_form",
+            "benchmark",
+            "paper_sim",
+            "paper_measured",
+            "solver_ref",
+            "dataset"
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "extract": {
+          "$ref": "#/$defs/extract"
+        },
+        "note": {
+          "type": "string"
+        },
+        "metric_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "target id shared with eval/expected/<id>.json targets[].metric_id; target id = id, else metric_id, else quantity"
+        },
+        "expected": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "pattern": "^eval/expected/[A-Za-z0-9._-]+\\.json$"
+            },
+            "metric_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "dotted path into the expected JSON"
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "metric_id"
+              ]
+            },
+            {
+              "required": [
+                "key"
+              ]
+            }
+          ],
+          "additionalProperties": false,
+          "description": "where the generated value lives in the expected JSON"
+        },
+        "gate": {
+          "type": "boolean",
+          "description": "false = recorded and reported (info), never the gate; default true"
+        },
+        "case": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "number",
+              "string",
+              "boolean"
+            ]
+          },
+          "description": "parameter values of this target in a parametric study, e.g. {Re: 100}; appended to the default target id"
+        },
+        "extraction": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "description": "how the reference value was taken from the source: tabulated, digitized (with protocol), text, ..."
+        }
+      },
+      "additionalProperties": false
+    },
+    "tolerance": {
+      "type": "object",
+      "anyOf": [
+        {
+          "required": [
+            "rel"
+          ]
+        },
+        {
+          "required": [
+            "abs"
+          ]
+        },
+        {
+          "required": [
+            "rule"
+          ]
+        }
+      ],
+      "properties": {
+        "rel": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "abs": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "after": {
+          "enum": [
+            "richardson",
+            "finest",
+            "none"
+          ],
+          "description": "compare the Richardson-extrapolated value, the finest level, or a single run"
+        },
+        "norm": {
+          "enum": [
+            "l2",
+            "max"
+          ],
+          "description": "field targets: discrete relative L2 or max over sample points"
+        },
+        "rule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/rule"
+            },
+            {
+              "enum": [
+                "range",
+                "within_bounds",
+                "sign"
+              ],
+              "description": "shorthand: range / within_bounds = {type: range} on bounds; sign = {type: sign} of the reference"
+            }
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "range",
+            "sign",
+            "monotonic",
+            "rate"
+          ]
+        },
+        "range": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "sign": {
+          "enum": [
+            -1,
+            1
+          ]
+        },
+        "direction": {
+          "enum": [
+            "increasing",
+            "decreasing"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "note": {
+          "type": "string"
+        },
+        "of": {
+          "enum": [
+            "value",
+            "error"
+          ],
+          "description": "monotonic / range / sign: apply to the values (default) or to |value - ref|; rate: always the error"
+        }
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "citation",
+        "locator",
+        "accessed"
+      ],
+      "properties": {
+        "citation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "accessed": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ISO date; null only for basis D (derived here)"
+        },
+        "url": {
+          "type": "string"
+        },
+        "generator": {
+          "type": "string",
+          "description": "validation/ script that computes the value"
+        }
+      },
+      "additionalProperties": true
+    },
+    "extract": {
+      "description": "how the harness reads the target from a Solution (C5). Default: scalars[quantity]",
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "scalar",
+            "probe",
+            "field",
+            "eigen",
+            "steps"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "scalar name (kind scalar) or field name (probe, field)"
+        },
+        "field": {
+          "type": "string"
+        },
+        "component": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "point": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "maxItems": 3
+        },
+        "samples_key": {
+          "type": "string",
+          "description": "dotted path in the expected JSON to {points, values}"
+        },
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "number"
+            }
+          },
+          "description": "field: sample points (m)"
+        },
+        "evaluator": {
+          "type": "string",
+          "pattern": "^validation/[A-Za-z0-9._/-]+\\.py$",
+          "description": "field: exact-field CLI (points in, values out), e.g. validation/a/fields.py"
+        },
+        "params": {
+          "type": "object",
+          "description": "field: parameter overrides passed to the evaluator"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "eigen: index of the first reference mode in the sorted list"
+        },
+        "floor": {
+          "type": "number",
+          "description": "eigen: drop computed values with |v| below this (rigid-body, spurious)"
+        },
+        "match": {
+          "enum": [
+            "sorted",
+            "subsequence"
+          ]
+        },
+        "evaluator_case": {
+          "type": "string",
+          "minLength": 1,
+          "description": "field: case key of the evaluator when it differs from the case id (e.g. FL-01-pois)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "convergence": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "levels_min": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ratio_min": {
+          "type": "number",
+          "minimum": 1
+        },
+        "method": {
+          "enum": [
+            "richardson_gci",
+            "rate_fit",
+            "none"
+          ]
+        },
+        "safety_factor": {
+          "type": "number",
+          "minimum": 1
+        },
+        "expected_order": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "h_factors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "speed": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "budget_s": {
+          "type": "object",
+          "properties": {
+            "browser": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "exclusiveMinimum": 0
+            },
+            "native": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "report": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "dofs",
+              "wall_s_by_stage",
+              "iterations",
+              "error_vs_ref",
+              "dof_per_s",
+              "memory"
+            ]
+          }
+        },
+        "reference_timings": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object"
+          }
+        },
+        "budget_basis": {
+          "type": "string",
+          "description": "where the budget comes from; label estimates"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dataset": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "name",
+        "metric"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "subset": {
+          "type": "string"
+        },
+        "file": {
+          "type": "string"
+        },
+        "sample_index": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "frame0": {
+          "type": [
+            "string",
+            "integer",
+            "null"
+          ]
+        },
+        "metric": {
+          "type": "string"
+        },
+        "hash": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "license": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "adapter": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "external reference adapters for this case",
+      "properties": {
+        "python": {
+          "type": "object",
+          "required": [
+            "script"
+          ],
+          "properties": {
+            "script": {
+              "type": "string",
+              "pattern": "^validation/[A-Za-z0-9._/-]+\\.py$"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "rights": {
+      "type": "object",
+      "required": [
+        "source_license",
+        "allowed",
+        "forbidden"
+      ],
+      "properties": {
+        "source_license": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rightsItem"
+          }
+        },
+        "forbidden": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rightsItem"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "rightsItem": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "snake_case tag; common: cite_values, re_derive_setup, copy_text, copy_figures, copy_input_files, copy_code, copy_data, redistribute_data"
+    },
+    "hero": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "suitable": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^H[0-9]+$"
+        },
+        "why": {
+          "type": "string"
+        },
+        "visual": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object"
+        }
+      ]
+    },
+    "fileRef": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "where": {
+          "type": "string",
+          "description": "file / table inside the source"
+        },
+        "version": {
+          "type": "string"
+        },
+        "cache": {
+          "type": "string",
+          "description": "local cache path (cache/ is not committed)"
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha-256 (hex) of the cached copy"
+        },
+        "licence": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "citationRef": {
+      "type": "object",
+      "required": [
+        "citation"
+      ],
+      "properties": {
+        "citation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "doi": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "open_access": {
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

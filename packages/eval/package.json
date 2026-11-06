@@ -1,0 +1,30 @@
+{
+  "name": "@amp/eval",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "Eval harness: amp-eval/0 case loader and validator, runner, metrics, speed bench, JSONL report",
+  "exports": {
+    ".": "./src/index.ts",
+    "./metrics": "./src/metrics.ts",
+    "./speed": "./src/speed.ts",
+    "./loader": "./src/loader.ts"
+  },
+  "bin": {
+    "amp-eval": "./src/cli.ts"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/*.test.ts",
+    "check": "tsc -p . --noEmit",
+    "eval": "node --max-old-space-size=1536 src/cli.ts"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1",
+    "@amp/spec": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "^5.9.0"
+  }
+}
