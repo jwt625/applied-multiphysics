@@ -9,7 +9,8 @@
 
 import { AgentSession } from './session.ts';
 import { Agent, type AgentEvent, type Budget, type BudgetState, type Goal, type StopKind, type TurnResult } from './loop.ts';
-import { KeyStore, type KeyValueStorage } from './keys.ts';
+import { KeyStore, KEY_STORAGE_NAME, type KeyValueStorage } from './keys.ts';
+import { createOpenAICompatibleAdapter, type FetchLike, type ProviderPreset } from './provider/openai-compatible.ts';
 import { MemoryStore } from './memory/store.ts';
 import type { MemoryBackend } from './memory/backends.ts';
 import { createAnthropicAdapter, type AnthropicClientLike, type AnthropicClientOptions, type Effort } from './provider/anthropic.ts';
@@ -159,6 +160,11 @@ export interface MountOptions {
   isToolInputParseError?: (e: unknown) => boolean;
   model?: string;
   effort?: Effort;
+  /**
+   * OpenAI-compatible provider instead of Anthropic (DevLog-018), e.g. `{preset: DEEPSEEK_PRESET, fetch:
+   * globalThis.fetch.bind(globalThis)}`. The key is stored under its own name (`amp.agent.provider-key.<preset>`).
+   */
+  openaiCompatible?: { preset: ProviderPreset; fetch: FetchLike; model?: string; pricing?: 'peak' | 'time-of-use' };
   /** Override the provider (tests, the scripted mock, a future provider). */
   provider?: ProviderAdapter;
   budget?: Partial<Budget>;
@@ -167,7 +173,8 @@ export interface MountOptions {
 
 /** Wire session, memory, key store and provider for the chat panel. */
 export async function mountAgent(o: MountOptions): Promise<ChatController> {
-  const keys = new KeyStore(o.storage);
+  const oc = !o.provider ? o.openaiCompatible : undefined;
+  const keys = new KeyStore(o.storage, oc ? `amp.agent.provider-key.${oc.preset.name}` : KEY_STORAGE_NAME);
   // reconcile at mount: files changed while the app was closed (or by a crash between log and file) become `external` ops
   const memory = await MemoryStore.open(o.memoryBackend, { forbidden: () => keys.forbidden(), reconcile: true });
   const session = new AgentSession({
@@ -176,6 +183,7 @@ export async function mountAgent(o: MountOptions): Promise<ChatController> {
     forbidden: () => keys.forbidden(),
   });
   let provider = o.provider;
+  if (!provider && oc) provider = createOpenAICompatibleAdapter({ keys, fetch: oc.fetch, preset: oc.preset, ...(oc.model ? { model: oc.model } : {}), ...(oc.pricing ? { pricing: oc.pricing } : {}) });
   if (!provider) {
     if (!o.createClient) throw new Error('mountAgent: pass createClient (Anthropic SDK factory) or provider');
     provider = createAnthropicAdapter({ keys, createClient: o.createClient, ...(o.isApiError ? { isApiError: o.isApiError } : {}), ...(o.isToolInputParseError ? { isToolInputParseError: o.isToolInputParseError } : {}), ...(o.model ? { model: o.model } : {}), ...(o.effort ? { effort: o.effort } : {}) });

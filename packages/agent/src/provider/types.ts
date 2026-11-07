@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Provider-neutral conversation and adapter types. Anthropic is the only adapter now (DevLog-001 Q7); another provider
-// plugs in by implementing ProviderAdapter. Blocks a provider needs back unchanged (thinking, fallback markers) travel
+// Provider-neutral conversation and adapter types. Adapters: Anthropic (DevLog-012) and OpenAI-compatible Chat
+// Completions with a DeepSeek preset (DevLog-018); another provider plugs in by implementing ProviderAdapter. Blocks a provider needs back unchanged (thinking, fallback markers) travel
 // as `opaque`, and an assistant message keeps the provider's raw content so it can be replayed byte for byte.
 
 export interface TextBlock { type: 'text'; text: string }
@@ -38,6 +38,8 @@ export interface ProviderResponse {
   usage: Usage;
   /** Model that served the response (may differ from the requested one after a server-side fallback). */
   model: string;
+  /** Reasoning tokens inside outputTokens, when the provider reports them (OpenAI-compatible); null or absent otherwise. */
+  reasoningTokens?: number | null;
 }
 
 export interface SendOptions { signal?: AbortSignal; onText?: (delta: string) => void }
@@ -55,7 +57,7 @@ export interface ProviderAdapter {
   send(req: ProviderRequest, opts?: SendOptions): Promise<ProviderResponse>;
 }
 
-export type ProviderErrorKind = 'no_key' | 'auth' | 'rate_limit' | 'bad_request' | 'server' | 'network' | 'invalid_tool_input' | 'aborted' | 'other';
+export type ProviderErrorKind = 'no_key' | 'auth' | 'rate_limit' | 'billing' | 'bad_request' | 'server' | 'network' | 'invalid_tool_input' | 'aborted' | 'other';
 
 export class ProviderError extends Error {
   readonly kind: ProviderErrorKind;

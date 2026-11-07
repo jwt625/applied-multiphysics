@@ -15,7 +15,9 @@ import { ProviderError, type ProviderAdapter, type ProviderRequest } from '../sr
 import { outsideBlocks, structuredIssues } from '../src/untrusted.ts';
 import { fixture, blockJson, headJson, simText, type Fixture } from './fixtures.ts';
 
-export interface TaskCtx { fx: Fixture; agent: Agent; provider: ScriptedProvider; turns: TurnResult[]; original: string }
+/** What checkers read from the provider: the requests the loop built (ScriptedProvider, or the live trial recorder). */
+export interface RecordedProvider extends ProviderAdapter { readonly requests: ProviderRequest[]; readonly wireViolations: Array<{ call: number; problems: string[] }>; readonly remaining: number }
+export interface TaskCtx { fx: Fixture; agent: Agent; provider: RecordedProvider; turns: TurnResult[]; original: string }
 export interface Task {
   id: string;
   category: string;
@@ -629,26 +631,30 @@ export const TASKS: Task[] = [
 ];
 
 
-export interface TaskResult { id: string; category: string; checks: string; pass: boolean; failures: string[]; modelCalls: number; toolCalls: number; specOps: number; memoryOps: number; navCalls: number; ms: number }
+export interface TaskResult { id: string; category: string; checks: string; pass: boolean; failures: string[]; modelCalls: number; toolCalls: number; specOps: number; memoryOps: number; navCalls: number; ms: number; stops: string[]; tools: string[]; answers: string[] }
 
 /**
  * `nullScript`: replace the model script with a model that only answers "I will not do that." (checker
  * sensitivity: a checker that passes this transcript does not test the task, unless doing nothing is correct).
  */
-export async function runTask(t: Task, o: { nullScript?: boolean } = {}): Promise<TaskResult> {
+/**
+ * `provider`: replaces the scripted mock (live trial, DevLog-018); `budget` overrides the task budget.
+ */
+export async function runTask(t: Task, o: { nullScript?: boolean; provider?: (t: Task) => RecordedProvider; budget?: (t: Task) => Partial<Budget> } = {}): Promise<TaskResult> {
   if (o.nullScript) t = { ...t, script: t.prompts.map(() => turn(say('I will not do that.'))) };
   const t0 = performance.now();
   const base = simText(t.sim);
   const fx = await fixture(t.sim, { ...(t.text ? { text: t.text(base) } : {}), ...(t.memory ? { memory: t.memory } : {}), ...(t.maxReadBytes ? { maxReadBytes: t.maxReadBytes } : {}) });
-  const provider = new ScriptedProvider(t.script, t.model ?? 'mock-scripted', t.prices ? { prices: t.prices } : {});
+  const provider: RecordedProvider = o.provider ? o.provider(t) : new ScriptedProvider(t.script, t.model ?? 'mock-scripted', t.prices ? { prices: t.prices } : {});
   const ctl = new AbortController();
   // abortOnCall: the user presses Stop while call N is in flight (abort lands as the call returns)
   const driver: ProviderAdapter = t.abortOnCall === undefined ? provider : {
-    id: provider.id, model: provider.model, maxTokens: provider.maxTokens, price: (m) => provider.price(m),
+    id: provider.id, model: provider.model, ...(provider.maxTokens !== undefined ? { maxTokens: provider.maxTokens } : {}), price: (m) => provider.price?.(m) ?? null,
     send: async (req, so) => { const r = await provider.send(req, so); if (provider.requests.length === t.abortOnCall) ctl.abort(); return r; },
   };
   let budgetEvents = 0;
-  const agent = new Agent({ session: fx.session, provider: driver, ...(t.budget ? { budget: t.budget } : {}), onEvent: (e) => { if (e.type === 'budget') budgetEvents++; } });
+  const budget = o.budget ? o.budget(t) : t.budget;
+  const agent = new Agent({ session: fx.session, provider: driver, ...(budget ? { budget } : {}), onEvent: (e) => { if (e.type === 'budget') budgetEvents++; } });
   const turns: TurnResult[] = [];
   const failures: string[] = [];
   try {
@@ -669,5 +675,9 @@ export async function runTask(t: Task, o: { nullScript?: boolean } = {}): Promis
     id: t.id, category: t.category, checks: t.checks, pass: failures.length === 0, failures,
     modelCalls: provider.requests.length, toolCalls: turns.reduce((n, x) => n + x.toolCalls.length, 0),
     specOps: fx.log.ops.length, memoryOps: fx.memory.ops.length, navCalls: fx.session.trail.entries.length, ms: Math.round(performance.now() - t0),
+    stops: turns.map((x) => x.stop), tools: turns.flatMap((x) => x.toolCalls.map((c) => `${c.name}${c.isError ? '!' : ''}`)), answers: turns.map((x) => x.text.slice(0, 400)),
   };
 }
+
+/** Checker helpers, for checker variants outside this file (live trial, DevLog-018). */
+export const checkHelpers = { data, agentOps, valid, validIssues, si, param, sentTexts, onlyInBlocks, expect, HOSTILE_TITLE };

@@ -159,12 +159,16 @@ test('request body: model, adaptive thinking, effort, cache breakpoint, eager to
 });
 
 test('source scan: the package makes no network calls of its own and names no other endpoint', () => {
+  // DevLog-018: the OpenAI-compatible adapter calls the host-injected `opts.fetch` and its DeepSeek preset names
+  // https://api.deepseek.com (plus the pricing page it cites); nothing else in src/ may do either.
+  const allowedUrl = /https:\/\/api\.deepseek\.com(?=['/])|https:\/\/api-docs\.deepseek\.com\/[a-z_/]+/g;
   const root = join(import.meta.dirname, '..', 'src');
   const files: string[] = [];
   const walk = (d: string) => { for (const e of readdirSync(d, { withFileTypes: true })) { const p = join(d, e.name); if (e.isDirectory()) walk(p); else if (p.endsWith('.ts')) files.push(p); } };
   walk(root);
   for (const f of files) {
-    const code = readFileSync(f, 'utf8').split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+    let code = readFileSync(f, 'utf8').split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+    if (f.endsWith('openai-compatible.ts')) code = code.replace(/\bopts\.fetch\(/g, 'opts.injectedFetch(').replace(allowedUrl, 'ALLOWED_URL');
     for (const bad of [/\bfetch\s*\(/, /XMLHttpRequest/, /new WebSocket/, /sendBeacon/, /EventSource/, /https?:\/\//, /console\.(log|info|debug|warn|error)/]) {
       assert.equal(bad.test(code), false, `${f}: ${bad}`);
     }

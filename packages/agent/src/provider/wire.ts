@@ -5,14 +5,15 @@
 //   - no message has empty content; no text block is empty
 //   - every tool_use of an assistant message is answered by a tool_result in the immediately following user message
 //   - every tool_result answers a tool_use of the immediately preceding assistant message; tool_use ids are unique
-// Assistant messages are checked as they will be sent: the provider's raw content when present.
+// Assistant messages are checked as they will be sent: the Anthropic raw content when present. Other providers' raw
+// messages (OpenAI-compatible: one message object, not a block list) are checked through their neutral blocks.
 
 import type { Message, ProviderRequest } from './types.ts';
 
 type Blk = { type: string; id?: unknown; tool_use_id?: unknown; text?: unknown };
 
 function blocksOf(m: Message): Blk[] {
-  if (m.role === 'assistant' && m.raw) return m.raw.content as Blk[];
+  if (m.role === 'assistant' && m.raw?.provider === 'anthropic') return m.raw.content as Blk[];
   return m.content as unknown as Blk[];
 }
 
