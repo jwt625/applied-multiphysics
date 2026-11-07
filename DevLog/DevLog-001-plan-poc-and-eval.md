@@ -250,3 +250,8 @@ Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope f
 - 2026-11-06 18:08 PST: P1 (DevLog-016) has made a real f64 WASM SIMD supernodal front kernel the default for real SPD/LDL^T. Gate passed 2 of 3: AC-02 2.72x and APA grid 2.43x on the factor; EO 2D 1.34x, below the gate. Results are bitwise identical to the JS path. Coordinator rerun at 18:07: AC-02 harness 10/10 pass, case time 4.27 s cold (logs/eval-20261106T180730.jsonl, with V1 running concurrently); core 81/81. All six heroes now meet <5 s cold end to end in Node. Since then: RF-21 3.09 s cold (Q_d on the coarsest level), HT-04 21.9 s cold (dt refined with h; a non-hero transient case). Browser timing at gated accuracy is pending from V1.
 - Open (minor): eval JSONL meta `source_detail` contains an absolute local path. Make it repo-relative (L8).
 
+- 2026-11-06 18:14 PST: V1 visual design pass done (DevLog-015, commit 8d42fd4):
+  - Self-ratings: Kirsch 5 -> 8, heat 5 -> 8.5, Helmholtz 5 -> 8.5, cavity 4 -> 8, box 4 -> 7, rib 5 -> 6.5.
+  - The browser full-accuracy mode re-solves on the case's nested levels after each run, with a Richardson badge that is green only with evidence. Cold load to gated accuracy (headless, software WebGL): kirsch 2.22 s, heat 2.14 s, helmholtz 2.17 s, cavity 2.50 s, box 3.99 s; rib skipped (h 0.5 would be 1.3M DOF; it overflowed the em-modes stack, so a 1M DOF cap now skips it).
+  - Coordinator looked at logs/V1-play-kirsch-plate-1440-20261107T020855.png: a centred mirrored plate with contour lobes, the peak label and a separate colorbar strip; a clear improvement.
+  - Open: em-axisym stores E = 0 at tri6 mid nodes (L4 bug); rib accuracy mode; a fresh-context audit of web pass 2 + V1 is running.
