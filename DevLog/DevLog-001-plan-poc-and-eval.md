@@ -236,3 +236,14 @@ Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope f
   - H5 RF-21 7/7 via emw-axisym, 2.14 s.
   - H6 AC-02 10/10, 4.5e-7, 6.25 s (misses <5 s).
   Class a: 9 pass, 2 fail (SM-02 and HT-04, on the fallback rule only; L8 is relaxing it), 18 pending (non-hero). Browser (L5): first paint 36-38 ms, coarse previews 17-396 ms, full solves 0.22 s (2D heroes, box), 2.7 s (cavity, before the axisym switch), 3.8 s (rib). The browser path's mesh hashes equal Node's. Open for M2: H6 speed, the WO-02 sweep target, chat panel mount (L5 pass 2), the M2 audit.
+- 2026-11-06 17:40 PST: CORRECTION of the M2 engine status entry above, from the fresh-context M2 audit (DevLog/audits/2026-11-06-M2-integration-audit.md):
+  - Accuracy gates are confirmed: values come from the engine, the levels are truly nested, no tolerance or reference changed, and the SM-02 / HT-04 / WO-41 diagnoses hold (an independent P2 SM-02 solve gives 92.658 MPa).
+  - The M2 engine half is NOT complete.
+    - H6 is 8.4 s cold / 5.4-6.25 s warm, over 5 s.
+    - H5's full RF-21 gate takes 15.2 s cold; the quoted 2.14 s excluded Q_d, whose 3D identity check alone costs 13.1 s.
+    - H1-H4 meet <5 s in Node, but the earlier figures were warm (cached meshes) and must not be mixed with cold ones.
+    - Browser timing at gated accuracy has never been measured.
+    - Browser Play runs single coarse levels that miss gate tolerances (box at 693 DOF: 3.3e-3 vs 1e-4).
+  - Wrong figures in the entry above: H1 worst error is 4.7e-5 (not -2.8e-6); the WO-01 orders came from a harness bug; see the audit's S8.
+  - Harness bug S1: the mesh-size ratio is derived with the case's dimension label instead of the spec's. WO-01's true orders are 3.98 / 3.95. Pass/fail is unchanged.
+  - Follow-ups assigned: L8 (S1, S2 cold/warm labelling, S5 a stricter fallback that requires shrinking level-to-level changes), L7a (HT-02 / HT-04 dt refinement via dt_with_h; RF-21 Q_d identity check on one coarse level), V1 (browser full-accuracy mode with measured timing; H4 Play handle t -> t_slab).
