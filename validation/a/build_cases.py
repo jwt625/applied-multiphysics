@@ -10,8 +10,10 @@ Run: cd validation && uv run python a/build_cases.py [--force]
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -91,6 +93,7 @@ def spec_pending(sim_id: str) -> dict[str, Any]:
 def case(cid: str, title: str, physics: list[str], dimension: str, geometry: dict, materials: dict, bcs: list,
          study: dict, references: list, spd: dict, rights: dict, hero: dict, sim: str, *, initial=None,
          reference_results=None, convergence=CONV, missing=None, assumptions=None, extra=None) -> dict[str, Any]:
+    convergence = copy.deepcopy(convergence)  # CONV is shared; preserved-field merges must not leak across cases
     d: dict[str, Any] = {
         "schema": "amp-eval/0", "id": cid, "class": "a", "title": title, "status": "unvalidated",
         "untestable_reason": None, "physics": physics, "dimension": dimension, "units": "SI",
@@ -217,7 +220,7 @@ def build() -> list[dict[str, Any]]:
          dref("SM-01", "uy_at_0_L", "u_y(0, L)", "displacement", "m", rel3, "Kirsch / Barber sec. 8.4",
               GS + "::sm01"),
          dref("SM-01", "field_rel_L2_stress", "field error", "relative L2 stress error vs the exact field", "1",
-              {"abs": 1.0e-3, "norm": "l2",
+              {"abs": 1.0e-3, "norm": "rel_l2",
                "rule": {"type": "rate", "min": 1.0,
                         "note": "stress L2 error rate >= p over 3 meshes; min 1.0 is the P1 value (proposal)"}},
               "Kirsch 1898",
@@ -631,7 +634,7 @@ def build() -> list[dict[str, Any]]:
         {"type": "stationary", "settings": {"element_assumed_by_tolerances": "Taylor-Hood P2/P1 (velocity L2 rate "
                                                                     "3, H1 rate 2; Poiseuille exact)"}},
         [dref("FL-01", "kovasznay.field_rel_L2_u", "velocity field error", "relative L2 velocity error", "1",
-              {"abs": 1.0e-4, "norm": "l2",
+              {"abs": 1.0e-4, "norm": "rel_l2",
                "rule": {"type": "rate", "min": 2.0,
                         "note": "velocity L2 rate p+1 (3 for Taylor-Hood P2/P1); min 2.0 is a proposal"}},
               "Kovasznay 1948",
@@ -845,6 +848,42 @@ def build() -> list[dict[str, Any]]:
     return C
 
 
+# Fields owned downstream (lane I1 hero integration, L2 specs): once present in the existing YAML they are kept
+# verbatim and never regenerated. References are matched by position; the quantity must agree or the build stops.
+PRESERVE_TOP = ["spec"]
+PRESERVE_CONVERGENCE = ["h_factors", "expected_order"]
+PRESERVE_REFERENCE = ["extract", "metric_id", "spec"]  # references[].spec: per-target model (I1)
+
+
+def merge_preserved(new: dict[str, Any], old: dict[str, Any]) -> list[str]:
+    """Copy downstream-owned fields from `old` (existing YAML) into `new` (builder output). Returns kept paths."""
+    kept: list[str] = []
+    for k in PRESERVE_TOP:
+        if k in old and old[k] != new.get(k):
+            new[k] = old[k]
+            kept.append(k)
+    oc, nc = old.get("convergence") or {}, new.get("convergence")
+    for k in PRESERVE_CONVERGENCE:
+        if k in oc:
+            if nc is None:
+                nc = new["convergence"] = {}
+            if nc.get(k) != oc[k]:
+                nc[k] = oc[k]
+                kept.append(f"convergence.{k}")
+    orefs, nrefs = old.get("references") or [], new.get("references") or []
+    if orefs and len(orefs) != len(nrefs):
+        raise SystemExit(f"{new['id']}: existing YAML has {len(orefs)} references, builder {len(nrefs)}; "
+                         "reconcile by hand before rebuilding (preserved fields are matched by position)")
+    for i, (o, n) in enumerate(zip(orefs, nrefs, strict=False)):
+        if o.get("quantity") != n.get("quantity"):
+            raise SystemExit(f"{new['id']}: references[{i}] quantity {o.get('quantity')!r} != {n.get('quantity')!r}")
+        for k in PRESERVE_REFERENCE:
+            if k in o and o[k] != n.get(k):
+                n[k] = o[k]
+                kept.append(f"references.{i}.{k}")
+    return kept
+
+
 class _NoAliasDumper(yaml.SafeDumper):
     def ignore_aliases(self, data: Any) -> bool:
         return True
@@ -853,23 +892,33 @@ class _NoAliasDumper(yaml.SafeDumper):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true", help="overwrite existing case files")
+    ap.add_argument("--out", help="write into this directory instead of eval/cases/a (for diffs and tests)")
+    ap.add_argument("--preserve-from", help="directory of existing YAML to merge preserved fields from "
+                                            "(default eval/cases/a)")
     a = ap.parse_args()
-    CASES_DIR.mkdir(parents=True, exist_ok=True)
-    n_w, n_s = 0, 0
+    out_dir = Path(a.out) if a.out else CASES_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    n_w, n_s, n_u, n_kept = 0, 0, 0, 0
     for c in build():
-        path = CASES_DIR / f"{c['id']}.yaml"
+        path = out_dir / f"{c['id']}.yaml"
+        src = (Path(a.preserve_from) if a.preserve_from else CASES_DIR) / f"{c['id']}.yaml"
+        kept = merge_preserved(c, yaml.safe_load(src.read_text())) if src.exists() else []
+        n_kept += len(kept)
         head = (f"# {c['id']}: {c['title']}\n# Built by validation/a/build_cases.py from eval/expected/{c['id']}.json "
                 f"where basis is D. Schema amp-eval/0 ({R3} s.2).\n")
         text = head + yaml.dump(c, Dumper=_NoAliasDumper, sort_keys=False, width=118, allow_unicode=False,
                                 default_flow_style=None)
-        if path.exists() and not a.force:
-            if path.read_text() != text:
+        if path.exists():
+            if yaml.safe_load(path.read_text()) == c:
+                n_u += 1  # semantically identical: keep the file byte for byte (hand formatting survives)
+                continue
+            if not a.force:
                 print(f"skip (exists, differs; use --force): {path.name}")
-            n_s += 1
-            continue
+                n_s += 1
+                continue
         path.write_text(text)
         n_w += 1
-    print(f"cases: wrote {n_w}, skipped {n_s}")
+    print(f"cases: wrote {n_w}, unchanged {n_u}, skipped {n_s}, preserved downstream fields: {n_kept}")
     return 0
 
 
