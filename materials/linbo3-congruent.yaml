@@ -1,0 +1,132 @@
+# Lithium niobate (lane L10, DevLog-013). Optical dispersion of congruent LN (Zelmon 1997); RF permittivity and
+# Pockels tensor from Weis and Gaylord 1985 as read by eo-modulator-atlas DevLog-038 (rendered page images).
+schema: amp-material/0
+id: linbo3-congruent
+name: Lithium niobate, congruent (LiNbO3)
+class: crystal
+description: >-
+  Trigonal 3m crystal, c axis = frame z. n_o / n_e from the Zelmon 1997 congruent-LN Sellmeier fits. The RF / EO rows
+  of Weis and Gaylord 1985 do not state the sample composition (EO DevLog-038), so 'congruent' is established for the
+  optical dispersion only.
+verified_on: 2026-11-06
+frame: "crystal axes: z = c (optic axis, extraordinary), y-z mirror plane, x = a"
+sources:
+  zelmon1997:
+    citation: "D. E. Zelmon, D. L. Small, D. Jundt, Infrared corrected Sellmeier coefficients for congruently grown lithium niobate and 5 mol.% magnesium oxide-doped lithium niobate, J. Opt. Soc. Am. B 14, 3319-3322 (1997)"
+    doi: 10.1364/JOSAB.14.003319
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/LiNbO3/nk/Zelmon-o.yml
+    access: paywalled
+    read: "primary not read; coefficients from the refractiveindex.info entries (CC0) LiNbO3/nk/Zelmon-o.yml and Zelmon-e.yml, fetched 2026-11-06; identical to eo-modulator-atlas engine/data/materials.json"
+    licence: "refractiveindex.info database: CC0 1.0"
+  weis1985:
+    citation: "R. S. Weis, T. K. Gaylord, Lithium niobate: summary of physical properties and crystal structure, Appl. Phys. A 37, 191-203 (1985)"
+    doi: 10.1007/BF00614817
+    access: local_cache
+    read: "not re-read by L10; EO lane T3 read Table 1 (p.197) and Table 4 (p.199) from 110 and 260 dpi page renders on 2026-10-15 (subscription copy, local only)"
+    via: "eo-modulator-atlas engine/data/materials.json at bc68738 (library.lithium_niobate_congruent) and DevLog-038"
+properties:
+  n:
+    tensor:
+      symmetry: uniaxial
+      components:
+        perp:
+          fit:
+            formula: sellmeier-c
+            vars: [{name: lambda, unit: um, range: [0.4, 5.0]}]
+            coeffs: {A: 0, B: [2.6734, 1.2290, 12.614], C: [0.01764, 0.05914, 474.60]}
+          locator: "Zelmon-o.yml formula 2, coefficients 0 2.6734 0.01764 1.2290 0.05914 12.614 474.60 (ordinary)"
+        par:
+          fit:
+            formula: sellmeier-c
+            vars: [{name: lambda, unit: um, range: [0.4, 5.0]}]
+            coeffs: {A: 0, B: [2.9804, 0.5981, 8.9543], C: [0.02047, 0.0666, 416.08]}
+          locator: "Zelmon-e.yml formula 2, coefficients 0 2.9804 0.02047 0.5981 0.0666 8.9543 416.08 (extraordinary)"
+    unit: "1"
+    basis: measured
+    source: zelmon1997
+    locator: "refractiveindex.info LiNbO3/nk/Zelmon-o.yml and Zelmon-e.yml (perp = n_o, par = n_e)"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated in the database entries; primary not read"}
+    conditions: {T: "21 degC", text: "congruently grown LN (database comment: 21 C, CLN)"}
+    alternatives: []
+  eps_r:
+    tensor:
+      symmetry: uniaxial
+      components: {perp: 44.3, par: 27.9}
+    unit: "1"
+    basis: measured
+    source: weis1985
+    locator: "Table 1 'Relative permittivity coefficients', p.197, row Ref. [23] (Warner, Onoe, Coquin 1967): eps^S_11 44.3, eps^S_33 27.9, T_c 1165 C"
+    accessed: 2026-10-15
+    uncertainty: {na: "not stated; other eps^S rows of the same table: [22] 44 / 29, [25] 43.9 / 23.7, [26] 46.5 / 27.3"}
+    conditions: {text: "clamped (constant strain), capacitance well above the mechanical resonance; frequency and temperature not given in the source"}
+    alternatives:
+      - id: unclamped
+        use: "low-frequency (below mechanical resonance) permittivity"
+        tensor:
+          symmetry: uniaxial
+          components: {perp: 85.2, par: 28.7}
+        unit: "1"
+        basis: measured
+        source: weis1985
+        locator: "Table 1, p.197, row Ref. [23]: eps^T_11 85.2, eps^T_33 28.7"
+        accessed: 2026-10-15
+        uncertainty: {na: "not stated; other eps^T rows: [22] 84 / 30, [24] 84.6 / 28.6, [26] 84.1 / 28.1"}
+        conditions: {text: "unclamped (constant stress), capacitance at very low frequencies"}
+  r_eo:
+    tensor:
+      symmetry: trigonal-3m
+      components: {r13: 8.6, r22: 3.4, r33: 30.8, r51: 28}
+    unit: pm/V
+    basis: measured
+    source: weis1985
+    locator: "Table 4 'Linear electro-optic coefficients', p.199, row r^S, 633 nm, Ref. [45] (Turner 1966): r51 28, r22 3.4, r13 8.6, r33 30.8 (1e-12 m/V)"
+    accessed: 2026-10-15
+    uncertainty: {na: "not stated per row; source: unclamped coefficients composition-independent within +-5 % (p.199)"}
+    conditions: {lambda: "633 nm", text: "clamped (r^S, RF field); no 1550 nm or 1957 nm value in the source; temperature coefficient about 5e-4 /C (p.199)"}
+    alternatives:
+      - id: clamped_kaminow1980
+        use: "sensitivity: the source's 'probably the most accurate' set (fringing-field corrected); composite of two rows"
+        tensor:
+          symmetry: trigonal-3m
+          components: {r13: 7.7, r22: 3.4, r33: 28.8, r51: 18.2}
+        unit: pm/V
+        basis: measured
+        source: weis1985
+        locator: "Table 4, p.199, rows r^S 633 nm Ref. [11]: r51 18.2; Ref. [44]: r22 3.4, r13 7.7, r33 28.8"
+        accessed: 2026-10-15
+        uncertainty: {na: "not stated"}
+        conditions: {lambda: "633 nm", text: "clamped"}
+      - id: clamped_3390nm
+        use: "wavelength dependence reference"
+        tensor:
+          symmetry: trigonal-3m
+          components: {r13: 6.5, r22: 3.1, r33: 28, r51: 23}
+        unit: pm/V
+        basis: measured
+        source: weis1985
+        locator: "Table 4, p.199, row r^S 3390 nm Ref. [46]: r51 23, r22 3.1, r13 6.5, r33 28"
+        accessed: 2026-10-15
+        uncertainty: {na: "not stated"}
+        conditions: {lambda: "3390 nm", text: "clamped"}
+      - id: unclamped
+        use: "static / low-frequency field (includes the secondary piezo-elasto-optic effect); composite of two rows"
+        tensor:
+          symmetry: trigonal-3m
+          components: {r13: 10.0, r22: 6.81, r33: 32.2, r51: 32}
+        unit: pm/V
+        basis: measured
+        source: weis1985
+        locator: "Table 4, p.199, rows r^T 633 nm Ref. [37]: r22 6.81, r13 10.0, r33 32.2; Ref. [41]: r51 32"
+        accessed: 2026-10-15
+        uncertainty: {na: "not stated"}
+        conditions: {lambda: "633 nm", text: "unclamped (constant stress)"}
+  rho:
+    value: N/A
+    unit: kg/m^3
+    missing: "not read from a primary source in this lane (Weis and Gaylord 1985 is the candidate)"
+    alternatives: []
+missing:
+  - {property: r_eo, what: "Pockels coefficients at 1550 nm / 1957 nm: none in Weis and Gaylord Table 4; the 633 nm clamped row is the default (EO DevLog-038)"}
+  - {property: n, what: "temperature dependence of n_o, n_e (Zelmon 1997 fits are at 21 C only)"}
+  - {what: "elastic, piezoelectric and photoelastic tensors not authored"}

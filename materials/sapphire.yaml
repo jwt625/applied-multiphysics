@@ -1,0 +1,75 @@
+# Sapphire (single-crystal Al2O3) (lane L10, DevLog-013).
+schema: amp-material/0
+id: sapphire
+name: Sapphire (single-crystal alpha-Al2O3)
+class: crystal
+description: >-
+  Uniaxial crystal, c axis = frame z. Microwave permittivity and loss tangent are the model inputs of the Palace CPW
+  example (no measurement source named there); RF-03 carries the same numbers as case inputs.
+verified_on: 2026-11-06
+frame: "z = c axis (optic axis); perp = in the basal plane"
+sources:
+  palace_cpw:
+    citation: "AWS Palace documentation, examples/cpw.md 'Crosstalk Between Coplanar Waveguides' (Apache-2.0), github.com/awslabs/palace, branch main"
+    url: https://github.com/awslabs/palace/blob/main/docs/src/examples/cpw.md
+    access: open
+    read: "raw markdown fetched 2026-11-06 (sha256 dfe6c1e8...), lines 21-24; read by L10. The page's reference [1] (Visser, Antenna Theory and Applications, 2012) is cited for Z0, not for the material values"
+    licence: Apache-2.0
+  nist_cryo_sapphire:
+    citation: "NIST Cryogenic Technologies Group, Material properties: Sapphire, trc.nist.gov"
+    url: https://trc.nist.gov/cryogenics/materials/Sapphire/Sapphire_rev.htm
+    access: open
+    read: "web page fetched and read by L10 2026-11-06 (expansion coefficient 5-80 K and linear expansion 15-300 K fits; crystal direction not stated)"
+properties:
+  eps_r:
+    tensor:
+      symmetry: uniaxial
+      components: {perp: 9.3, par: 11.5}
+    unit: "1"
+    basis: paper_model_input
+    source: palace_cpw
+    locator: "cpw.md lines 21-23: parallel to C-axis eps_r = 11.5, perpendicular to C-axis eps_r = 9.3"
+    accessed: 2026-11-06
+    uncertainty: {na: "model input; measurement source, frequency and temperature not stated"}
+    conditions: {text: "microwave model input of the Palace CPW example"}
+    alternatives: []
+  tan_delta:
+    tensor:
+      symmetry: uniaxial
+      components: {perp: 3.0e-5, par: 8.6e-5}
+    unit: "1"
+    basis: paper_model_input
+    source: palace_cpw
+    locator: "cpw.md lines 22-23: parallel to C-axis tan delta = 8.6e-5, perpendicular to C-axis tan delta = 3.0e-5"
+    accessed: 2026-11-06
+    uncertainty: {na: "model input"}
+    conditions: {text: "microwave model input of the Palace CPW example"}
+    alternatives: []
+  alpha:
+    fit:
+      formula: nist-cryo-linexp-secant
+      vars: [{name: T, unit: K, range: [15, 300]}]
+      coeffs: {a: [-7.8850e1, -2.2346e-2, 1.0185e-4, 5.5594e-6, -8.5422e-9], scale: 1.0e-5, T_ref: 293}
+    unit: 1/K
+    cte_kind: secant
+    T_ref: "293 K"
+    basis: derived
+    source: nist_cryo_sapphire
+    locator: "Linear expansion column, (L - L293)/L293 x 1e5 = a + bT + cT^2 + dT^3 + eT^4, a..e = -7.8850E+01, -2.2346E-02, 1.0185E-04, 5.5594E-06, -8.5422E-09; data range 20-293 K, equation range 15-300 K"
+    accessed: 2026-11-06
+    derivation: "secant CTE about 293 K = [y(T) - y(293 K)] x 1e-5 / (T - 293 K) (formula nist-cryo-linexp-secant)"
+    uncertainty: {rel: 0.04, note: "curve fit error relative to data: 4 % (on the expansion)"}
+    conditions: {text: "crystal direction not stated by the source; anisotropy not represented"}
+    alternatives: []
+  rho:
+    value: N/A
+    unit: kg/m^3
+    missing: "not read from a source in this lane"
+    alternatives: []
+  k:
+    value: N/A
+    unit: W/(m*K)
+    missing: "not read from a source in this lane (NIST cryogenic page gives expansion only)"
+    alternatives: []
+missing:
+  - {property: eps_r, what: "measured microwave permittivity tensor of sapphire vs temperature (e.g. whispering-gallery-mode resonator data) not read; candidates are paywalled"}

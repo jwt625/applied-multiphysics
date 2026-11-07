@@ -1,0 +1,110 @@
+# Gold, bulk (lane L10, DevLog-013).
+schema: amp-material/0
+id: gold
+name: Gold, bulk
+class: metal
+description: >-
+  Bulk high-purity gold. Electrical conductivity follows from the tabulated resistivity (sigma = 1 / rho_e, package
+  rule). Evaporated / electroplated thin films are generally less conductive and are not covered.
+verified_on: 2026-11-06
+sources:
+  hpl1972:
+    citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
+    doi: 10.1063/1.3253100
+    url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
+    access: open
+    read: "not re-read by L10; APA lane read the p.340 recommended-value table on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (au.properties.k)"
+  matula1979:
+    citation: "R. A. Matula, Electrical resistivity of copper, gold, palladium, and silver, J. Phys. Chem. Ref. Data 8, 1147-1298 (1979)"
+    doi: 10.1063/1.555614
+    url: https://srd.nist.gov/jpcrdreprint/1.555614.pdf
+    access: open
+    read: "not re-read by L10; APA lane read p.1209 Table 5 on 2026-10-20; EO lane read the 293 K entry (2.214e-8 ohm m) on 2026-10-14"
+    via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (au.properties.sigma); eo-modulator-atlas engine/data/materials.json at bc68738 (library.gold_bulk_293k)"
+  nist_solder_db_v4:
+    citation: "T. Siewert, S. Liu, D. R. Smith, J. C. Madeni, Database for solder properties with emphasis on new lead-free solders, release 4.0, NIST and Colorado School of Mines (2002-02-11)"
+    url: https://www.msed.nist.gov/solder/NIST_LeadfreeSolder_v4.pdf
+    access: open
+    read: "text layer, Table 1.10 (pdf p.16) and Table 2.2.5 (pdf p.37), read by L10 2026-11-06; cached under cache/materials/gold/"
+properties:
+  rho:
+    value: 19.3
+    unit: g/cm^3
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Gold: density (20 C) 19.3 g/cm3 (N. A. Lange, Handbook of Chemistry, 1956, pp. 100-107, as cited)"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {T: "20 degC"}
+    alternatives: []
+  E:
+    value: 74.4
+    unit: GPa
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 1.10 row Gold 99.99, condition Cast: E 74.4 GPa (D. E. Gray, ed., AIP Handbook, 1957, pp. 2-61 ff., as cited)"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {text: "99.99 % gold, cast; temperature not stated"}
+    alternatives: []
+  nu:
+    value: N/A
+    unit: "1"
+    missing: "no Poisson ratio for gold in the sources read (NIST solder DB Table 1.10 gives no shear modulus for gold)"
+    alternatives: []
+  k:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 223.2, 250, 273.2, 298.2, 300, 323.2, 350, 373.2, 400, 473.2, 500, 573.2, 600]
+      ys: [3.23, 3.22, 3.21, 3.19, 3.18, 3.17, 3.16, 3.14, 3.13, 3.11, 3.06, 3.04, 2.99, 2.98]
+    unit: W/(cm*K)
+    basis: measured
+    source: hpl1972
+    locator: "journal p.340, Thermal conductivity of gold, recommended values (solid)"
+    accessed: 2026-10-20
+    uncertainty: {na: "not transcribed"}
+    conditions: {text: "high-purity gold"}
+    alternatives: []
+  rho_e:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 225, 250, 273.15, 293, 300, 350, 400, 500, 600]
+      ys: [1.462, 1.662, 1.864, 2.051, 2.214, 2.271, 2.685, 3.107, 3.974, 4.875]
+      interp: loglog
+    unit: uohm*cm
+    basis: measured
+    source: matula1979
+    locator: "journal p.1209 Table 5, recommended total resistivity of gold (solid), 1e-8 ohm m"
+    accessed: 2026-10-20
+    uncertainty: {na: "not transcribed"}
+    conditions: {text: "annealed 99.999 % pure or purer bulk gold (EO reading of Table 5 footnotes)"}
+    alternatives: []
+  cp:
+    value: 127.5
+    unit: J/(kg*K)
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Gold: heat capacity (25 C) 6.0 g-cal/(g-at K), 127.5 J/(kg K) (Lange 1956, as cited)"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    alternatives: []
+  alpha:
+    value: 14.2
+    unit: ppm/K
+    cte_kind: instantaneous
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Gold: thermal expansion coefficient (20 C) 14.2 x 1e-6 /K (Lange 1956, as cited)"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {T: "20 degC", text: "value at 20 C; recorded as instantaneous"}
+    alternatives: []
+  mu_r:
+    value: N/A
+    unit: "1"
+    missing: "no magnetic-susceptibility source read for gold in this lane"
+    alternatives: []

@@ -1,0 +1,1313 @@
+{
+  "$id": "urn:amp-material:0",
+  "title": "amp-material/0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "amp-material/0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "class": {
+      "type": "string",
+      "enum": [
+        "metal",
+        "gas",
+        "liquid",
+        "semiconductor",
+        "glass",
+        "crystal",
+        "polymer",
+        "ceramic",
+        "piezoelectric",
+        "dielectric_film"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "verified_on": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "frame": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "sources": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "citation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "doi": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "open",
+              "vendor_open",
+              "paywalled",
+              "local_cache"
+            ]
+          },
+          "read": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "via": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "licence": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          }
+        },
+        "required": [
+          "citation",
+          "access",
+          "read"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "properties": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "const": "N/A"
+              }
+            ]
+          },
+          "table": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "string",
+                "enum": [
+                  "T",
+                  "lambda",
+                  "f"
+                ]
+              },
+              "x_unit": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              },
+              "xs": {
+                "minItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "ys": {
+                "minItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "interp": {
+                "type": "string",
+                "enum": [
+                  "linear",
+                  "loglog"
+                ]
+              }
+            },
+            "required": [
+              "x",
+              "x_unit",
+              "xs",
+              "ys"
+            ],
+            "additionalProperties": false,
+            "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog"
+          },
+          "fit": {
+            "type": "object",
+            "properties": {
+              "formula": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "vars": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": [
+                        "T",
+                        "lambda",
+                        "f"
+                      ]
+                    },
+                    "unit": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 32
+                    },
+                    "range": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "items": false,
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "unit",
+                    "range"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "coeffs": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "formula",
+              "vars",
+              "coeffs"
+            ],
+            "additionalProperties": false,
+            "description": "Fit with a formula id implemented in @amp/materials/formulas; vars carry unit and validity range"
+          },
+          "tensor": {
+            "type": "object",
+            "properties": {
+              "symmetry": {
+                "type": "string",
+                "enum": [
+                  "cubic",
+                  "uniaxial",
+                  "trigonal-3m"
+                ]
+              },
+              "components": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string",
+                      "const": "N/A"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "string",
+                              "const": "N/A"
+                            }
+                          ]
+                        },
+                        "table": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "string",
+                              "enum": [
+                                "T",
+                                "lambda",
+                                "f"
+                              ]
+                            },
+                            "x_unit": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 32
+                            },
+                            "xs": {
+                              "minItems": 2,
+                              "type": "array",
+                              "items": {
+                                "type": "number"
+                              }
+                            },
+                            "ys": {
+                              "minItems": 2,
+                              "type": "array",
+                              "items": {
+                                "type": "number"
+                              }
+                            },
+                            "interp": {
+                              "type": "string",
+                              "enum": [
+                                "linear",
+                                "loglog"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "x_unit",
+                            "xs",
+                            "ys"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog"
+                        },
+                        "fit": {
+                          "type": "object",
+                          "properties": {
+                            "formula": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            },
+                            "vars": {
+                              "minItems": 1,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "enum": [
+                                      "T",
+                                      "lambda",
+                                      "f"
+                                    ]
+                                  },
+                                  "unit": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 32
+                                  },
+                                  "range": {
+                                    "type": "array",
+                                    "prefixItems": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "number"
+                                      }
+                                    ],
+                                    "items": false,
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "unit",
+                                  "range"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "coeffs": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "number"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "formula",
+                            "vars",
+                            "coeffs"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Fit with a formula id implemented in @amp/materials/formulas; vars carry unit and validity range"
+                        },
+                        "locator": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4000
+                        },
+                        "uncertainty": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "abs": {
+                                  "type": "number"
+                                },
+                                "rel": {
+                                  "type": "number"
+                                },
+                                "range": {
+                                  "type": "array",
+                                  "prefixItems": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "number"
+                                    }
+                                  ],
+                                  "items": false,
+                                  "minItems": 2,
+                                  "maxItems": 2
+                                },
+                                "unit": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                },
+                                "note": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 4000
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "na": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 4000
+                                }
+                              },
+                              "required": [
+                                "na"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ],
+                          "description": "Uncertainty or range as stated by the source ({abs, unit} | {rel} | {range}); {na: reason} when the source states none"
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4000
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "symmetry",
+              "components"
+            ],
+            "additionalProperties": false,
+            "description": "Tensor property: independent components for the symmetry (cubic C11 C12 C44; uniaxial perp par; trigonal-3m r13 r22 r33 r51)"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "measured",
+              "handbook",
+              "datasheet",
+              "paper_model_input",
+              "derived",
+              "standard",
+              "reference_correlation"
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              }
+            ]
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "accessed": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "uncertainty": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "abs": {
+                    "type": "number"
+                  },
+                  "rel": {
+                    "type": "number"
+                  },
+                  "range": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "note": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "na": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "na"
+                ],
+                "additionalProperties": false
+              }
+            ],
+            "description": "Uncertainty or range as stated by the source ({abs, unit} | {rel} | {range}); {na: reason} when the source states none"
+          },
+          "conditions": {
+            "type": "object",
+            "properties": {
+              "T": {
+                "type": "string",
+                "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+              },
+              "p": {
+                "type": "string",
+                "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+              },
+              "lambda": {
+                "type": "string",
+                "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+              },
+              "f": {
+                "type": "string",
+                "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              }
+            },
+            "additionalProperties": false,
+            "description": "Conditions of the value (temperature, pressure, wavelength, frequency, free text)"
+          },
+          "cte_kind": {
+            "type": "string",
+            "enum": [
+              "instantaneous",
+              "secant"
+            ]
+          },
+          "T_ref": {
+            "type": "string",
+            "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+          },
+          "derivation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "analog_of": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "missing": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "needed_for": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "geometry",
+                "mesh",
+                "solution",
+                "plots",
+                "eval"
+              ]
+            }
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$"
+                },
+                "use": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 400
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string",
+                      "const": "N/A"
+                    }
+                  ]
+                },
+                "table": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "string",
+                      "enum": [
+                        "T",
+                        "lambda",
+                        "f"
+                      ]
+                    },
+                    "x_unit": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 32
+                    },
+                    "xs": {
+                      "minItems": 2,
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    },
+                    "ys": {
+                      "minItems": 2,
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    },
+                    "interp": {
+                      "type": "string",
+                      "enum": [
+                        "linear",
+                        "loglog"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "x_unit",
+                    "xs",
+                    "ys"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog"
+                },
+                "fit": {
+                  "type": "object",
+                  "properties": {
+                    "formula": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "vars": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "enum": [
+                              "T",
+                              "lambda",
+                              "f"
+                            ]
+                          },
+                          "unit": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 32
+                          },
+                          "range": {
+                            "type": "array",
+                            "prefixItems": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ],
+                            "items": false,
+                            "minItems": 2,
+                            "maxItems": 2
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "unit",
+                          "range"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "coeffs": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "number"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "formula",
+                    "vars",
+                    "coeffs"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Fit with a formula id implemented in @amp/materials/formulas; vars carry unit and validity range"
+                },
+                "tensor": {
+                  "type": "object",
+                  "properties": {
+                    "symmetry": {
+                      "type": "string",
+                      "enum": [
+                        "cubic",
+                        "uniaxial",
+                        "trigonal-3m"
+                      ]
+                    },
+                    "components": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "const": "N/A"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "value": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "const": "N/A"
+                                  }
+                                ]
+                              },
+                              "table": {
+                                "type": "object",
+                                "properties": {
+                                  "x": {
+                                    "type": "string",
+                                    "enum": [
+                                      "T",
+                                      "lambda",
+                                      "f"
+                                    ]
+                                  },
+                                  "x_unit": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 32
+                                  },
+                                  "xs": {
+                                    "minItems": 2,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "ys": {
+                                    "minItems": 2,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "interp": {
+                                    "type": "string",
+                                    "enum": [
+                                      "linear",
+                                      "loglog"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "x",
+                                  "x_unit",
+                                  "xs",
+                                  "ys"
+                                ],
+                                "additionalProperties": false,
+                                "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog"
+                              },
+                              "fit": {
+                                "type": "object",
+                                "properties": {
+                                  "formula": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 64
+                                  },
+                                  "vars": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "type": "string",
+                                          "enum": [
+                                            "T",
+                                            "lambda",
+                                            "f"
+                                          ]
+                                        },
+                                        "unit": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 32
+                                        },
+                                        "range": {
+                                          "type": "array",
+                                          "prefixItems": [
+                                            {
+                                              "type": "number"
+                                            },
+                                            {
+                                              "type": "number"
+                                            }
+                                          ],
+                                          "items": false,
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        }
+                                      },
+                                      "required": [
+                                        "name",
+                                        "unit",
+                                        "range"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "coeffs": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "number"
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "formula",
+                                  "vars",
+                                  "coeffs"
+                                ],
+                                "additionalProperties": false,
+                                "description": "Fit with a formula id implemented in @amp/materials/formulas; vars carry unit and validity range"
+                              },
+                              "locator": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 4000
+                              },
+                              "uncertainty": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "abs": {
+                                        "type": "number"
+                                      },
+                                      "rel": {
+                                        "type": "number"
+                                      },
+                                      "range": {
+                                        "type": "array",
+                                        "prefixItems": [
+                                          {
+                                            "type": "number"
+                                          },
+                                          {
+                                            "type": "number"
+                                          }
+                                        ],
+                                        "items": false,
+                                        "minItems": 2,
+                                        "maxItems": 2
+                                      },
+                                      "unit": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 64
+                                      },
+                                      "note": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 4000
+                                      }
+                                    },
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "na": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 4000
+                                      }
+                                    },
+                                    "required": [
+                                      "na"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ],
+                                "description": "Uncertainty or range as stated by the source ({abs, unit} | {rel} | {range}); {na: reason} when the source states none"
+                              },
+                              "note": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 4000
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "symmetry",
+                    "components"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Tensor property: independent components for the symmetry (cubic C11 C12 C44; uniaxial perp par; trigonal-3m r13 r22 r33 r51)"
+                },
+                "unit": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "basis": {
+                  "type": "string",
+                  "enum": [
+                    "measured",
+                    "handbook",
+                    "datasheet",
+                    "paper_model_input",
+                    "derived",
+                    "standard",
+                    "reference_correlation"
+                  ]
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      }
+                    }
+                  ]
+                },
+                "locator": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "accessed": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "uncertainty": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "abs": {
+                          "type": "number"
+                        },
+                        "rel": {
+                          "type": "number"
+                        },
+                        "range": {
+                          "type": "array",
+                          "prefixItems": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ],
+                          "items": false,
+                          "minItems": 2,
+                          "maxItems": 2
+                        },
+                        "unit": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4000
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "na": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4000
+                        }
+                      },
+                      "required": [
+                        "na"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ],
+                  "description": "Uncertainty or range as stated by the source ({abs, unit} | {rel} | {range}); {na: reason} when the source states none"
+                },
+                "conditions": {
+                  "type": "object",
+                  "properties": {
+                    "T": {
+                      "type": "string",
+                      "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+                    },
+                    "p": {
+                      "type": "string",
+                      "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+                    },
+                    "lambda": {
+                      "type": "string",
+                      "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+                    },
+                    "f": {
+                      "type": "string",
+                      "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4000
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Conditions of the value (temperature, pressure, wavelength, frequency, free text)"
+                },
+                "cte_kind": {
+                  "type": "string",
+                  "enum": [
+                    "instantaneous",
+                    "secant"
+                  ]
+                },
+                "T_ref": {
+                  "type": "string",
+                  "pattern": "^(N\\/A|[+-]?(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?\\s*\\S*.*)$"
+                },
+                "derivation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "analog_of": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "note": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "missing": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "needed_for": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "geometry",
+                      "mesh",
+                      "solution",
+                      "plots",
+                      "eval"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "use",
+                "unit"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "unit",
+          "alternatives"
+        ],
+        "additionalProperties": false,
+        "description": "Property leaf: exactly one of value | table | fit | tensor; value N/A needs missing"
+      }
+    },
+    "missing": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "property": {
+            "type": "string"
+          },
+          "what": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "needed_for": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "geometry",
+                "mesh",
+                "solution",
+                "plots",
+                "eval"
+              ]
+            }
+          }
+        },
+        "required": [
+          "what"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "name",
+    "class",
+    "description",
+    "verified_on",
+    "sources",
+    "properties"
+  ],
+  "additionalProperties": false
+}

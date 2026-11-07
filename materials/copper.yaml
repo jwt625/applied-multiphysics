@@ -1,0 +1,165 @@
+# Copper, annealed high-purity bulk (lane L10, DevLog-013). Evaluated-compilation values (HPL 1972, Matula 1979,
+# Ledbetter-Naimon 1974) as read by the advanced-packaging-atlas lane; NIST cryogenic fits read by L10.
+schema: amp-material/0
+id: copper
+name: Copper, annealed high-purity bulk
+class: metal
+description: >-
+  Annealed high-purity (OFHC-class) bulk copper. Electrical conductivity follows from the tabulated resistivity
+  (sigma = 1 / rho_e, package rule). Thin-film and electroplated copper differ and are not covered.
+verified_on: 2026-11-06
+sources:
+  hpl1972:
+    citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
+    doi: 10.1063/1.3253100
+    url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
+    access: open
+    read: "not re-read by L10; APA lane read the p.332 recommended-value table (page render) on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (cu_bulk.properties.k)"
+  matula1979:
+    citation: "R. A. Matula, Electrical resistivity of copper, gold, palladium, and silver, J. Phys. Chem. Ref. Data 8, 1147-1298 (1979)"
+    doi: 10.1063/1.555614
+    url: https://srd.nist.gov/jpcrdreprint/1.555614.pdf
+    access: open
+    read: "not re-read by L10; APA lane read p.1161 Table 2 and the interpolation rule (p.1160) on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (cu_bulk.properties.sigma)"
+  ledbetter_naimon1974:
+    citation: "H. M. Ledbetter, E. R. Naimon, Elastic properties of metals and alloys. II. Copper, J. Phys. Chem. Ref. Data 3, 897-935 (1974)"
+    doi: 10.1063/1.3253150
+    url: https://srd.nist.gov/jpcrdreprint/1.3253150.pdf
+    access: open
+    read: "not re-read by L10; APA lane read p.923 Table 10 and p.925 Table 12 on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (cu_bulk.properties.elastic)"
+  nist_cryo_ofhc_cu:
+    citation: "NIST Cryogenic Technologies Group, Material properties: OFHC copper (UNS C10100/C10200), trc.nist.gov (page revised 2010-02-03)"
+    url: https://trc.nist.gov/cryogenics/materials/OFHC%20Copper/OFHC_Copper_rev1.htm
+    access: open
+    read: "web page fetched and read by L10 2026-11-06 (specific heat and expansion coefficient fits); cached under cache/materials/copper/"
+  janaf1998_cu:
+    citation: "M. W. Chase Jr., NIST-JANAF Thermochemical Tables, 4th ed., J. Phys. Chem. Ref. Data Monograph 9 (1998), p.1005, Copper (Cu) reference-state table"
+    url: https://janaf.nist.gov/tables/Cu-001.html
+    access: open
+    read: "not re-read by L10; APA lane read the web table and the monograph page on 2026-10-21"
+    via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (cu_bulk.properties.cp)"
+  nist_solder_db_v4:
+    citation: "T. Siewert, S. Liu, D. R. Smith, J. C. Madeni, Database for solder properties with emphasis on new lead-free solders, release 4.0, NIST and Colorado School of Mines (2002-02-11)"
+    url: https://www.msed.nist.gov/solder/NIST_LeadfreeSolder_v4.pdf
+    access: open
+    read: "text layer, Table 2.2.5 (pdf p.37) and Table 2.2.7 (pdf p.39), read by L10 2026-11-06; a compilation, each table names its own source"
+properties:
+  rho:
+    value: 8.96
+    unit: g/cm^3
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.7 row Cu: density 8.96 g/cm3 (table source: Brandi et al., ASM Handbook Vol. 6, 1993, as cited)"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {text: "temperature not stated"}
+    alternatives:
+      - id: lange1956
+        use: "sensitivity (second handbook value in the same compilation, 20 C)"
+        value: 8.92
+        unit: g/cm^3
+        basis: handbook
+        source: nist_solder_db_v4
+        locator: "Table 2.2.5 row Copper: density (20 C) 8.92 g/cm3 (N. A. Lange, Handbook of Chemistry, 1956, as cited)"
+        accessed: 2026-11-06
+        uncertainty: {na: "not stated"}
+        conditions: {T: "20 degC"}
+  k:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 223.2, 250, 273.2, 298.2, 300, 323.2, 350, 373.2, 400, 473.2, 500, 573.2, 600]
+      ys: [4.13, 4.09, 4.06, 4.03, 4.01, 4.01, 3.99, 3.96, 3.95, 3.93, 3.88, 3.86, 3.81, 3.79]
+    unit: W/(cm*K)
+    basis: measured
+    source: hpl1972
+    locator: "journal p.332, Thermal conductivity of copper, recommended values (solid)"
+    accessed: 2026-10-20
+    uncertainty: {rel: 0.02, note: "source remarks: +-2 % near room temperature"}
+    conditions: {text: "well-annealed high-purity Cu"}
+    alternatives: []
+  rho_e:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 225, 250, 273.15, 293, 300, 350, 400, 500, 600]
+      ys: [1.046, 1.217, 1.387, 1.543, 1.678, 1.725, 2.063, 2.402, 3.090, 3.792]
+      interp: loglog
+    unit: uohm*cm
+    basis: measured
+    source: matula1979
+    locator: "journal p.1161 Table 2, total resistivity (solid), annealed 99.999 % pure bulk Cu (1e-8 ohm m); log-log interpolation per p.1160"
+    accessed: 2026-10-20
+    uncertainty: {na: "not transcribed"}
+    conditions: {text: "annealed 99.999 % pure bulk copper"}
+    alternatives: []
+  E:
+    value: 123.5
+    unit: GPa
+    basis: measured
+    source: ledbetter_naimon1974
+    locator: "journal p.923 Table 10, polycrystal average values (E 1.235 +- 0.007 x 1e11 N/m2)"
+    accessed: 2026-10-20
+    uncertainty: {abs: 0.7, unit: GPa}
+    conditions: {text: "room temperature, annealed polycrystal; (1/E) dE/dT = -4.8e-4 /K at RT (Table 12 p.925), not applied"}
+    alternatives: []
+  nu:
+    value: 0.350
+    unit: "1"
+    basis: measured
+    source: ledbetter_naimon1974
+    locator: "journal p.923 Table 10, polycrystal average values (nu 0.350 +- 0.009)"
+    accessed: 2026-10-20
+    uncertainty: {abs: 0.009}
+    conditions: {text: "room temperature, annealed polycrystal"}
+    alternatives: []
+  cp:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 250, 293.15, 300, 400, 500, 600, 700]
+      ys: [359.0, 380.6, 389.1, 389.4, 398.4, 407.8, 416.7, 424.8]
+    unit: J/(kg*K)
+    basis: derived
+    source: [nist_cryo_ofhc_cu, janaf1998_cu]
+    locator: "200-300 K: NIST OFHC copper specific-heat fit (log10 y = sum a_i (log10 T)^i, a..h = -1.91844, -0.15973, 8.61013, -18.996, 21.9661, -12.7328, 3.54322, -0.3797; 4-300 K); 400-700 K: JANAF p.1005 Cp 25.318 / 25.912 / 26.481 / 26.996 J/(K mol), A_r 63.546"
+    accessed: 2026-10-21
+    derivation: "tabulated by the APA lane: NIST fit evaluated at 200-300 K; JANAF c_p = Cp / (A_r x 1e-3 kg/mol); step at the join: JANAF 384.9 J/(kg K) at 300 K vs the NIST fit 389.4 (-1.2 %)"
+    uncertainty: {rel: 0.05, note: "NIST fit error 5 % (T >= 15 K); JANAF part not stated"}
+    conditions: {p: "0.1 MPa"}
+    alternatives: []
+  alpha:
+    fit:
+      formula: nist-cryo-log-poly
+      vars: [{name: T, unit: K, range: [4, 300]}]
+      coeffs: {a: [-17.9081289, 67.131914, -118.809316, 109.9845997, -53.8696089, 13.30247491, -1.30843441]}
+    unit: ppm/K
+    cte_kind: instantaneous
+    basis: measured
+    source: nist_cryo_ofhc_cu
+    locator: "Expansion Coefficient column (units 10-6 /K): a..g = -17.9081289, 67.131914, -118.809316, 109.9845997, -53.8696089, 13.30247491, -1.30843441 (h, i not given); data and equation range 4-300 K"
+    accessed: 2026-11-06
+    uncertainty: {rel: 0.05, note: "curve fit error relative to data: 10 % (T < 50 K), 5 % (T >= 50 K)"}
+    conditions: {text: "OFHC copper"}
+    alternatives:
+      - id: handbook_constant
+        use: "constant CTE above 300 K (no temperature range stated in the source)"
+        value: 17.0
+        unit: ppm/K
+        cte_kind: instantaneous
+        basis: handbook
+        source: nist_solder_db_v4
+        locator: "Table 2.2.7 row Cu: CTE 17.0 x 1e-6 /C (ASM Handbook Vol. 6, 1993, as cited)"
+        accessed: 2026-11-06
+        uncertainty: {na: "not stated"}
+        conditions: {text: "temperature range not stated; kind (mean vs instantaneous) not stated, recorded as instantaneous"}
+  mu_r:
+    value: N/A
+    unit: "1"
+    missing: "no primary magnetic-susceptibility source read for Cu in this lane; a spec that needs mu_r must state it (with basis) as an override"
+    alternatives: []
+missing:
+  - {what: "electroplated and thin-film Cu (resistivity, modulus, CTE) not covered"}

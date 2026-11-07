@@ -1,0 +1,119 @@
+# Aluminum alloy 6061-T6 (lane L10, DevLog-013).
+schema: amp-material/0
+id: aluminum-6061-t6
+name: Aluminum alloy 6061-T6
+class: metal
+description: >-
+  Wrought 6061 in the T6 temper. Room-temperature design elastic constants and density from MIL-HDBK-5J (sheet,
+  T6 / T62); temperature-dependent conductivity, heat capacity and expansion from the NIST cryogenic fits (4-300 K only).
+verified_on: 2026-11-06
+sources:
+  mil_hdbk_5j:
+    citation: "MIL-HDBK-5J, Department of Defense Handbook: Metallic Materials and Elements for Aerospace Vehicle Structures, 31 January 2003 (cancelled; superseded by MMPDS)"
+    url: "https://everyspec.com/MIL-HDBK/MIL-HDBK-0001-0099/MIL_HDBK_5J_139/"
+    access: open
+    read: "text layer of the everyspec PDF (1733 pages), p.3-264 Table 3.6.2.0(b1), read by L10 2026-11-06; cached under cache/materials/aluminum-6061-t6/"
+  nist_cryo_6061:
+    citation: "NIST Cryogenic Technologies Group, Material properties: 6061-T6 Aluminum (UNS A96061), trc.nist.gov"
+    url: "https://trc.nist.gov/cryogenics/materials/6061%20Aluminum/6061_T6Aluminum_rev.htm"
+    access: open
+    read: "web page fetched and read by L10 2026-11-06 (thermal conductivity, specific heat, Young's modulus, linear expansion fits)"
+properties:
+  rho:
+    value: 0.098
+    unit: lb/in^3
+    basis: handbook
+    source: mil_hdbk_5j
+    locator: "p.3-264 Table 3.6.2.0(b1), Physical Properties: omega 0.098 lb/in3"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {text: "6061 sheet, all tempers of the table; temperature not stated"}
+    alternatives: []
+  E:
+    value: 9.9e3
+    unit: ksi
+    basis: handbook
+    source: mil_hdbk_5j
+    locator: "p.3-264 Table 3.6.2.0(b1): E 9.9 (10^3 ksi); Ec 10.1 (10^3 ksi, compression)"
+    accessed: 2026-11-06
+    uncertainty: {na: "design value, no uncertainty stated"}
+    conditions: {text: "room temperature design value, 6061 sheet T4 / T42 / T6 / T62"}
+    alternatives:
+      - id: nist_cryo_e_t
+        use: "temperature-dependent modulus below room temperature (2-295 K)"
+        fit:
+          formula: poly
+          vars: [{name: T, unit: K, range: [2, 295]}]
+          coeffs: {x0: 0, c: [77.71221, 1.030646e-2, -2.924100e-4, 8.993600e-7, -1.070900e-9]}
+        unit: GPa
+        basis: measured
+        source: nist_cryo_6061
+        locator: "Young's Modulus column: y = a + bT + cT^2 + dT^3 + eT^4, a..e = 7.771221E1, 1.030646E-2, -2.924100E-4, 8.993600E-7, -1.070900E-9 (GPa); data range 0-299 K, equation range 2-295 K"
+        accessed: 2026-11-06
+        uncertainty: {rel: 0.01, note: "curve fit error relative to data: 1 %"}
+        conditions: {text: "6061-T6"}
+  G:
+    value: 3.8e3
+    unit: ksi
+    basis: handbook
+    source: mil_hdbk_5j
+    locator: "p.3-264 Table 3.6.2.0(b1): G 3.8 (10^3 ksi)"
+    accessed: 2026-11-06
+    uncertainty: {na: "design value"}
+    conditions: {text: "room temperature design value"}
+    alternatives: []
+  nu:
+    value: 0.33
+    unit: "1"
+    basis: handbook
+    source: mil_hdbk_5j
+    locator: "p.3-264 Table 3.6.2.0(b1): mu 0.33"
+    accessed: 2026-11-06
+    uncertainty: {na: "design value"}
+    conditions: {text: "room temperature design value"}
+    alternatives: []
+  k:
+    fit:
+      formula: nist-cryo-log-poly
+      vars: [{name: T, unit: K, range: [4, 300]}]
+      coeffs: {a: [0.07918, 1.0957, -0.07277, 0.08084, 0.02803, -0.09464, 0.04179, -0.00571, 0]}
+    unit: W/(m*K)
+    basis: measured
+    source: nist_cryo_6061
+    locator: "Thermal Conductivity column, a..i = 0.07918, 1.0957, -0.07277, 0.08084, 0.02803, -0.09464, 0.04179, -0.00571, 0; data range 4-300 K, equation range 1-300 K"
+    accessed: 2026-11-06
+    uncertainty: {rel: 0.005, note: "curve fit error relative to data: 0.5 %"}
+    conditions: {text: "6061-T6; range limited here to the data range 4-300 K"}
+    alternatives: []
+  cp:
+    fit:
+      formula: nist-cryo-log-poly
+      vars: [{name: T, unit: K, range: [4, 300]}]
+      coeffs: {a: [46.6467, -314.292, 866.662, -1298.3, 1162.27, -637.795, 210.351, -38.3094, 2.96344]}
+    unit: J/(kg*K)
+    basis: measured
+    source: nist_cryo_6061
+    locator: "Specific Heat column, a..i = 46.6467, -314.292, 866.662, -1298.3, 1162.27, -637.795, 210.351, -38.3094, 2.96344; data and equation range 4-300 K"
+    accessed: 2026-11-06
+    uncertainty: {rel: 0.05, note: "curve fit error relative to data: 5 %"}
+    conditions: {text: "6061-T6"}
+    alternatives: []
+  alpha:
+    fit:
+      formula: nist-cryo-linexp-secant
+      vars: [{name: T, unit: K, range: [18, 300]}]
+      coeffs: {a: [-4.1277e2, -3.0389e-1, 8.7696e-3, -9.9821e-6, 0], scale: 1.0e-5, T_ref: 293}
+    unit: 1/K
+    cte_kind: secant
+    T_ref: "293 K"
+    basis: derived
+    source: nist_cryo_6061
+    locator: "Linear expansion column, (L - L293)/L293 x 1e5 = a + bT + cT^2 + dT^3 + eT^4 for T > Tlow = 18 K, a..e = -4.1277E2, -3.0389E-1, 8.7696E-3, -9.9821E-6, 0 (f = -415.45 below Tlow); data and equation range 4-300 K"
+    accessed: 2026-11-06
+    derivation: "secant CTE about 293 K = [y(T) - y(293 K)] x 1e-5 / (T - 293 K) (formula nist-cryo-linexp-secant); range limited to 18-300 K (the polynomial branch)"
+    uncertainty: {rel: 0.04, note: "curve fit error relative to data: 4 % (on the expansion, not on the derived secant coefficient)"}
+    conditions: {text: "6061-T6"}
+    alternatives: []
+missing:
+  - {what: "k, cp and alpha above 300 K: MIL-HDBK-5J gives them only in Figure 3.6.2.0 (not digitized)"}
+  - {property: rho_e, what: "electrical resistivity not read from a source"}

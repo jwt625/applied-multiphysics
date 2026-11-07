@@ -1,0 +1,96 @@
+# Structural (carbon) steel (lane L10, DevLog-013). Elastic constants vs temperature from NIST NCSTAR 1-3D; thermal and
+# physical properties are N/A: the open design codes that tabulate them (EN 1993-1-2, AISC 360) could not be read
+# from an authorised open copy in this lane (see missing).
+schema: amp-material/0
+id: structural-steel
+name: Structural steel (carbon steel, ferritic)
+class: metal
+description: >-
+  Generic ferritic structural steel. E(T) is the NIST fit to dynamic-mechanical measurements on three WTC structural
+  steels (specified yield 50-55 ksi); nu(T) is NIST's fit to literature data for iron and mild steel; G(T) follows
+  from both. The Kirsch hero (sims/kirsch-plate.yaml) does not depend on these values.
+verified_on: 2026-11-06
+sources:
+  ncstar1_3d:
+    citation: "W. E. Luecke, J. D. McColskey, C. N. McCowan, S. W. Banovic, R. J. Fields, T. Foecke, T. A. Siewert, F. W. Gayle, Mechanical Properties of Structural Steels, NIST NCSTAR 1-3D, Federal Building and Fire Safety Investigation of the World Trade Center Disaster (September 2005)"
+    url: https://nvlpubs.nist.gov/nistpubs/Legacy/NCSTAR/ncstar1-3d.pdf
+    access: open
+    read: "report p.12-13 (pdf p.46-47), Sec. 2.3 Eqs. 2-2 to 2-4 read from 140 dpi page renders (text layer garbles exponents) and Sec. 2.6; read by L10 2026-11-06; cached under cache/materials/structural-steel/"
+  fhwa_sbdh_vol1:
+    citation: "FHWA, Steel Bridge Design Handbook: Bridge Steels and Their Mechanical Properties, Publication No. FHWA-IF-12-052, Vol. 1 (November 2012)"
+    url: https://rosap.ntl.bts.gov/view/dot/49740
+    access: open
+    read: "text layer p.21 (pdf p.31), read by L10 2026-11-06"
+properties:
+  E:
+    fit:
+      formula: poly
+      vars: [{name: T, unit: degC, range: [0, 600]}]
+      coeffs: {x0: 0, c: [206.0, -0.04326, -3.502e-5, -6.592e-8]}
+    unit: GPa
+    basis: measured
+    source: ncstar1_3d
+    locator: "p.12 Eq. 2-2: E(T) = e0 + e1 T + e2 T^2 + e3 T^3, e0 = 206.0 GPa, e1 = -0.04326 GPa/C, e2 = -3.502e-5 GPa/C^2, e3 = -6.592e-8 GPa/C^3, 0 C < T < 600 C"
+    accessed: 2026-11-06
+    uncertainty: {rel: 0.02, note: "Sec. 2.6 (p.13): Eq. 2-2 represents the NIST data within 2 percent; e0 fixed as the average of the three steels at 0 C"}
+    conditions: {text: "three WTC structural steels (Table 2-1: specified yield 50 and 55 ksi), DMA three-point bending at 1 Hz"}
+    alternatives:
+      - id: fhwa_design
+        use: "design value for structural calculations (temperature independent)"
+        value: 29000
+        unit: ksi
+        basis: standard
+        source: fhwa_sbdh_vol1
+        locator: "p.21: 'conservatively taken as E = 29,000 ksi for structural calculations for all structural steels used in bridge construction'; measured values reported 29,000-30,000 ksi"
+        accessed: 2026-11-06
+        uncertainty: {range: [29000, 30000], unit: ksi, note: "range of experimental values quoted on p.21-22"}
+        conditions: {text: "room temperature design value"}
+  nu:
+    fit:
+      formula: poly
+      vars: [{name: T, unit: degC, range: [0, 725]}]
+      coeffs: {x0: 0, c: [0.28737362, 2.5302417e-5, 2.6333384e-8, -9.9419588e-11, 1.2617779e-13]}
+    unit: "1"
+    basis: measured
+    source: ncstar1_3d
+    locator: "p.12 Eq. 2-3: nu(T) = n0 + n1 T + n2 T^2 + n3 T^3 + n4 T^4, n0 = 0.28737362, n1 = 2.5302417e-5, n2 = 2.6333384e-8, n3 = -9.9419588e-11, n4 = 1.2617779e-13 (C^-i), 0 C < T < 725 C"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated for Eq. 2-3"}
+    conditions: {text: "fit to literature data for iron (Dever 1972) and mild steel (Clark 1953 cited in Cooke 1988); room-temperature value 0.288 (p.12)"}
+    alternatives: []
+  G:
+    fit:
+      formula: poly
+      vars: [{name: T, unit: degC, range: [0, 725]}]
+      coeffs: {x0: 0, c: [80.005922, -0.018303811, -1.5650288e-5, -1.5160921e-8, -1.6242911e-11, 7.7277543e-15]}
+    unit: GPa
+    basis: derived
+    source: ncstar1_3d
+    locator: "p.12 Eq. 2-4: G(T) = g0 + ... + g5 T^5, g0 = 80.005922 GPa, g1 = -0.018303811, g2 = -1.5650288e-5, g3 = -1.5160921e-8, g4 = -1.6242911e-11, g5 = 7.7277543e-15 (GPa/C^i), 0 < T < 725 C"
+    accessed: 2026-11-06
+    derivation: "source: G = E / (2 (1 + nu)) from Eqs. 2-2 and 2-3 at discrete points, refit with a fifth-order polynomial"
+    uncertainty: {na: "source (p.13): room-temperature G from this route differs by 3.5 % from measurements cited in Galambos 1978 and ASM 1978"}
+    conditions: {text: "consistent with Eqs. 2-2 and 2-3"}
+    alternatives: []
+  rho:
+    value: N/A
+    unit: kg/m^3
+    missing: "not read from an open authorised source: EN 1991-1-1 / EN 1993-1-2 are paywalled (law.resource.org copy gone, HTTP 404), aisc.org returned HTTP 403"
+    alternatives: []
+  k:
+    value: N/A
+    unit: W/(m*K)
+    missing: "candidate source EN 1993-1-2 (Eurocode 3, fire design) not read: paywalled, no authorised open copy reached (law.resource.org HTTP 404)"
+    alternatives: []
+  cp:
+    value: N/A
+    unit: J/(kg*K)
+    missing: "candidate source EN 1993-1-2 not read (paywalled)"
+    alternatives: []
+  alpha:
+    value: N/A
+    unit: 1/K
+    missing: "candidate sources EN 1993-1-1 / EN 1993-1-2 not read (paywalled); AISC 360 download blocked (HTTP 403)"
+    alternatives: []
+missing:
+  - {what: "steel grade not specified by the hero; E(T) data are from 50-55 ksi WTC steels, nu(T) from iron and mild steel literature"}

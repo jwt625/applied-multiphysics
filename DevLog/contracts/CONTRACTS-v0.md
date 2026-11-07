@@ -190,3 +190,7 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - Layers are dotted sub-entities `.L<k>` (e.g. `dom:stack.L3`), not `@`: `@` is reserved for operation-log array-element tokens.
   - Split suffixes `#k` may repeat (up to 8 levels).
   - The one canonical resolver is `resolveEntityIds(table, kind, ids) -> {indices, unknown}` from `@amp/geom`. It never throws, and matches the exact id, split pieces at any depth, and parent links. `@amp/spec` `checkSelections` takes it injected.
+- 2026-11-06 16:21 PST, from L10 materials (DevLog-013 s.5):
+  - C1: zod 4.6.7 and yaml 2.9.1 are approved for `@amp/materials`.
+  - `@amp/materials` owns the material-property types, including C, G, r_eo, mu, rho_e and dndT. L4 does not re-register them.
+  - Queued for contracts v1 (L2 scope): a tensor override form in spec materials; basis vocabulary gains `paper_model_input` and `reference_correlation`; `materials/<id>` refs checked against library ids.

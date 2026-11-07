@@ -1,0 +1,193 @@
+# Fused silica, synthetic (lane L10, DevLog-013).
+schema: amp-material/0
+id: fused-silica
+name: Fused silica (synthetic, amorphous SiO2)
+class: glass
+description: >-
+  Bulk synthetic fused silica. Index: Malitson 1965 Sellmeier (default) and the temperature-dependent Leviton-Frey fit
+  of Corning 7980 (alternative); thermo-optic coefficient from Leviton-Frey; mechanics and thermal data from the Corning
+  HPFS 7980 product sheet.
+verified_on: 2026-11-06
+sources:
+  malitson1965:
+    citation: "I. H. Malitson, Interspecimen comparison of the refractive index of fused silica, J. Opt. Soc. Am. 55, 1205-1208 (1965)"
+    doi: 10.1364/JOSA.55.001205
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/SiO2/nk/Malitson.yml
+    access: paywalled
+    read: "primary not read; coefficients from refractiveindex.info SiO2/nk/Malitson.yml (CC0), fetched 2026-11-06 (identical to eo-modulator-atlas engine/data/materials.json); the entry states the formula is reported for 0.21-3.71 um and verified to 6.7 um by C. Z. Tan, J. Non-Cryst. Solids 223, 158 (1998)"
+    licence: "refractiveindex.info database: CC0 1.0"
+  leviton2006:
+    citation: "D. B. Leviton, B. J. Frey, Temperature-dependent absolute refractive index measurements of synthetic fused silica, Proc. SPIE 6273, 62732K (2006); arXiv:0805.0091"
+    url: https://arxiv.org/abs/0805.0091
+    access: open
+    read: "text layer of the arXiv PDF (Tables 3, 4, 6), read by L10 2026-11-06; cached under cache/materials/fused-silica/"
+  corning_hpfs_2014:
+    citation: "Corning Incorporated, HPFS 7979, 7980, 8655 Fused Silica, Product Information Sheet, February 2014 (hosted by Edmund Optics)"
+    url: "https://www.edmundoptics.co.uk/ViewDocument/Corning%20Fused%20Silica%20Grades.pdf"
+    access: vendor_open
+    read: "text layer p.3 (Mechanical and Thermal Properties blocks), read by L10 2026-11-06; corning.com returned HTTP 403 for its own copies"
+  korth_silica:
+    citation: "Korth Kristalle GmbH, Silica glass (Infrasil, Suprasil; produced by Heraeus Quarzglas) material page, korth.de"
+    url: https://www.korth.de/en/materials/detail/Silica%20Glass
+    access: vendor_open
+    read: "not re-read by L10; APA lane read the web page on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/glass_inorganic.yaml at 608b1dc (sio2_fused.properties.eps_r)"
+properties:
+  n:
+    fit:
+      formula: sellmeier-c2
+      vars: [{name: lambda, unit: um, range: [0.21, 6.7]}]
+      coeffs: {A: 0, B: [0.6961663, 0.4079426, 0.8974794], C: [0.0684043, 0.1162414, 9.896161]}
+    unit: "1"
+    basis: measured
+    source: malitson1965
+    locator: "refractiveindex.info SiO2/nk/Malitson.yml: formula 1, coefficients 0 0.6961663 0.0684043 0.4079426 0.1162414 0.8974794 9.896161"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {T: "20 degC"}
+    alternatives:
+      - id: leviton_frey_corning7980
+        use: "temperature-dependent index of Corning 7980, 30-300 K, 0.4-2.6 um"
+        fit:
+          formula: leviton-frey-sellmeier
+          vars: [{name: lambda, unit: um, range: [0.4, 2.6]}, {name: T, unit: K, range: [30, 300]}]
+          coeffs:
+            S1: [1.10127, -4.94251e-5, 5.27414e-7, -1.59700e-9, 1.75949e-12]
+            S2: [1.78752e-5, 4.76391e-5, -4.49019e-7, 1.44546e-9, -1.57223e-12]
+            S3: [7.93552e-1, -1.27815e-3, 1.84595e-5, -9.20275e-8, 1.48829e-10]
+            L1: [-8.90600e-2, 9.08730e-6, -6.53638e-8, 7.77072e-11, 6.84605e-14]
+            L2: [2.97562e-1, -8.59578e-4, 6.59069e-6, -1.09482e-8, 7.85145e-13]
+            L3: [9.34454, -7.09788e-3, 1.01968e-4, -5.07660e-7, 8.21348e-10]
+        unit: "1"
+        basis: measured
+        source: leviton2006
+        locator: "arXiv p.6 Table 3 (coefficients, constant .. T^4 terms; lambda_i in um); check values in Table 4"
+        accessed: 2026-11-06
+        uncertainty: {abs: 1.0e-5, note: "abstract: absolute uncertainty of measured index +-1e-5; Table 1 lists larger values beyond 2 um"}
+        conditions: {text: "Corning 7980, five prisms, CHARMS minimum-deviation refractometer"}
+  dndT:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.5, 2.6]
+      ys: [9.70e-6, 9.12e-6, 8.86e-6, 8.69e-6, 8.60e-6, 8.52e-6, 8.48e-6, 8.40e-6, 8.45e-6, 8.29e-6, 8.38e-6, 8.48e-6, 8.11e-6, 8.38e-6, 8.71e-6, 8.48e-6]
+    unit: 1/K
+    basis: derived
+    source: leviton2006
+    locator: "arXiv p.7 Table 6 'thermo-optic coefficient, dn/dT ... in units of 1/K', column 295 K"
+    accessed: 2026-11-06
+    derivation: "source: derivative of the temperature-dependent fit of measured indices"
+    uncertainty: {abs: 2.0e-8, unit: 1/K, note: "abstract: statistical variations of derived dn/dT at the +-2e-8 /K level; peak sample-to-sample deviation 5e-8 /K (p.3)"}
+    conditions: {T: "295 K", text: "Corning 7980"}
+    alternatives: []
+  rho:
+    value: 2.20
+    unit: g/cm^3
+    basis: datasheet
+    source: corning_hpfs_2014
+    locator: "p.3 Mechanical Properties: Density 2.20 g/cm3 ('Unless otherwise stated, all values @ 25 C')"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC", text: "HPFS 7980"}
+    alternatives: []
+  E:
+    value: 73
+    unit: GPa
+    basis: datasheet
+    source: corning_hpfs_2014
+    locator: "p.3 Mechanical Properties: Elastic (Young's) Modulus 73 GPa"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    alternatives: []
+  G:
+    value: 31
+    unit: GPa
+    basis: datasheet
+    source: corning_hpfs_2014
+    locator: "p.3 Mechanical Properties: Shear Modulus 31 GPa"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    alternatives: []
+  nu:
+    value: 0.16
+    unit: "1"
+    basis: datasheet
+    source: corning_hpfs_2014
+    locator: "p.3 Mechanical Properties: Poisson's Ratio 0.16"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    alternatives: []
+  k:
+    value: 1.38
+    unit: W/(m*K)
+    basis: datasheet
+    source: corning_hpfs_2014
+    locator: "p.3 Thermal Properties: Thermal Conductivity 1.38 W/(m K)"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    alternatives: []
+  cp:
+    value: 0.770
+    unit: J/(g*K)
+    basis: datasheet
+    source: corning_hpfs_2014
+    locator: "p.3 Thermal Properties: Specific Heat 0.770 J/(g K)"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    alternatives: []
+  alpha:
+    value: 0.52
+    unit: ppm/K
+    cte_kind: secant
+    T_ref: "5 degC"
+    basis: datasheet
+    source: corning_hpfs_2014
+    locator: "p.3 Thermal Properties: Thermal Expansion (ppm/K), 5 C to 35 C: 0.52 x 10-6 (ASTM E-228)"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated"}
+    conditions: {text: "mean coefficient over 5-35 C"}
+    alternatives:
+      - id: mean_0_200c
+        use: "mean CTE over a wider range"
+        value: 0.57
+        unit: ppm/K
+        cte_kind: secant
+        T_ref: "0 degC"
+        basis: datasheet
+        source: corning_hpfs_2014
+        locator: "p.3 Thermal Expansion, 0 C to 200 C: 0.57 x 10-6"
+        accessed: 2026-11-06
+        uncertainty: {na: "not stated"}
+        conditions: {text: "mean coefficient over 0-200 C"}
+      - id: mean_m100_200c
+        use: "mean CTE including low temperatures"
+        value: 0.48
+        unit: ppm/K
+        cte_kind: secant
+        T_ref: "-100 degC"
+        basis: datasheet
+        source: corning_hpfs_2014
+        locator: "p.3 Thermal Expansion, -100 C to +200 C: 0.48 x 10-6"
+        accessed: 2026-11-06
+        uncertainty: {na: "not stated"}
+        conditions: {text: "mean coefficient over -100 to +200 C"}
+  eps_r:
+    value: 3.75
+    unit: "1"
+    basis: datasheet
+    source: korth_silica
+    locator: "silica glass page: dielectric constant 3.75 at 100 MHz, 293 K (as recorded by the APA lane)"
+    accessed: 2026-10-20
+    uncertainty: {na: "not stated"}
+    conditions: {f: "100 MHz", T: "293 K", text: "Heraeus Infrasil / Suprasil class"}
+    alternatives: []
+  tan_delta:
+    value: N/A
+    unit: "1"
+    missing: "no primary or data-sheet loss tangent read for fused silica at RF"
+    alternatives: []

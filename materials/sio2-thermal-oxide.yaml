@@ -1,0 +1,134 @@
+# Thermal SiO2 film (lane L10, DevLog-013). No film-specific primary source was read in this lane; values are either
+# paper model inputs (labelled) or bulk fused-silica values marked with analog_of.
+schema: amp-material/0
+id: sio2-thermal-oxide
+name: SiO2, thermal oxide film
+class: dielectric_film
+description: >-
+  Thermally grown SiO2 on Si (BOX / cladding). Optical index and thermal data are bulk fused-silica analogs (analog_of);
+  RF permittivity and mechanics are model inputs from published tables, not film measurements.
+verified_on: 2026-11-06
+sources:
+  malitson1965:
+    citation: "I. H. Malitson, Interspecimen comparison of the refractive index of fused silica, J. Opt. Soc. Am. 55, 1205-1208 (1965)"
+    doi: 10.1364/JOSA.55.001205
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/SiO2/nk/Malitson.yml
+    access: paywalled
+    read: "primary not read; refractiveindex.info SiO2/nk/Malitson.yml (CC0), fetched 2026-11-06"
+    licence: "refractiveindex.info database: CC0 1.0"
+  leviton2006:
+    citation: "D. B. Leviton, B. J. Frey, Temperature-dependent absolute refractive index measurements of synthetic fused silica, Proc. SPIE 6273, 62732K (2006); arXiv:0805.0091"
+    url: https://arxiv.org/abs/0805.0091
+    access: open
+    read: "text layer of the arXiv PDF, Table 6 p.7, read by L10 2026-11-06"
+  corning_hpfs_2014:
+    citation: "Corning Incorporated, HPFS 7979, 7980, 8655 Fused Silica, Product Information Sheet, February 2014 (hosted by Edmund Optics)"
+    url: "https://www.edmundoptics.co.uk/ViewDocument/Corning%20Fused%20Silica%20Grades.pdf"
+    access: vendor_open
+    read: "text layer p.3, read by L10 2026-11-06"
+  zhu2021:
+    citation: "D. Zhu et al., Integrated photonics on thin-film lithium niobate, Adv. Opt. Photon. 13, 242 (2021); arXiv:2102.11956"
+    url: https://arxiv.org/abs/2102.11956
+    access: open
+    read: "not re-read by L10; EO lane read Table 1 (arXiv PDF p.5, rendered) on 2026-10-15; the table gives no primary reference"
+    via: "eo-modulator-atlas engine/data/materials.json at bc68738 (library.silicon_dioxide.eps_r)"
+  tcpmt2025_3538554:
+    citation: "Double-layer-stacked silicon interposer for 2.5-D packaging of 32 x 32 micromirror array chip, IEEE Trans. Compon. Packag. Manuf. Technol. 15(4), 706-715 (2025)"
+    doi: 10.1109/TCPMT.2025.3538554
+    access: local_cache
+    read: "not re-read by L10; APA lane read p.7 Table IV (page crop) on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/glass_inorganic.yaml at 608b1dc (sio2_film)"
+properties:
+  n:
+    fit:
+      formula: sellmeier-c2
+      vars: [{name: lambda, unit: um, range: [0.21, 6.7]}]
+      coeffs: {A: 0, B: [0.6961663, 0.4079426, 0.8974794], C: [0.0684043, 0.1162414, 9.896161]}
+    unit: "1"
+    basis: measured
+    source: malitson1965
+    analog_of: fused-silica
+    locator: "refractiveindex.info SiO2/nk/Malitson.yml: formula 1 coefficients (bulk fused silica)"
+    accessed: 2026-11-06
+    uncertainty: {na: "film-to-bulk index difference not quantified from a source"}
+    conditions: {T: "20 degC", text: "bulk fused silica used as the thermal-oxide index"}
+    alternatives: []
+  dndT:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.5, 2.6]
+      ys: [9.70e-6, 9.12e-6, 8.86e-6, 8.69e-6, 8.60e-6, 8.52e-6, 8.48e-6, 8.40e-6, 8.45e-6, 8.29e-6, 8.38e-6, 8.48e-6, 8.11e-6, 8.38e-6, 8.71e-6, 8.48e-6]
+    unit: 1/K
+    basis: derived
+    source: leviton2006
+    analog_of: fused-silica
+    locator: "arXiv p.7 Table 6, column 295 K (Corning 7980 bulk)"
+    accessed: 2026-11-06
+    uncertainty: {na: "bulk value; film value not quantified"}
+    conditions: {T: "295 K"}
+    alternatives: []
+  eps_r:
+    value: 3.9
+    unit: "1"
+    basis: paper_model_input
+    source: zhu2021
+    locator: "Table 1, SiO2 row, column 'RF dielectric constant' (3.9); arXiv PDF p.5"
+    accessed: 2026-10-15
+    uncertainty: {na: "not stated; deposition method, frequency and temperature not stated in the table"}
+    conditions: {text: "review table value; no primary reference given"}
+    alternatives: []
+  E:
+    value: 73.0
+    unit: GPa
+    basis: paper_model_input
+    source: tcpmt2025_3538554
+    locator: "p.7 Table IV row SiO2 (E 73.0 GPa, nu 0.16, CTE 0.5 ppm/C)"
+    accessed: 2026-10-20
+    uncertainty: {na: "model input, not a measurement"}
+    conditions: {text: "interposer FEM model input"}
+    alternatives: []
+  nu:
+    value: 0.16
+    unit: "1"
+    basis: paper_model_input
+    source: tcpmt2025_3538554
+    locator: "p.7 Table IV row SiO2"
+    accessed: 2026-10-20
+    uncertainty: {na: "model input"}
+    conditions: {text: "interposer FEM model input"}
+    alternatives: []
+  alpha:
+    value: 0.5
+    unit: ppm/K
+    cte_kind: instantaneous
+    basis: paper_model_input
+    source: tcpmt2025_3538554
+    locator: "p.7 Table IV row SiO2 (CTE 0.5 ppm/C)"
+    accessed: 2026-10-20
+    uncertainty: {na: "model input"}
+    conditions: {text: "interposer FEM model input; kind recorded as instantaneous by the APA lane"}
+    alternatives: []
+  k:
+    value: 1.38
+    unit: W/(m*K)
+    basis: datasheet
+    source: corning_hpfs_2014
+    analog_of: fused-silica
+    locator: "p.3 Thermal Properties: Thermal Conductivity 1.38 W/(m K) (bulk HPFS 7980)"
+    accessed: 2026-11-06
+    uncertainty: {na: "film value not quantified"}
+    conditions: {T: "25 degC", text: "bulk fused silica used for the film"}
+    alternatives: []
+  rho:
+    value: N/A
+    unit: kg/m^3
+    missing: "thermal-oxide film density not read from a source"
+    alternatives: []
+  cp:
+    value: N/A
+    unit: J/(kg*K)
+    missing: "thermal-oxide film heat capacity not read from a source (bulk value in fused-silica)"
+    alternatives: []
+missing:
+  - {what: "film-specific measurements (index, density, modulus, conductivity of thermal oxide) not read; candidates to be searched"}

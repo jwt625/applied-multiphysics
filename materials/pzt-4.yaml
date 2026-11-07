@@ -1,0 +1,38 @@
+# PZT-4 (lane L10, DevLog-013). Placeholder with every value N/A: the Boucher et al. 1981 constants (eval case CP-06)
+# were not obtainable from an open source in this lane, and no other primary PZT-4 data set was read.
+schema: amp-material/0
+id: pzt-4
+name: PZT-4 (lead zirconate titanate, hard piezoceramic)
+class: piezoelectric
+description: >-
+  Poled piezoceramic, 6mm symmetry with the poling axis = frame z. Needs the stiffness c^E, piezoelectric e and clamped
+  permittivity eps^S tensors; the 6mm tensor symmetry is not yet a registered symmetry of @amp/materials.
+verified_on: 2026-11-06
+frame: "z = poling direction"
+sources:
+  boucher1981:
+    citation: "D. Boucher, M. Lagier, C. Maerfeld, Computation of the vibrational modes for piezoelectric array transducers using a mixed finite element-perturbation method, IEEE Trans. Sonics Ultrason. SU-28(5), 318-330 (1981)"
+    access: paywalled
+    read: "not read (IEEE, paywalled; DOI not verified in this lane); the eval case CP-06 cites its Table 1 via Ansys VM175, where the matrices are images"
+properties:
+  rho:
+    value: N/A
+    unit: kg/m^3
+    missing: "PZT-4 density not read from a primary source (CP-06 lists 7500 kg/m3 from Ansys VM175, a vendor manual, not used here)"
+    needed_for: [solution]
+    alternatives: []
+  eps_r:
+    value: N/A
+    unit: "1"
+    missing: "clamped permittivity eps^S_11, eps^S_33 / eps0 of PZT-4 not read (Boucher et al. 1981 paywalled)"
+    needed_for: [solution]
+    alternatives: []
+  C:
+    value: N/A
+    unit: GPa
+    missing: "stiffness c^E (6mm: c11, c12, c13, c33, c44, c66) of PZT-4 not read; 6mm symmetry also needs a schema extension"
+    needed_for: [solution]
+    alternatives: []
+missing:
+  - {what: "piezoelectric stress constants e31, e33, e15 (C/m^2) of PZT-4: not read; property type e_piezo not registered yet"}
+  - {what: "open primary candidates to search: manufacturer data sheets giving PZT-4 constants, or an open copy of Boucher et al. 1981 Table 1"}

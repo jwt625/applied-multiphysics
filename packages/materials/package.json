@@ -1,0 +1,25 @@
+{
+  "name": "@amp/materials",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "amp-material/0 materials library: schema (zod + JSON Schema), loader, validator, SI conversion via @amp/core/units, property evaluation at T / wavelength / frequency, tensors (DevLog-013)",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
+  "scripts": {
+    "test": "node --max-old-space-size=1536 --test --test-concurrency=1 test/*.test.ts",
+    "check": "tsc -p . --noEmit",
+    "validate": "node --max-old-space-size=1536 scripts/validate.ts",
+    "table": "node --max-old-space-size=1536 scripts/summary-table.ts",
+    "schema": "node scripts/json-schema.ts"
+  },
+  "dependencies": {
+    "@amp/core": "workspace:*",
+    "@amp/spec": "workspace:*",
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  }
+}

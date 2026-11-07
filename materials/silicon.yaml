@@ -1,0 +1,227 @@
+# Single-crystal silicon (lane L10, DevLog-013). Stored values are in the units the source prints (or an exact
+# power-of-ten rescaling, stated in `derivation`); @amp/materials converts to SI on load.
+schema: amp-material/0
+id: silicon
+name: Silicon, single crystal
+class: semiconductor
+description: >-
+  Undoped or lightly doped single-crystal Si. Mechanics as the cubic stiffness tensor (no isotropic E or nu stored);
+  optics from the Li 1980 evaluated table at 293 K; RF permittivity of float-zone high-resistivity Si.
+verified_on: 2026-11-06
+frame: "crystal axes: x = [100], y = [010], z = [001]"
+sources:
+  hall1967:
+    citation: "J. J. Hall, Electronic effects in the elastic constants of n-type silicon, Phys. Rev. 161(3), 756-761 (1967)"
+    doi: 10.1103/PhysRev.161.756
+    access: local_cache
+    read: "text layer of the local copy (advanced-packaging-atlas references/physrev.161.756/source.pdf, sha256 8b8fc2b9...), journal p.757 Sec. II (density), p.758 Table III and p.760 Table VI (moduli); read by L10 2026-11-06"
+  hpl1972:
+    citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
+    doi: 10.1063/1.3253100
+    url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
+    access: open
+    read: "not re-read by L10; values transcribed from the APA data file, whose lane read the p.394 recommended-value table on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/silicon.yaml at 608b1dc (si_crystal.properties.k)"
+  janaf1998:
+    citation: "M. W. Chase Jr., NIST-JANAF Thermochemical Tables, 4th ed., J. Phys. Chem. Ref. Data Monograph 9 (1998), p.1881, Silicon (Si) reference-state table"
+    url: https://janaf.nist.gov/tables/Si-001.html
+    access: open
+    read: "not re-read by L10; APA lane read the web table and the scanned monograph page on 2026-10-21"
+    via: "advanced-packaging-atlas engine/data/materials/silicon.yaml at 608b1dc (si_crystal.properties.cp)"
+  swenson1983:
+    citation: "C. A. Swenson, Recommended values for the thermal expansivity of silicon from 0 to 1000 K, J. Phys. Chem. Ref. Data 12, 179-182 (1983)"
+    doi: 10.1063/1.555681
+    url: https://srd.nist.gov/jpcrdreprint/1.555681.pdf
+    access: open
+    read: "not re-read by L10; APA lane read p.180-181 (Tables 1, 2) on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/silicon.yaml at 608b1dc (si_crystal.properties.cte)"
+  krupka2006:
+    citation: "J. Krupka et al., Measurements of permittivity, dielectric loss tangent, and resistivity of float-zone silicon at microwave frequencies, IEEE Trans. Microw. Theory Tech. 54(11), 3995-4001 (2006)"
+    doi: 10.1109/TMTT.2006.883655
+    access: local_cache
+    read: "not re-read by L10; APA lane digitized Fig. 2 (p.3) on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/silicon.yaml at 608b1dc (si_crystal.properties.eps_r)"
+  li1980:
+    citation: "H. H. Li, Refractive index of silicon and germanium and its wavelength and temperature derivatives, J. Phys. Chem. Ref. Data 9(3), 561-658 (1980)"
+    doi: 10.1063/1.555624
+    url: https://srd.nist.gov/jpcrdreprint/1.555624.pdf
+    access: open
+    read: "page renders (300 dpi) of journal p.577 Table 1 and p.579 Table 2 (pdf pages 17, 19), 293 K columns; text layer p.567-568; read by L10 2026-11-06; cached under cache/materials/silicon/"
+  salzberg1957:
+    citation: "C. D. Salzberg, J. J. Villa, Infrared refractive indexes of silicon, germanium and modified selenium glass, J. Opt. Soc. Am. 47, 244-246 (1957); Sellmeier fit by B. Tatian, Appl. Opt. 23, 4477-4485 (1984)"
+    doi: 10.1364/JOSA.47.000244
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/Si/nk/Salzberg.yml
+    access: paywalled
+    read: "primary not read; coefficients from the refractiveindex.info entry (CC0) Si/nk/Salzberg.yml, fetched 2026-11-06 (also used by eo-modulator-atlas engine/data/materials.json)"
+    licence: "refractiveindex.info database: CC0 1.0"
+properties:
+  rho:
+    value: 2.3290
+    unit: g/cm^3
+    basis: measured
+    source: hall1967
+    locator: "journal p.757 Sec. II: pure-sample density 2.3290 +- 0.0002 g/cm3 at 25 C (hydrometric)"
+    accessed: 2026-11-06
+    uncertainty: {abs: 0.0002, unit: g/cm^3}
+    conditions: {T: "25 degC", text: "pure (undoped, 150 ohm cm n-type) sample"}
+    alternatives: []
+  C:
+    tensor:
+      symmetry: cubic
+      components: {C11: 165.64, C12: 63.94, C44: 79.51}
+    unit: GPa
+    basis: measured
+    source: hall1967
+    locator: "journal p.758 Table III column 'Present study': C11 1.6564, C12 0.6394, C44 0.7951 (1e12 dyn/cm2, pure Si, 25 C)"
+    accessed: 2026-11-06
+    derivation: "1e12 dyn/cm2 = 100 GPa (exact); values multiplied by 100"
+    uncertainty: {rel: 0.0002, note: "Table III: +-0.02 %; Table VI (p.760): C11 1.6564 +- 0.0003, C44 0.7951 +- 0.0002 (1e12 dyn/cm2)"}
+    conditions: {T: "25 degC", text: "adiabatic moduli, ultrasonic pulse echo; pure Si"}
+    alternatives:
+      - id: mcskimin1964
+        use: "sensitivity (second measurement in the same table)"
+        tensor:
+          symmetry: cubic
+          components: {C11: 165.63, C12: 63.87, C44: 79.55}
+        unit: GPa
+        basis: measured
+        source: hall1967
+        locator: "journal p.758 Table III column 'McSkimin and Andreatch' (1.6563, 0.6387, 0.7955 x 1e12 dyn/cm2)"
+        accessed: 2026-11-06
+        derivation: "1e12 dyn/cm2 = 100 GPa (exact)"
+        uncertainty: {na: "not stated in Hall Table III for this column"}
+        conditions: {T: "25 degC"}
+  E:
+    value: N/A
+    unit: GPa
+    missing: "anisotropic crystal: Young's modulus depends on direction; use the stiffness tensor C (a direction-dependent E follows from C, not stored)"
+    alternatives: []
+  nu:
+    value: N/A
+    unit: "1"
+    missing: "anisotropic crystal: Poisson's ratio depends on direction; use C"
+    alternatives: []
+  k:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 223.2, 250, 273.2, 298.2, 300, 323.2, 350, 373.2, 400, 473.2, 500, 573.2, 600]
+      ys: [2.64, 2.25, 1.91, 1.68, 1.49, 1.48, 1.33, 1.19, 1.08, 0.989, 0.814, 0.762, 0.651, 0.619]
+    unit: W/(cm*K)
+    basis: measured
+    source: hpl1972
+    locator: "journal p.394, Thermal conductivity of silicon, recommended values (solid)"
+    accessed: 2026-10-20
+    uncertainty: {rel: 0.05, note: "source remarks: +-5 % at 300-1000 K; below 300 K 'merely typical values'"}
+    conditions: {text: "high-purity Si"}
+    alternatives: []
+  cp:
+    table:
+      x: T
+      x_unit: K
+      xs: [100, 200, 298.15, 300, 400, 500, 600, 700]
+      ys: [258.8, 556.7, 712.1, 713.9, 788.4, 830.7, 860.0, 883.1]
+    unit: J/(kg*K)
+    basis: derived
+    source: janaf1998
+    locator: "Monograph 9 p.1881, Si reference-state table, column Cp (J/K mol): 7.268, 15.636, 20.000, 20.050, 22.142, 23.330, 24.154, 24.803 at the listed T; A_r = 28.0855"
+    accessed: 2026-10-21
+    derivation: "c_p = Cp / (A_r x 1e-3 kg/mol), computed by the APA lane"
+    uncertainty: {na: "not transcribed"}
+    conditions: {p: "0.1 MPa", text: "crystal"}
+    alternatives: []
+  alpha:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 220, 240, 260, 280, 293.15, 300, 325, 350, 375, 400, 450, 500, 550, 600]
+      ys: [1.406, 1.715, 1.986, 2.223, 2.432, 2.555, 2.618, 2.816, 2.984, 3.128, 3.251, 3.453, 3.610, 3.737, 3.844]
+    unit: ppm/K
+    cte_kind: instantaneous
+    basis: measured
+    source: swenson1983
+    locator: "journal p.181 Table 2, alpha' = (L20)^-1 (dL/dT); > 300 K from Eq. (1) with Table 1, <= 300 K from Lyon et al."
+    accessed: 2026-10-20
+    uncertainty: {na: "not transcribed by the APA lane"}
+    conditions: {text: "evaluated recommended values"}
+    alternatives: []
+  eps_r:
+    table:
+      x: T
+      x_unit: K
+      xs: [150, 200, 250, 300, 350, 370]
+      ys: [11.50, 11.54, 11.60, 11.665, 11.73, 11.75]
+    unit: "1"
+    basis: measured
+    source: krupka2006
+    locator: "p.3 (journal p.3997) Fig. 2, dashed curve, digitized 2026-10-20 by the APA lane"
+    accessed: 2026-10-20
+    uncertainty: {abs: 0.005, note: "digitization reading uncertainty (APA)"}
+    conditions: {f: "6.62 GHz", text: "float-zone high-resistivity p-type Si, 6.62-11.5 GHz; source: permittivity independent of frequency in that band"}
+    alternatives:
+      - id: li1980_eq22
+        use: "sensitivity (infrared long-wavelength limit of the Li 1980 dispersion equation)"
+        value: 11.66
+        unit: "1"
+        basis: derived
+        source: li1980
+        locator: "journal p.568 text: room-temperature dielectric constant 'calculated from the expression for eps in eq (22). The result is 11.66'"
+        accessed: 2026-11-06
+        uncertainty: {na: "not stated"}
+        conditions: {T: "293 K", text: "from the optical dispersion fit, not an RF measurement"}
+  n:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [1.20, 1.22, 1.24, 1.26, 1.28, 1.30, 1.32, 1.34, 1.36, 1.38, 1.40, 1.45, 1.55, 1.60, 1.65, 1.70, 1.90, 2.00, 2.25, 2.50, 2.75, 3.00, 4.00, 5.00, 6.00, 7.00, 8.00, 9.00, 10.00, 11.00, 12.00, 13.00, 14.00]
+      ys: [3.5167, 3.5133, 3.5102, 3.5072, 3.5043, 3.5016, 3.4990, 3.4965, 3.4941, 3.4918, 3.4896, 3.4845, 3.4757, 3.4719, 3.4684, 3.4653, 3.4550, 3.4510, 3.4431, 3.4375, 3.4334, 3.4302, 3.4229, 3.4195, 3.4177, 3.4165, 3.4158, 3.4153, 3.4150, 3.4147, 3.4145, 3.4144, 3.4142]
+    unit: "1"
+    basis: measured
+    source: li1980
+    locator: "journal p.577 Table 1 'Recommended values on the refractive index of silicon', column 293 K (read from a 300 dpi page render)"
+    accessed: 2026-11-06
+    uncertainty: {abs: 0.002, note: "p.567 text: recommended values from eq (22) 'with uncertainties of +- 2 x 10-3'; last digit printed with overstrike = insignificant"}
+    conditions: {T: "293 K", text: "evaluated recommended values (dispersion equation fitted to selected data sets)"}
+    note: "rows 1.50 and 1.80 um not transcribed: the 1.50 um entry is crossed by a pen line and the 1.80 um entry has an ambiguous glyph in the scan; the 1.65 um row label is smudged, value read in sequence"
+    alternatives:
+      - id: salzberg_villa_tatian
+        use: "sensitivity (Sellmeier fit used by eo-modulator-atlas; 26 C data)"
+        fit:
+          formula: sellmeier-c2
+          vars: [{name: lambda, unit: um, range: [1.357, 11.04]}]
+          coeffs: {A: 0, B: [10.6684293, 0.0030434748, 1.54133408], C: [0.301516485, 1.13475115, 1104.0]}
+        unit: "1"
+        basis: measured
+        source: salzberg1957
+        locator: "refractiveindex.info Si/nk/Salzberg.yml: formula 1, coefficients 0 10.6684293 0.301516485 0.0030434748 1.13475115 1.54133408 1104 (Tatian 1984 fit of Salzberg-Villa data)"
+        accessed: 2026-11-06
+        uncertainty: {na: "not stated in the database entry"}
+        conditions: {T: "26 degC", text: "unknown purity (database comment)"}
+  dndT:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [1.20, 1.22, 1.24, 1.26, 1.28, 1.30, 1.32, 1.34, 1.38, 1.40, 1.45, 1.50, 1.55, 1.60, 1.65, 1.70, 1.80, 1.90, 2.00, 2.25, 2.50, 2.75, 3.00, 4.00, 5.00, 6.00, 7.00, 8.00, 9.00, 10.00, 11.00, 12.00, 13.00, 14.00]
+      ys: [1.983e-4, 1.970e-4, 1.957e-4, 1.945e-4, 1.934e-4, 1.923e-4, 1.912e-4, 1.902e-4, 1.883e-4, 1.874e-4, 1.854e-4, 1.835e-4, 1.818e-4, 1.803e-4, 1.789e-4, 1.776e-4, 1.753e-4, 1.734e-4, 1.717e-4, 1.685e-4, 1.662e-4, 1.645e-4, 1.632e-4, 1.602e-4, 1.588e-4, 1.581e-4, 1.576e-4, 1.573e-4, 1.571e-4, 1.570e-4, 1.569e-4, 1.568e-4, 1.567e-4, 1.567e-4]
+    unit: 1/K
+    basis: derived
+    source: li1980
+    locator: "journal p.579 Table 2 'Recommended values on the temperature derivative of refractive index of silicon', column 293 K (300 dpi page render); unit 1e-4 /K from the table footnote"
+    accessed: 2026-11-06
+    derivation: "source: first derivative of the dispersion equation (22) with respect to T (abstract); printed values x 1e-4 /K, rescaled here by 1e-4 (exact)"
+    uncertainty: {abs: 0.15e-4, unit: 1/K, note: "Table 2 footnote: +-0.15 x 10-4 /K"}
+    conditions: {T: "293 K"}
+    note: "row 1.36 um not transcribed (crossed by a pen line in the scan)"
+    alternatives: []
+  sigma:
+    value: N/A
+    unit: S/m
+    missing: "doping-dependent: wafer resistivity is a per-part input (set it in the spec override with its source)"
+    alternatives: []
+  tan_delta:
+    value: N/A
+    unit: "1"
+    missing: "Krupka 2006 (p.1 Eqs. 1-2): losses of HR-Si are conductivity-dominated, so tan delta depends on the wafer resistivity; lattice term not given as a number above 25 K (APA reading)"
+    alternatives: []
+missing:
+  - {property: C, what: "temperature dependence of Cij (Hall 1967 Figs. 1-3 cover 4.2-310 K; APA digitized them, not carried over)"}

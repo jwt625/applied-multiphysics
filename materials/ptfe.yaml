@@ -1,0 +1,93 @@
+# PTFE (Teflon) (lane L10, DevLog-013).
+schema: amp-material/0
+id: ptfe
+name: PTFE (polytetrafluoroethylene)
+class: polymer
+description: >-
+  Bulk PTFE. 10 GHz permittivity and loss tangent from a NIST dielectric-resonator measurement; thermal conductivity,
+  heat capacity and expansion from the NIST cryogenic fits (4-300 K only). Grade and density of the samples not stated.
+verified_on: 2026-11-06
+sources:
+  nist_tn1536:
+    citation: "J. Baker-Jarvis, M. D. Janezic, B. F. Riddle, R. T. Johnk, P. Kabos, C. L. Holloway, R. G. Geyer, C. A. Grosvenor, Measuring the permittivity and permeability of lossy materials: solids, liquids, metals, building materials, and negative-index materials, NIST Technical Note 1536 (February 2005)"
+    url: https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1536.pdf
+    access: open
+    read: "report p.71 (pdf p.79) Sec. 7.5.6 text, read from a 130 dpi page render by L10 2026-11-06; cached under cache/materials/ptfe/"
+  nist_cryo_teflon:
+    citation: "NIST Cryogenic Technologies Group, Material properties: Teflon, trc.nist.gov"
+    url: https://trc.nist.gov/cryogenics/materials/Teflon/Teflon_rev.htm
+    access: open
+    read: "web page fetched and read by L10 2026-11-06 (thermal conductivity, specific heat, linear expansion fits; Young's modulus listed but no coefficients given)"
+properties:
+  eps_r:
+    value: 2.05
+    unit: "1"
+    basis: measured
+    source: nist_tn1536
+    locator: "p.71 Sec. 7.5.6: 'measurements of permittivity and loss tangent on the same materials at 10 GHz using a highly-accurate dielectric resonator are Teflon: (2.05 +- 0.02, 2 x 10-4 +- 8 x 10-5)'"
+    accessed: 2026-11-06
+    uncertainty: {abs: 0.02}
+    conditions: {f: "10 GHz", text: "temperature not stated"}
+    alternatives: []
+  tan_delta:
+    value: 2.0e-4
+    unit: "1"
+    basis: measured
+    source: nist_tn1536
+    locator: "p.71 Sec. 7.5.6 (same sentence as eps_r)"
+    accessed: 2026-11-06
+    uncertainty: {abs: 8.0e-5}
+    conditions: {f: "10 GHz", text: "temperature not stated"}
+    alternatives: []
+  k:
+    fit:
+      formula: nist-cryo-log-poly
+      vars: [{name: T, unit: K, range: [4, 300]}]
+      coeffs: {a: [2.7380, -30.677, 89.430, -136.99, 124.69, -69.556, 23.320, -4.3135, 0.33829]}
+    unit: W/(m*K)
+    basis: measured
+    source: nist_cryo_teflon
+    locator: "Thermal Conductivity column, a..i = 2.7380, -30.677, 89.430, -136.99, 124.69, -69.556, 23.320, -4.3135, 0.33829; data and equation range 4-300 K"
+    accessed: 2026-11-06
+    uncertainty: {rel: 0.05, note: "curve fit error relative to data: 5 %"}
+    conditions: {text: "Teflon, grade not stated"}
+    alternatives: []
+  cp:
+    fit:
+      formula: nist-cryo-log-poly
+      vars: [{name: T, unit: K, range: [4, 300]}]
+      coeffs: {a: [31.88256, -166.51949, 352.01879, -393.44232, 259.98072, -104.61429, 24.99276, -3.20792, 0.16503]}
+    unit: J/(kg*K)
+    basis: measured
+    source: nist_cryo_teflon
+    locator: "Specific Heat column, a..i = 31.88256, -166.51949, 352.01879, -393.44232, 259.98072, -104.61429, 24.99276, -3.20792, 0.16503; data and equation range 4-300 K"
+    accessed: 2026-11-06
+    uncertainty: {rel: 0.015, note: "curve fit error relative to data: 1.5 %"}
+    conditions: {text: "Teflon, grade not stated"}
+    alternatives: []
+  alpha:
+    fit:
+      formula: nist-cryo-linexp-secant
+      vars: [{name: T, unit: K, range: [4, 300]}]
+      coeffs: {a: [-2.125e3, -8.201e-1, 6.161e-2, -3.171e-4, 6.850e-7], scale: 1.0e-5, T_ref: 293}
+    unit: 1/K
+    cte_kind: secant
+    T_ref: "293 K"
+    basis: derived
+    source: nist_cryo_teflon
+    locator: "Linear expansion column, (L - L293)/L293 x 1e5 = a + bT + cT^2 + dT^3 + eT^4, a..e = -2.125E3, -8.201E-1, 6.161E-2, -3.171E-4, 6.850E-7 (Tlow NA); data and equation range 4-300 K"
+    accessed: 2026-11-06
+    derivation: "secant CTE about 293 K = [y(T) - y(293 K)] x 1e-5 / (T - 293 K) (formula nist-cryo-linexp-secant); the fit's own y(293 K) is -3.8 (x 1e-5) and cancels in this form"
+    uncertainty: {rel: 0.02, note: "curve fit error relative to data: 2 % (on the expansion)"}
+    conditions: {text: "Teflon, grade not stated"}
+    alternatives: []
+  rho:
+    value: N/A
+    unit: kg/m^3
+    missing: "density not given by the sources read (NIST cryogenic page, TN 1536)"
+    alternatives: []
+  E:
+    value: N/A
+    unit: GPa
+    missing: "NIST cryogenic Teflon page lists Young's modulus but gives no coefficients; no other source read"
+    alternatives: []

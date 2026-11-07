@@ -1,0 +1,104 @@
+# Liquid water at 0.101325 MPa (lane L10, DevLog-013): NIST Chemistry WebBook (SRD 69) isobaric table computed from
+# the IAPWS formulations (IAPWS-95 EOS, IAPWS 2008 viscosity, IAPWS 2011 thermal conductivity).
+schema: amp-material/0
+id: water
+name: Water, liquid, at 1 atm
+class: liquid
+description: Ordinary water, liquid phase, along the 0.101325 MPa isobar, 275-370 K.
+verified_on: 2026-11-06
+sources:
+  nist_webbook_water:
+    citation: "NIST Chemistry WebBook, SRD 69, Thermophysical Properties of Fluid Systems: isobaric properties for water, 0.101325 MPa, 275-370 K step 5 K (author list of the fluid-properties section not recorded)"
+    url: "https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&ID=C7732185&Type=IsoBar&Digits=6&P=0.101325&THigh=370&TLow=275&TInc=5&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm"
+    access: open
+    read: "tab-separated data (sha256 a5de197c...) and the results page with 'References and Notes', fetched and read by L10 2026-11-06; cached under cache/materials/water/"
+  iapws95:
+    citation: "W. Wagner, A. Pruss, The IAPWS formulation 1995 for the thermodynamic properties of ordinary water substance for general and scientific use, J. Phys. Chem. Ref. Data 31(2), 387-535 (2002); IAPWS R6-95 (2016)"
+    doi: 10.1063/1.1461829
+    access: paywalled
+    read: "not read; named by the WebBook results page as its equation of state, with the uncertainty statement quoted in the locators"
+  iapws2008_visc:
+    citation: "M. L. Huber et al., New international formulation for the viscosity of H2O, J. Phys. Chem. Ref. Data 38(2), 101-125 (2009); IAPWS release 2008"
+    doi: 10.1063/1.3088050
+    access: paywalled
+    read: "not read; named by the WebBook results page as its viscosity model"
+  iapws2011_tc:
+    citation: "M. L. Huber et al., New international formulation for the thermal conductivity of H2O, J. Phys. Chem. Ref. Data 41(3), 033102 (2012); IAPWS release 2011"
+    doi: 10.1063/1.4738955
+    access: paywalled
+    read: "not read; named by the WebBook results page as its thermal-conductivity model"
+properties:
+  rho:
+    table:
+      x: T
+      x_unit: K
+      xs: [275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355, 360, 365, 370]
+      ys: [999.938, 999.911, 999.517, 998.804, 997.807, 996.557, 995.076, 993.384, 991.496, 989.427, 987.187, 984.787, 982.234, 979.536, 976.699, 973.728, 970.629, 967.404, 964.057, 960.592]
+    unit: kg/m^3
+    basis: reference_correlation
+    source: [nist_webbook_water, iapws95]
+    locator: "WebBook isobaric table, column 'Density (kg/m3)'"
+    accessed: 2026-11-06
+    uncertainty: {rel: 1.0e-6, note: "WebBook notes on the EOS: uncertainty in density 0.0001 % at 1 atm in the liquid phase"}
+    conditions: {p: "0.101325 MPa", text: "liquid; linear interpolation on the 5 K grid"}
+    alternatives: []
+  cp:
+    table:
+      x: T
+      x_unit: K
+      xs: [275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355, 360, 365, 370]
+      ys: [4.21347, 4.20094, 4.19236, 4.18660, 4.18287, 4.18064, 4.17952, 4.17924, 4.17962, 4.18053, 4.18189, 4.18365, 4.18579, 4.18829, 4.19118, 4.19447, 4.19818, 4.20234, 4.20698, 4.21214]
+    unit: J/(g*K)
+    basis: reference_correlation
+    source: [nist_webbook_water, iapws95]
+    locator: "WebBook isobaric table, column 'Cp (J/g*K)'"
+    accessed: 2026-11-06
+    uncertainty: {rel: 0.001, note: "WebBook notes on the EOS: uncertainty in isobaric heat capacity 0.1 % in the liquid"}
+    conditions: {p: "0.101325 MPa"}
+    alternatives: []
+  c:
+    table:
+      x: T
+      x_unit: K
+      xs: [275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355, 360, 365, 370]
+      ys: [1411.51, 1434.28, 1454.45, 1472.25, 1487.89, 1501.52, 1513.31, 1523.38, 1531.87, 1538.87, 1544.51, 1548.86, 1552.00, 1554.02, 1554.98, 1554.94, 1553.96, 1552.08, 1549.34, 1545.79]
+    unit: m/s
+    basis: reference_correlation
+    source: [nist_webbook_water, iapws95]
+    locator: "WebBook isobaric table, column 'Sound Spd. (m/s)'"
+    accessed: 2026-11-06
+    uncertainty: {rel: 0.001, note: "WebBook notes on the EOS: speed of sound 0.1 % or less in the liquid"}
+    conditions: {p: "0.101325 MPa"}
+    alternatives: []
+  mu:
+    table:
+      x: T
+      x_unit: K
+      xs: [275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355, 360, 365, 370]
+      ys: [0.00168194, 0.00143357, 0.00123921, 0.00108397, 0.000957811, 0.000853742, 0.000766792, 0.000693329, 0.000630656, 0.000576726, 0.000529967, 0.000489148, 0.000453296, 0.000421634, 0.000393530, 0.000368470, 0.000346029, 0.000325856, 0.000307654, 0.000291175]
+      interp: loglog
+    unit: Pa*s
+    basis: reference_correlation
+    source: [nist_webbook_water, iapws2008_visc]
+    locator: "WebBook isobaric table, column 'Viscosity (Pa*s)'"
+    accessed: 2026-11-06
+    uncertainty: {na: "WebBook: 'For the uncertainties, see the IAPWS Release or the publication cited above' (not read)"}
+    conditions: {p: "0.101325 MPa"}
+    note: "log-log interpolation chosen by L10 (viscosity varies by a factor 5.8 over the table)"
+    alternatives: []
+  k:
+    table:
+      x: T
+      x_unit: K
+      xs: [275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355, 360, 365, 370]
+      ys: [0.560294, 0.571981, 0.582589, 0.592298, 0.601236, 0.609500, 0.617160, 0.624270, 0.630871, 0.636996, 0.642669, 0.647911, 0.652739, 0.657168, 0.661209, 0.664874, 0.668173, 0.671115, 0.673708, 0.675962]
+    unit: W/(m*K)
+    basis: reference_correlation
+    source: [nist_webbook_water, iapws2011_tc]
+    locator: "WebBook isobaric table, column 'Therm. Cond. (W/m*K)'"
+    accessed: 2026-11-06
+    uncertainty: {na: "WebBook: see the IAPWS release (not read)"}
+    conditions: {p: "0.101325 MPa"}
+    alternatives: []
+missing:
+  - {property: eps_r, what: "static permittivity: WebBook names Fernandez et al. 1997 (JPCRD 26, 1125) as its model; not tabulated here"}
