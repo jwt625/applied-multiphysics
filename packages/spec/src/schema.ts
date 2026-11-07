@@ -8,25 +8,26 @@
 
 import * as z from 'zod';
 import { ENTITY_ID, ENTITY_KINDS, ISO_DATE, MATERIAL_REF, NODE_ID, PARAM_NAME, DOTTED_PATH, type EntityKind } from './ids.ts';
-import { classifyString, quantityRefs, resolveQuantity, dimMatches, dimMismatchMessage, unitlessMessage, type QuantityInput, type DimSpec } from './quantity.ts';
-import { units, expressionRefs, type ScopeValue } from './units.ts';
-import type { Registry, Registration, RegKind } from './registry.ts';
+import { classifyString, quantityRefs, resolveQuantity, resolveField, dimMatches, dimMismatchMessage, unitlessMessage, type QuantityInput, type DimSpec } from './quantity.ts';
+import { units, expressionRefs, FIELD_SYMBOLS, type ScopeValue, type Dim } from './units.ts';
+import type { Registry, Registration, RegKind, SpaceDim } from './registry.ts';
 
 export const SCHEMA_ID = 'amp-spec/0';
 
 // ---- quantity scope (params resolved by the caller; parse is synchronous) ------------------------------------
 let activeScope: ReadonlyMap<string, ScopeValue> | null = null;
 let activeFailed: ReadonlySet<string> = new Set();
+let activeSpace: SpaceDim | null = null;
 const EMPTY_SCOPE: ReadonlyMap<string, ScopeValue> = new Map();
 
 /**
  * Run fn with params available to quantity checks (expressions are only syntax-checked without a scope). Expressions
  * that reference a param in `failed` are skipped: that param's own issue is already reported.
  */
-export function withScope<T>(scope: ReadonlyMap<string, ScopeValue>, fn: () => T, failed: ReadonlySet<string> = new Set()): T {
-  const prev = activeScope, prevFailed = activeFailed;
-  activeScope = scope; activeFailed = failed;
-  try { return fn(); } finally { activeScope = prev; activeFailed = prevFailed; }
+export function withScope<T>(scope: ReadonlyMap<string, ScopeValue>, fn: () => T, failed: ReadonlySet<string> = new Set(), space: SpaceDim | null = null): T {
+  const prev = activeScope, prevFailed = activeFailed, prevSpace = activeSpace;
+  activeScope = scope; activeFailed = failed; activeSpace = space;
+  try { return fn(); } finally { activeScope = prev; activeFailed = prevFailed; activeSpace = prevSpace; }
 }
 
 const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -87,6 +88,7 @@ export function quantity(dim: DimSpec = '*', bounds?: Bounds): z.ZodType<Quantit
     z.number(),
     z.string().min(1).max(2000),
     z.strictObject({ value: z.union([z.number(), z.literal('N/A')]), unit: unitString }),
+    z.strictObject({ expr: z.string().min(1).max(2000), unit: unitString }),
   ]).superRefine((v, ctx) => {
     const issue = (message: string) => ctx.addIssue({ code: 'custom', message, input: v, params: { amp: 'quantity' } });
     if (typeof v === 'number') {
@@ -95,10 +97,9 @@ export function quantity(dim: DimSpec = '*', bounds?: Bounds): z.ZodType<Quantit
       return;
     }
     const scope = activeScope;
-    if (typeof v === 'string' && !scope) {
-      const f = classifyString(v);
-      if (f.kind === 'expr') { try { expressionRefs(f.src); } catch (e) { issue(msg(e)); } return; }
-    }
+    const src = typeof v === 'string' ? (classifyString(v).kind === 'expr' ? v : null) : 'expr' in v ? v.expr : null;
+    if (src !== null && !scope) { try { expressionRefs(src); } catch (e) { issue(msg(e)); } return; }
+    if (typeof v === 'object' && 'expr' in v && activeFailed.size && quantityRefs(v).some((n) => activeFailed.has(n))) return;
     if (typeof v === 'string' && activeFailed.size && quantityRefs(v).some((n) => activeFailed.has(n))) return;
     try {
       const r = resolveQuantity(v, scope ?? EMPTY_SCOPE);
@@ -118,16 +119,83 @@ export function quantity(dim: DimSpec = '*', bounds?: Bounds): z.ZodType<Quantit
   return s;
 }
 
+// ---- field-valued settings (contracts v1) ------------------------------------------------------------------------
+/** Which field symbols a setting may use: space (x, y, z, r by geometry), time (t), or both. */
+export type FieldVars = 'space' | 'time' | 'spacetime';
+const SPACE_SYMBOLS: Record<SpaceDim, readonly string[]> = { '1d': ['x'], '2d': ['x', 'y'], '2d-axisym': ['r', 'z'], '3d': ['x', 'y', 'z'] };
+
+/** Symbols allowed for `vars` in the active geometry (all space symbols when the geometry is not known). */
+export function fieldSymbols(vars: FieldVars, space: SpaceDim | null = activeSpace): Map<string, Dim> {
+  const names = [...(vars === 'time' ? [] : space ? SPACE_SYMBOLS[space] : ['x', 'y', 'z', 'r']), ...(vars === 'space' ? [] : ['t'])];
+  return new Map(names.map((n) => [n, FIELD_SYMBOLS.get(n) as Dim]));
+}
+
+const fCache = new Map<string, z.ZodType<QuantityInput>>();
+
+/**
+ * Field-valued setting (BCs, sources, initial conditions): a quantity, or an expression in params and the field
+ * symbols x, y, z, r (m) and t (s) allowed by `vars` and the geometry, as a string or {expr, unit}. Bounds apply
+ * when the value is constant.
+ */
+export function field(dim: DimSpec, opts: { bounds?: Bounds; vars?: FieldVars } = {}): z.ZodType<QuantityInput> {
+  const vars = opts.vars ?? 'spacetime';
+  const bk = boundsKey(opts.bounds);
+  const key = `${dim}|${bk}|${vars}`;
+  const hit = fCache.get(key);
+  if (hit) return hit;
+  units.parseUnit(dim === '*' ? '1' : dim);
+  const dimless = isDimless(dim);
+  const s = z.union([
+    z.number(),
+    z.string().min(1).max(2000),
+    z.strictObject({ value: z.union([z.number(), z.literal('N/A')]), unit: unitString }),
+    z.strictObject({ expr: z.string().min(1).max(2000), unit: unitString }),
+  ]).superRefine((v, ctx) => {
+    const issue = (message: string) => ctx.addIssue({ code: 'custom', message, input: v, params: { amp: 'quantity' } });
+    if (typeof v === 'number') {
+      if (!dimless) issue(unitlessMessage(v, dim));
+      else { const m = boundsMessage(v, dim, opts.bounds); if (m) issue(m); }
+      return;
+    }
+    const src = typeof v === 'string' ? (classifyString(v).kind === 'expr' ? v : null) : 'expr' in v ? v.expr : null;
+    if (src !== null) {
+      let refs: string[];
+      try { refs = expressionRefs(src); } catch (e) { issue(msg(e)); return; }
+      const allowed = fieldSymbols(vars);
+      const bad = refs.filter((n) => FIELD_SYMBOLS.has(n) && !allowed.has(n));
+      if (bad.length) { issue(`${bad.map((n) => `'${n}'`).join(', ')} not available here (allowed: ${[...allowed.keys()].join(', ') || 'none'}${activeSpace ? `; geometry ${activeSpace}` : ''})`); return; }
+      if (!activeScope) return;
+      if (activeFailed.size && refs.some((n) => activeFailed.has(n))) return;
+    }
+    try {
+      const r = resolveField(v, activeScope ?? EMPTY_SCOPE, src !== null ? fieldSymbols(vars) : new Map());
+      if (r.na) return;
+      if (!dimMatches(r.dim, dim)) { issue(dimMismatchMessage(r.dim, dim)); return; }
+      if (r.si !== null) { const m = boundsMessage(r.si, dim, opts.bounds); if (m) issue(m); }
+    } catch (e) { issue(msg(e)); }
+  }).meta({
+    id: `Field_${safeId(dim)}${bk ? `_${idNum(bk)}` : ''}_${vars}`,
+    description: `Field value${dim === '*' ? '' : ` in ${dim}`}: a quantity, or an expression in params and ${vars === 'time' ? 't' : vars === 'space' ? 'x, y, z, r' : 'x, y, z, r, t'} ("100[K]*sin(pi*t/(40[s]))", {expr, unit})`,
+    'x-amp-quantity': dim,
+    'x-amp-dimensionless': dimless,
+    'x-amp-field': vars,
+    ...boundsMeta(opts.bounds),
+  }) as z.ZodType<QuantityInput>;
+  fCache.set(key, s);
+  return s;
+}
+
 const vCache = new Map<string, z.ZodType>();
 export type VectorValue = QuantityInput[] | { value: number[]; unit: string };
 
 /** Vector quantity: an array of scalar quantities, or {value: [..], unit}; bounds apply to every component. */
-export function vector(dim: DimSpec, n?: number, bounds?: Bounds): z.ZodType<VectorValue> {
+export function vector(dim: DimSpec, n?: number, bounds?: Bounds, vars?: FieldVars): z.ZodType<VectorValue> {
   const bk = boundsKey(bounds);
-  const key = `${dim}|${n ?? ''}|${bk}`;
+  const key = `${dim}|${n ?? ''}|${bk}|${vars ?? ''}`;
   const hit = vCache.get(key);
   if (hit) return hit as z.ZodType<VectorValue>;
-  const arr = n ? z.array(quantity(dim, bounds)).length(n) : z.array(quantity(dim, bounds)).min(1);
+  const comp = vars ? field(dim, { ...(bounds ? { bounds } : {}), vars }) : quantity(dim, bounds);
+  const arr = n ? z.array(comp).length(n) : z.array(comp).min(1);
   const nums = n ? z.array(z.number()).length(n) : z.array(z.number()).min(1);
   const obj = z.strictObject({ value: nums, unit: unitString }).superRefine((v, ctx) => {
     try {
@@ -138,7 +206,7 @@ export function vector(dim: DimSpec, n?: number, bounds?: Bounds): z.ZodType<Vec
     } catch (e) { ctx.addIssue({ code: 'custom', message: msg(e), path: ['unit'] }); }
   });
   const s = z.union([arr, obj]).meta({
-    id: `Vector_${safeId(dim)}${n ? `_${n}` : ''}${bk ? `_${idNum(bk)}` : ''}`,
+    id: `Vector_${safeId(dim)}${n ? `_${n}` : ''}${bk ? `_${idNum(bk)}` : ''}${vars ? `_${vars}` : ''}`,
     'x-amp-vector': dim, ...(n ? { 'x-amp-length': n } : {}), ...boundsMeta(bounds),
   });
   vCache.set(key, s);
@@ -181,15 +249,34 @@ export const paramSchema = z.union([
   }),
 ]).meta({ description: 'Param: number (dimensionless), "5 mm", expression over other params, or {value, unit, range, description}' });
 
-export const BASIS = [
-  'analytic', 'textbook', 'standard', 'benchmark', 'handbook', 'datasheet', 'paper', 'paper_exact', 'figure_digitized',
-  'measured', 'derived', 'inference', 'user', 'template', 'sensitivity', 'memory', 'unknown',
-] as const;
+/** Basis vocabulary with definitions (contracts v1 adds paper_model_input and reference_correlation from L10). */
+export const BASIS_DEFINITIONS = {
+  analytic: 'closed-form result (e.g. Biot-Savart, Kirsch), exact for the stated idealization',
+  textbook: 'value or formula taken from a textbook',
+  standard: 'value fixed by a standard or design code (e.g. ISO, Eurocode)',
+  benchmark: 'input defined by a published benchmark case (e.g. NAFEMS, Palace examples), as recorded in DevLog research R3',
+  handbook: 'value from a reference handbook compilation',
+  datasheet: "manufacturer's datasheet value",
+  paper: 'value reported in a paper',
+  paper_exact: 'value stated exactly in a paper text or table (EO provenance class)',
+  figure_digitized: 'value read off a figure by digitization (EO provenance class)',
+  paper_model_input: 'value a paper states as an input of its own model, not measured by that paper (APA A6)',
+  reference_correlation: 'value computed from a reference equation of state or correlation at the stated condition (e.g. Lemmon 2000 for air; DevLog-013)',
+  measured: 'measured value, or an evaluated compilation of measurements',
+  derived: 'computed from other sourced values by a stated relation',
+  inference: 'project inference from indirect evidence, labelled as such (EO project_inference)',
+  user: 'chosen by the user or a modelling choice; not physical data',
+  template: 'default of a generator template or family',
+  sensitivity: 'value set for a sensitivity-study variant',
+  memory: "applied from the user's memory defaults",
+  unknown: 'origin unknown',
+} as const;
+export const BASIS = Object.keys(BASIS_DEFINITIONS) as (keyof typeof BASIS_DEFINITIONS)[] as unknown as readonly [keyof typeof BASIS_DEFINITIONS, ...(keyof typeof BASIS_DEFINITIONS)[]];
 /** APA geometry status axis ("status never upgrades"). */
 export const STATUS = ['reported', 'derived', 'public', 'template', 'user'] as const;
 
 export const provenanceEntry = z.strictObject({
-  basis: z.enum(BASIS),
+  basis: z.enum(BASIS).meta({ description: Object.entries(BASIS_DEFINITIONS).map(([k, v]) => `${k}: ${v}`).join('; ') }),
   status: z.enum(STATUS).optional(),
   source: freeText().optional(),
   locator: freeText().optional(),
@@ -223,7 +310,7 @@ export const NONNEG: Bounds = Object.freeze({ ge: 0 });
 
 export const meshSchema = z.strictObject({
   mesher: typeName.optional(),
-  size: z.strictObject({ hmax: quantity('m', POS), hmin: quantity('m', POS).optional(), grading: quantity('1', POS).optional() }),
+  size: z.strictObject({ hmax: quantity('m', POS), hmin: quantity('m', POS).optional(), grading: quantity('1', POS).optional().meta({ description: 'Maximum size growth per unit distance, |dh/dx| (dimensionless; L3 mapping, contract changelog 2026-11-06)' }) }),
   refine: z.array(z.strictObject({ select: selection(), h: quantity('m', POS) })).optional(),
   budget: z.strictObject({ maxNodes: z.number().int().positive().optional(), maxDof: z.number().int().positive().optional() }).optional(),
 });
@@ -262,7 +349,7 @@ export const GENERIC_PARTS = {
   physics: z.strictObject({ id: nodeId, type: typeName, label, select: selection(['dom']), settings: openSettings.optional(), bcs: z.array(genericBc).optional() }),
   coupling: z.strictObject({ id: nodeId, type: typeName, label, from: nodeId, to: nodeId, settings: openSettings.optional() }),
   study: z.strictObject({ id: nodeId, type: typeName, label, physics: z.array(nodeId).min(1), settings: openSettings.optional() }),
-  override: z.record(z.string().regex(PARAM_NAME), quantity('*')),
+  override: z.record(z.string().regex(PARAM_NAME), z.union([quantity('*'), z.strictObject({ symmetry: typeName, unit: unitString.optional(), components: z.record(z.string().regex(PARAM_NAME), z.union([z.number(), quantity('*')])) })])),
 };
 
 function specFromParts<P extends Parts>(p: P) {
@@ -317,34 +404,70 @@ export type ProvenanceEntry = z.infer<typeof provenanceEntry>;
 const acceptsEmpty = (s: z.ZodType) => s.safeParse({}).success;
 const settingsShape = (r: Registration) => (r.settings ? { settings: acceptsEmpty(r.settings) ? r.settings.optional() : r.settings } : {});
 
-function noneRegistered(kind: RegKind): z.ZodType {
+function noneRegistered(kind: string, scope: string): z.ZodType {
   return z.strictObject({ type: typeName }).passthrough().superRefine((v, ctx) => {
-    ctx.addIssue({ code: 'custom', message: `no ${kind} types are registered (type '${v.type}')`, path: ['type'] });
+    ctx.addIssue({ code: 'custom', message: `no ${kind} types are registered${scope} (type '${v.type}')`, path: ['type'] });
   });
 }
 
-function union(kind: RegKind, options: z.ZodType[], names: string[]): z.ZodType {
-  if (!options.length) return noneRegistered(kind);
+/** Discriminated union of registered types; `scope` (e.g. " for physics type 'heat'") is named in errors. */
+function union(kind: RegKind, options: z.ZodType[], names: string[], scope = ''): z.ZodType {
+  if (!options.length) return noneRegistered(kind, scope);
   const error = (iss: { code?: string; note?: string; input?: unknown }) => {
     if (iss.code === 'invalid_union' && iss.note === 'No matching discriminator') {
       const t = iss.input && typeof iss.input === 'object' ? (iss.input as { type?: unknown }).type : undefined;
-      return `unknown ${kind} type ${t === undefined ? '(missing type)' : `'${String(t)}'`} (registered: ${names.join(', ')})`;
+      return `unknown ${kind} type ${t === undefined ? '(missing type)' : `'${String(t)}'`}${scope} (registered${scope ? ' there' : ''}: ${names.join(', ')})`;
     }
     return undefined;
   };
   return z.discriminatedUnion('type', options as never, { error } as never);
 }
 
+/**
+ * Override value of a material property (contracts v1): a scalar quantity (unless scalar: false) and/or tensor forms
+ * {symmetry, unit?, components}, one per registered symmetry; components are quantities of the property's dimension,
+ * or numbers when `unit` is given, or "N/A". A registration's own `value` schema replaces both.
+ */
+function propertyValue(r: Registration): z.ZodType {
+  if (r.value) return r.value;
+  const unit = r.unit as string;
+  const forms: z.ZodType[] = [];
+  if (r.scalar !== false) forms.push(quantity(unit, r.bounds));
+  for (const [sym, comps] of Object.entries(r.tensor ?? {})) {
+    const comp = z.union([z.number(), quantity(unit)]);
+    forms.push(z.strictObject({ symmetry: z.literal(sym), unit: unitString.optional(), components: z.strictObject(Object.fromEntries(comps.map((c) => [c, comp]))) })
+      .superRefine((v, ctx) => {
+        let factor: number | null = null;
+        if (v.unit !== undefined) {
+          try {
+            const u = units.parseUnit(v.unit);
+            if (u.offset !== 0 || !dimMatches(u.dim, unit)) { ctx.addIssue({ code: 'custom', message: u.offset !== 0 ? 'affine units are not allowed in tensors' : dimMismatchMessage(u.dim, unit), path: ['unit'] }); return; }
+            factor = u.factor;
+          } catch { return; } // reported by unitString
+        }
+        for (const [c, x] of Object.entries(v.components)) {
+          if (typeof x !== 'number') continue;
+          if (factor === null && !isDimless(unit)) ctx.addIssue({ code: 'custom', message: `component ${c}: a bare number needs the tensor 'unit' (or write "${x} <unit>")`, path: ['components', c] });
+          else { const m = boundsMessage(x * (factor ?? 1), unit); if (m) ctx.addIssue({ code: 'custom', message: m, path: ['components', c] }); }
+        }
+      }).meta({ id: `Tensor_${r.type}_${sym.replace(/[^A-Za-z0-9]/g, '_')}`, description: `${r.type} tensor, ${sym} symmetry: components ${comps.join(', ')} in ${unit}` }));
+  }
+  if (!forms.length) throw new Error(`property '${r.type}': no value form`);
+  return forms.length === 1 ? forms[0] as z.ZodType : z.union(forms as [z.ZodType, z.ZodType, ...z.ZodType[]]);
+}
+
 function registryParts(reg: Registry): Parts {
   const features = reg.list('feature');
   const feature = union('feature', features.map((r) => z.strictObject({ id: nodeId, type: z.literal(r.type), label, ...settingsShape(r) }).meta({ description: r.description })), features.map((r) => r.type));
   const bcs = reg.list('bc');
-  // one schema object per bc type, shared by every physics that accepts it (one $defs entry in the JSON Schema)
-  const bcNode = new Map(bcs.map((b) => [b.type, z.strictObject({ id: nodeId, type: z.literal(b.type), label, select: selection(b.select), ...settingsShape(b) }).meta({ id: `Bc_${b.type}`, description: b.description })]));
+  // one schema object per bc registration, shared by every physics it covers (one $defs entry in the JSON Schema);
+  // a BC name registered for several physics separately gets the physics in its id
+  const shared = new Set(bcs.filter((b, i) => bcs.findIndex((c) => c.type === b.type) !== i).map((b) => b.type));
+  const bcNode = new Map(bcs.map((b) => [b, z.strictObject({ id: nodeId, type: z.literal(b.type), label, select: selection(b.select), ...settingsShape(b) }).meta({ id: shared.has(b.type) ? `Bc_${(b.for ?? ['any']).join('_').replace(/\*/g, 'any')}_${b.type}` : `Bc_${b.type}`, description: b.description })]));
   const physicsRegs = reg.list('physics');
   const physics = union('physics', physicsRegs.map((r) => {
-    const mine = bcs.filter((b) => b.for?.includes(r.type) || b.for?.includes('*'));
-    const bcUnion = union('bc', mine.map((b) => bcNode.get(b.type) as z.ZodType), mine.map((b) => b.type));
+    const mine = reg.bcsFor(r.type);
+    const bcUnion = union('bc', mine.map((b) => bcNode.get(b) as z.ZodType), mine.map((b) => b.type), ` for physics type '${r.type}'`);
     return z.strictObject({ id: nodeId, type: z.literal(r.type), label, select: selection(r.select ?? ['dom']), ...settingsShape(r), bcs: z.array(bcUnion).optional() }).meta({ description: r.description });
   }), physicsRegs.map((r) => r.type));
   const couplings = reg.list('coupling');
@@ -352,7 +475,7 @@ function registryParts(reg: Registry): Parts {
   const studies = reg.list('study');
   const study = union('study', studies.map((r) => z.strictObject({ id: nodeId, type: z.literal(r.type), label, physics: z.array(nodeId).min(1), ...settingsShape(r) }).meta({ description: r.description })), studies.map((r) => r.type));
   const props = reg.list('property');
-  const override = z.strictObject(Object.fromEntries(props.map((r) => [r.type, quantity(r.unit as string, r.bounds).optional().meta({ description: r.description })])));
+  const override = z.strictObject(Object.fromEntries(props.map((r) => [r.type, propertyValue(r).optional().meta({ description: r.description })])));
   return { feature, physics, coupling, study, override };
 }
 

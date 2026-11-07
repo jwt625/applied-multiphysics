@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { EXPRESSION_FUNCTIONS } from '@amp/core/expr';
 import { buildSpecSchema, withScope, type Spec } from './schema.ts';
 import { classifyString, resolveQuantity, QuantityError, NA } from './quantity.ts';
-import { units, expressionRefs, evaluateExpression, type ScopeValue } from './units.ts';
+import { units, expressionRefs, evaluateExpression, FIELD_SYMBOLS, type ScopeValue } from './units.ts';
 import { parseEntityId, entityOverlaps, type EntityKind } from './ids.ts';
 import type { Registry, CheckContext, PathKey, SpaceDim, Registration } from './registry.ts';
 
@@ -80,7 +80,7 @@ export function idPathOf(data: unknown, keys: readonly PathKey[]): string {
 }
 
 // ---- params ----------------------------------------------------------------------------------------------------
-const RESERVED = new Set<string>(['pi', ...EXPRESSION_FUNCTIONS]);
+const RESERVED = new Set<string>(['pi', ...EXPRESSION_FUNCTIONS, ...FIELD_SYMBOLS.keys()]);
 export const BUILTIN_SCOPE: ReadonlyMap<string, ScopeValue> = new Map([['pi', { si: Math.PI, dim: units.dimless }]]);
 
 type ParamPlan = { name: string; value?: { si: number; dim: number[]; unit: string | null }; expr?: string; refs: string[] };
@@ -93,7 +93,7 @@ export function resolveParams(raw: unknown): { scope: Map<string, ScopeValue>; i
   const plans = new Map<string, ParamPlan>();
   for (const [name, def] of Object.entries(raw)) {
     const at: PathKey[] = ['params', name];
-    if (RESERVED.has(name)) { issues.push(issue(at, 'param_reserved', `'${name}' is reserved (constant or function name)`)); continue; }
+    if (RESERVED.has(name)) { issues.push(issue(at, 'param_reserved', `'${name}' is reserved (constant, function or field symbol x, y, z, r, t)`)); continue; }
     try {
       const plan = planParam(name, def, at, issues);
       if (plan) plans.set(name, plan);
@@ -183,7 +183,7 @@ function planParam(name: string, def: unknown, at: PathKey[], issues: SpecIssue[
 type RawIssue = z.core.$ZodIssue;
 
 const errorMap = (iss: { code?: string; input?: unknown; path?: PropertyKey[]; keys?: string[]; inst?: unknown; expected?: string }) => {
-  if (iss.code === 'invalid_type' && iss.input === undefined) return `missing required key '${String(iss.path?.at(-1) ?? '')}'`;
+  if ((iss.code === 'invalid_type' || iss.code === 'invalid_value' || iss.code === 'invalid_union') && iss.input === undefined && iss.path?.length) return `missing required key '${String(iss.path.at(-1))}'`;
   if (iss.code === 'unrecognized_keys') {
     const shape = (iss.inst as { _zod?: { def?: { shape?: Record<string, unknown> } } } | undefined)?._zod?.def?.shape;
     const allowed = shape ? Object.keys(shape) : null;
@@ -207,7 +207,7 @@ function flattenIssues(raw: RawIssue[], prefix: PathKey[], out: SpecIssue[]): vo
       out.push(issue(path, 'invalid_value', `invalid value (${describeInput(r.input)})`));
       continue;
     }
-    const code = (r as { params?: { amp?: string } }).params?.amp ?? (r.code === 'invalid_type' && r.input === undefined ? 'missing_key' : r.code);
+    const code = (r as { params?: { amp?: string } }).params?.amp ?? (r.input === undefined && r.message.startsWith('missing required key') ? 'missing_key' : r.code);
     out.push(issue(path, code, r.message));
   }
 }
@@ -294,7 +294,7 @@ function crossCheck(spec: Spec, reg: Registry, scope: ReadonlyMap<string, ScopeV
       const bp: PathKey[] = [...path, 'bcs', j];
       addId(b.id, bp);
       checkSel(b.select, [...bp, 'select']);
-      hook(reg.get('bc', b.type), b as Record<string, unknown>, bp);
+      hook(reg.getBc(p.type, b.type), b as Record<string, unknown>, bp);
     });
   });
 
@@ -354,15 +354,38 @@ function crossCheck(spec: Spec, reg: Registry, scope: ReadonlyMap<string, ScopeV
   for (const [k, v] of Object.entries(data)) if (!['missing', 'assumptions', 'provenance', 'title', 'description'].includes(k)) walk(v, [k]);
 }
 
+/** Library of materials/ ids (the @amp/materials Library satisfies it), injected so refs can be checked. */
+export interface MaterialIndex { ids(): readonly string[] }
+export interface ValidateOptions { materials?: MaterialIndex | null }
+
+const rawSpace = (data: unknown): SpaceDim | null => {
+  const g = isObj(data) && isObj(data.geometry) ? data.geometry : null;
+  if (!g) return null;
+  return g.dim === 1 ? '1d' : g.dim === 2 ? (g.axisym === true ? '2d-axisym' : '2d') : g.dim === 3 ? '3d' : null;
+};
+
 /** Validate plain spec data against a registry. */
-export function validateSpec(data: unknown, reg: Registry): ValidationResult {
+export function validateSpec(data: unknown, reg: Registry, opts: ValidateOptions = {}): ValidationResult {
   const issues: SpecIssue[] = [];
   const params = resolveParams(isObj(data) ? data.params : undefined);
   issues.push(...params.issues);
   const schema = buildSpecSchema(reg);
-  const r = withScope(params.scope, () => schema.safeParse(data, { error: errorMap as never }), params.failed);
+  const r = withScope(params.scope, () => schema.safeParse(data, { error: errorMap as never }), params.failed, rawSpace(data));
   if (!r.success) flattenIssues(r.error.issues, [], issues);
+  // name the physics in bc errors (the schema knows only its type)
+  for (const i of issues) {
+    if (i.path[0] === 'physics' && i.path[2] === 'bcs' && typeof i.path[1] === 'number') {
+      const pid = (isObj(data) && Array.isArray(data.physics) && isObj(data.physics[i.path[1]]) ? (data.physics[i.path[1]] as { id?: unknown }).id : undefined);
+      if (typeof pid === 'string' && !i.message.includes(`physics '${pid}'`)) i.message += ` [physics '${pid}']`;
+    }
+  }
   if (r.success) crossCheck(r.data, reg, params.scope, issues);
+  if (r.success && opts.materials) {
+    const known = new Set(opts.materials.ids());
+    r.data.materials?.forEach((m, i) => {
+      if (m.ref && !known.has(m.ref.slice('materials/'.length))) issues.push(issue(['materials', i, 'ref'], 'unknown_material', `'${m.ref}' is not in the materials library (${known.size} ids)`));
+    });
+  }
   dedupe(issues);
   return { ok: issues.length === 0, spec: r.success && issues.length === 0 ? r.data : r.success ? r.data : null, issues, params: params.info };
 }

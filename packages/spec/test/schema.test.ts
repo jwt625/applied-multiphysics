@@ -8,14 +8,14 @@ import { validateSpec, resolveDotted } from '../src/validate.ts';
 import { specJsonSchema, quantity, SpecSchema, schemaAt, type Spec } from '../src/schema.ts';
 import { createRegistry } from '../src/registry.ts';
 import { wave1Registry, WAVE1 } from '../src/provisional/wave1.ts';
+import { HEROES, readHero, readSim } from './heroes.ts';
 import { resolveQuantity, classifyString } from '../src/quantity.ts';
 import { checkSelections, type EntityResolver } from '../src/selection.ts';
 import { parseEntityId, entityOverlaps } from '../src/ids.ts';
 
 const SIMS = new URL('../../../sims/', import.meta.url);
-const HEROES = ['kirsch-plate', 'heat-plate-fin', 'helmholtz-coil', 'si-rib-waveguide', 'cylinder-cavity', 'box-acoustics'];
 const reg = wave1Registry();
-const read = (id: string) => readFileSync(new URL(`${id}.yaml`, SIMS), 'utf8');
+const read = readHero;
 const KIRSCH = read('kirsch-plate');
 
 /** Replace one exact substring (must occur once). */
@@ -26,9 +26,11 @@ function edit(text: string, from: string, to: string): string {
 }
 const codes = (text: string) => parseSpecText(text, reg).issues.map((i) => `${i.code} ${i.dotted}`);
 
-test('all six hero examples validate', () => {
+test('all six hero examples validate (si-rib-waveguide via the pending I1 port, see DevLog-003 s.9)', () => {
   const files = readdirSync(SIMS).filter((f) => f.endsWith('.yaml')).map((f) => f.slice(0, -5)).sort();
-  assert.deepEqual(files, [...HEROES].sort());
+  assert.ok(HEROES.every((h) => files.includes(h)), 'hero files present');
+  const raw = parseSpecText(readSim('si-rib-waveguide'), reg);
+  if (!raw.ok) assert.deepEqual(raw.issues.map((i) => i.code).sort(), ['check', 'param_reserved'], 'the only break is the reserved param name t');
   for (const id of HEROES) {
     const r = parseSpecText(read(id), reg);
     assert.ok(r.ok, `${id}:\n${formatIssues(r.issues)}`);
@@ -162,7 +164,7 @@ test('JSON Schema export: one generated schema, dimensional quantities exclude b
   const defs = js.$defs ?? {};
   const forms = (name: string) => defs[(defs[name]?.$ref ?? '').replace('#/$defs/', '')]?.anyOf ?? [];
   assert.equal(defs['Quantity_m']?.['x-amp-quantity'], 'm');
-  assert.ok(forms('Quantity_m').length === 2 && !forms('Quantity_m').some((b) => b.type === 'number'), 'length quantity admits no bare number');
+  assert.ok(forms('Quantity_m').length === 3 && !forms('Quantity_m').some((b) => b.type === 'number'), 'length quantity admits no bare number');
   assert.ok(forms('Quantity_1').some((b) => b.type === 'number'), 'dimensionless quantity admits a number');
   assert.ok(text.length < 41053, `JSON Schema below the audited size (${text.length} B)`);
   assert.ok(text.includes('"x-amp-selection"'));

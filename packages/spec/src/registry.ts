@@ -40,6 +40,12 @@ export interface Registration {
   for?: readonly string[];
   /** physics / feature: space dimensions it supports. */
   dims?: readonly SpaceDim[];
+  /** property: false when only tensor forms are allowed (default true). */
+  scalar?: boolean;
+  /** property: allowed tensor forms, symmetry -> independent component names (e.g. {cubic: ['C11', 'C12', 'C44']}). */
+  tensor?: Readonly<Record<string, readonly string[]>>;
+  /** property: a complete zod schema for the override value, replacing the scalar/tensor forms built from the fields above. */
+  value?: z.ZodType;
   /** property: reference SI unit of the property (dimension check). */
   unit?: string;
   /** property: physical bounds on the SI value (e.g. {gt: 0}). */
@@ -55,9 +61,19 @@ export interface Registration {
 }
 
 export interface Registry {
+  /**
+   * Register a type. BC types are scoped by physics (contracts v1): a bc registration covers the physics types in
+   * `for` ('*' = any), and two registrations may share a BC name for different physics (e.g. `pressure` for acoustics
+   * and for elastic). {replace: true} supersedes only the physics it names.
+   */
   register(r: Registration, opts?: { replace?: boolean }): void;
   unregister(kind: RegKind, type: string): boolean;
+  /** For kind 'bc', the registration only when exactly one exists under that name; use getBc. */
   get(kind: RegKind, type: string): Registration | undefined;
+  /** The BC registration of `type` for a physics type (a physics-specific one before a '*' one). */
+  getBc(physicsType: string, type: string): Registration | undefined;
+  /** BC registrations that apply to a physics type (physics-specific ones shadow '*' ones of the same name). */
+  bcsFor(physicsType: string): Registration[];
   list(kind: RegKind): Registration[];
   /** Increments on every change; schema caches key on it. */
   readonly version: number;
@@ -67,26 +83,54 @@ const TYPE_NAME = /^[a-z][a-z0-9-]{0,63}$|^[A-Za-z][A-Za-z0-9_]{0,31}$/;
 
 export function createRegistry(seed: Registration[] = []): Registry {
   const maps = new Map<RegKind, Map<string, Registration>>(REG_KINDS.map((k) => [k, new Map()]));
+  /** bc registrations keyed `<physics type or *>|<bc type>`; one registration object may sit under several keys. */
+  const bcs = new Map<string, Registration>();
   let version = 0;
+  const byType = (a: Registration, b: Registration) => (a.type < b.type ? -1 : a.type > b.type ? 1 : 0);
+  const bcList = () => [...new Set(bcs.values())].sort(byType);
   const reg: Registry = {
     register(r, opts = {}) {
       const m = maps.get(r.kind);
       if (!m) throw new Error(`unknown registry kind '${r.kind}'`);
       if (!TYPE_NAME.test(r.type)) throw new Error(`invalid ${r.kind} type name '${r.type}'`);
+      if (r.kind === 'bc') {
+        if (!r.select?.length) throw new Error(`bc type '${r.type}' needs select kinds`);
+        const scopes = r.for?.length ? r.for : ['*'];
+        const keys = scopes.map((p) => `${p}|${r.type}`);
+        const taken = keys.filter((k) => bcs.has(k));
+        if (taken.length && !opts.replace) throw new Error(`bc type '${r.type}' is already registered for physics ${taken.map((k) => `'${k.split('|')[0]}'`).join(', ')} (pass {replace: true} to supersede)`);
+        const frozen = Object.freeze({ ...r, for: scopes });
+        for (const k of keys) bcs.set(k, frozen);
+        version++;
+        return;
+      }
       if (m.has(r.type) && !opts.replace) throw new Error(`${r.kind} type '${r.type}' is already registered (pass {replace: true} to supersede)`);
-      if (r.kind === 'bc' && !r.select?.length) throw new Error(`bc type '${r.type}' needs select kinds`);
       if (r.kind === 'property' && !r.unit) throw new Error(`property '${r.type}' needs a reference unit`);
+      if (r.kind === 'property' && r.scalar === false && !r.tensor && !r.value) throw new Error(`property '${r.type}': no value form (scalar false and no tensor)`);
       if (r.kind === 'coupling' && r.for && r.for.length !== 2) throw new Error(`coupling '${r.type}': for = [from type, to type]`);
       m.set(r.type, Object.freeze({ ...r }));
       version++;
     },
     unregister(kind, type) {
-      const ok = maps.get(kind)?.delete(type) ?? false;
+      let ok = false;
+      if (kind === 'bc') { for (const k of [...bcs.keys()]) if (k.endsWith(`|${type}`)) { bcs.delete(k); ok = true; } }
+      else ok = maps.get(kind)?.delete(type) ?? false;
       if (ok) version++;
       return ok;
     },
-    get: (kind, type) => maps.get(kind)?.get(type),
-    list: (kind) => [...(maps.get(kind)?.values() ?? [])].sort((a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : 0)),
+    get: (kind, type) => {
+      if (kind !== 'bc') return maps.get(kind)?.get(type);
+      const hits = bcList().filter((b) => b.type === type);
+      return hits.length === 1 ? hits[0] : undefined;
+    },
+    getBc: (physicsType, type) => bcs.get(`${physicsType}|${type}`) ?? bcs.get(`*|${type}`),
+    bcsFor: (physicsType) => {
+      const out = new Map<string, Registration>();
+      for (const [k, b] of bcs) { const [p, t] = k.split('|') as [string, string]; if (p === '*' && !out.has(t)) out.set(t, b); }
+      for (const [k, b] of bcs) { const [p, t] = k.split('|') as [string, string]; if (p === physicsType) out.set(t, b); }
+      return [...out.values()].sort(byType);
+    },
+    list: (kind) => (kind === 'bc' ? bcList() : [...(maps.get(kind)?.values() ?? [])].sort(byType)),
     get version() { return version; },
   };
   for (const r of seed) reg.register(r);

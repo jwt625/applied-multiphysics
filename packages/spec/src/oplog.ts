@@ -16,7 +16,7 @@ import { parseStrict, setIn, insertIn, deleteIn } from './yaml-edit.mjs';
 import { applyPatch, invertPatch, checkPatchShape, type JsonPatchOp, type PatchStep } from './patch.ts';
 import { canonicalJson, sha256Hex, specHash, jsonEqual } from './canonical.ts';
 import { invalidationsFor, type Artifact } from './invalidation.ts';
-import { validateSpec } from './validate.ts';
+import { validateSpec, type ValidateOptions } from './validate.ts';
 import { isValidActor, isAgentActor, type Actor } from './ids.ts';
 import { isoNow } from './run-record.ts';
 import type { Registry } from './registry.ts';
@@ -72,6 +72,8 @@ export interface ApplyOptions {
 export interface OpLogOptions {
   /** Validation after every op (C7 `validation`); without it ops record {ok: true, errors: []} and `validated: false`. */
   registry?: Registry;
+  /** Options for the registry validation (e.g. an injected materials library for ref checks). */
+  validateOptions?: ValidateOptions;
   validate?: (data: unknown) => { ok: boolean; errors: string[] };
   /** Refuse (throw, append nothing) when the result does not validate. Default false: edits are ungated (D3). */
   requireValid?: boolean;
@@ -144,7 +146,7 @@ function makeValidator(opts: OpLogOptions): (data: unknown) => { ok: boolean; er
   if (opts.registry) {
     const reg = opts.registry;
     return (data) => {
-      const v = validateSpec(data, reg);
+      const v = validateSpec(data, reg, opts.validateOptions ?? {});
       return { ok: v.ok, errors: v.issues.map((i) => `${i.dotted || '(root)'}: ${i.message}`) };
     };
   }

@@ -69,3 +69,29 @@ export function evaluateExpression(src: string, scope: ReadonlyMap<string, Scope
   if (c.constant.im !== 0) throw new Error(`expression "${src}" is complex`);
   return { si: c.constant.re, dim: c.dim };
 }
+
+/** Space and time symbols of field expressions (contracts v1): x, y, z, r in m, t in s. */
+export const FIELD_SYMBOLS: ReadonlyMap<string, Dim> = new Map([
+  ['x', [1, 0, 0, 0, 0]], ['y', [1, 0, 0, 0, 0]], ['z', [1, 0, 0, 0, 0]], ['r', [1, 0, 0, 0, 0]], ['t', [0, 0, 1, 0, 0]],
+]);
+
+/**
+ * Dimension of an expression over params and field symbols (`vars`: allowed symbols with their dimensions). `si` is
+ * the value when the expression does not depend on any symbol, else null. Throws with a message on error.
+ */
+export function evaluateFieldExpression(src: string, scope: ReadonlyMap<string, ScopeValue>, vars: ReadonlyMap<string, Dim>): { si: number | null; dim: number[] } {
+  const c = compileExpression(src, {
+    resolve: (name: string) => {
+      const v = scope.get(name);
+      if (v) return { kind: 'const', re: v.si, dim: v.dim };
+      const d = vars.get(name);
+      return d ? { kind: 'field', key: name, dim: d, complex: false, continuous: true } : null;
+    },
+  });
+  if (c.complex) throw new Error(`expression "${src}" is complex`);
+  if (c.constant) {
+    if (c.constant.im !== 0) throw new Error(`expression "${src}" is complex`);
+    return { si: c.constant.re, dim: c.dim };
+  }
+  return { si: null, dim: c.dim };
+}

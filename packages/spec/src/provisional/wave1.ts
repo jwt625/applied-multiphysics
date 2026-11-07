@@ -7,7 +7,7 @@
 // cylinder: side/top/bottom) are proposals for L3 (DevLog-003 s.5).
 
 import * as z from 'zod';
-import { quantity, vector, nodeId, POS, NONNEG } from '../schema.ts';
+import { quantity, vector, field, nodeId, POS, NONNEG } from '../schema.ts';
 import type { Registration, Registry } from '../registry.ts';
 import { coreRegistry } from '../core-types.ts';
 
@@ -43,7 +43,8 @@ export const WAVE1: Registration[] = [
       const bad = (ctx.space === '3d') !== (model === '3d');
       return bad ? [{ path: ['settings', 'model'], message: `model '${model}' does not match geometry ${ctx.space}` }] : [];
     } },
-  { kind: 'physics', type: 'heat', ...phys, dims: ['1d', '2d', '2d-axisym', '3d'], description: 'Heat transfer in solids (conduction)' },
+  { kind: 'physics', type: 'heat', ...phys, dims: ['1d', '2d', '2d-axisym', '3d'], description: 'Heat transfer in solids (conduction); T0 = initial temperature for time studies',
+    settings: z.strictObject({ T0: field('K', { bounds: NONNEG, vars: 'space' }).optional() }) },
   { kind: 'physics', type: 'magnetostatics', ...phys, dims: ['2d-axisym', '3d'], description: 'Magnetostatics (A-formulation; azimuthal A in axisymmetry)' },
   { kind: 'physics', type: 'em-modes', ...phys, dims: ['2d'], description: 'Full-vector waveguide modes of a 2D cross-section' },
   { kind: 'physics', type: 'emw', ...phys, dims: ['3d'], description: 'Electromagnetic waves, frequency domain / eigenfrequency (Nedelec)' },
@@ -54,22 +55,23 @@ export const WAVE1: Registration[] = [
   { kind: 'bc', type: 'free', ...phys, for: ['elastic'], select: ['bnd'], description: 'Zero traction (explicit)' },
   { kind: 'bc', type: 'roller', ...phys, for: ['elastic'], select: ['bnd'], description: 'Zero normal displacement (symmetry plane)' },
   { kind: 'bc', type: 'boundary-load', ...phys, for: ['elastic'], select: ['bnd'], description: 'Traction vector (force per area)',
-    settings: z.strictObject({ traction: vector('Pa') }) },
-  { kind: 'bc', type: 'temperature', ...phys, for: ['heat'], select: ['bnd', 'pnt'], settings: z.strictObject({ T: quantity('K', NONNEG) }) },
-  { kind: 'bc', type: 'heat-flux', ...phys, for: ['heat'], select: ['bnd'], description: 'Inward heat flux', settings: z.strictObject({ q: quantity('W/m^2') }) },
+    settings: z.strictObject({ traction: vector('Pa', undefined, undefined, 'spacetime') }) },
+  { kind: 'bc', type: 'temperature', ...phys, for: ['heat'], select: ['bnd', 'pnt'], settings: z.strictObject({ T: field('K', { bounds: NONNEG }) }) },
+  { kind: 'bc', type: 'heat-flux', ...phys, for: ['heat'], select: ['bnd'], description: 'Inward heat flux', settings: z.strictObject({ q: field('W/m^2') }) },
   { kind: 'bc', type: 'convection', ...phys, for: ['heat'], select: ['bnd'], description: 'q = h (T_ext - T)',
-    settings: z.strictObject({ h: quantity('W/(m^2*K)', NONNEG), T_ext: quantity('K', NONNEG) }) },
+    settings: z.strictObject({ h: field('W/(m^2*K)', { bounds: NONNEG }), T_ext: field('K', { bounds: NONNEG }) }) },
   { kind: 'bc', type: 'insulation', ...phys, for: ['heat'], select: ['bnd'], description: 'Zero normal heat flux (explicit)' },
   { kind: 'bc', type: 'surface-radiation', ...phys, for: ['heat'], select: ['bnd'],
-    settings: z.strictObject({ emissivity: quantity('1', { ge: 0, le: 1 }), T_amb: quantity('K', NONNEG) }) },
-  { kind: 'bc', type: 'heat-source', ...phys, for: ['heat'], select: ['dom'], settings: z.strictObject({ Q: quantity('W/m^3') }) },
+    settings: z.strictObject({ emissivity: quantity('1', { ge: 0, le: 1 }), T_amb: field('K', { bounds: NONNEG }) }) },
+  { kind: 'bc', type: 'heat-source', ...phys, for: ['heat'], select: ['dom'], settings: z.strictObject({ Q: field('W/m^3') }) },
   { kind: 'bc', type: 'coil-current', ...phys, for: ['magnetostatics'], select: ['dom'], description: 'Homogenized multi-turn coil: total current = turns * current',
-    settings: z.strictObject({ turns: int(), current: quantity('A') }) },
+    settings: z.strictObject({ turns: int(), current: field('A', { vars: 'time' }) }) },
   { kind: 'bc', type: 'magnetic-insulation', ...phys, for: ['magnetostatics'], select: ['bnd'], description: 'n x A = 0' },
   { kind: 'bc', type: 'pec', ...phys, for: ['em-modes', 'emw'], select: ['bnd'], description: 'Perfect electric conductor, n x E = 0' },
   { kind: 'bc', type: 'pmc', ...phys, for: ['em-modes', 'emw'], select: ['bnd'], description: 'Perfect magnetic conductor, n x H = 0' },
   { kind: 'bc', type: 'sound-hard', ...phys, for: ['acoustics'], select: ['bnd'], description: 'Rigid wall, zero normal velocity (explicit)' },
-  { kind: 'bc', type: 'pressure', ...phys, for: ['acoustics'], select: ['bnd'], settings: z.strictObject({ p: quantity('Pa') }) },
+  { kind: 'bc', type: 'pressure', ...phys, for: ['acoustics'], select: ['bnd'], description: 'Acoustic pressure p on the boundary', settings: z.strictObject({ p: field('Pa') }) },
+  { kind: 'bc', type: 'pressure', ...phys, for: ['elastic'], select: ['bnd'], description: 'Normal pressure, traction = -p n', settings: z.strictObject({ p: field('Pa') }) },
 
   // ---- couplings ---------------------------------------------------------------------------------------------
   { kind: 'coupling', type: 'thermal-expansion', ...phys, for: ['heat', 'elastic'], description: 'Thermal strain alpha (T - T_ref)',
@@ -81,7 +83,6 @@ export const WAVE1: Registration[] = [
     settings: z.strictObject({ nModes: int(), shift: quantity('Hz').optional() }) },
   { kind: 'study', type: 'mode', ...phys, description: 'Mode analysis at a vacuum wavelength',
     settings: z.strictObject({ wavelength: quantity('m', POS), nModes: int(), neffShift: quantity('1').optional() }) },
-  { kind: 'study', type: 'time', ...phys, settings: z.strictObject({ start: quantity('s'), stop: quantity('s'), step: quantity('s', POS) }) },
   { kind: 'study', type: 'frequency', ...phys, settings: z.strictObject({ values: z.array(quantity('Hz', POS)).min(1) }) },
 
   // ---- material properties (names and reference units only) --------------------------------------------------

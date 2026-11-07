@@ -10,10 +10,9 @@ import { makeRunRecord, engineString, isoNow, probePlatform, stageTimer } from '
 import { specHash, canonicalJson } from '../src/canonical.ts';
 import { parseStrict } from '../src/yaml-edit.mjs';
 import { mulberry32, randomPatch } from './random-ops.ts';
+import { HEROES, readHero } from './heroes.ts';
 
-const SIMS = new URL('../../../sims/', import.meta.url);
-const HEROES = ['kirsch-plate', 'heat-plate-fin', 'helmholtz-coil', 'si-rib-waveguide', 'cylinder-cavity', 'box-acoustics'];
-const read = (id: string) => readFileSync(new URL(`${id}.yaml`, SIMS), 'utf8');
+const read = readHero;
 const KIRSCH = read('kirsch-plate');
 const reg = wave1Registry();
 const user = { actor: 'user' as const };

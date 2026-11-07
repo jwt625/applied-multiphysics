@@ -291,3 +291,67 @@ Applied 2026-11-06 16:17 PST:
 - Rejected: `&a`, `a&`, `a&&b`, `a&1b`, `a@2`, and `&` inside sub-entities (`bnd:a.b&c`).
 - `.L2.top` style layer sub-entities already fit the sub-entity grammar.
 - Tests added in `entity ids` (schema.test.ts). `pnpm test` 44/44 and `pnpm check` clean (`logs/L2-test-20261106T161643.log`, `logs/L2-check-20261106T161643.log`).
+
+## 9. Contracts v1 (coordinator 2026-11-06 ~16:30 PST; requests L4 DevLog-010 s.5, L10 DevLog-013 s.5, contract changelog)
+
+### 9.1 Plan (written before coding, 2026-11-06 16:32 PST)
+
+1. **Field-valued settings.** A new `field(dim, {bounds, vars})` builder for BC, source and initial-condition settings. It takes everything `quantity()` takes, plus expressions in the reserved symbols x, y, z, r (m) and t (s). Allowed symbols per geometry: 1d x; 2d x, y; 2d-axisym r, z; 3d x, y, z; t when `vars` includes time. Dimensions are checked through `@amp/core/expr`, with the symbols as field scope entries. Bounds apply when the value is constant.
+   - New object form `{expr, unit}`: the expression value is in `unit`, and affine units are allowed when the expression is dimensionless. For example HT-02: `{expr: "100*sin(pi*t/(40[s]))", unit: degC}`.
+   - x, y, z, r and t become reserved param names; `sims/si-rib-waveguide.yaml` param `t` is renamed `t_slab`.
+2. **Initial conditions and time study.**
+   - The heat seed gets `settings.T0` = `field('K', space only, >= 0)`.
+   - The time study moves to the core registrations with `{start, stop, dt > 0, method: bdf1 | bdf2 | crank-nicolson | generalized-alpha, output?}`; the checks are stop > start and dt <= stop - start.
+   - BC fields may use t.
+3. **Physics-scoped BC types.** The registry stores BC registrations per (physics type, BC type). One registration may still list several physics, and a `{replace: true}` registration for one physics leaves the others in place.
+   - New `getBc(physicsType, type)`.
+   - Unknown-BC errors name the physics type and id.
+   - The seed gains an elastic `pressure` (normal pressure) next to the acoustics `pressure`.
+4. **Tensor overrides.**
+   - A property registration may declare `scalar?: boolean` and `tensor?: {<symmetry>: [component names]}`, or supply its own `value` zod schema. `@amp/materials` registers these.
+   - Override form: `{symmetry, unit?, components: {...}}`. Components are quantities of the property's dimension, or numbers when `unit` is given, or N/A.
+5. **Basis vocabulary.** Add `paper_model_input` and `reference_correlation`, and export `BASIS_DEFINITIONS` with a one-line definition per basis (also used in the JSON Schema description).
+6. **Material refs.** `validateSpec` / `parseSpecText` / `OpLogOptions` accept an injected `materials: {ids(): string[]}` (the `@amp/materials` `Library` shape). With it, `materials/<id>` must be a library id; without it, refs are not checked.
+- Also: `mesh.size.grading` description (contract changelog decision 5). `facets2` / C2 facets are untouched.
+- Then: all gates, JSON Schema size.
+
+### 9.2 Done (2026-11-06 16:37 PST)
+
+| # | Request | Implementation |
+|---|---|---|
+| 1 | Expression-valued BCs and sources | `field(dim, {bounds, vars})` in `schema.ts`; `vector(dim, n, bounds, vars)` for field vectors; `resolveField()` and `evaluateFieldExpression()` (core expr, symbols as field scope entries, so dimensions are inferred without values); new object form `{expr, unit}` (also accepted by `quantity()` for constants). Seed settings switched to `field`: temperature T, heat-flux q, convection h and T_ext, surface-radiation T_amb, heat-source Q, boundary-load traction, both `pressure` p, coil-current current (time only). Bounds are checked when the value is constant. Messages: "'r' not available here (allowed: x, y, t; geometry 2d)", "affine unit degC needs a dimensionless expression". Tested: HT-02 `{expr: "100*sin(pi*t/(40[s]))", unit: degC}`, a Kirsch-type traction in x, y |
+| 2 | Initial conditions and time study | heat `settings.T0` = `field('K', >= 0, space only)` in the seed (L4 already reads `T0`; swap their `T_ABS` for `field(...)` to allow expressions). The core `time` study is `{start, stop, dt > 0, method: bdf1, bdf2, crank-nicolson or generalized-alpha (required), output?}` with checks stop > start, dt <= range, output inside the range. x, y, z, r and t are reserved param names |
+| 3 | Physics-scoped BC types | registry keys BCs by (physics type, name). `getBc`, `bcsFor`; `get('bc', name)` only when unambiguous; `{replace: true}` per physics; '*' registrations are shadowed by specific ones. The seed has separate `pressure` for acoustics (p) and elastic (normal pressure). Errors: "unknown bc type 'pressure' for physics type 'heat' (registered there: ...) [physics 'ht']". JSON Schema ids `Bc_<physics>_<name>` for shared names |
+| 4 | Tensor overrides | property registrations take `scalar?`, `tensor?: {symmetry: [components]}` or a full `value` schema; override form `{symmetry, unit?, components}`; numbers need `unit`, units must have the property dimension, N/A components need `missing` entries, unknown or absent components are errors |
+| 5 | Basis vocabulary | `paper_model_input`, `reference_correlation` added; `BASIS_DEFINITIONS` (19 entries, one line each) exported and placed in the JSON Schema description of `basis` |
+| 6 | Material refs | `ValidateOptions.materials: {ids()}` (the `@amp/materials` Library shape) in `validateSpec`, `parseSpecText`, `OpLogOptions.validateOptions`; `unknown_material` when the id is not in the library; no check without it |
+| - | grading description | `mesh.size.grading`: "maximum size growth per unit distance, |dh/dx|" (changelog decision 5) |
+| - | C2 facets | untouched (`facets2` stays) |
+
+Also: missing-key messages now cover enum and union fields ("missing required key 'method'").
+
+Gates (logs `logs/L2-gates-20261106T163604.*` seed 20261106, `...T163650.*` seed 7; tests `logs/L2-test-20261106T163658.log`):
+- `pnpm test` 52/52 (new `test/contracts-v1.test.ts`, 8 tests), `pnpm check` clean. `tsc` of physics, materials, geom, mesh and eval against the new spec: clean; materials tests 17/17.
+- 3a raw random with reverts and branches: 1000/1000 on both seeds (counts identical to s.7.4: the generator draws are unchanged).
+- 3b valid-to-valid: 1000/1000, 0 invalid results, on both seeds.
+- **JSON Schema: 34,382 B minified** (was 30,614; +3,768 B for `{expr, unit}` forms, 13 field definitions, the time study and basis definitions), 70,408 B pretty, 2,589 lines, 60 `$defs`, under the 41,053 B budget.
+- Parse + validate medians 0.44-1.13 ms per example.
+
+### 9.3 For I1 (sims/ owner; I did not edit sims/ after the coordinator note)
+
+At 16:34 PST I renamed `t` to `t_slab` in `sims/si-rib-waveguide.yaml`. The coordinator note arrived at the same moment, and I inverted the same five replacements, so no `t_slab` remains (not verified with git, which this lane does not run). Breaks and stale content:
+1. **si-rib-waveguide (breaks):** param `t` is now reserved, because t is the time symbol. Port: rename `t` to `t_slab` in `params`, the slab `size`/`center`, `mesh.refine.0.h`, `sweep.0.param` and `provenance params.t`. `test/heroes.ts` applies exactly this rename in memory until the file changes, and stops when the file no longer has `t:`.
+2. **Stale `missing` entries:** kirsch-plate, helmholtz-coil and heat-plate-fin say "materials/ ... not authored yet (materials/ empty on 2026-11-06)". `materials/structural-steel`, `air` and `copper` now exist (ids in `materials/*.yaml`), and all three refs pass the new library check.
+3. **Optional HT-02 / SM-01 exact-traction specs:** the forms now exist (`{expr, unit: degC}`, a traction vector of x, y expressions). A 1D HT-02 spec needs a 1D interval feature from L3; none is registered.
+
+### 9.4 Contract requests (contracts v1)
+
+1. **C3 (coordinator):** record `field()` semantics, the `{expr, unit}` form, reserved symbols x, y, z, r, t, physics-scoped BC names, the tensor override form, the core `time` study and `BASIS_DEFINITIONS`.
+2. **L4:**
+   - Use `field()` for the BC and source settings you supersede (heat T0, pressure p and others), so expressions validate.
+   - Split your `pressure` registration per physics if the descriptions or settings differ (it still works as one registration for `[acoustics, elastic]`).
+   - Evaluating field expressions at quadrature points and time steps is yours: `@amp/core/expr` `compileExpression` with x, y, z, r, t as field scope entries.
+3. **L10 materials:**
+   - In `registerMaterialProperties`, pass `scalar: d.scalar` and `tensor: Object.fromEntries(d.tensor.map((s) => [s, SYMMETRY_COMPONENTS[s]]))`. Without them the spec cannot know the tensor forms; with them it validates `{symmetry, unit?, components}`.
+   - Pass `createLibrary(...)` (it has `ids()`) as `materials` in `parseSpecText` / `validateSpec` / `OpLogOptions.validateOptions`.
+4. **L3:** a 1D interval feature for HT-02/HT-03 (geometry dim 1).

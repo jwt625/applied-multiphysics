@@ -10,11 +10,11 @@ import { createOpLog, replayJSONL, verifyChain } from '../src/oplog.ts';
 import { stats } from '../src/yaml-edit.mjs';
 import { isoNow, probePlatform } from '../src/run-record.ts';
 import { mulberry32, randomPatch, validEdit } from '../test/random-ops.ts';
+import { HEROES, readHero } from '../test/heroes.ts';
 
 const N = Number(process.argv[2] ?? 1000);
 const SEED = Number(process.argv[3] ?? 20261106);
 const ROOT = new URL('../../../', import.meta.url);
-const HEROES = ['kirsch-plate', 'heat-plate-fin', 'helmholtz-coil', 'si-rib-waveguide', 'cylinder-cavity', 'box-acoustics'];
 const reg = wave1Registry();
 const lines: string[] = [];
 const say = (s: string) => { const l = `${isoNow()} ${s}`; lines.push(l); console.log(l); };
@@ -35,7 +35,7 @@ say(`JSON Schema (wave-1 registry): ${min.length} B minified, ${pretty.length} B
 // ---- parse + validate per example --------------------------------------------------------------------------------
 const perExample: Record<string, { bytes: number; median_ms: number; min_ms: number; ok: boolean }> = {};
 for (const id of HEROES) {
-  const text = readFileSync(new URL(`sims/${id}.yaml`, ROOT), 'utf8');
+  const text = readHero(id);
   for (let w = 0; w < 5; w++) parseSpecText(text, reg);
   const ts: number[] = [];
   let ok = true;
@@ -69,7 +69,7 @@ async function tryRevert(log: Awaited<ReturnType<typeof createOpLog>>): Promise<
 
 const tR = performance.now();
 for (let s = 0; s < N; s++) {
-  const src = readFileSync(new URL(`sims/${HEROES[s % HEROES.length]}.yaml`, ROOT), 'utf8');
+  const src = readHero(HEROES[s % HEROES.length]!);
   const log = await createOpLog(src, { registry: reg });
   const n = 1 + Math.floor(r() * 8);
   try {
@@ -114,7 +114,7 @@ const reverts0 = reverts, conflicts0 = conflicts, branches0 = branches;
 stats.splice = 0; stats.fallback = 0;
 const tV = performance.now();
 for (let s = 0; s < N; s++) {
-  const src = readFileSync(new URL(`sims/${HEROES[s % HEROES.length]}.yaml`, ROOT), 'utf8');
+  const src = readHero(HEROES[s % HEROES.length]!);
   const log = await createOpLog(src, { registry: reg });
   const n = 1 + Math.floor(r() * 10);
   try {

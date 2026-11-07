@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Core (non-provisional) registrations owned by @amp/spec: physics-agnostic study types. The parametric study is the
+// Core (non-provisional) registrations owned by @amp/spec: physics-agnostic study types (time, parametric). The parametric study is the
 // spec side of the @amp/core sweep API (which no longer reads config, DevLog-002): axes are params, each with an
 // explicit value list or a linear range; axes combine row-major (first axis slowest), as in the EO sweep.
 
@@ -12,7 +12,22 @@ const axis = z.union([
   z.strictObject({ param: z.string(), range: z.strictObject({ start: quantity('*'), stop: quantity('*'), n: z.number().int().min(2) }) }),
 ]);
 
+/** Time-stepping methods (names only; the physics package implements them). */
+export const TIME_METHODS = ['bdf1', 'bdf2', 'crank-nicolson', 'generalized-alpha'] as const;
+
 export const CORE: Registration[] = [
+  { kind: 'study', type: 'time', owner: '@amp/spec',
+    description: 'Transient from start to stop with step dt (method required, no default); output = times to store (default: every step); initial conditions are physics settings (e.g. heat T0)',
+    settings: z.strictObject({ start: quantity('s'), stop: quantity('s'), dt: quantity('s', { gt: 0 }), method: z.enum(TIME_METHODS), output: z.array(quantity('s')).min(1).optional() }),
+    check: (n, ctx) => {
+      const s = n.settings as { start: unknown; stop: unknown; dt: unknown; output?: unknown[] };
+      const [a, b, d] = [ctx.resolve(s.start), ctx.resolve(s.stop), ctx.resolve(s.dt)];
+      const out: CheckIssue[] = [];
+      if (a && b && !(b.si > a.si)) out.push({ path: ['settings', 'stop'], message: 'stop must be after start' });
+      if (a && b && d && b.si > a.si && d.si > b.si - a.si) out.push({ path: ['settings', 'dt'], message: 'dt is longer than the time range' });
+      s.output?.forEach((t, i) => { const v = ctx.resolve(t); if (v && a && b && (v.si < a.si || v.si > b.si)) out.push({ path: ['settings', 'output', i], message: 'output time outside [start, stop]' }); });
+      return out;
+    } },
   { kind: 'study', type: 'parametric', owner: '@amp/spec',
     description: 'Sweep params around another study; axes row-major (first slowest); range = n points from start to stop inclusive',
     settings: z.strictObject({ study: nodeId, sweep: z.array(axis).min(1).max(4) }),

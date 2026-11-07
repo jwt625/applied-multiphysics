@@ -4,7 +4,7 @@
 
 import { parseDocument, LineCounter, isMap, isSeq, isScalar, isPair, visit, type Document } from 'yaml';
 import { disallowed } from './yaml-edit.mjs';
-import { validateSpec, issue, type SpecIssue, type ValidationResult } from './validate.ts';
+import { validateSpec, issue, type SpecIssue, type ValidationResult, type ValidateOptions } from './validate.ts';
 import type { Registry, PathKey } from './registry.ts';
 
 export interface ParseResult extends ValidationResult {
@@ -61,10 +61,10 @@ export function offsetOf(doc: Document.Parsed, path: readonly PathKey[]): number
 }
 
 /** Parse and validate a spec text against a registry. */
-export function parseSpecText(text: string, reg: Registry): ParseResult {
+export function parseSpecText(text: string, reg: Registry, opts: ValidateOptions = {}): ParseResult {
   const y = parseYaml(text);
   if (!y.doc) return { ok: false, spec: null, issues: y.issues, params: new Map(), data: null, doc: null, trust: 'untrusted' };
-  const v = validateSpec(y.data, reg);
+  const v = validateSpec(y.data, reg, opts);
   for (const i of v.issues) {
     const off = offsetOf(y.doc, i.path);
     if (off != null) { const p = y.lc.linePos(off); i.line = p.line; i.col = p.col; }
