@@ -4,6 +4,7 @@
 	// fields bound to spec params, presets, share-by-URL (the spec diff), coarse re-mesh / re-solve while dragging.
 	// Every drag is one coalesced operation in the same op log as the workbench.
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { units } from '@amp/spec';
 	import { loadSimText } from '../sims';
 	import { loadPhysics, moduleList } from '../engine/physics';
@@ -177,7 +178,7 @@
 	async function copyShare() {
 		if (!s) return;
 		const code = s.model.sharePatch().length ? `#d=${s.model.shareCode()}` : '';
-		const url = `${location.origin}/play/${simId}${solver3d ? '?solver=3d' : ''}${code}`;
+		const url = `${location.origin}${resolve('/play/[sim]', { sim: simId })}${solver3d ? '?solver=3d' : ''}${code}`;
 		history.replaceState(null, '', url);
 		try { await navigator.clipboard.writeText(url); shareMsg = `copied (${url.length} chars)`; } catch { shareMsg = url; }
 	}
@@ -201,7 +202,7 @@
 {:else}
 	<div class="play" class:withagent={agentOpen}>
 		<header>
-			<a href="/?sim={simId}" data-sveltekit-reload class="dim" data-tip="Open this model in the workbench (same op log format)">workbench</a>
+			<a href="{resolve('/')}?sim={simId}" data-sveltekit-reload class="dim" data-tip="Open this model in the workbench (same op log format)">workbench</a>
 			<span class="t">{title}</span>
 			<span class="sp"></span>
 			<button disabled={!s || s.status === 'solving'} onclick={() => s?.requestCompute()} data-tip="Compute at full resolution">Compute</button>
@@ -247,8 +248,8 @@
 			{#if AXISYM[simId]}
 				<div class="h">solver</div>
 				<div class="pre">
-					<a class="btn" class:on={!solver3d} href="/play/{simId}" data-sveltekit-reload data-tip="Meridional (r, z) section, azimuthal orders m = 0, 1, 2 (emw-axisym); modes drawn revolved in 3D">axisymmetric</a>
-					<a class="btn" class:on={solver3d} href="/play/{simId}?solver=3d" data-sveltekit-reload data-tip="Full 3D Nedelec eigen solve (emw, tet10)">3D</a>
+					<a class="btn" class:on={!solver3d} href={resolve('/play/[sim]', { sim: simId })} data-sveltekit-reload data-tip="Meridional (r, z) section, azimuthal orders m = 0, 1, 2 (emw-axisym); modes drawn revolved in 3D">axisymmetric</a>
+					<a class="btn" class:on={solver3d} href="{resolve('/play/[sim]', { sim: simId })}?solver=3d" data-sveltekit-reload data-tip="Full 3D Nedelec eigen solve (emw, tet10)">3D</a>
 				</div>
 			{/if}
 			<div class="h">timing</div>

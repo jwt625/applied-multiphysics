@@ -4,6 +4,7 @@
 	// tabs. Pane sizes persist (try/catch). Grid tracks use minmax(0, ...) so panels scroll inside and the canvas only
 	// changes size when a splitter or the window does.
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { specJsonSchema } from '@amp/spec';
 	import { HEROES, SIM_IDS, loadSimText } from '../sims';
 	import { loadPhysics } from '../engine/physics';
@@ -151,7 +152,7 @@
 			<button disabled={!s?.model.canUndo} onclick={() => s?.model.undo()} data-tip="Undo (Ctrl/Cmd+Z)">Undo</button>
 			<button disabled={!s?.model.canRedo} onclick={() => s?.model.redo()} data-tip="Redo (Shift+Ctrl/Cmd+Z)">Redo</button>
 			<button disabled={!s} onclick={copyShare} data-tip="Copy a link that holds the spec diff from the original model">Share</button>
-			{#if HEROES.includes(simId)}<a class="btn" href="/play/{simId}" data-sveltekit-reload data-tip="Play view of this model">Play</a>{/if}
+			{#if HEROES.includes(simId)}<a class="btn" href={resolve('/play/[sim]', { sim: simId })} data-sveltekit-reload data-tip="Play view of this model">Play</a>{/if}
 			<button class="agentb" class:on={agentOpen} onclick={() => (agentOpen = !agentOpen)} data-tip="Agent panel (bring your own key; edits land in the Timeline as agent ops with a reason)">Agent</button>
 			{#if highlight.length}<button onclick={() => (highlight = [])} data-tip={`Clear the highlight: ${highlight.join(' ')}`}>Clear highlight</button>{/if}
 			<span class="st" class:warn={s?.status === 'unavailable'} class:crit={s?.status === 'error'}>{statusText}</span>

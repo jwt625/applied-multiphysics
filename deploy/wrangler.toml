@@ -1,0 +1,13 @@
+# Cloudflare Worker that serves outside5sigma.com/applied-multiphysics/ from the Pages project (DevLog-017, deploy/README.md).
+name = "applied-multiphysics-route"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+
+routes = [
+  { pattern = "outside5sigma.com/applied-multiphysics*", zone_name = "outside5sigma.com" }
+]
+
+[vars]
+PAGES_ORIGIN = "https://applied-multiphysics.pages.dev"

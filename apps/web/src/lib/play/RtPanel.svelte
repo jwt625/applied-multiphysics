@@ -4,6 +4,7 @@
 	// renderer. Paint on the canvas, sliders with exact fields, presets, colorbar in the kernel's units, fidelity badge.
 	// Without WebGPU the panel says so and shows the platform probe; nothing is simulated in its place.
 	import { onMount, untrack } from 'svelte';
+	import { resolve } from '$app/paths';
 	import type { RealtimeKernelExt, ViewSpec } from '@amp/rt';
 	import { RT_DEFS, RT_KERNELS, type RtKernelId } from './rt-kernels';
 	import { fmt, niceTicks } from '../gfx/ticks';
@@ -159,11 +160,11 @@
 <Tip />
 <div class="rt">
 	<header>
-		<a href="/" class="dim" data-tip="Workbench">applied-multiphysics</a>
+		<a href={resolve('/')} class="dim" data-tip="Workbench">applied-multiphysics</a>
 		<span class="t">{def.title}</span>
 		<span class="badge" data-tip={def.caveat}>realtime fidelity</span>
 		<span class="sp"></span>
-		{#each RT_KERNELS as kid}<a class="btn" class:on={kid === id} href="/play/rt/{kid}" data-sveltekit-reload>{kid}</a>{/each}
+		{#each RT_KERNELS as kid}<a class="btn" class:on={kid === id} href={resolve('/play/rt/[kernel]', { kernel: kid })} data-sveltekit-reload>{kid}</a>{/each}
 	</header>
 	<div class="cv" bind:this={box}>
 		<canvas bind:this={canvas} class:hide={(!!unavailable && !k) || !sized} class:abs={!sized}

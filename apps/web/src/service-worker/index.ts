@@ -3,6 +3,8 @@
 // prefix, no on-demand data folders, no redirect workaround (Cloudflare Pages serves pages without redirects).
 // One cache per deploy: pages and static files are precached on install, hashed code is stored on first use; the
 // previous deploy's cache is kept so a page from it can still load its hashed files.
+// Under a base path (BASE_PATH, DevLog-017) every URL comes from resolve / asset, the registration scope is base + '/'
+// and requests outside the scope (other paths of the same origin, e.g. the blog) are not handled.
 /// <reference lib="webworker" />
 import { version } from '$app/env';
 import { assets, prerendered } from '$app/manifest';
@@ -11,9 +13,11 @@ import { self as sw } from '$app/service-worker';
 
 const PREFIX = 'amp-web-';
 const CACHE = PREFIX + version;
+const SCOPE = new URL(sw.registration.scope).pathname;
 const PRECACHE = [...prerendered.map((f) => resolve(f.path as '/')), ...assets.map((f) => asset(f.path)).filter((p) => !p.endsWith('/_headers'))];
 const hashed = (path: string) => path.includes('/_app/immutable/');
-const pageKey = (url: URL) => url.origin + (url.pathname.replace(/\/$/, '') || '/');
+// one key per page: trailing slash dropped, except the scope root (/ or base + '/'), so every key lies under the scope
+const pageKey = (url: URL) => url.origin + (url.pathname === SCOPE ? SCOPE : url.pathname.replace(/\/$/, '') || '/');
 
 sw.addEventListener('install', (e) => {
 	e.waitUntil(
@@ -60,6 +64,6 @@ async function respond(e: FetchEvent, url: URL): Promise<Response> {
 
 sw.addEventListener('fetch', (e) => {
 	const url = new URL(e.request.url);
-	if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+	if (e.request.method !== 'GET' || url.origin !== location.origin || !url.pathname.startsWith(SCOPE)) return;
 	e.respondWith(respond(e, url));
 });

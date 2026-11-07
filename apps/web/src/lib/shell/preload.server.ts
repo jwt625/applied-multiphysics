@@ -2,6 +2,7 @@
 // Code a page will dynamic-import, named in the prerendered HTML as modulepreload links so the download starts while
 // the HTML parses (eo-modulator-atlas DevLog-046 pattern). From the client build manifest; none in dev.
 import { existsSync, readFileSync } from 'node:fs';
+import { asset } from '$app/paths';
 
 export function preloadFor(entry: string): string[] {
 	const file = '.svelte-kit/output/client/.vite/manifest.json';
@@ -14,5 +15,6 @@ export function preloadFor(entry: string): string[] {
 		manifest[k].imports?.forEach(walk);
 	};
 	walk(entry);
-	return [...seen].map((k) => `/${manifest[k]!.file}`);
+	// under paths.base when BASE_PATH is set (DevLog-017)
+	return [...seen].map((k) => asset(manifest[k]!.file as Parameters<typeof asset>[0]));
 }
