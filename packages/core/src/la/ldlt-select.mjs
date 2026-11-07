@@ -1,4 +1,4 @@
-// Ported from advanced-packaging-atlas/engine/src/em2d/ldlt-select.mjs at fe39985 (GPL-3.0-or-later). Changes: moved from em2d/ to la/; import ../la/ldlt.mjs -> ./ldlt.mjs; default stays 'blocked' (WASM opt-in).
+// Ported from advanced-packaging-atlas/engine/src/em2d/ldlt-select.mjs at fe39985 (GPL-3.0-or-later). Changes: moved from em2d/ to la/; import ../la/ldlt.mjs -> ./ldlt.mjs; default stays 'blocked' (WASM opt-in); real-kernel selection re-exported from ./wasm/front-real.mjs (DevLog-016).
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Factorization selector for the em2d / em3d complex LDL^T (lane L7 wave 5): 'base' (la/ldlt.mjs
 // ComplexSupernodalLDLT), 'blocked' (JS, 4-column front update), 'wasm' (WebAssembly f64x2 front update, falls back to
@@ -8,6 +8,17 @@
 import { ComplexSupernodalLDLT } from './ldlt.mjs';
 import { BlockedComplexLDLT } from './ldlt-blocked.mjs';
 import { WasmComplexLDLT, wasmLdltSupported } from './ldlt-wasm.mjs';
+
+// Real SPD / LDL^T front kernel selection (lane P1, DevLog-016; default 'wasm' after its gate): state in the leaf module ./wasm/front-real.mjs (read
+// by sparse.mjs factorNumeric / SparseCholesky and ldlt.mjs SupernodalLDLT), re-exported here.
+export { DEFAULT_REAL_FACTOR, setDefaultRealFactor, wasmRealSupported } from './wasm/front-real.mjs';
+import { DEFAULT_REAL_FACTOR as REAL_DEFAULT_LIVE, wasmRealSupported as realOk } from './wasm/front-real.mjs';
+
+/** Warning text when the requested real kernel is not the one used ('wasm' without SIMD), else null. */
+export function realFactorFallbackWarning(kind) {
+  const k = kind ?? REAL_DEFAULT_LIVE;
+  return k === 'wasm' && !realOk() ? "real factor 'wasm' requested but the WebAssembly SIMD module cannot be compiled (no SIMD, or the CSP lacks 'wasm-unsafe-eval'): using the blocked JS factor (same results, slower)" : null;
+}
 
 export let DEFAULT_FACTOR = 'blocked';
 export const setDefaultFactor = (k) => (DEFAULT_FACTOR = k);

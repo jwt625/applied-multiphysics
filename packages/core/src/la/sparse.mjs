@@ -1,4 +1,6 @@
-// Ported from advanced-packaging-atlas/engine/src/la/sparse.mjs at fe39985 (GPL-3.0-or-later). Changes: none.
+// Ported from advanced-packaging-atlas/engine/src/la/sparse.mjs at fe39985 (GPL-3.0-or-later). Changes: optional WASM SIMD
+// front kernel ('wasm', ./wasm/front-real.mjs, lane P1 DevLog-016; same arithmetic, bitwise-identical factor) selected by a
+// `factor` option (factorNumeric opts, SparseCholesky options) with default ldlt-select DEFAULT_REAL_FACTOR.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Ported from eo-modulator-atlas engine/src/sparse.mjs at eb97f96 (GPL-3.0-or-later).
 // Local changes: none (verbatim copy).
@@ -9,6 +11,8 @@
 // cs_chol) is kept as UpLookingCholesky (test oracle). Algorithms re-implemented from T. Davis, "Direct Methods for
 // Sparse Linear Systems", SIAM 2006, and the cited papers.
 // License: GPL-3.0-or-later.
+
+import { resolveRealKernel, WASM_MIN_FRONT } from './wasm/front-real.mjs';
 
 /**
  * Opt-in timing sink. Set `timingSink.records = []` to collect one record per solver call
@@ -871,16 +875,19 @@ export function checkSymbolic(sym, pat) {
  * The number of values must always match the analysed pattern.
  * @returns {{sym:any, Lx:Float64Array, ok:boolean, work:any}} ok false when not positive definite
  */
-export function factorNumeric(sym, values, num = null, pat = null) {
+export function factorNumeric(sym, values, num = null, pat = null, { factor = null } = {}) {
   const { nsuper, superStart, Sp, Si, Lxp, lowerP, lowerI, lowerSrc, childHead, childNext, maxFront, n } = sym;
   if (pat) checkSymbolic(sym, pat);
   const nnzPat = Number(sym.patternKey?.split(':')[1]);
   if (Number.isFinite(nnzPat) && values.length !== nnzPat) throw new Error(`factorNumeric: ${values.length} values for a pattern with ${nnzPat} entries`);
   if (!num || num.sym !== sym) {
-    num = { sym, Lx: new Float64Array(Lxp[nsuper]), ok: false, work: { F: new Float64Array(maxFront * maxFront), rel: new Int32Array(n), stack: new Float64Array(1024), stackDim: new Int32Array(nsuper) } };
+    num = { sym, Lx: new Float64Array(Lxp[nsuper]), ok: false, kernel: 'blocked', work: { F: null, rel: new Int32Array(n), stack: new Float64Array(1024), stackDim: new Int32Array(nsuper) } };
   }
   const { Lx, work } = num;
-  const F = work.F,
+  // 'wasm': the front lives in the kernel's memory (fronts below WASM_MIN_FRONT rows still use the JS loops below)
+  const wk = resolveRealKernel(factor, maxFront);
+  num.kernel = wk ? 'wasm' : 'blocked';
+  const F = wk ? wk.H : (work.F ??= new Float64Array(maxFront * maxFront)),
     rel = work.rel;
   let stack = work.stack;
   let top = 0; // stack top (doubles)
@@ -912,6 +919,12 @@ export function factorNumeric(sym, values, num = null, pat = null) {
       }
       top = off;
     }
+    if (wk && m >= WASM_MIN_FRONT) {
+      if (!wk.front(m, nc, 0, null, 0, 0, null)) {
+        num.ok = false;
+        return num;
+      }
+    } else {
     // dense partial factorization: panel (left-looking within the panel)
     // Columns are processed in pairs (k, k + 1): the 4-column groups both columns need are applied in one pass;
     // per entry the operation sequence equals the one-column left-looking loop (panelUpdate).
@@ -1018,6 +1031,7 @@ export function factorNumeric(sym, values, num = null, pat = null) {
         if (l0 === 0) continue;
         for (let i = j; i < m; i++) F[i + jb] -= F[i + b0] * l0;
       }
+    }
     }
     // store the factor block (m x nc, column-major)
     const lo = Lxp[s];
@@ -1235,8 +1249,9 @@ export function solveNumericMulti(num, bs, outs = null) {
  * a symbolic analysis of the same pattern: `new SparseCholesky(pat, null, {sym})`.
  */
 export class SparseCholesky {
-  constructor(pat, perm = null, { sym = null, ordering = 'amd', x = null, y = null } = {}) {
+  constructor(pat, perm = null, { sym = null, ordering = 'amd', x = null, y = null, factor = null } = {}) {
     const tStart = performance.now();
+    this.factorKind = factor; // null: ldlt-select DEFAULT_REAL_FACTOR at each factor() call
     this.sym = sym ?? analyze(pat, perm ? { perm } : { ordering, x, y });
     if (sym) checkSymbolic(sym, pat); // a reused analysis must come from the same pattern (audit P1)
     this.n = pat.n;
@@ -1263,8 +1278,9 @@ export class SparseCholesky {
   }
   factor(values) {
     const tStart = performance.now();
-    this.num = factorNumeric(this.sym, values, this.num);
+    this.num = factorNumeric(this.sym, values, this.num, null, { factor: this.factorKind });
     this.ok = this.num.ok;
+    this.timing.kernel = this.num.kernel;
     this.timing.factor_ms += performance.now() - tStart;
     this.timing.nFactor++;
     return this.ok;

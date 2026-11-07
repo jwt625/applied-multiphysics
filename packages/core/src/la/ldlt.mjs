@@ -1,4 +1,6 @@
-// Ported from advanced-packaging-atlas/engine/src/la/ldlt.mjs at fe39985 (GPL-3.0-or-later). Changes: none.
+// Ported from advanced-packaging-atlas/engine/src/la/ldlt.mjs at fe39985 (GPL-3.0-or-later). Changes: SupernodalLDLT takes an
+// optional WASM SIMD front kernel ('wasm', ./wasm/front-real.mjs, lane P1 DevLog-016; same arithmetic, bitwise-identical
+// factor) via a `factor` constructor option, default ldlt-select DEFAULT_REAL_FACTOR.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Ported from eo-modulator-atlas engine/src/ldlt.mjs at eb97f96 (GPL-3.0-or-later).
 // Local changes: none (verbatim copy).
@@ -17,6 +19,8 @@
 // and the ordering and is shared by every numeric factorisation on that pattern (different shifts, wavelengths).
 // Complex-symmetric variant (A = A^T, complex entries, no conjugation) in ComplexLDLT for lossy materials.
 // License: GPL-3.0-or-later.
+
+import { resolveRealKernel, WASM_MIN_FRONT } from './wasm/front-real.mjs';
 
 /**
  * Symbolic analysis of a symmetric CSR pattern (full storage, both triangles, diagonal present).
@@ -420,11 +424,13 @@ function diagScale(sym, valAbs) {
  * LDLT (factor / solve / solveMany / solveRefined); the ordering is sym.perm.
  */
 export class SupernodalLDLT {
-  constructor(sym) {
+  constructor(sym, { factor = null } = {}) {
     this.sym = sym;
+    this.factorKind = factor; // null: ldlt-select DEFAULT_REAL_FACTOR at each factor() call
+    this.kernel = 'blocked';
     this.Lx = new Float64Array(sym.Lxp[sym.nsuper]);
     this.D = new Float64Array(sym.n);
-    this.F = new Float64Array(sym.maxFront * sym.maxFront);
+    this.F = null;
     this.rel = new Int32Array(sym.n);
     this.stack = new Float64Array(1024);
     this.stackDim = new Int32Array(sym.nsuper);
@@ -437,11 +443,15 @@ export class SupernodalLDLT {
   factor(values, { pivotTol = 1e-13 } = {}) {
     const t0 = performance.now();
     const { nsuper, superStart, Sp, Si, Lxp, lowerP, lowerI, lowerSrc, childHead, childNext } = this.sym;
-    const { Lx, D, F, rel, stackDim } = this;
+    const { Lx, D, rel, stackDim } = this;
+    const wk = resolveRealKernel(this.factorKind, this.sym.maxFront);
+    this.kernel = wk ? 'wasm' : 'blocked';
+    const F = wk ? wk.H : (this.F ??= new Float64Array(this.sym.maxFront * this.sym.maxFront));
     let stack = this.stack;
     const tau = pivotTol * diagScale(this.sym, (p) => Math.abs(values[p]));
     let nNeg = 0, nPert = 0, top = 0;
     const stackPos = [];
+    const st = wk ? { nNeg: 0, nPert: 0 } : null;
     for (let s = 0; s < nsuper; s++) {
       const f = superStart[s], nc = superStart[s + 1] - f;
       const r0 = Sp[s], m = Sp[s + 1] - r0;
@@ -461,6 +471,17 @@ export class SupernodalLDLT {
         }
         top = off;
       }
+      if (wk && m >= WASM_MIN_FRONT) {
+        st.nNeg = nNeg;
+        st.nPert = nPert;
+        const ok = wk.front(m, nc, 1, D, f, tau, st);
+        nNeg = st.nNeg;
+        nPert = st.nPert;
+        if (!ok) {
+          this.ok = false;
+          return { ok: false, nNeg, nPerturbed: nPert, ms: performance.now() - t0 };
+        }
+      } else {
       // panel: left-looking within the supernode; column c holds unit L, D[f + c] the pivot
       for (let k = 0; k < nc; k++) {
         const kb = k * m;
@@ -504,6 +525,7 @@ export class SupernodalLDLT {
           if (w0 === 0) continue;
           for (let i = j; i < m; i++) F[i + jb] -= F[i + b0] * w0;
         }
+      }
       }
       Lx.set(F.subarray(0, m * nc), Lxp[s]);
       const mu = m - nc;

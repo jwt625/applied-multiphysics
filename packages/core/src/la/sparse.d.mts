@@ -2,6 +2,7 @@
 // Declarations of la/sparse.mjs (hand-written 2026-11-06, audit S2; replaces the tsc-generated baseline).
 import type { CsrPattern, SymbolicAnalysis, AnalyzeOptions, NumericFactor } from './types.d.mts';
 export type { CsrPattern, SymbolicAnalysis, AnalyzeOptions, NumericFactor } from './types.d.mts';
+import type { RealFactorKind } from './wasm/front-real.mjs';
 
 export const timingSink: { records: Array<{ kind: string; [k: string]: unknown }> | null };
 export function recordTiming(kind: string, timing: Record<string, unknown>): void;
@@ -23,13 +24,16 @@ export function amdOrder(pat: CsrPattern, options?: { denseFactor?: number }): I
 export function analyze(pat: CsrPattern, opts?: AnalyzeOptions): SymbolicAnalysis;
 export function patternFingerprint(pat: CsrPattern): string;
 export function checkSymbolic(sym: SymbolicAnalysis, pat: CsrPattern): void;
-export function factorNumeric(sym: SymbolicAnalysis, values: Float64Array, num?: NumericFactor | null, pat?: CsrPattern | null): NumericFactor;
+/** `factor`: real front kernel ('blocked' JS, 'wasm' SIMD; default ldlt-select DEFAULT_REAL_FACTOR); bitwise-identical results. */
+export function factorNumeric(sym: SymbolicAnalysis, values: Float64Array, num?: NumericFactor | null, pat?: CsrPattern | null, options?: { factor?: RealFactorKind | null }): NumericFactor;
 export function solveNumeric(num: NumericFactor, b: Float64Array, out?: Float64Array | null): Float64Array;
 export function solveNumericMulti(num: NumericFactor, bs: Float64Array[], outs?: Float64Array[] | null): Float64Array[];
 
 /** Supernodal multifrontal Cholesky of an SPD matrix on a fixed pattern; factor() may be repeated. */
 export class SparseCholesky {
-  constructor(pat: CsrPattern, perm?: Int32Array | null, options?: { sym?: SymbolicAnalysis | null; ordering?: 'amd' | 'nd'; x?: Float64Array | null; y?: Float64Array | null });
+  constructor(pat: CsrPattern, perm?: Int32Array | null, options?: { sym?: SymbolicAnalysis | null; ordering?: 'amd' | 'nd'; x?: Float64Array | null; y?: Float64Array | null; factor?: RealFactorKind | null });
+  /** requested real front kernel; null: DEFAULT_REAL_FACTOR at each factor() */
+  factorKind: RealFactorKind | null;
   sym: SymbolicAnalysis;
   n: number;
   perm: Int32Array;
@@ -39,6 +43,8 @@ export class SparseCholesky {
   timing: {
     n: number; nnzA: number; nnzL: number; fill: number; flops: number; nsuper: number; symbolicReused: boolean;
     ordering_ms: number; symbolic_ms: number; factor_ms: number; nFactor: number; solve_ms: number; nSolve: number;
+    /** kernel of the last factor() ('wasm' falls back to 'blocked' without SIMD) */
+    kernel?: RealFactorKind;
   };
   /** false when the matrix is not positive definite. */
   factor(values: Float64Array): boolean;
