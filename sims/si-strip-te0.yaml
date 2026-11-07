@@ -1,0 +1,55 @@
+# WO-65 (eval/cases/c/WO-65.yaml): EO-atlas K1, Si strip 500 x 220 nm in SiO2 at 1550 nm, TE0 n_eff and energy group index
+# (eo-modulator-atlas tier-B reference, femwell formulation, Richardson-extrapolated: n_eff 2.44722338, ng 4.19616697).
+# Window [-2, 2]^2 um with PEC walls as in the case. Indices from the case (atlas K1: Salzberg-Tatian Si, Malitson SiO2).
+# Rights: own work (eo-modulator-atlas), cite_values + re_derive_setup + copy_with_attribution.
+schema: amp-spec/0
+id: si-strip-te0
+title: Si strip waveguide TE0
+description: Si strip 500 x 220 nm in SiO2 at 1550 nm, PEC window +-2 um; n_eff and group index of TE0.
+params:
+  w_core: {value: 500, unit: nm, description: core width}
+  t_core: {value: 220, unit: nm, description: core thickness}
+  W: {value: 4, unit: um, description: window side (PEC)}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+geometry:
+  dim: 2
+  features:
+    - {id: win, type: rect, settings: {size: ["W", "W"], center: ["0 um", "0 um"]}}
+    - {id: core, type: rect, settings: {size: ["w_core", "t_core"], center: ["0 um", "0 um"]}}
+    - {id: clad, type: difference, settings: {base: win, tools: [core], keepTools: true}}
+materials:
+  - {id: Si, override: {n: 3.477723756}, select: ["dom:core"]}
+  - {id: SiO2, override: {n: 1.444023622}, select: ["dom:clad"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:core", "dom:clad"]
+    settings: {order: 2}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:win.left", "bnd:win.right", "bnd:win.top", "bnd:win.bottom"]}
+mesh:
+  size: {hmax: "W/16", grading: 0.3}
+  refine:
+    - {select: ["dom:core"], h: "t_core/4"}
+    - {select: ["bnd:core.left", "bnd:core.right", "bnd:core.top", "bnd:core.bottom"], h: "t_core/16"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  - {id: neff, type: table, data: modes, expr: ewg.neff_0, unit: "1"}
+  - {id: ng, type: table, data: modes, expr: ewg.ng_0, unit: "1"}
+  - {id: E_map, type: plot2d, data: modes, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.w_core: {basis: benchmark, source: "eval/cases/c/WO-65.yaml geometry.spec.core_um [0.5, 0.22]", date: 2026-11-06}
+    params.t_core: {basis: benchmark, source: "eval/cases/c/WO-65.yaml geometry.spec.core_um", date: 2026-11-06}
+    params.W: {basis: benchmark, source: "eval/cases/c/WO-65.yaml geometry.spec.window_um [-2, 2] x [-2, 2]", date: 2026-11-06}
+    params.lambda0: {basis: benchmark, source: "eval/cases/c/WO-65.yaml title (1550 nm; atlas K1)", date: 2026-11-06}
+    materials.Si.override.n: {basis: benchmark, source: "eval/cases/c/WO-65.yaml materials.si.n (atlas K1, Salzberg-Tatian fit)", date: 2026-11-06}
+    materials.SiO2.override.n: {basis: benchmark, source: "eval/cases/c/WO-65.yaml materials.sio2.n (atlas K1, Malitson fit)", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-06, note: "modelling choice: core-edge refinement (corner singularities; n_eff converges at p ~ 1 without it at 2e-5 / level)"}
+    mesh.size.grading: {basis: user, date: 2026-11-06, note: "modelling choice (the @amp/mesh default value, stated)"}
+assumptions:
+  - {text: "Indices are constants at 1550 nm, so ewg.ng_0 has no material dispersion; the case ng_energy 4.19617 includes Sellmeier dispersion (atlas K1.yaml header) and is not comparable", paths: [materials]}
+# eval: [WO-65]

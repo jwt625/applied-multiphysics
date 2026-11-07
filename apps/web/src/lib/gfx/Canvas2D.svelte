@@ -1,8 +1,9 @@
 <script lang="ts">
 	// SPDX-License-Identifier: GPL-3.0-or-later
 	// 2D graphics canvas: WebGL2 layered field renderer (renderer2d.ts), pan (drag), wheel zoom at the cursor, fit,
-	// hover probe in world coordinates, and draggable handles (SVG overlay) for direct manipulation. The canvas fills
-	// its container absolutely, so nothing in the page can shift or resize it except the container itself.
+	// hover probe in world coordinates, click pick (a press released within 4 px: probe table, DevLog-020), and
+	// draggable handles (SVG overlay) for direct manipulation. The canvas fills its container absolutely, so nothing in
+	// the page can shift or resize it except the container itself.
 	import { onMount, untrack } from 'svelte';
 	import { Renderer2D, type Layer2D, type View2D } from './renderer2d';
 	import { grabCanvas, registerCapture } from './capture';
@@ -28,6 +29,7 @@
 		fitKey = 0,
 		handles = [],
 		onhover,
+		onpick,
 		onhandle,
 		onframe,
 		lines = null,
@@ -45,7 +47,7 @@
 		/** a change re-frames the view to `bbox` with an eased camera move (ROI / All, ROI after a drag) */
 		frameKey?: string;
 		/** labelled point markers (e.g. the peak of the drawn field), world coordinates */
-		markers?: Array<{ x: number; y: number; label: string; tip: string }>;
+		markers?: Array<{ x: number; y: number; label: string; tip: string; kind?: 'probe' }>;
 		layers: Layer2D[];
 		/** segments x0, y0, x1, y1 (m) drawn as an outline overlay (geometry boundaries) */
 		lines?: Float64Array | null;
@@ -58,6 +60,8 @@
 		fitKey?: number;
 		handles?: Handle[];
 		onhover?: (p: { x: number; y: number } | null) => void;
+		/** click (press and release within 4 px, no handle): world point in m */
+		onpick?: (p: { x: number; y: number }) => void;
 		onhandle?: (id: string, x: number, y: number, phase: 'move' | 'end') => void;
 		onframe?: (ms: number) => void;
 	} = $props();
@@ -196,7 +200,7 @@
 		schedule();
 	});
 
-	let drag = $state.raw<{ kind: 'pan'; x: number; y: number; cx: number; cy: number } | { kind: 'handle'; h: Handle } | null>(null);
+	let drag = $state.raw<{ kind: 'pan'; x: number; y: number; cx: number; cy: number; moved: boolean } | { kind: 'handle'; h: Handle } | null>(null);
 	/** peak label placement inside the canvas: px, py of the point, text width estimate (11 px mono) */
 	function labelBox(px: number, py: number, text: string) {
 		const tw = 6.7 * text.length + 8, th = 17;
@@ -207,10 +211,8 @@
 
 	function down(e: PointerEvent) {
 		if (e.button !== 0) return;
-		cancelAnimationFrame(anim);
-		userMoved = true;
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-		drag = { kind: 'pan', x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy };
+		drag = { kind: 'pan', x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy, moved: false };
 	}
 	function handleDown(e: PointerEvent, hd: Handle) {
 		e.stopPropagation();
@@ -221,6 +223,9 @@
 		const b = host.getBoundingClientRect();
 		const p = toWorld(e.clientX - b.left, e.clientY - b.top);
 		if (drag?.kind === 'pan') {
+			// a press that has not moved 4 px is still a click candidate (no pan yet)
+			if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) return;
+			if (!drag.moved) { drag = { ...drag, moved: true }; cancelAnimationFrame(anim); userMoved = true; }
 			view = { ...view, cx: drag.cx - (e.clientX - drag.x) / view.scale, cy: drag.cy + (e.clientY - drag.y) / view.scale };
 		} else if (drag?.kind === 'handle') {
 			onhandle?.(drag.h.id, p.x, p.y, 'move');
@@ -231,6 +236,9 @@
 			const b = host.getBoundingClientRect();
 			const p = toWorld(e.clientX - b.left, e.clientY - b.top);
 			onhandle?.(drag.h.id, p.x, p.y, 'end');
+		} else if (drag?.kind === 'pan' && !drag.moved && onpick) {
+			const b = host.getBoundingClientRect();
+			onpick(toWorld(e.clientX - b.left, e.clientY - b.top));
 		}
 		drag = null;
 	}
@@ -267,7 +275,7 @@
 			{@const py = Math.round(p.py) + 0.5}
 			{#if px > -20 && px < w + 20 && py > -20 && py < h + 20}
 				{@const b = labelBox(px, py, mk.label)}
-				<g class="mk" data-tip={mk.tip}>
+				<g class="mk" class:pr={mk.kind === 'probe'} data-tip={mk.tip}>
 					<path class="mkx" d="M{px - 7} {py}H{px - 3}M{px + 3} {py}H{px + 7}M{px} {py - 7}V{py - 3}M{px} {py + 3}V{py + 7}" />
 					<rect class="mkr" x={px - 3} y={py - 3} width="6" height="6" />
 					<path class="mkl" d="M{px} {py}L{b.ax} {b.ay}" />
@@ -296,6 +304,9 @@
 	.mkl { stroke: rgba(242, 241, 236, 0.7); stroke-width: 1; fill: none; shape-rendering: auto; }
 	.mkb { fill: rgba(13, 13, 13, 0.82); stroke: rgba(242, 241, 236, 0.35); stroke-width: 1; }
 	.mk text { fill: #f2f1ec; font: 11px var(--mono); shape-rendering: auto; }
+	.pr .mkx, .pr .mkr { stroke: #e0a526; }
+	.pr .mkb { stroke: rgba(224, 165, 38, 0.6); }
+	.pr text { fill: #f0c76a; }
 	.ring { fill: none; stroke: #8ab8f0; stroke-width: 1; stroke-dasharray: 4 3; }
 	.fail { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
 </style>

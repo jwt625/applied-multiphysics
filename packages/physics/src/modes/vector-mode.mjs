@@ -102,7 +102,10 @@ export function buildVectorModel(mesh, opts = {}) {
     x0 = Math.min(x0, mesh.x[i]); x1 = Math.max(x1, mesh.x[i]);
     y0 = Math.min(y0, mesh.y[i]); y1 = Math.max(y1, mesh.y[i]);
   }
-  const nReg = Math.max(...mesh.triRegion) + 1;
+  // loop, not Math.max(...): spreading a large typed array overflows the call stack (W4, DevLog-022)
+  let maxReg = -1;
+  for (let i = 0; i < mesh.triRegion.length; i++) if (mesh.triRegion[i] > maxReg) maxReg = mesh.triRegion[i];
+  const nReg = maxReg + 1;
   return {
     kind: 'vector',
     order,

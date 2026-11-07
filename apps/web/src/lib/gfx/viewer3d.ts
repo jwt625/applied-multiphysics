@@ -2,7 +2,10 @@
 // 3D viewer (DevLog-011 s.1.5): three.js r187 WebGLRenderer with WebGLNodesHandler, TSL field material
 // (field-material.ts), damped orbit controls, render on demand. Drawables: the exterior surface (de-indexed triangle
 // soup from the post worker), its wireframe, and cut layers (slices, isosurfaces). Values are per vertex in display
-// units; region mode colours domains through a nearest-filtered categorical LUT.
+// units; region mode colours domains through a nearest-filtered categorical LUT. DevLog-019: the exterior of a tet10
+// mesh (post/solid3d.ts `exterior`: each face as 4 consecutive sub-triangles through its mid-edge nodes) is drawn with
+// the face's P2 basis evaluated per fragment (face barycentrics and the 6 face values as attributes); other surfaces
+// interpolate linearly.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { WebGLNodesHandler } from 'three/addons/tsl/WebGLNodesHandler.js';
@@ -12,6 +15,17 @@ import { hexToRgb } from './renderer2d';
 import { grabCanvas } from './capture';
 
 export interface Drawable { pos: Float32Array; val: Float32Array; disp: Float32Array | null; /** smooth unit normals per vertex (lighting); flat normals when absent */ nrm?: Float32Array | null }
+
+/** True when a triangle soup is a sequence of tet10 face groups as solid3d `exterior` writes them: 4 sub-triangles
+ *  (A ab ca) (ab B bc) (ca bc C) (ab bc ca), detected from the repeated mid-edge positions. */
+export function p2Groups(pos: Float32Array): boolean {
+	const n = pos.length / 3;
+	if (!n || n % 12) return false;
+	const eq = (i: number, j: number) => pos[3 * i] === pos[3 * j] && pos[3 * i + 1] === pos[3 * j + 1] && pos[3 * i + 2] === pos[3 * j + 2];
+	for (let g = 0; g < n; g += 12)
+		if (!(eq(g + 3, g + 1) && eq(g + 9, g + 1) && eq(g + 6, g + 2) && eq(g + 11, g + 2) && eq(g + 7, g + 5) && eq(g + 10, g + 5))) return false;
+	return true;
+}
 
 export class Viewer3D {
 	readonly renderer: THREE.WebGLRenderer;
@@ -85,7 +99,7 @@ export class Viewer3D {
 	private matLine: THREE.Material | null = null;
 	private materials() {
 		this.regionLut ??= lutTexture(new Uint8Array(1024), true);
-		this.matField ??= fieldMaterial(this.lut, this.u, { shade: true, normals: true });
+		this.matField ??= fieldMaterial(this.lut, this.u, { shade: true, normals: true, p2: true });
 		this.matRegion ??= fieldMaterial(this.regionLut, this.ur, { shade: true, normals: true });
 		this.matCut ??= fieldMaterial(this.lut, this.u, { shade: true, clip: false });
 		this.matLine ??= lineMaterial(this.u, 0xe8e8e8, 0.32);
@@ -115,6 +129,8 @@ export class Viewer3D {
 		if (!this.surf) { this.surf = new THREE.Mesh(new THREE.BufferGeometry(), mat); this.surf.frustumCulled = false; this.group.add(this.surf); }
 		this.surf.material = mat;
 		this.fill(this.surf.geometry, d.pos, d.val, d.disp, d.nrm ?? null, true);
+		this.surfP2 = p2Groups(d.pos);
+		this.p2Attrs(this.surf.geometry, d.val);
 		this.surf.visible = this.surfOn && d.pos.length > 0;
 		const E = edges ?? new Float32Array(0);
 		if (!this.wire) { this.wire = new THREE.LineSegments(new THREE.BufferGeometry(), this.matLine!); this.wire.frustumCulled = false; this.group.add(this.wire); }
@@ -127,9 +143,62 @@ export class Viewer3D {
 	updateSurface(val: Float32Array, disp: Float32Array | null) {
 		if (!this.surf) return;
 		const g = this.surf.geometry;
-		g.setAttribute('value', new THREE.BufferAttribute(val, 1));
-		if (disp) g.setAttribute('disp', new THREE.BufferAttribute(disp, 3));
+		const put = (name: string, arr: Float32Array, size: number) => {
+			const at = g.getAttribute(name) as THREE.BufferAttribute | undefined;
+			if (at && at.array.length === arr.length) { (at.array as Float32Array).set(arr); at.needsUpdate = true; }
+			else g.setAttribute(name, new THREE.BufferAttribute(arr, size));
+		};
+		put('value', val, 1);
+		if (disp) put('disp', disp, 3);
+		this.p2Attrs(g, val);
 		this.request();
+	}
+
+	/** the surface soup is grouped as tet10 faces (12 vertices each) */
+	private surfP2 = false;
+	/** per-fragment P2 on tet10 faces; false = raw (linear on the 4 sub-triangles of each face; audit m3) */
+	private smooth = true;
+	private lastVal: Float32Array | null = null;
+	setSmooth(on: boolean) {
+		if (on === this.smooth) return;
+		this.smooth = on;
+		if (this.surf && this.lastVal) this.p2Attrs(this.surf.geometry, this.lastVal);
+		this.request();
+	}
+	/**
+	 * P2 attributes of the surface (field-material opts.p2): per tet10 face group, or pa = pb = the vertex value. The
+	 * attribute arrays are reused when the vertex count is unchanged (value updates, animation; audit m4).
+	 */
+	private p2Attrs(g: THREE.BufferGeometry, val: Float32Array) {
+		const n = val.length;
+		this.lastVal = val;
+		const arr = (name: string) => {
+			const a = g.getAttribute(name) as THREE.BufferAttribute | undefined;
+			if (a && a.array.length === 3 * n) { a.needsUpdate = true; return a.array as Float32Array; }
+			const b = new THREE.BufferAttribute(new Float32Array(3 * n), 3);
+			g.setAttribute(name, b);
+			return b.array as Float32Array;
+		};
+		const fb = arr('fb'), pa = arr('pa'), pb = arr('pb');
+		if (this.smooth && this.surfP2 && n % 12 === 0) {
+			// vertex order per face (solid3d exterior): (A ab ca) (ab B bc) (ca bc C) (ab bc ca)
+			const B = [[1, 0, 0], [0.5, 0.5, 0], [0.5, 0, 0.5], [0.5, 0.5, 0], [0, 1, 0], [0, 0.5, 0.5], [0.5, 0, 0.5], [0, 0.5, 0.5], [0, 0, 1], [0.5, 0.5, 0], [0, 0.5, 0.5], [0.5, 0, 0.5]];
+			for (let gi = 0; gi < n; gi += 12) {
+				const a0 = val[gi]!, a1 = val[gi + 4]!, a2 = val[gi + 8]!, m01 = val[gi + 1]!, m12 = val[gi + 5]!, m20 = val[gi + 2]!;
+				for (let k = 0; k < 12; k++) {
+					const o = 3 * (gi + k);
+					fb[o] = B[k]![0]!; fb[o + 1] = B[k]![1]!; fb[o + 2] = B[k]![2]!;
+					pa[o] = a0; pa[o + 1] = a1; pa[o + 2] = a2;
+					pb[o] = m01; pb[o + 1] = m12; pb[o + 2] = m20;
+				}
+			}
+		} else
+			for (let i = 0; i < n; i++) {
+				const v = val[i]!, o = 3 * i;
+				fb[o] = 1; fb[o + 1] = 0; fb[o + 2] = 0;
+				pa[o] = pa[o + 1] = pa[o + 2] = v;
+				pb[o] = pb[o + 1] = pb[o + 2] = v;
+			}
 	}
 
 	setCuts(list: Drawable[]) {

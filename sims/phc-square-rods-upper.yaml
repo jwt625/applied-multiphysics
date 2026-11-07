@@ -1,0 +1,63 @@
+# WO-04 (eval/cases/c/WO-04.yaml; MPB Python tutorial, GPL-2.0-or-later): square lattice of dielectric rods, r 0.2 a,
+# eps 12 in air, first TM band gap; converged reference (eval/expected/WO-04.json, MPB resolutions 16-256 Richardson, agrees
+# with the lane's plane-wave expansion): gap_lower 0.280664 c/a (band-1 maximum), gap_upper 0.417162 c/a (band-2 minimum).
+# Scalar analog: TM (E_z) in 2D is -lap E_z = eps (omega / c)^2 E_z, the acoustics eigenproblem with uniform rho and
+# c = c_vac / sqrt(eps); with a = 1 m and c_vac = 1 m/s the eigenfrequency in Hz is omega a / (2 pi c). At the high-symmetry
+# points the Bloch modes of the C4v cell are even or odd about the cell's mirror lines, so one quarter cell (rod quarter at
+# the corner x = y = 0) with sound-hard (even) or p = 0 (odd) edges gives one symmetry class exactly. A scan of all four
+# classes at Gamma, X and M (DevLog-022 s.3) puts the band-1 maximum at M and the band-2 minimum at X.
+# Rights: GPL-2.0-or-later (MPB / Meep), cite_values + re_derive_setup + copy_with_attribution; no tutorial file is copied.
+# This file: upper edge (band 2 at X). sims/phc-square-rods-lower.yaml gives the lower edge (band 1 at M).
+schema: amp-spec/0
+id: phc-square-rods-upper
+title: Square rod lattice, TM gap upper edge (scalar analog)
+description: Quarter cell of the r 0.2a, eps 12 rod lattice; lowest X-point mode odd in x, even in y (band-2 minimum) = upper edge of the first TM gap.
+params:
+  a: {value: 1, unit: m, description: lattice constant (frequencies in c / a)}
+  r_rod: {value: 0.2, unit: m, description: rod radius (0.2 a)}
+  c_vac: {value: 1, unit: m/s, description: "wave speed in air, unit by choice (f in Hz = omega a / 2 pi c)"}
+  eps_rod: {value: 12, description: rod permittivity}
+geometry:
+  dim: 2
+  features:
+    - {id: cell, type: rect, settings: {size: ["a/2", "a/2"], center: ["a/4", "a/4"]}}
+    - {id: disk, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "r_rod"}}
+    - {id: cutx, type: rect, settings: {size: ["a", "a"], center: ["-a/2", "0 m"]}}
+    - {id: cuty, type: rect, settings: {size: ["a", "a"], center: ["0 m", "-a/2"]}}
+    - {id: rod, type: difference, settings: {base: disk, tools: [cutx, cuty]}}
+    - {id: bg, type: difference, settings: {base: cell, tools: [rod], keepTools: true}}
+materials:
+  - {id: rod_mat, override: {c: "c_vac/sqrt(eps_rod)", rho: {value: 1, unit: kg/m^3}}, select: ["dom:rod"]}
+  - {id: air, override: {c: "c_vac", rho: {value: 1, unit: kg/m^3}}, select: ["dom:bg"]}
+physics:
+  - id: wave
+    type: acoustics
+    select: ["dom:rod", "dom:bg"]
+    bcs:
+      - {id: x_mirror, type: pressure, select: ["bnd:cell.left", "bnd:cutx.right"], settings: {p: "0 Pa"}}
+      - {id: x_edge, type: sound-hard, select: ["bnd:cell.right"]}
+      - {id: y_mirror, type: sound-hard, select: ["bnd:cell.bottom", "bnd:cuty.top"]}
+      - {id: y_edge, type: sound-hard, select: ["bnd:cell.top"]}
+mesh:
+  size: {hmax: "a/16"}
+  refine:
+    - {select: ["bnd:disk.edge"], h: "a/64"}
+studies:
+  - {id: eig, type: eigen, physics: [wave], settings: {nModes: 2}}
+results:
+  - {id: edge, type: table, data: eig, expr: wave.f_0, unit: Hz}
+  - {id: mode, type: plot2d, data: eig, expr: wave.p, unit: Pa, step: 0}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/c/WO-04.yaml geometry.spec.a (unit a)", date: 2026-11-06}
+    params.r_rod: {basis: benchmark, source: "eval/cases/c/WO-04.yaml geometry.spec.rod_radius", date: 2026-11-06}
+    params.c_vac: {basis: user, date: 2026-11-06, note: "analog unit: normalized frequency c / a"}
+    params.eps_rod: {basis: benchmark, source: "eval/cases/c/WO-04.yaml materials.rod.eps_r (MPB Python_Tutorial.md L69)", date: 2026-11-06}
+    materials.rod_mat.override.rho: {basis: user, date: 2026-11-06, note: "analog: uniform rho <-> mu_r = 1; does not enter the eigenfrequencies"}
+    materials.air.override.rho: {basis: user, date: 2026-11-06, note: "analog: uniform rho"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice"}
+assumptions:
+  - {text: "TM polarization solved as the scalar wave equation with the acoustics module (c = c_vac / sqrt(eps), uniform rho)", paths: [physics.wave]}
+  - {text: "X point (antiperiodic in x, periodic in y), class odd in x and even in y: p = 0 on x = 0, sound-hard on x = a/2, y = 0, y = a/2; lowest mode of this class = band 2 at X (all-class scan)", paths: [physics.wave.bcs]}
+# eval: [WO-04]

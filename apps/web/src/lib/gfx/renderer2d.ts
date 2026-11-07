@@ -6,10 +6,14 @@
 //
 // WebGL2, one indexed draw call per layer. Layers: surface (color table fill), contour (iso-lines in the fragment
 // shader at up to 64 levels, anti-aliased with fwidth), region (domain colors). Every layer is drawn on the refined
-// lattice display (r^2 sub-triangles per element, Gouraud inside sub-triangles); the wireframe draws the parent
-// elements from barycentrics.
+// lattice display (r^2 sub-triangles per element); the wireframe draws the parent elements from barycentrics.
+// Values (DevLog-019): with element coefficients (`coef`, post/field2d.ts ElementCoef) the element's P2 basis is
+// evaluated per fragment at the interpolated parent barycentrics (coefficients in an RGBA32F texture, fetched once
+// per vertex from gl_VertexID / np and passed flat), then the colormap per fragment, so colour bands and contours
+// follow the curved FE field inside each element; the lattice r then only shapes curved (tri6) element geometry.
+// Without `coef`: one value per lattice point, linear inside sub-triangles (raw element view, mesh quality).
 import { colormapLut, type ColormapName } from './colormaps';
-import type { RefinedDisplay } from '../post/field2d';
+import type { ElementCoef, RefinedDisplay } from '../post/field2d';
 
 export type ScaleMode = 'linear' | 'log' | 'symlog';
 export interface Range { min: number; max: number }
@@ -27,6 +31,8 @@ export interface Layer2D {
 	disp: RefinedDisplay;
 	/** one value per lattice point, element-major */
 	values?: Float32Array | null;
+	/** element coefficients for per-fragment evaluation (smooth view, DevLog-019); `values` stay required (range, raw) */
+	coef?: ElementCoef | null;
 	scale?: ScaleMode;
 	range?: Range;
 	colormap?: ColormapName;
@@ -49,6 +55,8 @@ export interface Layer2D {
 export interface DrawState2D { view: View2D; background: string; layers: Layer2D[] }
 
 const MAX_LEVELS = 64;
+/** 1x1 placeholder bound to the coefficient sampler when a layer has none */
+const WARM_COEF: ElementCoef = { data: new Float32Array(4), width: 1, height: 1, K: 1, nc: 1, mag: false, a: 1, b: 0, psi: false, note: '' };
 
 const VS = `#version 300 es
 in vec2 aPos;
@@ -58,21 +66,49 @@ in float aReg;
 uniform vec2 uScale;
 uniform vec2 uOffset;
 uniform float uValSign;
+uniform int uCoefOn;
+uniform int uNp;
+uniform int uK;
+uniform float uX0;
+uniform highp sampler2D uCoef;
 out float vVal;
 out vec3 vBary;
+out float vX;
 flat out int vReg;
+flat out vec4 vC[5];
 void main() {
 	vBary = vec3(aBary, 1.0 - aBary.x - aBary.y);
 	vVal = aVal * uValSign;
 	vReg = int(aReg + 0.5);
+	vX = aPos.x + uX0;
+	for (int k = 0; k < 5; k++) vC[k] = vec4(0.0);
+	if (uCoefOn == 1) {
+		int w = textureSize(uCoef, 0).x;
+		int base = (gl_VertexID / uNp) * uK;
+		for (int k = 0; k < 5; k++) {
+			if (k >= uK) break;
+			int i = base + k;
+			vC[k] = texelFetch(uCoef, ivec2(i % w, i / w), 0);
+		}
+	}
 	gl_Position = vec4(aPos * uScale + uOffset, 0.0, 1.0);
 }`;
 
 const FS = `#version 300 es
 precision highp float;
+precision highp int;
 in float vVal;
 in vec3 vBary;
+in float vX;
 flat in int vReg;
+flat in vec4 vC[5];
+uniform int uCoefOn;
+uniform int uNc;
+uniform int uMag;
+uniform int uPsi;
+uniform float uA;
+uniform float uB;
+uniform float uValSign;
 uniform int uMode; // 0 region, 1 surface, 2 contour
 uniform int uLog;
 uniform float uMin;
@@ -104,14 +140,34 @@ float mapT(float v) {
 	return (v - uMin) / (uMax - uMin);
 }
 vec3 lut(float t) { return texture(uLut, vec2(clamp(t, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).rgb; }
+/** P2 basis at the parent barycentrics (L0, L1, L2) = (vBary.z, vBary.x, vBary.y), corners 0 1 2, mids 01 12 20 */
+float fieldValue() {
+	if (uCoefOn == 0) return vVal;
+	float L0 = vBary.z, L1 = vBary.x, L2 = vBary.y;
+	float N[6] = float[6](L0 * (2.0 * L0 - 1.0), L1 * (2.0 * L1 - 1.0), L2 * (2.0 * L2 - 1.0), 4.0 * L0 * L1, 4.0 * L1 * L2, 4.0 * L2 * L0);
+	float c[20] = float[20](vC[0].x, vC[0].y, vC[0].z, vC[0].w, vC[1].x, vC[1].y, vC[1].z, vC[1].w, vC[2].x, vC[2].y, vC[2].z, vC[2].w,
+		vC[3].x, vC[3].y, vC[3].z, vC[3].w, vC[4].x, vC[4].y, vC[4].z, vC[4].w);
+	float s = 0.0, f = 0.0;
+	for (int q = 0; q < 3; q++) {
+		if (q >= uNc) break;
+		float v = 0.0;
+		for (int k = 0; k < 6; k++) v += N[k] * c[6 * q + k];
+		f = v;
+		s += v * v;
+	}
+	if (uMag == 1) f = sqrt(s);
+	float x = uA * f + uB;
+	if (uPsi == 1) x *= vX;
+	return x * uValSign;
+}
 void main() {
 	if (uUseMask == 1 && texelFetch(uMask, ivec2(vReg, 0), 0).r < 0.5) discard;
 	vec3 col;
 	float alpha = 1.0;
 	if (uMode == 1) {
-		col = lut(mapT(vVal));
+		col = lut(mapT(fieldValue()));
 	} else if (uMode == 2) {
-		float t = mapT(vVal);
+		float t = mapT(fieldValue());
 		float w = max(fwidth(t), 1e-7);
 		float best = 0.0;
 		float lev = 0.0;
@@ -180,6 +236,9 @@ export class Renderer2D {
 	private lutKey = '';
 	private regKey = '';
 	private entries = new Map<RefinedDisplay, Entry>();
+	/** coefficient textures per ElementCoef object (at most 6, oldest dropped) */
+	private coefs = new Map<ElementCoef, WebGLTexture>();
+	private maxTex = 2048;
 	private frame = 0;
 	private u: Record<string, WebGLUniformLocation | null> = {};
 	private loc: Record<string, number> = {};
@@ -199,7 +258,8 @@ export class Renderer2D {
 	private constructor(gl: WebGL2RenderingContext) {
 		this.gl = gl;
 		this.prog = compile(gl, VS, FS);
-		for (const n of ['uScale', 'uOffset', 'uMode', 'uLog', 'uMin', 'uMax', 'uLut', 'uRegions', 'uMask', 'uUseMask', 'uWire', 'uWireColor', 'uNLevels', 'uLevels', 'uUniform', 'uUniformColor', 'uValSign', 'uOpacity'])
+		this.maxTex = Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) || 2048;
+		for (const n of ['uScale', 'uOffset', 'uMode', 'uLog', 'uMin', 'uMax', 'uLut', 'uRegions', 'uMask', 'uUseMask', 'uWire', 'uWireColor', 'uNLevels', 'uLevels', 'uUniform', 'uUniformColor', 'uValSign', 'uOpacity', 'uCoefOn', 'uNp', 'uK', 'uX0', 'uCoef', 'uNc', 'uMag', 'uPsi', 'uA', 'uB'])
 			this.u[n] = gl.getUniformLocation(this.prog, n);
 		for (const n of ['aPos', 'aBary', 'aVal', 'aReg']) this.loc[n] = gl.getAttribLocation(this.prog, n);
 		this.vao = gl.createVertexArray()!;
@@ -240,9 +300,12 @@ export class Renderer2D {
 		for (const n of ['aBary', 'aVal', 'aReg']) gl.disableVertexAttribArray(this.loc[n]!);
 		const u = this.u;
 		gl.uniform2f(u.uScale!, 1, 1); gl.uniform2f(u.uOffset!, 0, 0); gl.uniform1f(u.uValSign!, 1); gl.uniform1f(u.uOpacity!, 1);
+		gl.uniform1i(u.uCoefOn!, 0); gl.uniform1i(u.uNp!, 1); gl.uniform1i(u.uK!, 2); gl.uniform1i(u.uNc!, 1);
+		gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.coefTexture(WARM_COEF)); gl.uniform1i(u.uCoef!, 3);
 		gl.uniform1f(u.uMin!, 0); gl.uniform1f(u.uMax!, 1); gl.uniform1i(u.uNLevels!, 0);
 		[[u.uLut, this.lutTex], [u.uRegions, this.regTex], [u.uMask, this.maskTex]].forEach(([loc, tex], k) => { gl.activeTexture(gl.TEXTURE0 + k); gl.bindTexture(gl.TEXTURE_2D, tex as WebGLTexture); gl.uniform1i(loc as WebGLUniformLocation, k); });
-		for (const mode of [0, 1, 2]) { gl.uniform1i(u.uMode!, mode); gl.drawArrays(gl.TRIANGLES, 0, 3); }
+		for (const on of [0, 1]) { gl.uniform1i(u.uCoefOn!, on); for (const mode of [0, 1, 2]) { gl.uniform1i(u.uMode!, mode); gl.drawArrays(gl.TRIANGLES, 0, 3); } }
+		gl.uniform1i(u.uCoefOn!, 0);
 		gl.bindVertexArray(null);
 		gl.deleteBuffer(buf);
 	}
@@ -300,6 +363,40 @@ export class Renderer2D {
 		}
 		e.vals.set(values, buf);
 		return buf;
+	}
+
+	/**
+	 * Texture of an ElementCoef, or null when it cannot be stored (the layer then draws its lattice values). The texel
+	 * layout is linear (element e at texel e K), so the width can shrink to MAX_TEXTURE_SIZE (audit m2).
+	 */
+	private coefTexture(c: ElementCoef): WebGLTexture | null {
+		const hit = this.coefs.get(c);
+		if (hit) return hit;
+		const gl = this.gl;
+		const max = this.maxTex;
+		let w = c.width, h = c.height, data = c.data;
+		if (w > max) {
+			const n = c.width * c.height;
+			w = max;
+			h = Math.ceil(n / w);
+			if (h > max) return null;
+			data = new Float32Array(4 * w * h);
+			data.set(c.data);
+		} else if (h > max) return null;
+		const t = gl.createTexture()!;
+		gl.bindTexture(gl.TEXTURE_2D, t);
+		for (const p of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST);
+		for (const p of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE);
+		for (let k = 0; k < 8 && gl.getError() !== gl.NO_ERROR; k++) { /* clear stale errors */ }
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, data);
+		if (gl.getError() !== gl.NO_ERROR) { gl.deleteTexture(t); return null; }
+		if (this.coefs.size >= 6) {
+			const [k, old] = this.coefs.entries().next().value!;
+			gl.deleteTexture(old);
+			this.coefs.delete(k);
+		}
+		this.coefs.set(c, t);
+		return t;
 	}
 
 	private release(e: Entry) {
@@ -411,6 +508,18 @@ export class Renderer2D {
 			gl.uniform1i(u.uUniform!, L.uniform ? 1 : 0);
 			gl.uniform3fv(u.uUniformColor!, rgb01(L.uniform ?? '#ffffff'));
 			gl.uniform1f(u.uOpacity!, L.opacity ?? 1);
+			// per-fragment element basis (DevLog-019) when the layer carries coefficients for this element count
+			let C = scalar && L.coef && L.coef.width * L.coef.height >= L.disp.nT * L.coef.K ? L.coef : null;
+			const ct = C ? this.coefTexture(C) : null;
+			if (!ct) C = null;
+			gl.uniform1i(u.uCoefOn!, C ? 1 : 0);
+			gl.activeTexture(gl.TEXTURE3);
+			gl.bindTexture(gl.TEXTURE_2D, ct ?? this.coefTexture(WARM_COEF));
+			gl.uniform1i(u.uCoef!, 3);
+			if (C) {
+				gl.uniform1i(u.uNp!, L.disp.np); gl.uniform1i(u.uK!, C.K); gl.uniform1i(u.uNc!, C.nc); gl.uniform1i(u.uMag!, C.mag ? 1 : 0);
+				gl.uniform1i(u.uPsi!, C.psi ? 1 : 0); gl.uniform1f(u.uA!, C.a); gl.uniform1f(u.uB!, C.b); gl.uniform1f(u.uX0!, L.disp.c0[0]);
+			}
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, e.idx);
 			// one draw per mirrored copy: reflected transform (world x -> mx x) and the value times its parity
 			for (const m of L.mirror ?? [{ sx: 1, sy: 1, sign: 1 }]) {
@@ -429,7 +538,8 @@ export class Renderer2D {
 		const gl = this.gl;
 		for (const e of this.entries.values()) this.release(e);
 		this.entries.clear();
-		for (const t of [this.lutTex, this.regTex, this.maskTex]) gl.deleteTexture(t);
+		for (const t of [this.lutTex, this.regTex, this.maskTex, ...this.coefs.values()]) gl.deleteTexture(t);
+		this.coefs.clear();
 		gl.deleteProgram(this.prog);
 		gl.getExtension('WEBGL_lose_context')?.loseContext();
 	}

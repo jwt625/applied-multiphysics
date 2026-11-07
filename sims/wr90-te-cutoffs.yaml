@@ -1,0 +1,45 @@
+# RF-02 (eval/cases/a/RF-02.yaml): WR-90 rectangular waveguide, TE cutoff frequencies of the 2D cross-section
+# (gated targets fc_TE10, fc_TE20, fc_TE01). Scalar analog: for a hollow PEC guide the TE_mn cutoffs are the Neumann
+# eigenvalues of the cross-section Laplacian (H_z with dH_z/dn = 0 on PEC walls), k_c^2. The acoustics eigen solver
+# computes the same eigenproblem with sound-hard walls, f = c k_c / (2 pi); with c = c0 / sqrt(eps_r mu_r) its
+# eigenfrequencies are the TE cutoffs. The field p stands for H_z (arbitrary scale). The constant (f = 0) mode is the
+# null mode of the Neumann problem, not a waveguide mode. The 3D S-parameter targets (not gated) are not covered.
+schema: amp-spec/0
+id: wr90-te-cutoffs
+title: WR-90 TE cutoffs (scalar analog)
+description: WR-90 cross-section 22.86 x 10.16 mm, PEC walls; TE10, TE20, TE01 cutoffs from the Neumann eigenproblem (acoustics solver, c = c0).
+params:
+  a: {value: 22.86, unit: mm, description: broad wall}
+  b: {value: 10.16, unit: mm, description: narrow wall}
+geometry:
+  dim: 2
+  features:
+    - {id: guide, type: rect, settings: {size: ["a", "b"], center: ["a/2", "b/2"]}}
+materials:
+  - {id: air, override: {c: {value: 299792458, unit: m/s}}, select: ["dom:guide"]}
+physics:
+  - id: hz
+    type: acoustics
+    select: ["dom:guide"]
+    bcs:
+      - id: pec_walls
+        type: sound-hard
+        select: ["bnd:guide.left", "bnd:guide.right", "bnd:guide.top", "bnd:guide.bottom"]
+mesh:
+  size: {hmax: "b/4"}
+studies:
+  - {id: eig, type: eigen, physics: [hz], settings: {nModes: 4, shift: "5 GHz"}}
+results:
+  - {id: cutoffs, type: table, data: eig, expr: hz.freq, unit: GHz}
+  - {id: hz_mode, type: plot2d, data: eig, expr: hz.p, unit: Pa, step: 1}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/a/RF-02.yaml geometry.spec.a_m", date: 2026-11-06}
+    params.b: {basis: benchmark, source: "eval/cases/a/RF-02.yaml geometry.spec.b_m", date: 2026-11-06}
+    materials.air.override.c: {basis: textbook, source: "c0 = 299792458 m/s (SI, exact) / sqrt(eps_r mu_r) with eps_r = mu_r = 1 from eval/cases/a/RF-02.yaml materials.air", date: 2026-11-06}
+    studies.eig.settings.shift: {basis: benchmark, source: "eval/cases/a/RF-02.yaml study.shift (Hz, below the TE10 cutoff)", date: 2026-11-06}
+    studies.eig.settings.nModes: {basis: benchmark, source: "eval/cases/a/RF-02.yaml study.n", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+assumptions:
+  - {text: "TE cutoffs of a hollow PEC guide = Neumann eigenvalues of the cross-section (H_z formulation); solved with the acoustics module as a scalar analog", paths: [physics.hz]}
+# eval: [RF-02]

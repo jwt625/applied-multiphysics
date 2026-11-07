@@ -1,0 +1,57 @@
+# RF-62 (eval/cases/c/RF-62.yaml): EO-atlas K6a, coplanar waveguide with a zero-thickness signal strip S 20 um and slots
+# W 5 um on an eps_r 11.7 half-space, semi-infinite grounds; quasi-static C', n_RF, Z0 (conformal map, eval/expected/RF-62.json:
+# C' 213.727 pF/m, n_RF 2.51992, Z0 39.3285 Ohm). The strip and grounds are zero-thickness edges on y = 0 (the bottoms of the
+# air columns); the half-space and the semi-infinite grounds are truncated at the box half-size R (modelling choice, see
+# the truncation study in DevLog-022). Rights: own work (eo-modulator-atlas) + textbook conformal map.
+schema: amp-spec/0
+id: cpw-halfspace
+title: CPW on a half-space
+description: Zero-thickness CPW, strip 20 um, slots 5 um, on eps_r 11.7; capacitance per length, L' and Z0 from 2D electrostatics.
+params:
+  S: {value: 20, unit: um, description: signal strip width}
+  W: {value: 5, unit: um, description: slot width}
+  R: {value: 3, unit: mm, description: "half-size of the truncation box, modelling choice"}
+  eps_sub: {value: 11.7, description: substrate relative permittivity}
+geometry:
+  dim: 2
+  features:
+    - {id: air_gl, type: rect, settings: {size: ["R - S/2 - W", "R"], center: ["-(R + S/2 + W)/2", "R/2"]}}
+    - {id: air_sl, type: rect, settings: {size: ["W", "R"], center: ["-(S + W)/2", "R/2"]}}
+    - {id: air_sig, type: rect, settings: {size: ["S", "R"], center: ["0 um", "R/2"]}}
+    - {id: air_sr, type: rect, settings: {size: ["W", "R"], center: ["(S + W)/2", "R/2"]}}
+    - {id: air_gr, type: rect, settings: {size: ["R - S/2 - W", "R"], center: ["(R + S/2 + W)/2", "R/2"]}}
+    - {id: sub, type: rect, settings: {size: ["2*R", "R"], center: ["0 um", "-R/2"]}}
+materials:
+  - {id: air, override: {eps_r: 1}, select: ["dom:air_gl", "dom:air_sl", "dom:air_sig", "dom:air_sr", "dom:air_gr"]}
+  - {id: substrate, override: {eps_r: "eps_sub"}, select: ["dom:sub"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:air_gl", "dom:air_sl", "dom:air_sig", "dom:air_sr", "dom:air_gr", "dom:sub"]
+    bcs:
+      - {id: signal, type: terminal, select: ["bnd:air_sig.bottom"]}
+      - {id: grounds, type: ground, select: ["bnd:air_gl.bottom", "bnd:air_gr.bottom"]}
+mesh:
+  size: {hmax: "0.375 mm", grading: 0.3}
+  refine:
+    - {select: ["bnd:air_sig.bottom", "bnd:air_sl.bottom", "bnd:air_sr.bottom"], h: "W/40"}
+studies:
+  - {id: std1, type: stationary, physics: [es]}
+results:
+  - {id: C_per_m, type: table, data: std1, expr: es.C_per_m, unit: pF/m}
+  - {id: Z0, type: table, data: std1, expr: es.Z0, unit: ohm}
+  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+provenance:
+  values:
+    params.S: {basis: benchmark, source: "eval/cases/c/RF-62.yaml geometry.spec.S_m (atlas K6a.yaml)", date: 2026-11-06}
+    params.W: {basis: benchmark, source: "eval/cases/c/RF-62.yaml geometry.spec.W_m", date: 2026-11-06}
+    params.R: {basis: user, date: 2026-11-06, note: "modelling choice: truncation of the half-space and the semi-infinite grounds"}
+    params.eps_sub: {basis: benchmark, source: "eval/cases/c/RF-62.yaml materials.substrate.eps_r (atlas K6a.yaml)", date: 2026-11-06}
+    materials.air.override.eps_r: {basis: benchmark, source: "eval/cases/c/RF-62.yaml materials.air.eps_r", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice; fixed (not R/8) so an R sweep only extends the far mesh"}
+    mesh.size.grading: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice: strip-edge singularity, C converges at p ~ 1"}
+assumptions:
+  - {text: "Metal thickness 0 (case metal_t_m 0): strip and grounds are edges on y = 0; truncation box sides are n . D = 0 (natural)", paths: [physics.es.bcs, geometry]}
+  - {text: "Quasi-static TEM: L' = mu0 eps0 / C'_vacuum, n_RF = sqrt(C' / C'_vacuum), Z0 = sqrt(L' / C')", paths: [physics.es]}
+# eval: [RF-62]

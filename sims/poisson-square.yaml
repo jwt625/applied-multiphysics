@@ -1,0 +1,40 @@
+# HT-61 (eval/cases/c/HT-61.yaml; scikit-fem ex01, BSD-3-Clause): Poisson -lap u = 1 on the unit square, u = 0 on the
+# boundary; target max u = 0.0736713532835 (double Fourier sine series, eval/expected/HT-61.json). The dimensionless problem
+# is written as steady heat conduction with k = 1 W/(m K), Q = 1 W/m^3, T = 0 K on all edges, so T [K] = u.
+# Rights: BSD-3-Clause (scikit-fem), cite_values + re_derive_setup + copy_with_attribution; no source file is copied.
+schema: amp-spec/0
+id: poisson-square
+title: Poisson on the unit square
+description: -lap u = 1 on [0, 1]^2 with u = 0 on the boundary, as steady heat conduction (k 1, Q 1, T 0); maximum of u.
+params:
+  L: {value: 1, unit: m, description: square side}
+geometry:
+  dim: 2
+  features:
+    - {id: sq, type: rect, settings: {size: ["L", "L"], center: ["L/2", "L/2"]}}
+materials:
+  - {id: unit, override: {k: {value: 1, unit: W/(m*K)}}, select: ["dom:sq"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:sq"]
+    bcs:
+      - {id: dirichlet, type: temperature, select: ["bnd:sq.left", "bnd:sq.right", "bnd:sq.top", "bnd:sq.bottom"], settings: {T: "0 K"}}
+      - {id: source, type: heat-source, select: ["dom:sq"], settings: {Q: "1 W/m^3"}}
+mesh:
+  size: {hmax: "L/8"}
+studies:
+  - {id: std1, type: stationary, physics: [ht]}
+results:
+  - {id: u_max, type: table, data: std1, expr: ht.T_max, unit: K}
+  - {id: u_map, type: plot2d, data: std1, expr: ht.T, unit: K}
+provenance:
+  values:
+    params.L: {basis: benchmark, source: "eval/cases/c/HT-61.yaml geometry.spec.domain [0, 1] x [0, 1]", date: 2026-11-06}
+    materials.unit.override.k: {basis: benchmark, source: "eval/cases/c/HT-61.yaml (operator -lap u: unit coefficient)", date: 2026-11-06}
+    physics.ht.bcs.dirichlet.settings.T: {basis: benchmark, source: "eval/cases/c/HT-61.yaml bcs[0] dirichlet value 0", date: 2026-11-06}
+    physics.ht.bcs.source.settings.Q: {basis: benchmark, source: "eval/cases/c/HT-61.yaml bcs[1] source value 1.0", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+assumptions:
+  - {text: "Dimensionless Poisson problem mapped onto heat units (k 1 W/(m K), Q 1 W/m^3, T in K); u = T", paths: [physics.ht, materials]}
+# eval: [HT-61]

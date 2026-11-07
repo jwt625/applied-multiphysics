@@ -1,0 +1,59 @@
+# WO-21 (eval/cases/a/WO-21.yaml): quarter-wave Si / SiO2 Bragg stack at 1550 nm, lower edge of the first gap at
+# normal incidence. Scalar analog: at normal incidence E'' + (n omega / c0)^2 E = 0 with E and E' continuous (mu_r = 1),
+# which is the acoustics eigenproblem with uniform rho and c = c0 / n. The unit cell is mirror symmetric about the
+# layer centres, so a zone-edge (k = pi / Lambda) Bloch mode is even about one layer centre and odd about the other:
+# the gap edges are the lowest modes of the half cell (half Si layer + half SiO2 layer) with dp/dn = 0 at one end and
+# p = 0 at the other. This file: sound-hard at the Si centre, p = 0 at the SiO2 centre (field maximum in Si: lower
+# edge). sims/bragg-edge-upper.yaml has the ends swapped. omega / omega0 = f / (c0 / lambda0). The 1D cell is a 2D
+# strip with sound-hard long sides; its transverse modes lie far above (strip width << wavelength).
+schema: amp-spec/0
+id: bragg-edge-lower
+title: Bragg stack, lower gap edge (scalar analog)
+description: Half unit cell of the quarter-wave Si / SiO2 stack (lambda0 1550 nm); lowest mode with dp/dx = 0 at the Si-layer centre and p = 0 at the SiO2-layer centre gives the lower gap edge.
+params:
+  c0: {value: 299792458, unit: m/s, description: speed of light in vacuum}
+  lambda0: {value: 1.55e-6, unit: m, description: design (quarter-wave) vacuum wavelength}
+  n_Si: {value: 3.477723756, description: Si index at lambda0}
+  n_SiO2: {value: 1.444023622, description: SiO2 index at lambda0}
+  d_Si: {value: 1.1142345602679318e-7, unit: m, description: "Si layer thickness, lambda0 / (4 n_Si)"}
+  d_SiO2: {value: 2.683474107323156e-7, unit: m, description: "SiO2 layer thickness, lambda0 / (4 n_SiO2)"}
+  w: {value: 1.0e-8, unit: m, description: "strip width of the 2D model, modelling choice"}
+geometry:
+  dim: 2
+  features:
+    - {id: hi, type: rect, settings: {size: ["d_Si/2", "w"], center: ["d_Si/4", "w/2"]}}
+    - {id: lo, type: rect, settings: {size: ["d_SiO2/2", "w"], center: ["d_Si/2 + d_SiO2/4", "w/2"]}}
+materials:
+  - {id: Si, override: {c: "c0/n_Si", rho: {value: 1, unit: kg/m^3}}, select: ["dom:hi"]}
+  - {id: SiO2, override: {c: "c0/n_SiO2", rho: {value: 1, unit: kg/m^3}}, select: ["dom:lo"]}
+physics:
+  - id: wave
+    type: acoustics
+    select: ["dom:hi", "dom:lo"]
+    bcs:
+      - {id: si_centre, type: sound-hard, select: ["bnd:hi.left"]}
+      - {id: sio2_centre, type: pressure, select: ["bnd:lo.right"], settings: {p: "0 Pa"}}
+      - {id: sides, type: sound-hard, select: ["bnd:hi.top", "bnd:hi.bottom", "bnd:lo.top", "bnd:lo.bottom"]}
+mesh:
+  size: {hmax: "w"}
+studies:
+  - {id: eig, type: eigen, physics: [wave], settings: {nModes: 2}}
+results:
+  - {id: edges, type: table, data: eig, expr: wave.freq, unit: THz}
+  - {id: mode, type: plot2d, data: eig, expr: wave.p, unit: Pa, step: 0}
+provenance:
+  values:
+    params.c0: {basis: textbook, source: "SI definition of the metre (exact)", date: 2026-11-06}
+    params.lambda0: {basis: benchmark, source: "eval/cases/a/WO-21.yaml geometry.spec.lambda0_m", date: 2026-11-06}
+    params.n_Si: {basis: benchmark, source: "eval/cases/a/WO-21.yaml materials.Si.n (as WO-01)", date: 2026-11-06}
+    params.n_SiO2: {basis: benchmark, source: "eval/cases/a/WO-21.yaml materials.SiO2.n (as WO-01)", date: 2026-11-06}
+    params.d_Si: {basis: benchmark, source: "eval/cases/a/WO-21.yaml geometry.spec.d_Si_m", date: 2026-11-06}
+    params.d_SiO2: {basis: benchmark, source: "eval/cases/a/WO-21.yaml geometry.spec.d_SiO2_m", date: 2026-11-06}
+    params.w: {basis: user, date: 2026-11-06, note: "modelling choice; the 1D result does not depend on it"}
+    materials.Si.override.rho: {basis: user, date: 2026-11-06, note: "analog: uniform rho <-> uniform mu_r = 1 (E' continuous); its value does not enter the eigenfrequencies"}
+    materials.SiO2.override.rho: {basis: user, date: 2026-11-06, note: "analog: uniform rho, as Si"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+assumptions:
+  - {text: "Normal-incidence Bragg stack solved as the scalar wave equation with the acoustics module (c = c0 / n, uniform rho)", paths: [physics.wave]}
+  - {text: "Zone-edge modes of the mirror-symmetric cell are even / odd about the layer centres, so the half cell with one sound-hard and one p = 0 end gives one gap edge exactly", paths: [physics.wave.bcs]}
+# eval: [WO-21]

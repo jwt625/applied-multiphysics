@@ -4,7 +4,10 @@
 // fe39985 (GPL-3.0-or-later): 256x1 LUT texture, linear or log scale, deformation p + s u in the vertex stage, flat
 // shading from screen-space derivatives. Changes: TSL instead of GLSL; clipping by an explicit Discard (three's
 // clipping planes do not apply under the handler); an animation amplitude cos(phase) on displacement and, for
-// eigenmodes, on the value (Re(u e^{i phase}) of a real mode).
+// eigenmodes, on the value (Re(u e^{i phase}) of a real mode). DevLog-019: with opts.p2 the value is the P2 basis of
+// the parent face evaluated per fragment (attributes fb = face barycentrics, pa = corner values, pb = mid-edge values
+// 01 12 20; viewer3d.ts builds them for tet10 exterior faces, and for other surfaces pa = pb = the vertex value, which
+// reduces to linear interpolation), then the LUT per fragment.
 import * as THREE from 'three';
 import { LineBasicNodeMaterial, MeshBasicNodeMaterial } from 'three/webgpu';
 import { Discard, Fn, If, abs, attribute, clamp, cross, dFdx, dFdy, dot, float, log, max, mix, normalView, normalize, pow, positionLocal, positionView, positionWorld, select, texture, uniform, vec2, vec3 } from 'three/tsl';
@@ -40,12 +43,19 @@ type N = ReturnType<typeof float>;
  * per-vertex `normal` attribute (opts.normals) or the flat face normal from screen-space derivatives; face-forwarded so
  * sections and back faces are lit too.
  */
-export function fieldMaterial(lut: THREE.Texture, u: FieldUniforms, opts: { shade?: boolean; clip?: boolean; normals?: boolean } = {}): MeshBasicNodeMaterial {
+export function fieldMaterial(lut: THREE.Texture, u: FieldUniforms, opts: { shade?: boolean; clip?: boolean; normals?: boolean; p2?: boolean } = {}): MeshBasicNodeMaterial {
 	const U = u as unknown as Record<keyof FieldUniforms, N>;
 	// pushed back slightly so edge lines lying on the surface do not z-fight with it
 	const m = new MeshBasicNodeMaterial({ side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
 	const amp = mix(float(1), U.amp, U.animValue);
-	const v = attribute('value', 'float').mul(amp);
+	let raw: N = attribute('value', 'float') as unknown as N;
+	if (opts.p2) {
+		const fb = attribute('fb', 'vec3'), pa = attribute('pa', 'vec3'), pb = attribute('pb', 'vec3');
+		const Nc = vec3(fb.x.mul(fb.x.mul(2).sub(1)), fb.y.mul(fb.y.mul(2).sub(1)), fb.z.mul(fb.z.mul(2).sub(1)));
+		const Nm = vec3(fb.x.mul(fb.y), fb.y.mul(fb.z), fb.z.mul(fb.x)).mul(4);
+		raw = dot(Nc, pa).add(dot(Nm, pb)) as unknown as N;
+	}
+	const v = raw.mul(amp);
 	const tLin = v.sub(U.vmin).div(U.vmax.sub(U.vmin));
 	const tLog = log(max(v, float(1e-30))).sub(log(U.vmin)).div(log(U.vmax).sub(log(U.vmin)));
 	const t = clamp(select(U.log.greaterThan(0.5), tLog, tLin), float(0), float(1));

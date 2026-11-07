@@ -1,0 +1,73 @@
+# WO-02 (eval/cases/b/WO-02.yaml): Hadley 2002 rib waveguide (JLT 20(7) 1219, paywalled; values via the femwell
+# re-tabulation docs/benchmarks/mode_solver.py, GPL-3.0), fundamental vector mode n_eff vs slab thickness at 1.15 um;
+# reference 3.412126 (t 0.1 um) ... 3.414100 (t 0.7 um), tolerance 5e-6. Eval model of the hero sims/si-rib-waveguide.yaml
+# with the case's window (femwell: 18 um wide, 10 um substrate, 3 um cover) instead of the hero's 10 / 3 / 3 um.
+# The t = 0 point needs a geometry without the slab feature (not in this file). Rights: cite_values + re_derive_setup.
+schema: amp-spec/0
+id: hadley-rib-wo02
+title: Hadley rib waveguide (WO-02)
+description: Rib 3 x 1 um, n 3.44 on a 3.40 substrate under air, window 18 x 13 um with PEC walls; fundamental n_eff at 1.15 um vs slab thickness.
+params:
+  lambda0: {value: 1.15, unit: um, description: vacuum wavelength}
+  w_rib: {value: 3, unit: um, description: rib width}
+  H: {value: 1, unit: um, description: "rib height above the substrate, slab included"}
+  t_slab: {value: 0.3, unit: um, range: [0.1, 0.7], description: slab thickness}
+  W_win: {value: 18, unit: um, description: window width}
+  D_sub: {value: 10, unit: um, description: substrate depth in the window}
+  H_cov: {value: 3, unit: um, description: cover height in the window}
+geometry:
+  dim: 2
+  features:
+    - {id: win_top, type: rect, settings: {size: ["W_win", "H_cov"], center: ["0 um", "H_cov/2"]}}
+    - {id: win_sub, type: rect, settings: {size: ["W_win", "D_sub"], center: ["0 um", "-D_sub/2"]}}
+    - {id: slab, type: rect, settings: {size: ["W_win", "t_slab"], center: ["0 um", "t_slab/2"]}}
+    - {id: rib, type: rect, settings: {size: ["w_rib", "H"], center: ["0 um", "H/2"]}}
+    - {id: guide, type: union, settings: {inputs: [slab, rib]}}
+    - {id: clad, type: difference, settings: {base: win_top, tools: [guide], keepTools: true}}
+materials:
+  - {id: core, override: {n: 3.44}, select: ["dom:guide"]}
+  - {id: substrate, override: {n: 3.40}, select: ["dom:win_sub"]}
+  - {id: cover, override: {n: 1}, select: ["dom:clad"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:guide", "dom:win_sub", "dom:clad"]
+    bcs:
+      - id: walls
+        type: pec
+        select: ["bnd:win_top.left", "bnd:win_top.right", "bnd:win_top.top", "bnd:win_sub.left", "bnd:win_sub.right", "bnd:win_sub.bottom", "bnd:slab.left", "bnd:slab.right"]
+mesh:
+  size: {hmax: "W_win/40"}
+  refine:
+    - {select: ["dom:guide"], h: "t_slab/4"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 2}}
+  - id: sweep_t
+    type: parametric
+    physics: [ewg]
+    settings:
+      study: modes
+      sweep:
+        - {param: t_slab, values: ["0.1 um", "0.2 um", "0.3 um", "0.4 um", "0.5 um", "0.6 um", "0.7 um"]}
+results:
+  - {id: neff, type: table, data: sweep_t, expr: ewg.neff, unit: "1"}
+  - {id: E_map, type: plot2d, data: modes, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.lambda0: {basis: benchmark, source: "eval/cases/b/WO-02.yaml study.wavelength_um", date: 2026-11-06}
+    params.w_rib: {basis: benchmark, source: "eval/cases/b/WO-02.yaml geometry.spec.rib_width_um", date: 2026-11-06}
+    params.H: {basis: benchmark, source: "eval/cases/b/WO-02.yaml geometry.spec.rib_height_um (from the substrate top)", date: 2026-11-06}
+    params.t_slab: {basis: benchmark, source: "eval/cases/b/WO-02.yaml geometry.spec.slab_thickness_um (one of the tabulated values)", date: 2026-11-06}
+    params.W_win: {basis: benchmark, source: "eval/cases/b/WO-02.yaml bcs[0].expr (femwell: 18 um wide)", date: 2026-11-06}
+    params.D_sub: {basis: benchmark, source: "eval/cases/b/WO-02.yaml bcs[0].expr (femwell: 10 um substrate)", date: 2026-11-06}
+    params.H_cov: {basis: benchmark, source: "eval/cases/b/WO-02.yaml bcs[0].expr (femwell: 3 um cover)", date: 2026-11-06}
+    studies.sweep_t.settings.sweep.0.values: {basis: benchmark, source: "eval/cases/b/WO-02.yaml references[0].at.slab_thickness_um (t = 0 excluded)", date: 2026-11-06}
+    materials.core.override.n: {basis: benchmark, source: "eval/cases/b/WO-02.yaml materials.core.n (femwell mode_solver.py)", date: 2026-11-06}
+    materials.substrate.override.n: {basis: benchmark, source: "eval/cases/b/WO-02.yaml materials.substrate.n", date: 2026-11-06}
+    materials.cover.override.n: {basis: benchmark, source: "eval/cases/b/WO-02.yaml materials.cover.n", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (as the hero)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (as the hero)"}
+assumptions:
+  - {text: "PEC on the window boundary (case: pec_or_far, domain large enough that the result is insensitive)", paths: [physics.ewg.bcs.walls]}
+  - {text: "The gated mode is the highest-n_eff vector mode (case definition); quasi-TE here (TE fraction >= 0.9998)", paths: [studies.modes]}
+# eval: [WO-02]

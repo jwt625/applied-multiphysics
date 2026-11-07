@@ -196,6 +196,133 @@ export function latticeValues(m: Mesh2D, f: Field2D, r: number, comp: number): F
 	return out;
 }
 
+/**
+ * Element coefficients for per-fragment evaluation in the renderer (DevLog-019): per element, for each of `nc`
+ * components, the 6 P2 values (corners 0, 1, 2, mids 01, 12, 20), packed in RGBA32F texels (K texels per element,
+ * element e at texel e K, row-major in a `width`-wide texture). P1 data is written as P2 with mid values = edge means
+ * (the P2 basis reproduces linears exactly). Drawn value: a f + b, f = the component, or the norm of the interpolated
+ * vector when `mag`; times the world x when `psi` (flux function r A_phi).
+ */
+export interface ElementCoef {
+	data: Float32Array;
+	width: number;
+	height: number;
+	K: number;
+	nc: number;
+	mag: boolean;
+	a: number;
+	b: number;
+	psi: boolean;
+	/** how the drawn field was obtained (colorbar / tooltip text) */
+	note: string;
+}
+
+export const COEF_WIDTH = 4096;
+
+/**
+ * Recovery of a DG0 (per cell) field to element-corner values (DevLog-019 s.1.2): at each corner node, the
+ * area-weighted mean of the cell values of the cells sharing the node within the same domain (a node on a material
+ * interface keeps one value per domain, so jumps across interfaces stay sharp). Pattern: eo-modulator-atlas
+ * engine/src/postproc/evaluate.mjs `smoothToNodes` (area weights) with its default "inside material domains" grouping
+ * (refine.mjs `smoothingSlots`). Bounded by the cell values (no overshoot). Returns 3 nc values per element.
+ */
+export function recoverDG0(m: Mesh2D, f: Field2D): Float64Array {
+	const nc = f.components, N = m.nodes, c = m.conn, nT = m.nT;
+	// slot per (corner node, domain): a node's first domain uses the node index, others get extra slots
+	const nNodes = N.length / 2;
+	const first = new Int32Array(nNodes).fill(-1);
+	const extra = new Map<number, number>();
+	let next = nNodes;
+	let G = 1;
+	for (let t = 0; t < nT; t++) if (m.domain[t]! + 1 > G) G = m.domain[t]! + 1;
+	const slot = new Int32Array(3 * nT);
+	for (let t = 0; t < nT; t++) {
+		const g = m.domain[t]!;
+		for (let k = 0; k < 3; k++) {
+			const v = c[m.npe * t + k]!;
+			let s = v;
+			if (first[v]! < 0) first[v] = g;
+			else if (first[v] !== g) {
+				const key = v * G + g;
+				let e = extra.get(key);
+				if (e === undefined) { e = next++; extra.set(key, e); }
+				s = e;
+			}
+			slot[3 * t + k] = s;
+		}
+	}
+	const sum = new Float64Array(next * nc), w = new Float64Array(next);
+	for (let t = 0; t < nT; t++) {
+		const o = m.npe * t, a = c[o]!, b = c[o + 1]!, d = c[o + 2]!;
+		const A = 0.5 * Math.abs((N[2 * b]! - N[2 * a]!) * (N[2 * d + 1]! - N[2 * a + 1]!) - (N[2 * d]! - N[2 * a]!) * (N[2 * b + 1]! - N[2 * a + 1]!));
+		let ok = true;
+		for (let q = 0; q < nc; q++) if (!Number.isFinite(f.data[nc * t + q]!)) ok = false;
+		if (!ok) continue;
+		for (let k = 0; k < 3; k++) {
+			const s = slot[3 * t + k]!;
+			for (let q = 0; q < nc; q++) sum[nc * s + q]! += A * f.data[nc * t + q]!;
+			w[s]! += A;
+		}
+	}
+	const out = new Float64Array(3 * nc * nT);
+	for (let t = 0; t < nT; t++)
+		for (let k = 0; k < 3; k++) {
+			const s = slot[3 * t + k]!;
+			for (let q = 0; q < nc; q++) out[3 * nc * t + 3 * q + k] = w[s]! > 0 ? sum[nc * s + q]! / w[s]! : NaN;
+		}
+	return out;
+}
+
+/**
+ * Smooth element coefficients of a field (DevLog-019): H1P2 on tri6 = the 6 nodal values; H1P1 (or a tri3 mesh) =
+ * corners, mids as edge means; DG0 = recoverDG0 corners, mids as edge means. `comp` >= 0 (or a scalar): one
+ * component; -1: all components (up to 3) for the magnitude. Returns 6 nc values per element (Float64, unpacked).
+ */
+export function smoothCoefficients(m: Mesh2D, f: Field2D, comp: number): { coef: Float64Array; nc: number; mag: boolean } {
+	const nAll = f.components;
+	const mag = comp < 0 && nAll > 1;
+	if (mag && nAll > 3) throw new Error('smooth display: magnitude of more than 3 components');
+	const comps = mag ? Array.from({ length: nAll }, (_, i) => i) : [nAll === 1 ? 0 : comp];
+	const nc = comps.length, nT = m.nT, c = m.conn;
+	const coef = new Float64Array(6 * nc * nT);
+	const rec = f.space === 'DG0' ? recoverDG0(m, f) : null;
+	const p2 = f.space === 'H1P2' && m.npe === 6;
+	for (let t = 0; t < nT; t++) {
+		const o = m.npe * t;
+		for (let j = 0; j < nc; j++) {
+			const q = comps[j]!, e = 6 * nc * t + 6 * j;
+			if (rec) for (let k = 0; k < 3; k++) coef[e + k] = rec[3 * nAll * t + 3 * q + k]!;
+			else for (let k = 0; k < 3; k++) coef[e + k] = f.data[nAll * c[o + k]! + q]!;
+			if (p2) for (let k = 3; k < 6; k++) coef[e + k] = f.data[nAll * c[o + k]! + q]!;
+			else { coef[e + 3] = 0.5 * (coef[e]! + coef[e + 1]!); coef[e + 4] = 0.5 * (coef[e + 1]! + coef[e + 2]!); coef[e + 5] = 0.5 * (coef[e + 2]! + coef[e]!); }
+		}
+	}
+	return { coef, nc, mag };
+}
+
+/** Value of smooth coefficients (smoothCoefficients) of element t at barycentrics: the component, or the norm. */
+export function evalCoef(coef: Float64Array, nc: number, mag: boolean, t: number, L0: number, L1: number, L2: number): number {
+	p2(L0, L1, L2, W6);
+	let s = 0;
+	for (let j = 0; j < nc; j++) {
+		const e = 6 * nc * t + 6 * j;
+		let v = 0;
+		for (let k = 0; k < 6; k++) v += W6[k]! * coef[e + k]!;
+		if (!mag) return v;
+		s += v * v;
+	}
+	return Math.sqrt(s);
+}
+
+/** Pack smooth coefficients into the RGBA32F texel layout of ElementCoef. */
+export function packCoef(coef: Float64Array, nc: number, nT: number): { data: Float32Array; width: number; height: number; K: number } {
+	const per = 6 * nc, K = Math.ceil(per / 4);
+	const n = nT * K, width = Math.min(COEF_WIDTH, Math.max(1, n)), height = Math.max(1, Math.ceil(n / width));
+	const data = new Float32Array(4 * width * height);
+	for (let t = 0; t < nT; t++) for (let i = 0; i < per; i++) data[4 * K * t + i] = coef[per * t + i]!;
+	return { data, width, height, K };
+}
+
 /** Per-element values drawn flat (lattice r = 1, 3 equal corner values). */
 export function perElement(values: ArrayLike<number>): Float32Array {
 	const out = new Float32Array(3 * values.length);

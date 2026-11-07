@@ -14,6 +14,7 @@
 	import { loadMaterials, materialRows } from '../materials';
 	import type { Library } from '@amp/materials';
 	import ParamSlider from '../ui/ParamSlider.svelte';
+	import { fmtMs } from '../gfx/ticks';
 
 	let { s, node, walker }: { s: Session; node: TreeNode | null; walker: SchemaWalker } = $props();
 	const m = $derived(s.model);
@@ -54,6 +55,8 @@
 		const ref = (getAt(data, node.pointer) as { ref?: string } | undefined)?.ref;
 		return ref ? (materialRows(matLib, ref) ?? { id: ref, name: '', rows: [] }) : null;
 	});
+	/** dataset selector: shown on the study and result nodes while the session holds a sweep (DevLog-020 s.1.3) */
+	const showDs = $derived(!!s.sweep && !!node && ['studies', 'study', 'results', 'result'].includes(node.kind));
 	const nodeIssues = $derived(node ? issues.filter((i) => i.pointer === node.pointer || i.pointer.startsWith(node.pointer + '/')) : []);
 </script>
 
@@ -104,6 +107,23 @@
 					{:else}<div class="dim">not run (Compute)</div>{/if}
 				</div>
 			{/if}
+			{#if showDs && s.sweep}
+				{@const sw = s.sweep}
+				<div class="sub"><div class="subh dim" data-tip={`parametric study ${sw.studyId} over inner study ${sw.innerId}; axes row-major (first slowest)`}>dataset: {sw.studyId}, {sw.done}/{sw.points.length} points</div>
+					<select class="ds" value={s.active} onchange={(e) => s.selectPoint(Number((e.currentTarget as HTMLSelectElement).value))} data-tip="Displayed dataset: the plot, colorbar, probes and headline numbers show this point">
+						{#if s.active < 0 || s.status !== 'solving'}<option value={-1}>{sw.done ? 'base model (spec values)' : 'no dataset yet'}</option>{/if}
+						{#each sw.points as p}<option value={p.index} disabled={!p.held && p.status !== 'solved'}>{p.label} ({p.index + 1}/{sw.points.length})</option>{/each}
+					</select>
+					<div class="dsl mono">
+						{#each sw.points as p}
+							<div class="dsr" class:on={p.index === s.active} role="button" tabindex="0" aria-disabled={!p.held && p.status !== 'solved'} data-tip={p.message || `${p.label}: ${p.status}${p.dof ? `, ${p.dof} DOF` : ''}${p.status === 'solved' && !p.held ? '; mesh and solution not held in memory (re-solved on selection); scalars kept' : ''}`}
+								onclick={() => (p.held || p.status === 'solved') && s.selectPoint(p.index)} onkeydown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && (p.held || p.status === 'solved')) { e.preventDefault(); s.selectPoint(p.index); } }}>
+								<span class="dim">{p.index + 1}</span><span>{p.label}</span><span class:na={p.status !== 'solved'} class="dim">{p.status === 'solved' ? `${fmtMs(p.ms)}${p.held ? '' : ' *'}` : p.status}</span>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
 		{/if}
 	{/if}
 </div>
@@ -120,5 +140,10 @@
 	.iss { font-size: 11px; display: flex; flex-direction: column; gap: 2px; }
 	.mrow { display: grid; grid-template-columns: 64px minmax(0, 1fr) 72px; gap: 6px; font-size: 11px; }
 	.mrow span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.ds { max-width: 100%; border-color: #e0a526; }
+	.dsl { display: flex; flex-direction: column; font-size: 11px; }
+	.dsr { display: grid; grid-template-columns: 22px minmax(0, 1fr) 72px; gap: 6px; padding: 0 4px; cursor: default; }
+	.dsr:hover { background: var(--hover); }
+	.dsr.on { background: var(--sel); }
 	.lst { margin: 0; font-size: 11px; white-space: pre-wrap; color: var(--ink-2); }
 </style>

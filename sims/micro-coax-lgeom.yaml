@@ -1,0 +1,45 @@
+# EM-61 (eval/cases/c/EM-61.yaml; Palace examples docs/src/examples/coaxial.md, Apache-2.0), target L_geom only: micro-coax
+# a = 0.81915 um, b = 2.7305 um (RG-401/U diameters read in um), shorted section of length 40 um. L_geom = L' l with the
+# TEM per-length inductance L' = mu0 eps0 / C'_vacuum from a 2D electrostatic cross-section (as sims/coax-line.yaml);
+# expected 9.63178 pH (eval/expected/EM-61.json, closed form mu0 l ln(b/a) / (2 pi)). The London-film kinetic inductance
+# (L_kin, L_total; lambda_L 0.4 um, film 0.1 um) needs a superconductor model the engine does not have (DevLog-022 s.5).
+schema: amp-spec/0
+id: micro-coax-lgeom
+title: Micro-coax geometric inductance
+description: Coax a = 0.819 um, b = 2.731 um, 40 um long; per-length L' from 2D electrostatics times the length (perfect conductors).
+params:
+  a: {value: 0.81915, unit: um, description: inner conductor radius}
+  b: {value: 2.7305, unit: um, description: outer conductor inner radius}
+  l: {value: 40, unit: um, description: "section length (L_geom = L' l, applied in post-processing)"}
+geometry:
+  dim: 2
+  features:
+    - {id: outer, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "b"}}
+    - {id: inner, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "a"}}
+    - {id: gap, type: difference, settings: {base: outer, tools: [inner]}}
+materials:
+  - {id: vacuum, override: {eps_r: 1}, select: ["dom:gap"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:gap"]
+    bcs:
+      - {id: inner_cond, type: terminal, select: ["bnd:inner.edge"]}
+      - {id: outer_cond, type: ground, select: ["bnd:outer.edge"]}
+mesh:
+  size: {hmax: "(b - a)/3"}
+studies:
+  - {id: std1, type: stationary, physics: [es]}
+results:
+  - {id: L_per_m, type: table, data: std1, expr: es.L_per_m, unit: nH/m}
+  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/c/EM-61.yaml geometry.spec.a_m (coaxial.md, RG-401/U diameter 0.0645 in read in um)", date: 2026-11-06}
+    params.b: {basis: benchmark, source: "eval/cases/c/EM-61.yaml geometry.spec.b_m (0.215 in read in um)", date: 2026-11-06}
+    params.l: {basis: benchmark, source: "eval/cases/c/EM-61.yaml geometry.spec.length_m", date: 2026-11-06}
+    materials.vacuum.override.eps_r: {basis: user, date: 2026-11-06, note: "TEM duality: L' = mu0 eps0 / C'_vacuum comes from the vacuum solve the module does anyway, so eps_r does not enter L' (Palace coaxial.md fills the line with Teflon eps_r 2.08, which affects only C')"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (as sims/coax-line.yaml)"}
+assumptions:
+  - {text: "Perfect conductors: the shorted section's magnetostatic inductance equals L' l (TEM field, no end correction); London films are not modelled", paths: [physics.es]}
+# eval: [EM-61]

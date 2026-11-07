@@ -1,0 +1,74 @@
+# WO-63 (eval/cases/c/WO-63.yaml; MPB Python tutorial, GPL-2.0-or-later): point defect (centre rod removed) in a 5 x 5
+# supercell of the square rod lattice (r 0.2 a, eps 12), TM defect mode. Tutorial value (resolution 16, k = (0.5, 0.5),
+# not converged, gate false in the case): f = 0.378166 c/a, tolerance 5e-3. Scalar analog as sims/phc-square-rods-lower.yaml
+# (acoustics, uniform rho, c = c_vac / sqrt(eps), a = 1 m, c_vac = 1 m/s -> f in Hz = omega a / 2 pi c). The supercell
+# k = (0.5, 0.5) is its M point; the defect monopole is even about both mirror lines through the defect, so the quarter
+# supercell [0, 2.5 a]^2 has sound-hard edges on x = 0, y = 0 (mirrors) and p = 0 on x = y = 2.5 a (antiperiodic edges).
+# The eigen study takes the mode closest to the case's shift 0.38 c/a. The energy-fraction target is not computed.
+# Rights: GPL-2.0-or-later (MPB / Meep), cite_values + re_derive_setup + copy_with_attribution; no tutorial file is copied.
+schema: amp-spec/0
+id: phc-point-defect
+title: Photonic-crystal point defect (scalar analog)
+description: Quarter of a 5 x 5 supercell of the r 0.2a, eps 12 rod lattice with the centre rod removed; TM defect-mode frequency in the band gap.
+params:
+  a: {value: 1, unit: m, description: lattice constant (frequencies in c / a)}
+  r_rod: {value: 0.2, unit: m, description: rod radius (0.2 a)}
+  c_vac: {value: 1, unit: m/s, description: "wave speed in air, unit by choice (f in Hz = omega a / 2 pi c)"}
+  eps_rod: {value: 12, description: rod permittivity}
+  f_target: {value: 0.38, unit: Hz, description: "eigen shift 0.38 c/a (case study.shift)"}
+geometry:
+  dim: 2
+  features:
+    - {id: cell, type: rect, settings: {size: ["2.5*a", "2.5*a"], center: ["1.25*a", "1.25*a"]}}
+    - {id: cut10, type: rect, settings: {size: ["a/2", "a/2"], center: ["a", "-a/4"]}}
+    - {id: cut20, type: rect, settings: {size: ["a/2", "a/2"], center: ["2*a", "-a/4"]}}
+    - {id: cut01, type: rect, settings: {size: ["a/2", "a/2"], center: ["-a/4", "a"]}}
+    - {id: cut02, type: rect, settings: {size: ["a/2", "a/2"], center: ["-a/4", "2*a"]}}
+    - {id: d10, type: circle, settings: {center: ["a", "0 m"], radius: "r_rod"}}
+    - {id: d20, type: circle, settings: {center: ["2*a", "0 m"], radius: "r_rod"}}
+    - {id: d01, type: circle, settings: {center: ["0 m", "a"], radius: "r_rod"}}
+    - {id: d02, type: circle, settings: {center: ["0 m", "2*a"], radius: "r_rod"}}
+    - {id: r10, type: difference, settings: {base: d10, tools: [cut10]}}
+    - {id: r20, type: difference, settings: {base: d20, tools: [cut20]}}
+    - {id: r01, type: difference, settings: {base: d01, tools: [cut01]}}
+    - {id: r02, type: difference, settings: {base: d02, tools: [cut02]}}
+    - {id: r11, type: circle, settings: {center: ["a", "a"], radius: "r_rod"}}
+    - {id: r12, type: circle, settings: {center: ["a", "2*a"], radius: "r_rod"}}
+    - {id: r21, type: circle, settings: {center: ["2*a", "a"], radius: "r_rod"}}
+    - {id: r22, type: circle, settings: {center: ["2*a", "2*a"], radius: "r_rod"}}
+    - {id: bg, type: difference, settings: {base: cell, tools: [r10, r20, r01, r02, r11, r12, r21, r22], keepTools: true}}
+materials:
+  - {id: rod_mat, override: {c: "c_vac/sqrt(eps_rod)", rho: {value: 1, unit: kg/m^3}}, select: ["dom:r10", "dom:r20", "dom:r01", "dom:r02", "dom:r11", "dom:r12", "dom:r21", "dom:r22"]}
+  - {id: air, override: {c: "c_vac", rho: {value: 1, unit: kg/m^3}}, select: ["dom:bg"]}
+physics:
+  - id: wave
+    type: acoustics
+    select: ["dom:r10", "dom:r20", "dom:r01", "dom:r02", "dom:r11", "dom:r12", "dom:r21", "dom:r22", "dom:bg"]
+    bcs:
+      - {id: mirror_x, type: sound-hard, select: ["bnd:cell.left", "bnd:cut01.right", "bnd:cut02.right"]}
+      - {id: mirror_y, type: sound-hard, select: ["bnd:cell.bottom", "bnd:cut10.top", "bnd:cut20.top"]}
+      - {id: edges, type: pressure, select: ["bnd:cell.right", "bnd:cell.top"], settings: {p: "0 Pa"}}
+mesh:
+  size: {hmax: "a/8"}
+  refine:
+    - {select: ["bnd:d10.edge", "bnd:d20.edge", "bnd:d01.edge", "bnd:d02.edge", "bnd:r11.edge", "bnd:r12.edge", "bnd:r21.edge", "bnd:r22.edge"], h: "a/32"}
+studies:
+  - {id: eig, type: eigen, physics: [wave], settings: {nModes: 1, shift: "f_target"}}
+results:
+  - {id: f_defect, type: table, data: eig, expr: wave.f_0, unit: Hz}
+  - {id: mode, type: plot2d, data: eig, expr: wave.p, unit: Pa, step: 0}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/c/WO-63.yaml geometry.spec (unit a)", date: 2026-11-06}
+    params.r_rod: {basis: benchmark, source: "eval/cases/c/WO-63.yaml geometry.spec.rod_radius", date: 2026-11-06}
+    params.c_vac: {basis: user, date: 2026-11-06, note: "analog unit: normalized frequency c / a"}
+    params.eps_rod: {basis: benchmark, source: "eval/cases/c/WO-63.yaml materials.rod.eps_r (MPB Python_Tutorial.md L288)", date: 2026-11-06}
+    params.f_target: {basis: benchmark, source: "eval/cases/c/WO-63.yaml study.shift (0.38; the tutorial itself sets target_freq = (0.2812 + 0.4174)/2 = 0.3493); a shift only, the even/even class has one mode in the gap", date: 2026-11-06}
+    materials.rod_mat.override.rho: {basis: user, date: 2026-11-06, note: "analog: uniform rho <-> mu_r = 1"}
+    materials.air.override.rho: {basis: user, date: 2026-11-06, note: "analog: uniform rho"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice"}
+assumptions:
+  - {text: "TM polarization solved as the scalar wave equation with the acoustics module (c = c_vac / sqrt(eps), uniform rho)", paths: [physics.wave]}
+  - {text: "Supercell M point (k = (0.5, 0.5) of the supercell): defect mode even about x = 0 and y = 0, antiperiodic across the supercell edges; quarter supercell with sound-hard mirrors and p = 0 edges", paths: [physics.wave.bcs]}
+# eval: [WO-63]

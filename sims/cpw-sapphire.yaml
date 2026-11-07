@@ -1,0 +1,67 @@
+# RF-03 (eval/cases/c/RF-03.yaml; Palace examples docs/src/examples/cpw.md, Apache-2.0): coplanar waveguide, trace 30 um,
+# gaps 18 um, infinitely thin PEC, on a 500 um C-axis sapphire substrate (eps 9.3 in plane, 11.5 along the C axis = substrate
+# normal) with air below; quasi-static Z0 of one isolated line. Expected (eval/expected/RF-03.json, partial-capacitance
+# conformal map, tolerance 5e-3): uniaxial 53.3519 Ohm, isotropic 9.3 variant 55.9803 Ohm (eps_par = eps_perp = 9.3).
+# The uniaxial layer is mapped to an isotropic one (exact for the Laplace equation with planar interfaces, the case's
+# stated assumption): y' = y sqrt(eps_perp / eps_par), eps' = sqrt(eps_perp eps_par). The box half-size R is a modelling choice.
+schema: amp-spec/0
+id: cpw-sapphire
+title: CPW on C-axis sapphire
+description: Thin CPW, trace 30 um, gaps 18 um, on 500 um uniaxial sapphire with air below; quasi-static C', L', Z0.
+params:
+  w: {value: 30, unit: um, description: trace width}
+  s: {value: 18, unit: um, description: gap width}
+  h: {value: 500, unit: um, description: substrate thickness}
+  eps_perp: {value: 9.3, description: "sapphire eps_r perpendicular to the C axis (in plane)"}
+  eps_par: {value: 11.5, description: "sapphire eps_r parallel to the C axis (substrate normal); 9.3 = isotropic variant"}
+  h_eq: {value: "h*sqrt(eps_perp/eps_par)", description: "thickness of the equivalent isotropic layer"}
+  eps_eq: {value: "sqrt(eps_perp*eps_par)", description: "permittivity of the equivalent isotropic layer"}
+  R: {value: 5, unit: mm, description: "half-size of the truncation box, modelling choice"}
+geometry:
+  dim: 2
+  features:
+    - {id: air_gl, type: rect, settings: {size: ["R - w/2 - s", "R"], center: ["-(R + w/2 + s)/2", "R/2"]}}
+    - {id: air_sl, type: rect, settings: {size: ["s", "R"], center: ["-(w + s)/2", "R/2"]}}
+    - {id: air_sig, type: rect, settings: {size: ["w", "R"], center: ["0 um", "R/2"]}}
+    - {id: air_sr, type: rect, settings: {size: ["s", "R"], center: ["(w + s)/2", "R/2"]}}
+    - {id: air_gr, type: rect, settings: {size: ["R - w/2 - s", "R"], center: ["(R + w/2 + s)/2", "R/2"]}}
+    - {id: sub, type: rect, settings: {size: ["2*R", "h_eq"], center: ["0 um", "-h_eq/2"]}}
+    - {id: air_below, type: rect, settings: {size: ["2*R", "R - h_eq"], center: ["0 um", "-(R + h_eq)/2"]}}
+materials:
+  - {id: air, override: {eps_r: 1}, select: ["dom:air_gl", "dom:air_sl", "dom:air_sig", "dom:air_sr", "dom:air_gr", "dom:air_below"]}
+  - {id: sapphire_eq, override: {eps_r: "eps_eq"}, select: ["dom:sub"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:air_gl", "dom:air_sl", "dom:air_sig", "dom:air_sr", "dom:air_gr", "dom:sub", "dom:air_below"]
+    bcs:
+      - {id: signal, type: terminal, select: ["bnd:air_sig.bottom"]}
+      - {id: grounds, type: ground, select: ["bnd:air_gl.bottom", "bnd:air_gr.bottom"]}
+mesh:
+  size: {hmax: "0.5 mm", grading: 0.3}
+  refine:
+    - {select: ["bnd:air_sig.bottom", "bnd:air_sl.bottom", "bnd:air_sr.bottom"], h: "s/40"}
+studies:
+  - {id: std1, type: stationary, physics: [es]}
+results:
+  - {id: Z0, type: table, data: std1, expr: es.Z0, unit: ohm}
+  - {id: C_per_m, type: table, data: std1, expr: es.C_per_m, unit: pF/m}
+  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+provenance:
+  values:
+    params.w: {basis: benchmark, source: "eval/cases/c/RF-03.yaml geometry.spec.trace_w_m (Palace cpw.md)", date: 2026-11-06}
+    params.s: {basis: benchmark, source: "eval/cases/c/RF-03.yaml geometry.spec.gap_s_m", date: 2026-11-06}
+    params.h: {basis: benchmark, source: "eval/cases/c/RF-03.yaml geometry.spec.substrate_t_m", date: 2026-11-06}
+    params.eps_perp: {basis: benchmark, source: "eval/cases/c/RF-03.yaml materials.sapphire.eps_r_perp_c (cpw.md L20-24)", date: 2026-11-06}
+    params.eps_par: {basis: benchmark, source: "eval/cases/c/RF-03.yaml materials.sapphire.eps_r_parallel_c", date: 2026-11-06}
+    params.h_eq: {basis: textbook, source: "planar uniaxial -> isotropic map (eval/cases/c/RF-03.yaml assumptions; eval/expected/RF-03.json precision.h_eq_m)", date: 2026-11-06}
+    params.eps_eq: {basis: textbook, source: "planar uniaxial -> isotropic map (eval/expected/RF-03.json precision.eps_eq)", date: 2026-11-06}
+    params.R: {basis: user, date: 2026-11-06, note: "modelling choice (case missing: enclosure size is a solver choice; truncation study in DevLog-022)"}
+    materials.air.override.eps_r: {basis: benchmark, source: "eval/cases/c/RF-03.yaml geometry.spec.air_below_substrate", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.size.grading: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice: strip-edge singularity"}
+assumptions:
+  - {text: "C axis normal to the substrate; the planar map to an isotropic layer is exact for the Laplace equation (case assumption); loss tangents are not used (quasi-static Z0)", paths: [params.h_eq, params.eps_eq]}
+  - {text: "Zero-thickness PEC trace and grounds on y = 0; grounds extend to the box sides; box sides n . D = 0", paths: [physics.es.bcs]}
+# eval: [RF-03]

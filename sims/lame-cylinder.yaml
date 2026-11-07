@@ -1,0 +1,64 @@
+# SM-21 (eval/cases/a/SM-21.yaml): Code_Aster SSLV04A, hollow cylinder a = 0.1, b = 0.2 under internal pressure
+# 60 MPa, plane stress (Lame). Inputs from the case file. The case's 45 deg sector is modelled as a 90 deg quarter
+# (rollers on x = 0 and y = 0): the solution is axisymmetric, so the field at A (r = a, 0 deg), B (r = b, 0 deg),
+# D (r = b, 22.5 deg) and F (r = b, 45 deg) is the same, and the engine's roller needs an axis-normal boundary.
+# Length unit: the case's mesh unit (E in MPa, p in MPa); written here as m, so displacements come out in that unit.
+schema: amp-spec/0
+id: lame-cylinder
+title: Lame thick cylinder (SSLV04A)
+description: Quarter of a hollow cylinder, inner radius 0.1, outer 0.2, internal pressure 60 MPa, plane stress; radial displacements and stresses against Lame.
+params:
+  a: {value: 0.1, unit: m, description: inner radius}
+  b: {value: 0.2, unit: m, description: outer radius}
+  p_in: {value: 60, unit: MPa, description: internal pressure}
+geometry:
+  dim: 2
+  features:
+    - {id: outer, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "b"}}
+    - {id: inner, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "a"}}
+    - {id: quad, type: rect, settings: {size: ["b", "b"], center: ["b/2", "b/2"]}}
+    - {id: ring, type: difference, settings: {base: outer, tools: [inner]}}
+    - {id: wall, type: intersection, settings: {inputs: [ring, quad]}}
+    - {id: ray_D, type: polyline, settings: {points: [["a*cos(pi/8)", "a*sin(pi/8)"], ["b*cos(pi/8)", "b*sin(pi/8)"]]}}
+    - {id: ray_F, type: polyline, settings: {points: [["a*cos(pi/4)", "a*sin(pi/4)"], ["b*cos(pi/4)", "b*sin(pi/4)"]]}}
+materials:
+  - id: solid_mat
+    override: {E: {value: 200000, unit: MPa}, nu: 0.3}
+    select: ["dom:wall"]
+physics:
+  - id: solid
+    type: elastic
+    select: ["dom:wall"]
+    settings: {model: plane-stress}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:quad.left"]}
+      - {id: sym_y, type: roller, select: ["bnd:quad.bottom"]}
+      - {id: p_inner, type: pressure, select: ["bnd:inner.edge"], settings: {p: "p_in"}}
+      - {id: outer_free, type: free, select: ["bnd:outer.edge"]}
+mesh:
+  size: {hmax: "(b - a)/4"}
+  refine:
+    - {select: ["bnd:inner.edge"], h: "(b - a)/160"}
+studies:
+  - {id: std1, type: stationary, physics: [solid]}
+results:
+  - {id: u_A, type: probe, data: std1, expr: solid.u, unit: m, at: ["a", "0 m"]}
+  - {id: u_B, type: probe, data: std1, expr: solid.u, unit: m, at: ["b", "0 m"]}
+  - {id: sxx_A, type: probe, data: std1, expr: solid.sxx, unit: MPa, at: ["a", "0 m"]}
+  - {id: syy_A, type: probe, data: std1, expr: solid.syy, unit: MPa, at: ["a", "0 m"]}
+  - {id: mises_map, type: plot2d, data: std1, expr: solid.mises, unit: MPa}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/a/SM-21.yaml geometry.spec.inner_radius (inferred in the case from the ANALYTIQUE values; case assumptions)", date: 2026-11-06}
+    params.b: {basis: benchmark, source: "eval/cases/a/SM-21.yaml geometry.spec.outer_radius (case assumptions)", date: 2026-11-06}
+    params.p_in: {basis: benchmark, source: "eval/cases/a/SM-21.yaml bcs[0] (Code_Aster astest/sslv04a.comm)", date: 2026-11-06}
+    materials.solid_mat.override.E: {basis: benchmark, source: "eval/cases/a/SM-21.yaml materials.solid.E (Code_Aster astest/sslv04a.comm DEFI_MATERIAU)", date: 2026-11-06}
+    materials.solid_mat.override.nu: {basis: benchmark, source: "eval/cases/a/SM-21.yaml materials.solid.nu", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice: stresses at A are read on the bore"}
+assumptions:
+  - {text: "90 deg quarter instead of the case's 45 deg sector; exact for an axisymmetric load and geometry", paths: [geometry.features.quad, physics.solid.bcs.sym_x]}
+  - {text: "Elastic pressure p acts as traction -p n with n the outward normal of the solid, so p > 0 on the bore is an internal pressure", paths: [physics.solid.bcs.p_inner]}
+  - {text: "Embedded radial lines ray_D (22.5 deg) and ray_F (45 deg) put mesh vertices at points D and F (r = b) on the curved outer edge, so the probes lie in the mesh; they do not change the solution", paths: [geometry.features.ray_D, geometry.features.ray_F]}
+  - {text: "Length unit of the case (mesh unit) taken as m; thickness N/A and not needed in plane stress", paths: [params.a, params.b]}
+# eval: [SM-21]

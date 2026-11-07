@@ -1,0 +1,50 @@
+# WO-41 (eval/cases/b/WO-41.yaml) variants C and D: Hadley 2002 (JLT 20(7) 1219, paywalled) low-index square core (eps 1)
+# in a high-index cladding inside a metal box, quarter structure [0, 1] x [0, 1] with the core [0, 0.5]^2 (lengths in um,
+# lambda 1.5 um); metallic (PEC) edges left and top, the other edges natural (PMC, femwell formulation; case assumption).
+# Values via the femwell re-tabulation (docs/benchmarks/mode_solver_rectangle.py, GPL-3.0): n_eff C (eps 1 / 2.25)
+# 1.387926425, D (eps 1 / 8) 2.761465320. Rights: cite_values + re_derive_setup. Variant D: eps_clad = 8.
+schema: amp-spec/0
+id: hadley-square-hole
+title: Low-index core in a metal box
+description: Hadley 2002 benchmark, quarter model; core eps 1 in cladding eps 2.25 (variant C) or 8 (variant D); fundamental n_eff at 1.5 um.
+params:
+  a: {value: 1, unit: um, description: quarter window side}
+  c: {value: 0.5, unit: um, description: quarter core side}
+  lambda0: {value: 1.5, unit: um, description: vacuum wavelength}
+  eps_core: {value: 1.0, description: core permittivity}
+  eps_clad: {value: 2.25, description: "cladding permittivity (C 2.25, D 8)"}
+geometry:
+  dim: 2
+  features:
+    - {id: win, type: rect, settings: {size: ["a", "a"], center: ["a/2", "a/2"]}}
+    - {id: core, type: rect, settings: {size: ["c", "c"], center: ["c/2", "c/2"]}}
+    - {id: clad, type: difference, settings: {base: win, tools: [core], keepTools: true}}
+materials:
+  - {id: core_mat, override: {eps_r: "eps_core"}, select: ["dom:core"]}
+  - {id: clad_mat, override: {eps_r: "eps_clad"}, select: ["dom:clad"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:core", "dom:clad"]
+    settings: {order: 2}
+    bcs:
+      - {id: metal, type: pec, select: ["bnd:win.left", "bnd:core.left", "bnd:win.top"]}
+mesh:
+  size: {hmax: "a/10"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  - {id: neff, type: table, data: modes, expr: ewg.neff_0, unit: "1"}
+  - {id: E_map, type: plot2d, data: modes, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/b/WO-41.yaml geometry.spec.window [0, 1] x [0, 1] (femwell units um)", date: 2026-11-06}
+    params.c: {basis: benchmark, source: "eval/cases/b/WO-41.yaml geometry.spec.core [0, 0.5] x [0, 0.5]", date: 2026-11-06}
+    params.lambda0: {basis: benchmark, source: "eval/cases/b/WO-41.yaml study.wavelength 1.5", date: 2026-11-06}
+    params.eps_core: {basis: benchmark, source: "eval/cases/b/WO-41.yaml materials.core_clad.variants C / D eps_core 1.0", date: 2026-11-06}
+    params.eps_clad: {basis: benchmark, source: "eval/cases/b/WO-41.yaml materials.core_clad.variants C (2.25) / D (8.0)", date: 2026-11-06}
+    physics.ewg.bcs.metal.select: {basis: benchmark, source: "eval/cases/b/WO-41.yaml variants C / D metallic_edges [left, top]", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+assumptions:
+  - {text: "Non-metallic edges are PMC (natural boundary), as in the case's missing / assumption entry", paths: [physics.ewg.bcs]}
+# eval: [WO-41]
