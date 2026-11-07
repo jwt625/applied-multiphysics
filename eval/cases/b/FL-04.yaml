@@ -29,6 +29,7 @@ initial: {note: "any start; measure one period of the fully developed periodic s
 study: {type: transient, t_end: 30.0, dt_out: 0.01, note: "time step is a solver choice; FEATFLOW used 1/100-1/400 with Crank-Nicolson"}
 references:
   - quantity: c_D_max
+    metric_id: c_D_max
     definition: "max of 2 F_D / (rho Ubar^2 D) over one period, Ubar = 1.0"
     value: 3.2273926
     unit: "1"
@@ -40,6 +41,7 @@ references:
     extraction: {method: computed, from: "2014 FEATFLOW time series"}
     provenance: {citation: "FEATFLOW 2D-2 'New reference results' (2014-11-24), Q2/P1disc, level 6, finest time step", locator: "20141124_dfg_bench2_official.zip, logs/results_cc2d_bench2_referencenew/bdforces_q2_lv6_dt4 (lv5_dt4 and lv6_dt2 for the spread); extrema by validation/b/featflow_dfg2.py", accessed: 2026-11-06, url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/media/dfg_bench2new_2d/20141124_dfg_bench2_official.zip", generator: validation/b/gen_expected.py}
   - quantity: c_L_max
+    metric_id: c_L_max
     definition: "max of 2 F_L / (rho Ubar^2 D) over one period"
     value: 0.9865707
     unit: "1"
@@ -50,6 +52,7 @@ references:
     extraction: {method: computed, from: "2014 FEATFLOW time series"}
     provenance: {citation: "FEATFLOW 2D-2 'New reference results' (2014-11-24), Q2/P1disc, level 6, finest time step", locator: "20141124_dfg_bench2_official.zip, logs/results_cc2d_bench2_referencenew/bdforces_q2_lv6_dt4 (lv5_dt4 and lv6_dt2 for the spread); extrema by validation/b/featflow_dfg2.py", accessed: 2026-11-06, url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/media/dfg_bench2new_2d/20141124_dfg_bench2_official.zip", generator: validation/b/gen_expected.py}
   - quantity: St
+    metric_id: St
     definition: "D f / Ubar, f from upward zero crossings of c_L"
     value: 0.301841
     unit: "1"
@@ -61,6 +64,7 @@ references:
     extraction: {method: computed, from: "2014 FEATFLOW time series"}
     provenance: {citation: "FEATFLOW 2D-2 'New reference results' (2014-11-24), Q2/P1disc, level 6, finest time step", locator: "20141124_dfg_bench2_official.zip, logs/results_cc2d_bench2_referencenew/bdforces_q2_lv6_dt4 (lv5_dt4 and lv6_dt2 for the spread); extrema by validation/b/featflow_dfg2.py", accessed: 2026-11-06, url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/media/dfg_bench2new_2d/20141124_dfg_bench2_official.zip", generator: validation/b/gen_expected.py}
   - quantity: delta_p_half_period
+    metric_id: delta_p_half_period
     definition: "p(0.15, 0.2) - p(0.25, 0.2) at t = t0 + 1/(2f), t0 at c_L max (1996 definition, sec. 2.2 b)"
     value: 2.4848227
     unit: "Pa (rho = 1)"

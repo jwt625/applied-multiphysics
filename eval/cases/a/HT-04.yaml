@@ -36,6 +36,7 @@ references:
   provenance: {citation: Carslaw-Jaeger closed form (Holman eq. 4-15 form), locator: 'validation/a/gen_heat.py::ht04; eval/expected/HT-04.json
       targets[metric_id=T_x0.0223_t2000]', accessed: null}
   expected: {file: eval/expected/HT-04.json, metric_id: T_x0.0223_t2000}
+  extract: {kind: probe, field: T, point: [0.0223, 0.005]}
 - quantity: T(0.0859 m, 2000 s)
   metric_id: T_x0.0859_t2000
   definition: depth below the surface
@@ -49,6 +50,7 @@ references:
   provenance: {citation: Carslaw-Jaeger closed form (Holman eq. 4-15 form), locator: 'validation/a/gen_heat.py::ht04; eval/expected/HT-04.json
       targets[metric_id=T_x0.0859_t2000]', accessed: null}
   expected: {file: eval/expected/HT-04.json, metric_id: T_x0.0859_t2000}
+  extract: {kind: probe, field: T, point: [0.0859, 0.005]}
 - quantity: T(0.1866 m, 2000 s)
   metric_id: T_x0.1866_t2000
   definition: depth below the surface
@@ -62,6 +64,7 @@ references:
   provenance: {citation: Carslaw-Jaeger closed form (Holman eq. 4-15 form), locator: 'validation/a/gen_heat.py::ht04; eval/expected/HT-04.json
       targets[metric_id=T_x0.1866_t2000]', accessed: null}
   expected: {file: eval/expected/HT-04.json, metric_id: T_x0.1866_t2000}
+  extract: {kind: probe, field: T, point: [0.1866, 0.005]}
 - quantity: T(0.3462 m, 2000 s)
   metric_id: T_x0.3462_t2000
   definition: depth below the surface
@@ -75,12 +78,13 @@ references:
   provenance: {citation: Carslaw-Jaeger closed form (Holman eq. 4-15 form), locator: 'validation/a/gen_heat.py::ht04; eval/expected/HT-04.json
       targets[metric_id=T_x0.3462_t2000]', accessed: null}
   expected: {file: eval/expected/HT-04.json, metric_id: T_x0.3462_t2000}
+  extract: {kind: probe, field: T, point: [0.3462, 0.005]}
 reference_results:
 - solver: Ansys VM28 target (Holman)
   values_degC: [140.0, 98.9, 51.8, 14.5]
   locator: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM28.html
   note: first point 0.3 % below the closed form (R3 s.8)
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], expected_order: 3}
 speed:
   budget_s: {browser: 1.0, native: null}
   budget_basis: R3 s.3.1 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
@@ -93,7 +97,6 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/semi-infinite-convection.yaml, reason: amp-spec/0 models not yet published by lane L2;
-    sims/ id is a proposal}
+spec: sims/semi-infinite-convection.yaml
 missing: []
 assumptions: [Truncation depth 2.0 m chosen by this lane (synthetic); its effect is below the tolerance.]

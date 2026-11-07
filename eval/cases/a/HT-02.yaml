@@ -34,6 +34,7 @@ references:
   provenance: {citation: two independent eigen series (this lane), locator: 'validation/a/gen_heat.py::ht02; eval/expected/HT-02.json
       targets[metric_id=T_x0.08_t32]', accessed: null}
   expected: {file: eval/expected/HT-02.json, metric_id: T_x0.08_t32}
+  extract: {kind: probe, field: T, point: [0.08, 0.0025]}
 - quantity: T(0.08 m, 32 s)
   metric_id: T_C_nafems
   definition: NAFEMS target
@@ -46,8 +47,9 @@ references:
   gate: false
   provenance: {citation: NAFEMS T3 via Altair OS-V 0110, locator: 2021.help.altair.com/2021/hwsolvers/os/topics/solvers/os/nafems_test_problem_t3_r.htm
       (R3), accessed: '2026-11-06'}
+  extract: {kind: probe, field: T, point: [0.08, 0.0025]}
 reference_results: []
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, note: refine both h and dt; report
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], expected_order: 3, note: refine both h and dt; report
     dt and h levels separately}
 speed:
   budget_s: {browser: 1.0, native: null}
@@ -61,8 +63,7 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/nafems-t3.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
-    proposal}
+spec: sims/nafems-t3.yaml
 missing: []
 assumptions: ['Locator resolved (R3 s.8 flag): target point is 0.08 m from the 0 C end at t = 32 s; FEATool''s x = 0.02
     m is the same point from the heated end, and its t = 36 s gives 36.681 C (eval/expected/HT-02.json T_x0.08_t36).']

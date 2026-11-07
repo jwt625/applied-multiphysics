@@ -1,0 +1,59 @@
+# EM-04 (eval/cases/a/EM-04.yaml): Helmholtz coil, centre field and off-axis probes, axisymmetric A_phi.
+# Model as in the L4 gate packages/physics/gates/em.ts (EM-04), expressed as a spec: square coil sections s = R/100,
+# a refinement-only core region around the centre, and a truncation box of half-size 100 R with n x A = 0.
+schema: amp-spec/0
+id: helmholtz-em04
+title: Helmholtz coil (EM-04 gate model)
+description: Two coaxial single-turn loops of radius R at z = +-R/2, 1 A each; B at the centre and at (0.02, 0.01) m.
+params:
+  R: {value: 0.1, unit: m, description: loop radius}
+  zc: {value: 0.05, unit: m, description: loop height above and below the mid-plane}
+  I: {value: 1, unit: A, description: current per loop}
+  s: {value: "R/100", description: "side of the square coil section, modelling choice replacing the filament"}
+  Rb: {value: "100*R", description: "half-size of the truncation box, modelling choice"}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: air_box, type: rect, settings: {size: ["Rb", "2*Rb"], center: ["Rb/2", "0 m"]}}
+    - {id: coil1, type: rect, settings: {size: ["s", "s"], center: ["R", "zc"]}}
+    - {id: coil2, type: rect, settings: {size: ["s", "s"], center: ["R", "-zc"]}}
+    - {id: core, type: rect, settings: {size: ["0.15*R", "0.3*R"], center: ["0.075*R", "0 m"]}}
+    - {id: air, type: difference, settings: {base: air_box, tools: [coil1, coil2, core], keepTools: true}}
+materials:
+  - {id: vacuum, override: {mu_r: 1}, select: ["dom:air", "dom:core", "dom:coil1", "dom:coil2"]}
+physics:
+  - id: mf
+    type: magnetostatics
+    select: ["dom:air", "dom:core", "dom:coil1", "dom:coil2"]
+    bcs:
+      - {id: drive1, type: coil-current, select: ["dom:coil1"], settings: {turns: 1, current: "I"}}
+      - {id: drive2, type: coil-current, select: ["dom:coil2"], settings: {turns: 1, current: "I"}}
+      - {id: outer, type: magnetic-insulation, select: ["bnd:air_box.right", "bnd:air_box.top", "bnd:air_box.bottom"]}
+mesh:
+  size: {hmax: "Rb/4", grading: 0.25}
+  refine:
+    - {select: ["dom:coil1", "dom:coil2"], h: "s/2"}
+    - {select: ["dom:core"], h: "R/40"}
+studies:
+  - {id: std1, type: stationary, physics: [mf]}
+results:
+  - {id: B_center, type: probe, data: std1, expr: mf.normB, unit: uT, at: ["0 m", "0 m"]}
+  - {id: B_map, type: plot2d, data: std1, expr: mf.normB, unit: uT}
+provenance:
+  values:
+    params.R: {basis: benchmark, source: "eval/cases/a/EM-04.yaml geometry.spec.loop_radius_m", date: 2026-11-06}
+    params.zc: {basis: benchmark, source: "eval/cases/a/EM-04.yaml geometry.spec.loop_z_m", date: 2026-11-06}
+    params.I: {basis: benchmark, source: "eval/cases/a/EM-04.yaml bcs[0].value", date: 2026-11-06}
+    params.s: {basis: user, date: 2026-11-06, note: "modelling choice as in L4 gates/em.ts; finite-section shift of B(0) is -1.4e-6 rel (DevLog-010 s.4.1)"}
+    params.Rb: {basis: user, date: 2026-11-06, note: "modelling choice; the box contains the sphere R_b = 100 R, whose A = 0 shift is -1.398 (R/R_b)^3 = -1.4e-6 B0 (eval/expected/EM-04.json truncation)"}
+    materials.vacuum.override.mu_r: {basis: benchmark, source: "eval/cases/a/EM-04.yaml materials.air.mu_r (vacuum; filament loops in vacuum)", date: 2026-11-06}
+    physics.mf.bcs.drive1.settings.turns: {basis: benchmark, source: "eval/cases/a/EM-04.yaml geometry.spec.turns", date: 2026-11-06}
+    physics.mf.bcs.drive2.settings.turns: {basis: benchmark, source: "eval/cases/a/EM-04.yaml geometry.spec.turns", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate: Rb/4, grade 0.25)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate: s/2)"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate: R/40 in the core region)"}
+assumptions:
+  - {text: "Coil regions are vacuum carrying a uniform current density (the case's filament loops in vacuum)", paths: [materials.vacuum]}
+  - {text: "r = 0 (air_box.left, core.left) is the symmetry axis, natural in the A_phi formulation", paths: [physics.mf.bcs]}
+# eval: [EM-04]

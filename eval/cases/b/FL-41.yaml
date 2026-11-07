@@ -29,6 +29,7 @@ initial: null
 study: {type: stationary, Re: 1000}
 references:
   - quantity: psi_primary_vortex_abs
+    metric_id: psi_primary_vortex_abs
     definition: "|stream function| at the primary vortex centre (psi = 0 on the walls)"
     value: 0.1189366
     unit: "1"
@@ -38,6 +39,7 @@ references:
     extraction: tabulated
     provenance: {citation: "Botella-Peyret 1998 via Erturk-Dursun 2007 Table 1", locator: "arXiv physics/0505121v2 p.22, Table 1, row 'Botella & Peyret [4] N=160'", accessed: 2026-11-06}
   - quantity: omega_primary_vortex
+    metric_id: omega_primary_vortex
     definition: "vorticity magnitude at the primary vortex centre"
     value: 2.067753
     unit: "1"
@@ -47,6 +49,7 @@ references:
     extraction: tabulated
     provenance: {citation: "Botella-Peyret 1998 via Erturk-Dursun 2007 Table 1", locator: "arXiv physics/0505121v2 p.22, Table 1", accessed: 2026-11-06}
   - quantity: primary_vortex_centre
+    metric_id: primary_vortex_centre
     definition: "(x, y) of the stream-function extremum"
     value: [0.5308, 0.5652]
     unit: "1"
@@ -56,6 +59,7 @@ references:
     extraction: tabulated
     provenance: {citation: "Botella-Peyret 1998 via Erturk-Dursun 2007 Table 1", locator: "arXiv physics/0505121v2 p.22, Table 1", accessed: 2026-11-06}
   - quantity: u_min_vertical_centreline
+    metric_id: u_min_vertical_centreline
     definition: "min over y of u(0.5, y), lid moving in +x"
     value: -0.3885698
     unit: "1"
@@ -65,6 +69,7 @@ references:
     extraction: tabulated
     provenance: {citation: "INS2D LDC_pp.m; attribution to Botella-Peyret is inferred only from commented-out lines (L7 '% run(results/LDC/BP.m)', L117 '% plot(-uGhia, ...)'); L231-233 do not name a source", locator: "LDC_pp.m L231 umax_exact = 0.3885698 compared with the minimum of u on the vertical centreline (L93-108), so the value is |u_min|; sign set here for a +x lid. Consistent with Erturk-Corke-Gokcol arXiv cs/0411047 p.32 Table 6, Re 1000: u(0.18) = -0.3869, u(0.16) = -0.3854", accessed: 2026-11-06}
   - quantity: v_max_horizontal_centreline
+    metric_id: v_max_horizontal_centreline
     definition: "max over x of v(x, 0.5)"
     value: 0.3769447
     unit: "1"
@@ -74,6 +79,7 @@ references:
     extraction: tabulated
     provenance: {citation: "INS2D LDC_pp.m (source not named, see u_min)", locator: "LDC_pp.m L233 vmax_exact; consistent with Erturk-Corke-Gokcol arXiv cs/0411047 p.33 Table 7, Re 1000: v(0.150) = 0.3756", accessed: 2026-11-06}
   - quantity: v_min_horizontal_centreline
+    metric_id: v_min_horizontal_centreline
     definition: "min over x of v(x, 0.5)"
     value: -0.5270771
     unit: "1"

@@ -28,6 +28,7 @@ initial: null
 study: {type: parametric, param: Re, values: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000], each: stationary}
 references:
   - quantity: x_r_over_h
+    metric_id: x_r_over_h
     definition: "primary (bottom-wall) reattachment length measured from the step, divided by the step height h"
     at: {Re: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]}
     value: [2.922, 4.982, 6.761, 8.237, 9.420, 10.349, 11.129, 11.834, 12.494, 13.121]

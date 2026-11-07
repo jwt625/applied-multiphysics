@@ -27,6 +27,7 @@ initial: null
 study: {type: parametric, param: Re, values: [100, 1000], each: stationary}
 references:
   - quantity: u_on_vertical_centreline
+    metric_id: u_on_vertical_centreline.Re100
     definition: "u(x = 0.5, y) for the y stations listed in `at`"
     at: {y: [1.0, 0.9766, 0.9688, 0.9609, 0.9531, 0.8516, 0.7344, 0.6172, 0.5, 0.4531, 0.2813, 0.1719, 0.1016, 0.0703, 0.0625, 0.0547, 0.0]}
     case: {Re: 100}
@@ -38,6 +39,7 @@ references:
     extraction: tabulated
     provenance: {citation: "Ghia et al. 1982 via pysph re-tabulation", locator: "Ghia 1982 Table I, Re 100 column (pysph `table1`, column 2)", accessed: 2026-11-06}
   - quantity: u_on_vertical_centreline
+    metric_id: u_on_vertical_centreline.Re1000
     definition: "u(x = 0.5, y), same stations"
     at: {y: [1.0, 0.9766, 0.9688, 0.9609, 0.9531, 0.8516, 0.7344, 0.6172, 0.5, 0.4531, 0.2813, 0.1719, 0.1016, 0.0703, 0.0625, 0.0547, 0.0]}
     case: {Re: 1000}
@@ -50,6 +52,7 @@ references:
     extraction: tabulated
     provenance: {citation: "Ghia et al. 1982 via pysph re-tabulation", locator: "Ghia 1982 Table I, Re 1000 column (pysph `table1`, column 4)", accessed: 2026-11-06}
   - quantity: v_on_horizontal_centreline
+    metric_id: v_on_horizontal_centreline.Re100
     definition: "v(x, y = 0.5) for the x stations listed in `at`"
     at: {x: [1.0, 0.9688, 0.9609, 0.9531, 0.9453, 0.9063, 0.8594, 0.8047, 0.5, 0.2344, 0.2266, 0.1563, 0.0938, 0.0781, 0.0703, 0.0625, 0.0]}
     case: {Re: 100}
@@ -61,6 +64,7 @@ references:
     extraction: tabulated
     provenance: {citation: "Ghia et al. 1982 via pysph re-tabulation", locator: "Ghia 1982 Table II, Re 100 column (pysph `table2`, column 2)", accessed: 2026-11-06}
   - quantity: v_on_horizontal_centreline
+    metric_id: v_on_horizontal_centreline.Re1000
     definition: "v(x, y = 0.5), same stations"
     at: {x: [1.0, 0.9688, 0.9609, 0.9531, 0.9453, 0.9063, 0.8594, 0.8047, 0.5, 0.2344, 0.2266, 0.1563, 0.0938, 0.0781, 0.0703, 0.0625, 0.0]}
     case: {Re: 1000}

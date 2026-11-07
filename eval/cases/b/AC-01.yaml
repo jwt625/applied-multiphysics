@@ -27,6 +27,7 @@ initial: null
 study: {type: frequency, f_list: "any frequency; the plane-wave solution holds below the first cross mode c_0 / (2 * 0.2 m)"}
 references:
   - quantity: p_over_rho_c
+    metric_id: p_over_rho_c
     definition: "|p(x)| / (rho_0 c_0 v_x(0)) along the duct axis; exact solution p(x) = -rho_0 c_0 v_x(0) exp(i k x) (sign per the paper's time convention)"
     value: 1.0
     unit: "1"

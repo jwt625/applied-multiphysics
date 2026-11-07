@@ -37,6 +37,7 @@ references:
   provenance: {citation: brentq root of the 1D balance (this lane), locator: 'validation/a/gen_heat.py::ht03; eval/expected/HT-03.json
       targets[metric_id=T_B.k55.6.sigma_codata]', accessed: null}
   expected: {file: eval/expected/HT-03.json, metric_id: T_B.k55.6.sigma_codata}
+  extract: {kind: probe, field: T, point: [0.1, 0.005]}
 - quantity: T_B
   metric_id: T_B_nafems
   definition: NAFEMS target
@@ -49,8 +50,9 @@ references:
   gate: false
   provenance: {citation: NAFEMS T2 via CalculiX forum (C3D20 927.004 K) (R3 s.3.1), locator: calculix.discourse.group/t/t2-and-t3-one-dimensional-with-radiation-and-heat-transfer-b32-discrepancy/2534,
     accessed: '2026-11-06'}
+  extract: {kind: probe, field: T, point: [0.1, 0.005]}
 reference_results: []
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, note: '1D linear conduction is
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], expected_order: 3, note: '1D linear conduction is
     exact for P1 with the nonlinear BC: one mesh suffices'}
 speed:
   budget_s: {browser: 1.0, native: null}
@@ -64,8 +66,7 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/nafems-t2.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
-    proposal}
+spec: sims/nafems-t2.yaml
 missing: ['NAFEMS booklet''s sigma value and k digits (55.6 vs FEATool 55.563): sensitivity in eval/expected/HT-03.json
     (sigma 5.67e-8 shifts T_B by +0.0037 K; k 55.563 by -0.037 K)']
 assumptions: [Nonlinear radiation BC solved to |residual| < 1e-9 W/m^2.]

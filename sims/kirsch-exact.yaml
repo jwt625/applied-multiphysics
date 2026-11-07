@@ -1,0 +1,67 @@
+# SM-01 (eval/cases/a/SM-01.yaml): Kirsch plate, quarter model with the exact Kirsch traction on the outer edges
+# (the case's BC), so the finite domain carries the infinite-plate field exactly. Traction = sigma_Kirsch(x, y) . n written
+# in Cartesian form (cos 2theta = (x^2 - y^2)/r^2, ...); checked against validation/a/gen_solid.py kirsch_field to 3e-16
+# relative on six edge points (DevLog-014 s.3, 2026-11-06).
+schema: amp-spec/0
+id: kirsch-exact
+title: Kirsch plate, exact traction
+description: Quarter plate L = 10 a with a hole of radius a = 5 mm, remote stress 100 MPa along x applied through the exact Kirsch traction.
+params:
+  a: {value: 5, unit: mm, description: hole radius}
+  L: {value: 50, unit: mm, description: quarter plate side}
+  s_inf: {value: 100, unit: MPa, description: remote uniaxial stress along x}
+geometry:
+  dim: 2
+  features:
+    - {id: quarter, type: rect, settings: {size: ["L", "L"], center: ["L/2", "L/2"]}}
+    - {id: hole, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "a"}}
+    - {id: plate, type: difference, settings: {base: quarter, tools: [hole]}}
+materials:
+  - id: plate_mat
+    override: {E: {value: 200, unit: GPa}, nu: 0.3}
+    select: ["dom:plate"]
+physics:
+  - id: solid
+    type: elastic
+    select: ["dom:plate"]
+    settings: {model: plane-stress}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:quarter.left"]}
+      - {id: sym_y, type: roller, select: ["bnd:quarter.bottom"]}
+      - {id: hole_free, type: free, select: ["bnd:hole.edge"]}
+      - id: kirsch_right
+        type: boundary-load
+        select: ["bnd:quarter.right"]
+        settings:
+          traction:
+            - "s_inf*(1 - (a^2/(x^2 + y^2))*(1.5*((x^2 - y^2)/(x^2 + y^2)) + ((x^4 - 6*x^2*y^2 + y^4)/(x^2 + y^2)^2)) + 1.5*(a^2/(x^2 + y^2))^2*((x^4 - 6*x^2*y^2 + y^4)/(x^2 + y^2)^2))"
+            - "s_inf*(-(a^2/(x^2 + y^2))*(0.5*(2*x*y/(x^2 + y^2)) + (4*x*y*(x^2 - y^2)/(x^2 + y^2)^2)) + 1.5*(a^2/(x^2 + y^2))^2*(4*x*y*(x^2 - y^2)/(x^2 + y^2)^2))"
+      - id: kirsch_top
+        type: boundary-load
+        select: ["bnd:quarter.top"]
+        settings:
+          traction:
+            - "s_inf*(-(a^2/(x^2 + y^2))*(0.5*(2*x*y/(x^2 + y^2)) + (4*x*y*(x^2 - y^2)/(x^2 + y^2)^2)) + 1.5*(a^2/(x^2 + y^2))^2*(4*x*y*(x^2 - y^2)/(x^2 + y^2)^2))"
+            - "s_inf*(-(a^2/(x^2 + y^2))*(0.5*((x^2 - y^2)/(x^2 + y^2)) - ((x^4 - 6*x^2*y^2 + y^4)/(x^2 + y^2)^2)) - 1.5*(a^2/(x^2 + y^2))^2*((x^4 - 6*x^2*y^2 + y^4)/(x^2 + y^2)^2))"
+mesh:
+  size: {hmax: "L/10", grading: 0.2}
+  refine:
+    - {select: ["bnd:hole.edge"], h: "a/10"}
+studies:
+  - {id: std1, type: stationary, physics: [solid]}
+results:
+  - {id: sxx_map, type: plot2d, data: std1, expr: solid.sxx, unit: MPa}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/a/SM-01.yaml geometry.spec.hole_radius_m (validation/a/gen_solid.py SM01)", date: 2026-11-06}
+    params.L: {basis: benchmark, source: "eval/cases/a/SM-01.yaml geometry.spec.quarter_domain_m", date: 2026-11-06}
+    params.s_inf: {basis: benchmark, source: "eval/cases/a/SM-01.yaml bcs[3].params.s_inf", date: 2026-11-06}
+    materials.plate_mat.override.E: {basis: benchmark, source: "eval/cases/a/SM-01.yaml materials.plate.E (synthetic; stresses independent of E, nu)", date: 2026-11-06}
+    materials.plate_mat.override.nu: {basis: benchmark, source: "eval/cases/a/SM-01.yaml materials.plate.nu (synthetic)", date: 2026-11-06}
+    physics.solid.bcs.kirsch_right.settings.traction: {basis: textbook, source: "Kirsch 1898 stress field as in validation/a/gen_solid.py kirsch_field; eval/cases/a/SM-01.yaml bcs[3]", date: 2026-11-06}
+    physics.solid.bcs.kirsch_top.settings.traction: {basis: textbook, source: "Kirsch 1898 stress field as in validation/a/gen_solid.py kirsch_field; eval/cases/a/SM-01.yaml bcs[3]", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice"}
+assumptions:
+  - {text: "Plane stress; thickness does not enter the stresses", paths: [physics.solid.settings]}
+# eval: [SM-01]

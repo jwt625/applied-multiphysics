@@ -1,0 +1,44 @@
+# RF-21 (eval/cases/a/RF-21.yaml): PEC cylindrical cavity filled with eps_r 2.08, solved on the meridional (r, z) section
+# once per azimuthal order m = 0, 1, 2 (physics emw-axisym, DevLog-010 s.8). Same inputs as sims/cylinder-cavity.yaml (3D).
+# The merged spectrum lists each m >= 1 doublet once (3D lists both partners); indices in RF-21 refer to this list.
+schema: amp-spec/0
+id: cylinder-cavity-axisym
+title: Cylindrical cavity eigenmodes (axisymmetric)
+description: Resonant modes of a dielectric-filled PEC cylinder from the meridional section, azimuthal orders m = 0, 1, 2.
+params:
+  a: {value: 2.74, unit: cm, description: cavity radius}
+  d: {value: "2*a", description: cavity length}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: cav, type: rect, settings: {size: ["a", "d"], center: ["a/2", "d/2"]}}
+materials:
+  - {id: fill, override: {eps_r: 2.08, mu_r: 1}, select: ["dom:cav"]}
+physics:
+  - id: rf
+    type: emw-axisym
+    select: ["dom:cav"]
+    settings: {azimuthal: [0, 1, 2], order: 2}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:cav.right", "bnd:cav.top", "bnd:cav.bottom"]}
+mesh:
+  size: {hmax: "a/4"}
+studies:
+  - {id: eig, type: eigen, physics: [rf], settings: {nModes: 6, shift: "2.5 GHz"}}
+results:
+  - {id: freqs, type: table, data: eig, expr: rf.f, unit: GHz}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/a/RF-21.yaml geometry.spec.radius_m (Palace docs examples/cylinder.md)", date: 2026-11-06}
+    params.d: {basis: benchmark, source: "eval/cases/a/RF-21.yaml geometry.spec.height_m", date: 2026-11-06}
+    materials.fill.override.eps_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.eps_r (Palace docs cylinder.md, R3 s.3.4)", date: 2026-11-06}
+    materials.fill.override.mu_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.mu_r", date: 2026-11-06}
+    studies.eig.settings.shift: {basis: benchmark, source: "eval/cases/a/RF-21.yaml study.shift", date: 2026-11-06}
+    studies.eig.settings.nModes: {basis: user, date: 2026-11-06, note: "per azimuthal order, as in L4 gates/rf-axisym.ts"}
+    physics.rf.settings.azimuthal: {basis: benchmark, source: "eval/cases/a/RF-21.yaml study.settings.n_note (2D-axisym: m = 0, 1, 2)", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice; the harness refines it by 1/2 twice (nested)"}
+assumptions:
+  - {text: "r = 0 (cav.left) is the axis; the formulation imposes w = r E_phi = 0 there and E_z = 0 for m >= 1", paths: [physics.rf.bcs]}
+  - {text: "Loss (tan_delta) is not used by emw-axisym; Q_d comes from the 3D spec", paths: [materials.fill]}
+# eval: [RF-21]

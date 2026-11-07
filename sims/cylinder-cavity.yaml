@@ -13,7 +13,7 @@ geometry:
   features:
     - {id: cav, type: cylinder, settings: {radius: "a", height: "d", base: {value: [0, 0, 0], unit: m}, axis: z}}
 materials:
-  - {id: fill, override: {eps_r: N/A, tan_delta: N/A}, select: ["dom:cav"]}
+  - {id: fill, override: {eps_r: 2.08, tan_delta: 0.0004, mu_r: 1}, select: ["dom:cav"]}
 physics:
   - id: rf
     type: emw
@@ -23,7 +23,7 @@ physics:
 mesh:
   size: {hmax: "a/4"}
 studies:
-  - {id: eig, type: eigen, physics: [rf], settings: {nModes: 16}}
+  - {id: eig, type: eigen, physics: [rf], settings: {nModes: 16, shift: "2.5 GHz"}}
 results:
   - {id: freqs, type: table, data: eig, expr: rf.freq, unit: GHz}
   - {id: E_mode, type: plot3d, data: eig, expr: rf.normE, unit: V/m, step: 0}
@@ -31,10 +31,12 @@ provenance:
   values:
     params.a: {basis: benchmark, source: "R3 RF-01 (Palace docs cylinder.md L26-28)", date: 2026-11-06}
     params.d: {basis: benchmark, source: "R3 RF-01: d = 2a", date: 2026-11-06}
+    materials.fill.override.eps_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.eps_r (Palace docs examples/cylinder.md, R3 s.3.4)", date: 2026-11-06}
+    materials.fill.override.tan_delta: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.tan_delta (Palace docs cylinder.md)", date: 2026-11-06}
+    materials.fill.override.mu_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.mu_r (Palace docs cylinder.md)", date: 2026-11-06}
+    studies.eig.settings.shift: {basis: benchmark, source: "eval/cases/a/RF-21.yaml study.shift", date: 2026-11-06}
     studies.eig.settings.nModes: {basis: user, date: 2026-11-06, note: "modelling choice with margin: below 5.0 GHz the analytic spectrum has degenerate pairs (azimuthal index > 0) and modes not listed in RF-01, so more than six eigenvalues are needed"}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
 assumptions:
   - {text: "Walls are PEC; the copper-wall Q variant of RF-01 (Rs 0.0184 Ohm) is not modelled here", paths: [physics.rf.bcs.walls]}
-missing:
-  - {path: materials.fill.override.eps_r, what: "relative permittivity of the fill; R3 RF-01 gives 2.08 (Palace docs cylinder.md)", needed_for: [solution]}
-  - {path: materials.fill.override.tan_delta, what: "loss tangent of the fill; R3 RF-01 gives 4e-4 (needed for Q_d only)", needed_for: [solution]}
+# eval: [RF-21, RF-01]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)

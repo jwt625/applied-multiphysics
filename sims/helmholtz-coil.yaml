@@ -21,8 +21,8 @@ geometry:
     - {id: coil2, type: rect, settings: {size: ["s", "s"], center: ["R", "-d/2"]}}
     - {id: air, type: difference, settings: {base: air_box, tools: [coil1, coil2], keepTools: true}}
 materials:
-  - {id: air_mat, ref: materials/air, select: ["dom:air"]}
-  - {id: coil_mat, ref: materials/copper, select: ["dom:coil1", "dom:coil2"]}
+  - {id: air_mat, ref: materials/air, override: {mu_r: 1}, select: ["dom:air"]}
+  - {id: coil_mat, ref: materials/copper, override: {mu_r: 1}, select: ["dom:coil1", "dom:coil2"]}
 physics:
   - id: mf
     type: magnetostatics
@@ -48,6 +48,8 @@ provenance:
     physics.mf.bcs.drive1.settings.turns: {basis: benchmark, source: "R3 EM-04: N 1", date: 2026-11-06}
     physics.mf.bcs.drive2.settings.turns: {basis: benchmark, source: "R3 EM-04: N 1", date: 2026-11-06}
     params.s: {basis: user, date: 2026-11-06, note: "modelling choice (s = R/100); the reference is a filament loop"}
+    materials.air_mat.override.mu_r: {basis: benchmark, source: "eval/cases/a/EM-04.yaml materials.air.mu_r (vacuum); @amp/materials air mu_r is N/A", date: 2026-11-06}
+    materials.coil_mat.override.mu_r: {basis: benchmark, source: "eval/cases/a/EM-04.yaml materials.air.mu_r: the EM-04 model is current filaments in vacuum, so the coil region is vacuum-equivalent; @amp/materials copper mu_r is N/A", date: 2026-11-06}
     params.Rair: {basis: user, date: 2026-11-06, note: "modelling choice (10 R), truncation to be checked by convergence"}
     params.Zair: {basis: user, date: 2026-11-06, note: "modelling choice (10 R), truncation to be checked by convergence"}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
@@ -55,6 +57,4 @@ provenance:
 assumptions:
   - {text: "Finite square coil cross-section s replaces the filament of the closed form; its effect on B(center) must be bounded in the EM-04 gate", paths: [params.s]}
   - {text: "r = 0 (air_box.left) is the symmetry axis, handled by the axisymmetric formulation; outer boundaries truncate the open domain with n x A = 0", paths: [physics.mf.bcs.outer]}
-missing:
-  - {path: materials.air_mat.ref, what: "materials/air is not authored yet (materials/ empty on 2026-11-06); magnetostatics needs mu_r", needed_for: [solution]}
-  - {path: materials.coil_mat.ref, what: "materials/copper is not authored yet (materials/ empty on 2026-11-06); magnetostatics needs mu_r", needed_for: [solution]}
+# eval: [EM-04, EM-03]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)

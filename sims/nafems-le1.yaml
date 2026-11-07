@@ -1,0 +1,55 @@
+# SM-02 (eval/cases/a/SM-02.yaml): NAFEMS LE1 elliptic membrane, plane stress, quarter model. Inputs from the case file.
+schema: amp-spec/0
+id: nafems-le1
+title: NAFEMS LE1 elliptic membrane
+description: Quarter elliptic membrane (inner ellipse 2 x 1 m, outer 3.25 x 2.75 m) under 10 MPa outward normal traction on the outer edge; sigma_yy at D = (2, 0) m.
+params:
+  ai: {value: 2.0, unit: m, description: inner ellipse semi-axis along x}
+  bi: {value: 1.0, unit: m, description: inner ellipse semi-axis along y}
+  ao: {value: 3.25, unit: m, description: outer ellipse semi-axis along x}
+  bo: {value: 2.75, unit: m, description: outer ellipse semi-axis along y}
+  p_out: {value: 10, unit: MPa, description: outward normal traction on the outer edge}
+geometry:
+  dim: 2
+  features:
+    - {id: outer, type: ellipse, settings: {center: {value: [0, 0], unit: m}, semiAxes: ["ao", "bo"]}}
+    - {id: inner, type: ellipse, settings: {center: {value: [0, 0], unit: m}, semiAxes: ["ai", "bi"]}}
+    - {id: quad, type: rect, settings: {size: ["ao", "bo"], center: ["ao/2", "bo/2"]}}
+    - {id: ring, type: difference, settings: {base: outer, tools: [inner]}}
+    - {id: membrane, type: intersection, settings: {inputs: [ring, quad]}}
+materials:
+  - id: steel
+    override: {E: {value: 210000, unit: MPa}, nu: 0.3}
+    select: ["dom:membrane"]
+physics:
+  - id: solid
+    type: elastic
+    select: ["dom:membrane"]
+    settings: {model: plane-stress}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:quad.left"]}
+      - {id: sym_y, type: roller, select: ["bnd:quad.bottom"]}
+      - {id: load, type: pressure, select: ["bnd:outer.edge"], settings: {p: "-p_out"}}
+mesh:
+  size: {hmax: "0.25 m"}
+  refine:
+    - {select: ["bnd:inner.edge"], h: "0.05 m"}
+studies:
+  - {id: std1, type: stationary, physics: [solid]}
+results:
+  - {id: syy_D, type: probe, data: std1, expr: solid.syy, unit: MPa, at: ["ai", "0 m"]}
+provenance:
+  values:
+    params.ai: {basis: benchmark, source: "eval/cases/a/SM-02.yaml geometry.spec.inner_ellipse_m (FeenoX nafems-le1.geo)", date: 2026-11-06}
+    params.bi: {basis: benchmark, source: "eval/cases/a/SM-02.yaml geometry.spec.inner_ellipse_m", date: 2026-11-06}
+    params.ao: {basis: benchmark, source: "eval/cases/a/SM-02.yaml geometry.spec.outer_ellipse_m", date: 2026-11-06}
+    params.bo: {basis: benchmark, source: "eval/cases/a/SM-02.yaml geometry.spec.outer_ellipse_m", date: 2026-11-06}
+    params.p_out: {basis: benchmark, source: "eval/cases/a/SM-02.yaml bcs[2] (normal traction 1e7 Pa, outward)", date: 2026-11-06}
+    materials.steel.override.E: {basis: benchmark, source: "eval/cases/a/SM-02.yaml materials.steel.E (NAFEMS LE1 via FeenoX mechanical examples)", date: 2026-11-06}
+    materials.steel.override.nu: {basis: benchmark, source: "eval/cases/a/SM-02.yaml materials.steel.nu", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice: D lies on the inner edge"}
+assumptions:
+  - {text: "Elastic pressure p acts as traction -p n, so p = -p_out is an outward tension", paths: [physics.solid.bcs.load]}
+  - {text: "Thickness omitted: it does not enter plane-stress stresses (SM-02 missing)", paths: [physics.solid.settings]}
+# eval: [SM-02]

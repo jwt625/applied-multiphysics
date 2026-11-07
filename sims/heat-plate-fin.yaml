@@ -13,7 +13,7 @@ geometry:
   features:
     - {id: plate, type: rect, settings: {size: ["Lx", "Ly"], center: ["Lx/2", "Ly/2"]}}
 materials:
-  - {id: solid, override: {k: {value: N/A, unit: W/(m*K)}}, select: ["dom:plate"]}
+  - {id: solid, override: {k: {value: 52.0, unit: W/(m*K)}}, select: ["dom:plate"]}
 physics:
   - id: ht
     type: heat
@@ -37,10 +37,11 @@ provenance:
     physics.ht.bcs.film.settings.h: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
     physics.ht.bcs.film.settings.T_ext: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
     results.T_E.at: {basis: benchmark, source: "NAFEMS T4 point E as given in R3 HT-01", date: 2026-11-06}
+    materials.solid.override.k: {basis: benchmark, source: "eval/cases/a/HT-01.yaml materials.plate.k (NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4, R3 s.3.1)", date: 2026-11-06}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
 assumptions:
   - {text: "2D conduction per unit depth; no internal heat source", paths: [physics.ht]}
 missing:
-  - {path: materials.solid.override.k, what: "thermal conductivity; NAFEMS T4 defines k = 52 W/(m K) (R3 HT-01); to be authored as a materials/ entry", needed_for: [solution]}
   - {what: "fin geometry of the plate-and-fin hero: no sourced case defines it", needed_for: [geometry]}
   - {what: "transient variant (rho, cp, initial state, time window): not defined; NAFEMS T3 (R3 HT-02) is a separate 1D case", needed_for: [solution]}
+# eval: [HT-01]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)

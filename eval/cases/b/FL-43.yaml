@@ -30,6 +30,7 @@ initial: {u: 0, v: 0, p: 0, source: "Schafer-Turek 1996 sec. 2.2 c (open copy p.
 study: {type: transient, t_end: 8.0, dt_out: 0.01}
 references:
   - quantity: c_D_max
+    metric_id: c_D_max
     definition: "max over 0 <= t <= 8 of 2 F_D / (rho Ubar^2 D), constant Ubar = 1.0 (John eqs. 2-5: prefactor 20 = 2 / (L U^2), L = 0.1, U = 1); John: t(c_D,max) = 3.93625 s"
     value: 2.950921575
     unit: "1"
@@ -40,6 +41,7 @@ references:
     extraction: text
     provenance: {citation: "John 2004, eq. (8)", locator: "IJNMF 44, p.784 eq. (8) (author PDF page 8)", accessed: 2026-11-06}
   - quantity: c_L_max
+    metric_id: c_L_max
     definition: "max over 0 <= t <= 8 of 2 F_L / (rho Ubar^2 D); John: t(c_L,max) = 5.693125 s"
     value: 0.47795
     unit: "1"
@@ -50,6 +52,7 @@ references:
     extraction: text
     provenance: {citation: "John 2004, eq. (9)", locator: "IJNMF 44, p.784 eq. (9)", accessed: 2026-11-06}
   - quantity: delta_p_t8
+    metric_id: delta_p_t8
     definition: "p(0.15, 0.2) - p(0.25, 0.2) at t = 8 s (signed)"
     value: -0.1116
     unit: "Pa (rho = 1)"

@@ -48,9 +48,10 @@ references:
   gate: true
   provenance: {citation: NAFEMS TNSB Rev. 3 LE1 via FeenoX mechanical examples ("reference is 92.7"), locator: 'seamplex.com/feenox/examples/mechanical.html,
       LE1 section (fetched 2026-11-06)', accessed: '2026-11-06'}
+  extract: {kind: probe, field: syy, point: [2.0, 0.0]}
 reference_results:
 - {solver: FeenoX, value_MPa: 92.7011}
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], expected_order: 2}
 speed:
   budget_s: {browser: 2.0, native: null}
   budget_basis: R3 s.3.2 browser est. < 2 s; est., not measured; native budget set after the first timing run (R3 O3)
@@ -63,7 +64,6 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/nafems-le1.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
-    proposal}
+spec: sims/nafems-le1.yaml
 missing: [Thickness (does not enter plane-stress stresses).]
 assumptions: []

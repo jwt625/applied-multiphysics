@@ -1,0 +1,42 @@
+# HT-01 (eval/cases/a/HT-01.yaml): NAFEMS T4, 2D steady conduction with convection on two edges.
+# Inputs copied from the case file (which carries the original sources); no value is chosen here except mesh sizes.
+schema: amp-spec/0
+id: nafems-t4
+title: NAFEMS T4 plate
+description: 0.6 x 1.0 m plate, bottom at 100 C, left insulated, right and top convection h = 750 W/(m^2 K) to 0 C; T at E = (0.6, 0.2) m.
+params:
+  Lx: {value: 0.6, unit: m, description: plate width}
+  Ly: {value: 1.0, unit: m, description: plate height}
+geometry:
+  dim: 2
+  features:
+    - {id: plate, type: rect, settings: {size: ["Lx", "Ly"], center: ["Lx/2", "Ly/2"]}}
+materials:
+  - {id: solid, override: {k: {value: 52.0, unit: W/(m*K)}}, select: ["dom:plate"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:plate"]
+    bcs:
+      - {id: base, type: temperature, select: ["bnd:plate.bottom"], settings: {T: "373.15 K"}}
+      - {id: adiabatic, type: insulation, select: ["bnd:plate.left"]}
+      - {id: film, type: convection, select: ["bnd:plate.right", "bnd:plate.top"], settings: {h: "750 W/(m^2*K)", T_ext: "273.15 K"}}
+mesh:
+  size: {hmax: "Ly/20"}
+studies:
+  - {id: std1, type: stationary, physics: [ht]}
+results:
+  - {id: T_E, type: probe, data: std1, expr: ht.T, unit: degC, at: ["0.6 m", "0.2 m"]}
+  - {id: T_map, type: plot2d, data: std1, expr: ht.T, unit: degC}
+provenance:
+  values:
+    params.Lx: {basis: benchmark, source: "eval/cases/a/HT-01.yaml geometry.spec.plate_m (NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4)", date: 2026-11-06}
+    params.Ly: {basis: benchmark, source: "eval/cases/a/HT-01.yaml geometry.spec.plate_m", date: 2026-11-06}
+    materials.solid.override.k: {basis: benchmark, source: "eval/cases/a/HT-01.yaml materials.plate.k (NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4, R3 s.3.1)", date: 2026-11-06}
+    physics.ht.bcs.base.settings.T: {basis: benchmark, source: "eval/cases/a/HT-01.yaml bcs[0] (373.15 K = 100 C)", date: 2026-11-06}
+    physics.ht.bcs.film.settings.h: {basis: benchmark, source: "eval/cases/a/HT-01.yaml bcs[2].h", date: 2026-11-06}
+    physics.ht.bcs.film.settings.T_ext: {basis: benchmark, source: "eval/cases/a/HT-01.yaml bcs[2].T_inf (0 C)", date: 2026-11-06}
+    results.T_E.at: {basis: benchmark, source: "eval/cases/a/HT-01.yaml geometry.spec.points_m.E", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice; the harness refines it by convergence.ratio_min per level"}
+assumptions:
+  - {text: "2D conduction per unit depth; no internal heat source", paths: [physics.ht]}

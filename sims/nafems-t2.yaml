@@ -1,0 +1,40 @@
+# HT-03 (eval/cases/a/HT-03.yaml): NAFEMS T2, 1D steady conduction in a rod with a radiating end.
+# The 1D rod is modelled as a 2D strip with insulated long sides (the 1D solution is exact in 2D). Inputs from the case file.
+schema: amp-spec/0
+id: nafems-t2
+title: NAFEMS T2 radiating rod
+description: Rod 0.1 m long, end A at 1000 K, end B radiating (emissivity 0.98) to 300 K, lateral surface insulated; T at B.
+params:
+  L: {value: 0.1, unit: m, description: "rod length; A at x = 0, B at x = L"}
+  w: {value: 0.01, unit: m, description: "strip width of the 2D model; long sides insulated"}
+geometry:
+  dim: 2
+  features:
+    - {id: rod, type: rect, settings: {size: ["L", "w"], center: ["L/2", "w/2"]}}
+materials:
+  - {id: rodmat, override: {k: {value: 55.6, unit: W/(m*K)}}, select: ["dom:rod"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:rod"]
+    bcs:
+      - {id: endA, type: temperature, select: ["bnd:rod.left"], settings: {T: "1000 K"}}
+      - {id: endB, type: surface-radiation, select: ["bnd:rod.right"], settings: {emissivity: 0.98, T_amb: "300 K"}}
+      - {id: lateral, type: insulation, select: ["bnd:rod.top", "bnd:rod.bottom"]}
+mesh:
+  size: {hmax: "L/10"}
+studies:
+  - {id: std1, type: stationary, physics: [ht]}
+results:
+  - {id: T_B, type: probe, data: std1, expr: ht.T, unit: K, at: ["L", "w/2"]}
+provenance:
+  values:
+    params.L: {basis: benchmark, source: "eval/cases/a/HT-03.yaml geometry.spec.rod_m (NAFEMS T2, R3 s.3.1)", date: 2026-11-06}
+    params.w: {basis: user, date: 2026-11-06, note: "modelling choice: 2D strip width; the solution is independent of it"}
+    materials.rodmat.override.k: {basis: benchmark, source: "eval/cases/a/HT-03.yaml materials.rod.k (R3 s.3.1, NAFEMS T2 via Abaqus/CalculiX forum)", date: 2026-11-06}
+    physics.ht.bcs.endA.settings.T: {basis: benchmark, source: "eval/cases/a/HT-03.yaml bcs[0]", date: 2026-11-06}
+    physics.ht.bcs.endB.settings.emissivity: {basis: benchmark, source: "eval/cases/a/HT-03.yaml bcs[1].emissivity", date: 2026-11-06}
+    physics.ht.bcs.endB.settings.T_amb: {basis: benchmark, source: "eval/cases/a/HT-03.yaml bcs[1].T_amb", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+assumptions:
+  - {text: "Stefan-Boltzmann constant from @amp/physics SIGMA_SB (CODATA 2018 exact), as the case target T_B.k55.6.sigma_codata assumes", paths: [physics.ht.bcs.endB]}

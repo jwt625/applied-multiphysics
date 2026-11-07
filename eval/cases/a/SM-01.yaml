@@ -51,6 +51,7 @@ references:
   provenance: {citation: Kirsch 1898, locator: 'validation/a/gen_solid.py::sm01; eval/expected/SM-01.json targets[metric_id=K_t]',
     accessed: null}
   expected: {file: eval/expected/SM-01.json, metric_id: K_t}
+  extract: {kind: expr, expr: "sxx_top / s_inf", terms: {sxx_top: {kind: probe, field: sxx, point: [0.0, 0.005]}, s_inf: {value: 100000000.0, unit: Pa}}}
 - quantity: sigma_yy(a, 0)
   metric_id: syy_hole_side
   definition: hoop stress at the hole on the load axis
@@ -64,6 +65,7 @@ references:
   provenance: {citation: Kirsch 1898, locator: 'validation/a/gen_solid.py::sm01; eval/expected/SM-01.json targets[metric_id=syy_hole_side]',
     accessed: null}
   expected: {file: eval/expected/SM-01.json, metric_id: syy_hole_side}
+  extract: {kind: probe, field: syy, point: [0.005, 0.0]}
 - quantity: u_x(L, 0)
   metric_id: ux_at_L_0
   definition: displacement
@@ -77,6 +79,7 @@ references:
   provenance: {citation: Kirsch / Barber sec. 8.4, locator: 'validation/a/gen_solid.py::sm01; eval/expected/SM-01.json targets[metric_id=ux_at_L_0]',
     accessed: null}
   expected: {file: eval/expected/SM-01.json, metric_id: ux_at_L_0}
+  extract: {kind: probe, field: u, component: 0, point: [0.05, 0.0]}
 - quantity: u_y(0, L)
   metric_id: uy_at_0_L
   definition: displacement
@@ -90,6 +93,7 @@ references:
   provenance: {citation: Kirsch / Barber sec. 8.4, locator: 'validation/a/gen_solid.py::sm01; eval/expected/SM-01.json targets[metric_id=uy_at_0_L]',
     accessed: null}
   expected: {file: eval/expected/SM-01.json, metric_id: uy_at_0_L}
+  extract: {kind: probe, field: u, component: 1, point: [0.0, 0.05]}
 - quantity: field error
   metric_id: field_rel_L2_stress
   definition: relative L2 stress error vs the exact field
@@ -106,8 +110,9 @@ references:
   provenance: {citation: Kirsch 1898, locator: 'validation/a/fields.py SM-01; eval/expected/SM-01.json targets[metric_id=field_rel_L2_stress]',
     accessed: null}
   expected: {file: eval/expected/SM-01.json, metric_id: field_rel_L2_stress}
+  extract: {kind: field, fields: [sxx, syy, sxy], evaluator: validation/a/fields.py, points: [[0.00525, 0.0], [0.005071111, 0.0013588], [0.004546633, 0.002625], [0.003712311, 0.003712311], [0.002625, 0.004546633], [0.0013588, 0.005071111], [0.0, 0.00525], [0.0075, 0.0], [0.007244444, 0.001941143], [0.006495191, 0.00375], [0.005303301, 0.005303301], [0.00375, 0.006495191], [0.001941143, 0.007244444], [0.0, 0.0075], [0.01, 0.0], [0.009659258, 0.00258819], [0.008660254, 0.005], [0.007071068, 0.007071068], [0.005, 0.008660254], [0.00258819, 0.009659258], [0.0, 0.01], [0.015, 0.0], [0.014488887, 0.003882286], [0.012990381, 0.0075], [0.010606602, 0.010606602], [0.0075, 0.012990381], [0.003882286, 0.014488887], [0.0, 0.015], [0.025, 0.0], [0.024148146, 0.006470476], [0.021650635, 0.0125], [0.01767767, 0.01767767], [0.0125, 0.021650635], [0.006470476, 0.024148146], [0.0, 0.025], [0.04, 0.0], [0.038637033, 0.010352762], [0.034641016, 0.02], [0.028284271, 0.028284271], [0.02, 0.034641016], [0.010352762, 0.038637033], [0.0, 0.04]]}
 reference_results: []
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], expected_order: 2}
 speed:
   budget_s: {browser: 1.0, native: null}
   budget_basis: R3 s.3.2 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
@@ -122,8 +127,7 @@ hero:
   suitable: true
   why: R3 hero; stress concentration with a closed-form field to compare live
   visual: [sigma_xx, von_mises, deformed_shape]
-spec: {status: pending, ref: sims/kirsch-plate.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
-    a proposal}
+spec: sims/kirsch-exact.yaml
 missing: []
 assumptions: [Exact-traction outer BC chosen by this lane so the target is exact; the uniform-tension variant with W/D >=
     20 (R3) differs from Kirsch by the finite-width effect and is not gated.]

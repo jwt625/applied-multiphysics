@@ -1,0 +1,55 @@
+# EM-03 (eval/cases/c/EM-03.yaml, L7c): Palace rings, inductance matrix of two coplanar concentric rings. Axisymmetric
+# A_phi with round wire sections of diameter w carrying uniform current, as in the L4 gate packages/physics/gates/em.ts
+# (EM-03); far boundary A = 0 on a half circle R_b = 100 r_b.
+schema: amp-spec/0
+id: coplanar-rings
+title: Coplanar current rings
+description: Rings of radius 10 um and 100 um, width 1 um, in vacuum; self and mutual inductances.
+params:
+  ra: {value: 10, unit: um, description: radius of ring a}
+  rb: {value: 100, unit: um, description: radius of ring b}
+  w: {value: 1, unit: um, description: "ring width, modelled as the diameter of a round section"}
+  Rb: {value: "100*rb", description: "far-boundary radius, modelling choice"}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: box, type: rect, settings: {size: ["Rb", "2*Rb"], center: ["Rb/2", "0 m"]}}
+    - {id: far, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "Rb"}}
+    - {id: halfdisk, type: intersection, settings: {inputs: [box, far]}}
+    - {id: ringa, type: circle, settings: {center: ["ra", "0 m"], radius: "w/2"}}
+    - {id: ringb, type: circle, settings: {center: ["rb", "0 m"], radius: "w/2"}}
+    - {id: air, type: difference, settings: {base: halfdisk, tools: [ringa, ringb], keepTools: true}}
+materials:
+  - {id: vacuum, override: {mu_r: 1}, select: ["dom:air", "dom:ringa", "dom:ringb"]}
+physics:
+  - id: mf
+    type: magnetostatics
+    select: ["dom:air", "dom:ringa", "dom:ringb"]
+    settings: {inductance: true}
+    bcs:
+      - {id: ra, type: coil-current, select: ["dom:ringa"], settings: {turns: 1, current: "1 A"}}
+      - {id: rb, type: coil-current, select: ["dom:ringb"], settings: {turns: 1, current: "1 A"}}
+      - {id: outer, type: magnetic-insulation, select: ["bnd:far.edge"]}
+mesh:
+  size: {hmax: "Rb/4", grading: 0.25}
+  refine:
+    - {select: ["dom:ringa", "dom:ringb"], h: "w/8"}
+studies:
+  - {id: std1, type: stationary, physics: [mf]}
+results:
+  - {id: B_map, type: plot2d, data: std1, expr: mf.normB, unit: T}
+provenance:
+  values:
+    params.ra: {basis: benchmark, source: "eval/cases/c/EM-03.yaml geometry.spec.ring_a (Palace docs rings.md)", date: 2026-11-06}
+    params.rb: {basis: benchmark, source: "eval/cases/c/EM-03.yaml geometry.spec.ring_b", date: 2026-11-06}
+    params.w: {basis: benchmark, source: "eval/cases/c/EM-03.yaml geometry.spec.ring_a.width_m", date: 2026-11-06}
+    params.Rb: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
+    materials.vacuum.override.mu_r: {basis: benchmark, source: "eval/cases/c/EM-03.yaml materials.vacuum.mu_r (rings.md L24-25)", date: 2026-11-06}
+    physics.mf.bcs.ra.settings.current: {basis: user, date: 2026-11-06, note: "1 A; the inductance matrix does not depend on it"}
+    physics.mf.bcs.rb.settings.current: {basis: user, date: 2026-11-06, note: "1 A; the inductance matrix does not depend on it"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
+assumptions:
+  - {text: "Palace's 1 um strip (surface current) is modelled as a round section of diameter w with uniform current (L4 DevLog-010 s.4.3)", paths: [params.w]}
+# eval: [EM-03]

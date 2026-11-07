@@ -32,6 +32,7 @@ initial: null
 study: {type: eigen, n: 1, wavelength: 1.5}
 references:
   - quantity: n_eff
+    metric_id: n_eff
     definition: "effective index of the fundamental mode, per variant"
     at: {variant: [A, B, C, D]}
     value: [1.27627404, 2.65679692, 1.387926425, 2.761465320]

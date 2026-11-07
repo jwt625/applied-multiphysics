@@ -15,7 +15,7 @@ geometry:
     - {id: hole, type: circle, settings: {center: {value: [0, 0], unit: mm}, radius: "D/2"}}
     - {id: plate, type: difference, settings: {base: quarter, tools: [hole]}}
 materials:
-  - {id: steel, ref: materials/structural-steel, select: ["dom:plate"]}
+  - {id: steel, override: {E: {value: 200, unit: GPa}, nu: 0.3}, select: ["dom:plate"]}
 physics:
   - id: solid
     type: elastic
@@ -37,6 +37,8 @@ results:
   - {id: kt, type: scalar, data: std1, expr: "max(solid.sxx)/sigma_inf", unit: "1", select: ["bnd:hole.edge"]}
 provenance:
   values:
+    materials.steel.override.E: {basis: benchmark, source: "eval/cases/a/SM-01.yaml materials.plate.E (synthetic; Kirsch stresses do not depend on E, nu). materials/structural-steel E, nu depend on T and the spec has no temperature for an elastic study (DevLog-014 s.5)", date: 2026-11-06}
+    materials.steel.override.nu: {basis: benchmark, source: "eval/cases/a/SM-01.yaml materials.plate.nu (synthetic)", date: 2026-11-06}
     params.W: {basis: user, date: 2026-11-06, note: "modelling choice: W/D = 20 meets the SM-01 condition W/D >= 20 (R3)"}
     params.D: {basis: user, date: 2026-11-06, note: "modelling choice; the range keeps W/D >= 20"}
     params.sigma_inf: {basis: user, date: 2026-11-06, note: "modelling choice; the problem is linear and K_t does not depend on the load level"}
@@ -45,5 +47,4 @@ provenance:
 assumptions:
   - {text: "Finite quarter plate with W/D = 20 approximates the infinite-plate Kirsch solution (SM-01 gate condition)", paths: [params.W]}
   - {text: "Boundary entity names (quarter.left/right/top/bottom, hole.edge) follow the provisional L3 naming", paths: [geometry.features]}
-missing:
-  - {path: materials.steel.ref, what: "materials/structural-steel is not authored yet (materials/ empty on 2026-11-06); the Kirsch closed form contains no elastic constants (R3 SM-01)", needed_for: [solution]}
+# eval: [SM-01, SM-02]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)

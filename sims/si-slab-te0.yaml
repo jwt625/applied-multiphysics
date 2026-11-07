@@ -1,0 +1,49 @@
+# WO-01 (eval/cases/a/WO-01.yaml) TE0: symmetric Si slab (220 nm) in SiO2 at 1550 nm, reduced to the 2D vector mode
+# solver as in the L4 gate packages/physics/gates/modes-wo01.ts: a narrow window in x (slab invariant in x), PEC at y = +-L.
+# PEC on the x walls holds exactly for the x-invariant TE0 (E = E_x(y) x^: tangential E_y = E_z = 0). Window width W << lambda/2 pushes every x-varying mode far below, so the top mode is the x-invariant one.
+schema: amp-spec/0
+id: si-slab-te0
+title: Si slab waveguide TE0
+description: Si slab 220 nm in SiO2 at 1550 nm; n_eff of the fundamental TE0 mode.
+params:
+  t_core: {value: 220, unit: nm, description: core thickness}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+  L: {value: "t_core/2 + 2.5[um]", description: "half height of the window, modelling choice (case: cladding >= 2 um)"}
+  W: {value: 0.1, unit: um, description: "window width in x, modelling choice"}
+geometry:
+  dim: 2
+  features:
+    - {id: clad_box, type: rect, settings: {size: ["W", "2*L"], center: ["0 um", "0 um"]}}
+    - {id: core, type: rect, settings: {size: ["W", "t_core"], center: ["0 um", "0 um"]}}
+    - {id: clad, type: difference, settings: {base: clad_box, tools: [core], keepTools: true}}
+materials:
+  - {id: Si, override: {n: 3.477723756}, select: ["dom:core"]}
+  - {id: SiO2, override: {n: 1.444023622}, select: ["dom:clad"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:core", "dom:clad"]
+    settings: {order: 2}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:clad_box.left", "bnd:clad_box.right", "bnd:core.left", "bnd:core.right", "bnd:clad_box.top", "bnd:clad_box.bottom"]}
+mesh:
+  size: {hmax: "W/2"}
+  refine:
+    - {select: ["dom:core"], h: "t_core/8"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 1}}
+results:
+  - {id: neff, type: table, data: modes, expr: ewg.neff_0, unit: "1"}
+provenance:
+  values:
+    params.t_core: {basis: benchmark, source: "eval/cases/a/WO-01.yaml geometry.spec.core_thickness_m", date: 2026-11-06}
+    params.lambda0: {basis: benchmark, source: "eval/cases/a/WO-01.yaml study.settings.wavelength_m", date: 2026-11-06}
+    params.L: {basis: user, date: 2026-11-06, note: "modelling choice as in the L4 gate: TM0 field at the wall ~ exp(-5.9/um * 2.5 um)"}
+    params.W: {basis: user, date: 2026-11-06, note: "modelling choice as in the L4 gate"}
+    materials.Si.override.n: {basis: benchmark, source: "eval/cases/a/WO-01.yaml materials.Si.n (eo-modulator-atlas K1, Salzberg-Tatian fit at 1550 nm, R3)", date: 2026-11-06}
+    materials.SiO2.override.n: {basis: benchmark, source: "eval/cases/a/WO-01.yaml materials.SiO2.n (eo-modulator-atlas K1, Malitson fit at 1550 nm, R3)", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice"}
+assumptions:
+  - {text: "Indices are constants at 1550 nm (WO-01 assumption)", paths: [materials]}
+# eval: [WO-01]

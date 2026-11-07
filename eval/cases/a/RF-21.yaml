@@ -40,6 +40,7 @@ references:
   provenance: {citation: closed form (Pozar ch. 6), locator: 'validation/a/gen_em.py::rf21; eval/expected/RF-21.json targets[metric_id=f_TM010]',
     accessed: null}
   expected: {file: eval/expected/RF-21.json, metric_id: f_TM010}
+  extract: {kind: eigen, floor: 1.0e+6, index: 0}
 - quantity: f TE111
   metric_id: f_TE111
   definition: TE, m = 1, n = 1, p = 1, multiplicity 2, 3D ascending index 2-3
@@ -53,6 +54,7 @@ references:
   provenance: {citation: closed form (Pozar ch. 6), locator: 'validation/a/gen_em.py::rf21; eval/expected/RF-21.json targets[metric_id=f_TE111]',
     accessed: null}
   expected: {file: eval/expected/RF-21.json, metric_id: f_TE111}
+  extract: {kind: eigen, floor: 1.0e+6, index: 1}
 - quantity: f TM011
   metric_id: f_TM011
   definition: TM, m = 0, n = 1, p = 1, multiplicity 1, 3D ascending index 4-4
@@ -66,6 +68,7 @@ references:
   provenance: {citation: closed form (Pozar ch. 6), locator: 'validation/a/gen_em.py::rf21; eval/expected/RF-21.json targets[metric_id=f_TM011]',
     accessed: null}
   expected: {file: eval/expected/RF-21.json, metric_id: f_TM011}
+  extract: {kind: eigen, floor: 1.0e+6, index: 2}
 - quantity: f TM110
   metric_id: f_TM110
   definition: TM, m = 1, n = 1, p = 0, multiplicity 2, 3D ascending index 9-10
@@ -79,6 +82,7 @@ references:
   provenance: {citation: closed form (Pozar ch. 6), locator: 'validation/a/gen_em.py::rf21; eval/expected/RF-21.json targets[metric_id=f_TM110]',
     accessed: null}
   expected: {file: eval/expected/RF-21.json, metric_id: f_TM110}
+  extract: {kind: eigen, floor: 1.0e+6, index: 5}
 - quantity: f TE211
   metric_id: f_TE211
   definition: TE, m = 2, n = 1, p = 1, multiplicity 2, 3D ascending index 5-6
@@ -92,6 +96,7 @@ references:
   provenance: {citation: closed form (Pozar ch. 6), locator: 'validation/a/gen_em.py::rf21; eval/expected/RF-21.json targets[metric_id=f_TE211]',
     accessed: null}
   expected: {file: eval/expected/RF-21.json, metric_id: f_TE211}
+  extract: {kind: eigen, floor: 1.0e+6, index: 3}
 - quantity: f TE011
   metric_id: f_TE011
   definition: TE, m = 0, n = 1, p = 1, multiplicity 1, 3D ascending index 12-12, degenerate with TM111
@@ -105,6 +110,7 @@ references:
   provenance: {citation: closed form (Pozar ch. 6), locator: 'validation/a/gen_em.py::rf21; eval/expected/RF-21.json targets[metric_id=f_TE011]',
     accessed: null}
   expected: {file: eval/expected/RF-21.json, metric_id: f_TE011}
+  extract: {kind: eigen, floor: 1.0e+6, index: 8}
 - quantity: Q_d
   metric_id: Q_dielectric
   definition: 1/tan(delta)
@@ -118,8 +124,10 @@ references:
   provenance: {citation: closed form, locator: 'validation/a/gen_em.py::rf21; eval/expected/RF-21.json targets[metric_id=Q_dielectric]',
     accessed: null}
   expected: {file: eval/expected/RF-21.json, metric_id: Q_dielectric}
+  spec: sims/cylinder-cavity-qd.yaml
+  extract: {kind: scalar, name: Q_0}
 reference_results: []
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], expected_order: 4}
 speed:
   budget_s: {browser: 2.0, native: null}
   budget_basis: by analogy with R3 RF-01 2D browser est. < 2 s; est., not measured; native budget set after the first timing
@@ -132,8 +140,7 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: [copy_text_without_attribution]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/cylinder-cavity.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id
-    is a proposal}
+spec: sims/cylinder-cavity-axisym.yaml
 missing: []
 assumptions: ['R3 s.8 flag resolved: Palace''s analytic table uses Bessel zeros rounded to 4 decimals (reproduced within
     1.1e-7); the exact TM010 is 2.903636072 GHz. Gate on the exact closed form.']

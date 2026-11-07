@@ -48,7 +48,7 @@ references:
   provenance: {citation: Rayleigh-Ritz Kirchhoff plate (this lane), locator: 'validation/a/gen_solid.py::sm06; eval/expected/SM-06.json
       targets[metric_id=f_mode4]', accessed: null}
   expected: {file: eval/expected/SM-06.json, metric_id: f_mode4}
-  extract: {kind: eigen, offset: 3, floor: 0.01, match: sorted}
+  extract: {kind: eigen, floor: 0.01, index: 0, match: sorted}
 - quantity: f mode 5
   metric_id: f_mode5
   definition: natural frequency, mode 5 ascending (modes 1-3 rigid)
@@ -62,7 +62,7 @@ references:
   provenance: {citation: Rayleigh-Ritz Kirchhoff plate (this lane), locator: 'validation/a/gen_solid.py::sm06; eval/expected/SM-06.json
       targets[metric_id=f_mode5]', accessed: null}
   expected: {file: eval/expected/SM-06.json, metric_id: f_mode5}
-  extract: {kind: eigen, offset: 3, floor: 0.01, match: sorted}
+  extract: {kind: eigen, floor: 0.01, index: 1, match: sorted}
 - quantity: f mode 6
   metric_id: f_mode6
   definition: natural frequency, mode 6 ascending (modes 1-3 rigid)
@@ -76,7 +76,7 @@ references:
   provenance: {citation: Rayleigh-Ritz Kirchhoff plate (this lane), locator: 'validation/a/gen_solid.py::sm06; eval/expected/SM-06.json
       targets[metric_id=f_mode6]', accessed: null}
   expected: {file: eval/expected/SM-06.json, metric_id: f_mode6}
-  extract: {kind: eigen, offset: 3, floor: 0.01, match: sorted}
+  extract: {kind: eigen, floor: 0.01, index: 2, match: sorted}
 - quantity: f mode 7
   metric_id: f_mode7
   definition: natural frequency, mode 7 ascending (modes 1-3 rigid)
@@ -90,7 +90,7 @@ references:
   provenance: {citation: Rayleigh-Ritz Kirchhoff plate (this lane), locator: 'validation/a/gen_solid.py::sm06; eval/expected/SM-06.json
       targets[metric_id=f_mode7]', accessed: null}
   expected: {file: eval/expected/SM-06.json, metric_id: f_mode7}
-  extract: {kind: eigen, offset: 3, floor: 0.01, match: sorted}
+  extract: {kind: eigen, floor: 0.01, index: 3, match: sorted}
 - quantity: f mode 8
   metric_id: f_mode8
   definition: natural frequency, mode 8 ascending (modes 1-3 rigid)
@@ -104,7 +104,7 @@ references:
   provenance: {citation: Rayleigh-Ritz Kirchhoff plate (this lane), locator: 'validation/a/gen_solid.py::sm06; eval/expected/SM-06.json
       targets[metric_id=f_mode8]', accessed: null}
   expected: {file: eval/expected/SM-06.json, metric_id: f_mode8}
-  extract: {kind: eigen, offset: 3, floor: 0.01, match: sorted}
+  extract: {kind: eigen, floor: 0.01, index: 4, match: sorted}
 - quantity: f mode 9
   metric_id: f_mode9
   definition: natural frequency, mode 9 ascending (modes 1-3 rigid)
@@ -118,7 +118,7 @@ references:
   provenance: {citation: Rayleigh-Ritz Kirchhoff plate (this lane), locator: 'validation/a/gen_solid.py::sm06; eval/expected/SM-06.json
       targets[metric_id=f_mode9]', accessed: null}
   expected: {file: eval/expected/SM-06.json, metric_id: f_mode9}
-  extract: {kind: eigen, offset: 3, floor: 0.01, match: sorted}
+  extract: {kind: eigen, floor: 0.01, index: 5, match: sorted}
 - quantity: f mode 10
   metric_id: f_mode10
   definition: natural frequency, mode 10 ascending (modes 1-3 rigid)
@@ -132,7 +132,7 @@ references:
   provenance: {citation: Rayleigh-Ritz Kirchhoff plate (this lane), locator: 'validation/a/gen_solid.py::sm06; eval/expected/SM-06.json
       targets[metric_id=f_mode10]', accessed: null}
   expected: {file: eval/expected/SM-06.json, metric_id: f_mode10}
-  extract: {kind: eigen, offset: 3, floor: 0.01, match: sorted}
+  extract: {kind: eigen, floor: 0.01, index: 6, match: sorted}
 - quantity: f_mode4
   metric_id: f_mode4.nafems
   definition: NAFEMS target, mode 4

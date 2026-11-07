@@ -29,6 +29,7 @@ initial: null
 study: {type: stationary}
 references:
   - quantity: c_D
+    metric_id: c_D
     definition: "2 F_D / (rho Ubar^2 D H), Ubar = 4 Um / 9 = 0.2, D = 0.1, H = 0.41"
     value: 6.18533
     unit: "1"
@@ -39,6 +40,7 @@ references:
     extraction: text
     provenance: {citation: "Braack-Richter 2006 via FEATFLOW 3D results page; bounds Schafer-Turek 1996 Table 7", locator: "FEATFLOW 3D 'Results' page, 'reference values: cD = 6.18533 and cL = 0.009401 [2]'; open copy p.16 Table 7", accessed: 2026-11-06}
   - quantity: c_L
+    metric_id: c_L
     definition: "2 F_L / (rho Ubar^2 D H)"
     value: 0.009401
     unit: "1"
@@ -49,6 +51,7 @@ references:
     extraction: text
     provenance: {citation: "Braack-Richter 2006 via FEATFLOW; bounds Schafer-Turek 1996 Table 7", locator: "FEATFLOW 3D results page; open copy p.16 Table 7", accessed: 2026-11-06}
   - quantity: delta_p
+    metric_id: delta_p
     definition: "p(0.45, 0.20, 0.205) - p(0.55, 0.20, 0.205)"
     value: null
     unit: "Pa (rho = 1)"

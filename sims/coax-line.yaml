@@ -1,0 +1,39 @@
+# EM-01 (eval/cases/a/EM-01.yaml): coaxial line, TEM C', L', Z0 from 2D electrostatics (L4 gate packages/physics/gates/em.ts EM-01).
+schema: amp-spec/0
+id: coax-line
+title: Coaxial line
+description: Inner conductor radius 0.5 mm, outer 1.75 mm, eps_r 2.1 fill; capacitance per length, L' (mu_r = 1) and Z0.
+params:
+  a: {value: 0.5, unit: mm, description: inner conductor radius}
+  b: {value: 1.75, unit: mm, description: outer conductor inner radius}
+geometry:
+  dim: 2
+  features:
+    - {id: outer, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "b"}}
+    - {id: inner, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "a"}}
+    - {id: diel, type: difference, settings: {base: outer, tools: [inner]}}
+materials:
+  - {id: fill, override: {eps_r: 2.1, mu_r: 1}, select: ["dom:diel"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:diel"]
+    bcs:
+      - {id: inner_cond, type: terminal, select: ["bnd:inner.edge"]}
+      - {id: outer_cond, type: ground, select: ["bnd:outer.edge"]}
+mesh:
+  size: {hmax: "(b - a)/3"}
+studies:
+  - {id: std1, type: stationary, physics: [es]}
+results:
+  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/a/EM-01.yaml geometry.spec.inner_radius_m (R3 s.3.3)", date: 2026-11-06}
+    params.b: {basis: benchmark, source: "eval/cases/a/EM-01.yaml geometry.spec.outer_radius_m", date: 2026-11-06}
+    materials.fill.override.eps_r: {basis: benchmark, source: "eval/cases/a/EM-01.yaml materials.dielectric.eps_r (synthetic, R3 s.3.3)", date: 2026-11-06}
+    materials.fill.override.mu_r: {basis: benchmark, source: "eval/cases/a/EM-01.yaml materials.dielectric.mu_r", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate: (b - a)/3)"}
+assumptions:
+  - {text: "Terminal on the inner conductor (V = 1) and ground on the outer is the case's potential pair 1 / 0; L' = mu0 eps0 / C'_vacuum (TEM, mu_r = 1)", paths: [physics.es.bcs]}
+# eval: [EM-01]

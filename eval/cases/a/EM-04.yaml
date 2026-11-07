@@ -41,6 +41,7 @@ references:
   provenance: {citation: Biot-Savart closed form, locator: 'validation/a/gen_em.py::em04; eval/expected/EM-04.json targets[metric_id=B_center]',
     accessed: null}
   expected: {file: eval/expected/EM-04.json, metric_id: B_center}
+  extract: {kind: probe, field: normB, point: [0.0, 0.0]}
 - quantity: B_z(0.02, 0.01)
   metric_id: Bz_probe
   definition: off-axis probe
@@ -54,6 +55,7 @@ references:
   provenance: {citation: elliptic-integral loop formula, locator: 'validation/a/gen_em.py::em04; eval/expected/EM-04.json
       targets[metric_id=Bz_probe]', accessed: null}
   expected: {file: eval/expected/EM-04.json, metric_id: Bz_probe}
+  extract: {kind: probe, field: Bz, point: [0.02, 0.01]}
 - quantity: B_rho(0.02, 0.01)
   metric_id: Br_probe
   definition: off-axis probe (|B_rho| = 9.3e-4 B0)
@@ -67,6 +69,7 @@ references:
   provenance: {citation: elliptic-integral loop formula, locator: 'validation/a/gen_em.py::em04; eval/expected/EM-04.json
       targets[metric_id=Br_probe]', accessed: null}
   expected: {file: eval/expected/EM-04.json, metric_id: Br_probe}
+  extract: {kind: probe, field: Br, point: [0.02, 0.01]}
 - quantity: uniformity
   metric_id: uniformity_sphere_0.1R
   definition: max | |B| - B0 | / B0 on a sphere r = 0.1 R
@@ -96,7 +99,7 @@ references:
   expected: {file: eval/expected/EM-04.json, metric_id: truncation.dirichlet_A.Rb30R}
   note: sensitivity record for the truncation requirement
 reference_results: []
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], expected_order: 2}
 speed:
   budget_s: {browser: 2.0, native: null}
   budget_basis: R3 s.3.3 browser est. < 2 s; est., not measured; native budget set after the first timing run (R3 O3)
@@ -111,8 +114,7 @@ hero:
   suitable: true
   why: R3 hero; field lines and the uniform region respond live to spacing
   visual: [B_magnitude, field_lines]
-spec: {status: pending, ref: sims/helmholtz-coil.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id
-    is a proposal}
+spec: sims/helmholtz-em04.yaml
 missing: []
 assumptions: []
 field_reference:

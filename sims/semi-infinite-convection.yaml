@@ -1,0 +1,50 @@
+# HT-04 (eval/cases/a/HT-04.yaml): semi-infinite solid with sudden surface convection (Carslaw-Jaeger; Ansys VM28 / Holman).
+# 1D slab truncated at 2.0 m (the case's truncation), modelled as a 2D strip with insulated long sides. Inputs from the case.
+schema: amp-spec/0
+id: semi-infinite-convection
+title: Semi-infinite solid, sudden convection
+description: Slab initially at 0 C; at t = 0 the surface x = 0 sees convection h = 50 W/(m^2 K) to 1000 C; T at four depths at t = 2000 s.
+params:
+  L: {value: 2.0, unit: m, description: "truncation depth; x = 0 is the convective surface"}
+  w: {value: 0.01, unit: m, description: "strip width of the 2D model; long sides insulated"}
+geometry:
+  dim: 2
+  features:
+    - {id: slab, type: rect, settings: {size: ["L", "w"], center: ["L/2", "w/2"]}}
+materials:
+  - id: steel
+    override: {k: {value: 54.0, unit: W/(m*K)}, rho: {value: 7833.0, unit: kg/m^3}, cp: {value: 465.0, unit: J/(kg*K)}}
+    select: ["dom:slab"]
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:slab"]
+    settings: {T0: "273.15 K"}
+    bcs:
+      - {id: surface, type: convection, select: ["bnd:slab.left"], settings: {h: "50 W/(m^2*K)", T_ext: "1273.15 K"}}
+      - {id: far, type: insulation, select: ["bnd:slab.right"]}
+      - {id: lateral, type: insulation, select: ["bnd:slab.top", "bnd:slab.bottom"]}
+mesh:
+  size: {hmax: "0.1 m", grading: 0.1}
+  refine:
+    - {select: ["bnd:slab.left"], h: "0.005 m"}
+studies:
+  - {id: tr, type: time, physics: [ht], settings: {start: "0 s", stop: "2000 s", dt: "1 s", method: bdf2, output: ["2000 s"]}}
+results:
+  - {id: T_probes, type: table, data: tr, expr: ht.T, unit: degC}
+provenance:
+  values:
+    params.L: {basis: benchmark, source: "eval/cases/a/HT-04.yaml geometry.spec.domain_m (truncation chosen by L7a, effect below tolerance)", date: 2026-11-06}
+    params.w: {basis: user, date: 2026-11-06, note: "modelling choice: 2D strip width; the solution is independent of it"}
+    materials.steel.override.k: {basis: benchmark, source: "eval/cases/a/HT-04.yaml materials.steel.k (Ansys VM28 citing Holman 4th ed. p. 106)", date: 2026-11-06}
+    materials.steel.override.rho: {basis: benchmark, source: "eval/cases/a/HT-04.yaml materials.steel.rho (Ansys VM28)", date: 2026-11-06}
+    materials.steel.override.cp: {basis: benchmark, source: "eval/cases/a/HT-04.yaml materials.steel.c (Ansys VM28)", date: 2026-11-06}
+    physics.ht.settings.T0: {basis: benchmark, source: "eval/cases/a/HT-04.yaml initial.T", date: 2026-11-06}
+    physics.ht.bcs.surface.settings.h: {basis: benchmark, source: "eval/cases/a/HT-04.yaml bcs[0].h", date: 2026-11-06}
+    physics.ht.bcs.surface.settings.T_ext: {basis: benchmark, source: "eval/cases/a/HT-04.yaml bcs[0].T_inf", date: 2026-11-06}
+    studies.tr.settings.stop: {basis: benchmark, source: "eval/cases/a/HT-04.yaml study.t_end", date: 2026-11-06}
+    studies.tr.settings.dt: {basis: user, date: 2026-11-06, note: "modelling choice; the harness refines h only, so the BDF2 time error must stay below the spatial error of the finest level (dt 5 s left a -7e-5 degC floor at all levels, DevLog-014 s.3)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice: resolves the thermal boundary layer sqrt(a t) = 0.11 m at 2000 s"}
+assumptions:
+  - {text: "Uniform initial temperature; the convection switches on at t = 0 (step), as in the closed form", paths: [physics.ht.settings.T0]}

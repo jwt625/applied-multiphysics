@@ -39,6 +39,7 @@ references:
   provenance: {citation: slab dispersion relation, locator: 'validation/a/gen_optics.py::wo01; eval/expected/WO-01.json
       targets[metric_id=neff_TE0]', accessed: null}
   expected: {file: eval/expected/WO-01.json, metric_id: neff_TE0}
+  extract: {kind: scalar, name: neff_0}
 - quantity: n_eff TM0
   metric_id: neff_TM0
   definition: fundamental TM
@@ -52,8 +53,10 @@ references:
   provenance: {citation: slab dispersion relation, locator: 'validation/a/gen_optics.py::wo01; eval/expected/WO-01.json
       targets[metric_id=neff_TM0]', accessed: null}
   expected: {file: eval/expected/WO-01.json, metric_id: neff_TM0}
+  spec: sims/si-slab-tm0.yaml
+  extract: {kind: scalar, name: neff_0}
 reference_results: []
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], expected_order: 4}
 speed:
   budget_s: {browser: 0.5, native: null}
   budget_basis: R3 s.3.5 browser est. < 0.5 s; est., not measured; native budget set after the first timing run (R3 O3)
@@ -65,6 +68,6 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/si-slab.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal}
+spec: sims/si-slab-te0.yaml
 missing: []
 assumptions: [Indices treated as constants at 1550 nm.]

@@ -1,0 +1,45 @@
+# HT-02 (eval/cases/a/HT-02.yaml): NAFEMS T3, 1D transient conduction with a sinusoidal end temperature.
+# 1D bar modelled as a 2D strip with insulated long sides. Inputs from the case file.
+schema: amp-spec/0
+id: nafems-t3
+title: NAFEMS T3 transient bar
+description: Bar 0.1 m, x = 0 held at 0 C, x = 0.1 m at 0 C + 100 C sin(pi t / 40 s), initially 0 C; T at x = 0.08 m, t = 32 s.
+params:
+  L: {value: 0.1, unit: m, description: "bar length; x = 0 is the end held at 0 C"}
+  w: {value: 0.005, unit: m, description: "strip width of the 2D model; long sides insulated"}
+geometry:
+  dim: 2
+  features:
+    - {id: bar, type: rect, settings: {size: ["L", "w"], center: ["L/2", "w/2"]}}
+materials:
+  - id: barmat
+    override: {k: {value: 35.0, unit: W/(m*K)}, rho: {value: 7200.0, unit: kg/m^3}, cp: {value: 440.5, unit: J/(kg*K)}}
+    select: ["dom:bar"]
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:bar"]
+    settings: {T0: "273.15 K"}
+    bcs:
+      - {id: cold, type: temperature, select: ["bnd:bar.left"], settings: {T: "273.15 K"}}
+      - {id: hot, type: temperature, select: ["bnd:bar.right"], settings: {T: {expr: "273.15 + 100*sin(pi*t/(40[s]))", unit: K}}}
+      - {id: lateral, type: insulation, select: ["bnd:bar.top", "bnd:bar.bottom"]}
+mesh:
+  size: {hmax: "L/20"}
+studies:
+  - {id: tr, type: time, physics: [ht], settings: {start: "0 s", stop: "32 s", dt: "0.05 s", method: bdf2, output: ["32 s"]}}
+results:
+  - {id: T_probe, type: probe, data: tr, expr: ht.T, unit: degC, at: ["0.08 m", "w/2"]}
+provenance:
+  values:
+    params.L: {basis: benchmark, source: "eval/cases/a/HT-02.yaml geometry.spec.bar_m (NAFEMS T3 via Altair OS-V 0110, R3 s.3.1)", date: 2026-11-06}
+    params.w: {basis: user, date: 2026-11-06, note: "modelling choice: 2D strip width; the solution is independent of it"}
+    materials.barmat.override.k: {basis: benchmark, source: "eval/cases/a/HT-02.yaml materials.bar.k (NAFEMS T3 via Altair OS-V 0110)", date: 2026-11-06}
+    materials.barmat.override.rho: {basis: benchmark, source: "eval/cases/a/HT-02.yaml materials.bar.rho", date: 2026-11-06}
+    materials.barmat.override.cp: {basis: benchmark, source: "eval/cases/a/HT-02.yaml materials.bar.cp", date: 2026-11-06}
+    physics.ht.settings.T0: {basis: benchmark, source: "eval/cases/a/HT-02.yaml initial.T", date: 2026-11-06}
+    physics.ht.bcs.cold.settings.T: {basis: benchmark, source: "eval/cases/a/HT-02.yaml bcs[0]", date: 2026-11-06}
+    physics.ht.bcs.hot.settings.T: {basis: benchmark, source: "eval/cases/a/HT-02.yaml bcs[1].expr", date: 2026-11-06}
+    studies.tr.settings.stop: {basis: benchmark, source: "eval/cases/a/HT-02.yaml references[0] (t = 32 s)", date: 2026-11-06}
+    studies.tr.settings.dt: {basis: user, date: 2026-11-06, note: "modelling choice; the harness refines h only"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}

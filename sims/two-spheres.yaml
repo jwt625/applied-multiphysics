@@ -1,0 +1,52 @@
+# EM-02 (eval/cases/c/EM-02.yaml, L7c): Palace spheres, Maxwell capacitance matrix of two conducting spheres in vacuum
+# (Lekner series). Axisymmetric about the centre line, as in the L4 gate packages/physics/gates/em.ts (EM-02): sphere
+# centres on the axis, grounded outer sphere of radius R_out = 1000 m (single-sphere shift a / R_out = 1e-5).
+schema: amp-spec/0
+id: two-spheres
+title: Two conducting spheres
+description: Spheres of radius 1 cm and 2 cm, centres 5 cm apart, in vacuum; Maxwell capacitance matrix.
+params:
+  a: {value: 1, unit: cm, description: radius of sphere a}
+  b: {value: 2, unit: cm, description: radius of sphere b}
+  c: {value: 5, unit: cm, description: centre distance}
+  Rout: {value: 1000, unit: m, description: "radius of the grounded outer sphere, modelling choice"}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: box, type: rect, settings: {size: ["Rout", "2*Rout"], center: ["Rout/2", "0 m"]}}
+    - {id: far, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "Rout"}}
+    - {id: halfdisk, type: intersection, settings: {inputs: [box, far]}}
+    - {id: sa, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "a"}}
+    - {id: sb, type: circle, settings: {center: ["0 m", "c"], radius: "b"}}
+    - {id: air, type: difference, settings: {base: halfdisk, tools: [sa, sb]}}
+materials:
+  - {id: vacuum, override: {eps_r: 1}, select: ["dom:air"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:air"]
+    bcs:
+      - {id: ta, type: terminal, select: ["bnd:sa.edge"]}
+      - {id: tb, type: terminal, select: ["bnd:sb.edge"]}
+      - {id: outer, type: ground, select: ["bnd:far.edge"]}
+mesh:
+  size: {hmax: "Rout/4", grading: 0.25}
+  refine:
+    - {select: ["bnd:sa.edge", "bnd:sb.edge"], h: "a/4"}
+studies:
+  - {id: std1, type: stationary, physics: [es]}
+results:
+  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/c/EM-02.yaml geometry.spec.sphere_a (Palace docs spheres.md)", date: 2026-11-06}
+    params.b: {basis: benchmark, source: "eval/cases/c/EM-02.yaml geometry.spec.sphere_b", date: 2026-11-06}
+    params.c: {basis: benchmark, source: "eval/cases/c/EM-02.yaml geometry.spec (centre distance 0.05 m)", date: 2026-11-06}
+    params.Rout: {basis: user, date: 2026-11-06, note: "modelling choice as in the L4 gate (spheres.md: 'sufficiently far')"}
+    materials.vacuum.override.eps_r: {basis: benchmark, source: "eval/cases/c/EM-02.yaml materials.vacuum.eps_r (spheres.md L22-23)", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
+assumptions:
+  - {text: "The sphere interiors are not part of the field domain (perfect conductors)", paths: [geometry.features]}
+# eval: [EM-02]

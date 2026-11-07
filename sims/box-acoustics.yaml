@@ -14,7 +14,7 @@ geometry:
   features:
     - {id: room, type: box, settings: {size: ["Lx", "Ly", "Lz"], center: ["Lx/2", "Ly/2", "Lz/2"]}}
 materials:
-  - {id: air, override: {c: {value: N/A, unit: m/s}, rho: {value: N/A, unit: kg/m^3}}, select: ["dom:room"]}
+  - {id: air, override: {c: {value: 343, unit: m/s}, rho: {value: 1.2, unit: kg/m^3}}, select: ["dom:room"]}
 physics:
   - id: ac
     type: acoustics
@@ -24,9 +24,9 @@ physics:
         type: sound-hard
         select: ["bnd:room.xmin", "bnd:room.xmax", "bnd:room.ymin", "bnd:room.ymax", "bnd:room.zmin", "bnd:room.zmax"]
 mesh:
-  size: {hmax: "Lz/8"}
+  size: {hmax: "Lz/3"}
 studies:
-  - {id: eig, type: eigen, physics: [ac], settings: {nModes: 5}}
+  - {id: eig, type: eigen, physics: [ac], settings: {nModes: 11}}
 results:
   - {id: freqs, type: table, data: eig, expr: ac.freq, unit: Hz}
   - {id: p_mode, type: plot3d, data: eig, expr: ac.p, unit: Pa, step: 1}
@@ -35,11 +35,12 @@ provenance:
     params.Lx: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}
     params.Ly: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}
     params.Lz: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}
-    studies.eig.settings.nModes: {basis: user, date: 2026-11-06, note: "the four AC-02 modes plus the zero-frequency constant-pressure mode of an all-rigid room"}
+    materials.air.override.c: {basis: benchmark, source: "eval/cases/a/AC-02.yaml materials.air.c (synthetic case input, R3 s.3.6)", date: 2026-11-06}
+    materials.air.override.rho: {basis: benchmark, source: "eval/cases/a/AC-02.yaml materials.air.rho (synthetic case input; does not enter the eigenfrequencies)", date: 2026-11-06}
+    studies.eig.settings.nModes: {basis: user, date: 2026-11-06, note: "the ten AC-02 modes plus the zero-frequency constant-pressure mode of an all-rigid room"}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
 assumptions:
   - {text: "Box corner at the origin; position does not affect the eigenfrequencies", paths: [geometry.features.room]}
 missing:
-  - {path: materials.air.override.c, what: "speed of sound; R3 AC-02 gives c = 343 m/s", needed_for: [solution]}
-  - {path: materials.air.override.rho, what: "air density: not needed for the rigid-wall eigenfrequencies, needed for pressure amplitudes and the driven variant", needed_for: [solution]}
   - {what: "driven-room variant (source position, strength, frequency range): not defined", needed_for: [solution]}
+# eval: [AC-02]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)

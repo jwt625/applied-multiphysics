@@ -1,0 +1,38 @@
+# RF-21 (eval/cases/a/RF-21.yaml) target Q_dielectric only: the 3D emw path (sims/cylinder-cavity.yaml) on coarse curved
+# tet10 levels. Q_d = 1/tan_delta for a homogeneous fill (first-order perturbation), so it does not need a fine mesh; the
+# frequencies use sims/cylinder-cavity-axisym.yaml. Kept separate so the hero spec keeps its own mesh size.
+schema: amp-spec/0
+id: cylinder-cavity-qd
+title: Cylindrical cavity, dielectric Q (3D)
+description: Dielectric-filled PEC cylinder, 3D Nedelec eigenmodes on coarse levels; dielectric Q of the lowest mode.
+params:
+  a: {value: 2.74, unit: cm, description: cavity radius}
+  d: {value: "2*a", description: cavity length}
+geometry:
+  dim: 3
+  features:
+    - {id: cav, type: cylinder, settings: {radius: "a", height: "d", base: {value: [0, 0, 0], unit: m}, axis: z}}
+materials:
+  - {id: fill, override: {eps_r: 2.08, tan_delta: 0.0004, mu_r: 1}, select: ["dom:cav"]}
+physics:
+  - id: rf
+    type: emw
+    select: ["dom:cav"]
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:cav.side", "bnd:cav.top", "bnd:cav.bottom"]}
+mesh:
+  size: {hmax: "4*a"}
+studies:
+  - {id: eig, type: eigen, physics: [rf], settings: {nModes: 2, shift: "2.5 GHz"}}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "eval/cases/a/RF-21.yaml geometry.spec.radius_m (Palace docs examples/cylinder.md)", date: 2026-11-06}
+    params.d: {basis: benchmark, source: "eval/cases/a/RF-21.yaml geometry.spec.height_m", date: 2026-11-06}
+    materials.fill.override.eps_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.eps_r (Palace docs cylinder.md, R3 s.3.4)", date: 2026-11-06}
+    materials.fill.override.tan_delta: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.tan_delta (Palace docs cylinder.md)", date: 2026-11-06}
+    materials.fill.override.mu_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.mu_r", date: 2026-11-06}
+    studies.eig.settings.shift: {basis: benchmark, source: "eval/cases/a/RF-21.yaml study.shift", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice: coarse; the case levels 1, 0.5, 0.25 give h = 4a, 2a, a"}
+assumptions:
+  - {text: "Walls are PEC", paths: [physics.rf.bcs.walls]}
+# eval: [RF-21]

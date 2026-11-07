@@ -26,6 +26,7 @@ initial: null
 study: {type: eigen, n: 5, note: "breathing-mode family near 2.25 GHz"}
 references:
   - quantity: f_breathing_modes
+    metric_id: f_breathing_modes
     definition: "simulated frequencies of breathing modes 1-5 (Table I, untilded column)"
     at: {mode: [1, 2, 3, 4, 5]}
     value: [2.254e+9, 2.275e+9, 2.294e+9, 2.322e+9, 2.369e+9]
@@ -37,6 +38,7 @@ references:
     extraction: tabulated
     provenance: {citation: "Eichenfield et al. 2009", locator: "arXiv p.9, Table I, column nu_m (simulated; tilde = measured)", accessed: 2026-11-06}
   - quantity: f_ratio_to_mode1
+    metric_id: f_ratio_to_mode1
     definition: "f_n / f_1 of the simulated breathing modes n = 2-5; modes identified by displacement symmetry (breathing family), not by sort order"
     at: {mode: [2, 3, 4, 5]}
     value: [1.009317, 1.017746, 1.030169, 1.051020]
@@ -47,6 +49,7 @@ references:
     extraction: {method: derived, from: "Table I simulated frequencies, f_n / f_1 rounded to 6 decimals"}
     provenance: {citation: "Eichenfield et al. 2009 Table I", locator: "arXiv p.9, Table I, column nu_m", accessed: null}
   - quantity: m_eff_breathing_modes
+    metric_id: m_eff_breathing_modes
     definition: "simulated motional mass, modes 1-5 (max |Q| normalization, appendix D)"
     at: {mode: [1, 2, 3, 4, 5]}
     value: [329.0e-18, 399.0e-18, 628.0e-18, 704.0e-18, 665.0e-18]
@@ -57,6 +60,7 @@ references:
     extraction: tabulated
     provenance: {citation: "Eichenfield et al. 2009", locator: "arXiv p.9, Table I, column m_eff (fg)", accessed: 2026-11-06}
   - quantity: f_breathing_modes_measured
+    metric_id: f_breathing_modes_measured
     definition: "measured frequencies, modes 1-5 (tilded column)"
     at: {mode: [1, 2, 3, 4, 5]}
     value: [2.254e+9, 2.270e+9, 2.290e+9, 2.326e+9, 2.361e+9]
