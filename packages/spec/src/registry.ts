@@ -42,6 +42,8 @@ export interface Registration {
   dims?: readonly SpaceDim[];
   /** property: reference SI unit of the property (dimension check). */
   unit?: string;
+  /** property: physical bounds on the SI value (e.g. {gt: 0}). */
+  bounds?: { gt?: number; ge?: number; lt?: number; le?: number };
   /** feature: settings keys holding ids (string or string[]) of earlier features. */
   refs?: readonly string[];
   /** Extra semantic checks; issue paths are relative to the node. */

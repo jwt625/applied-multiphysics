@@ -57,6 +57,7 @@ provenance:
     params.H: {basis: benchmark, source: "R3 WO-02: rib 3 x 1 um", date: 2026-11-06}
     studies.sweep_t.settings.sweep.0.values: {basis: benchmark, source: "R3 WO-02: t = 0.1 ... 0.7 um", date: 2026-11-06}
     params.t: {basis: user, date: 2026-11-06, note: "base value; the sweep sets it"}
+    studies.modes.settings.nModes: {basis: user, date: 2026-11-06, note: "modelling choice: the fundamental mode of each polarization; which one WO-02 gates is open (see missing)"}
     params.W_win: {basis: user, date: 2026-11-06, note: "modelling choice, window truncation to be checked by convergence"}
     params.D_sub: {basis: user, date: 2026-11-06, note: "modelling choice, window truncation to be checked by convergence"}
     params.H_cov: {basis: user, date: 2026-11-06, note: "modelling choice, window truncation to be checked by convergence"}

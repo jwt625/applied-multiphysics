@@ -129,6 +129,10 @@ export function resolveParams(raw: unknown): { scope: Map<string, ScopeValue>; i
         ok = false;
       }
     }
+    if (ok && plan.value && !Number.isFinite(plan.value.si)) {
+      issues.push(issue(['params', name], 'param_invalid', `param '${name}' is not finite (overflow or division by zero)`));
+      ok = false;
+    }
     if (!ok || !plan.value) { if (state.get(name) !== 'failed') state.set(name, 'failed'); return false; }
     scope.set(name, { si: plan.value.si, dim: plan.value.dim });
     info.set(name, { name, si: plan.value.si, dim: plan.value.dim, unit: plan.value.unit, expr: plan.expr ?? null, refs: plan.refs });
@@ -332,11 +336,12 @@ function crossCheck(spec: Spec, reg: Registry, scope: ReadonlyMap<string, ScopeV
 
   // every N/A is covered by a missing entry with that path or a parent path
   const covered: PathKey[][] = [];
-  for (const m of spec.missing ?? []) {
-    if (typeof m === 'string' || !m.path) continue;
+  (spec.missing ?? []).forEach((m, i) => {
+    if (typeof m === 'string' || !m.path) return;
     const keys = resolveDotted(data, m.path);
     if (keys) covered.push(keys);
-  }
+    else issues.push(issue(['missing', i, 'path'], 'unresolved_path', `missing path '${m.path}' does not resolve (describe absent items without a path)`));
+  });
   const isCovered = (keys: PathKey[]) => covered.some((c) => c.length <= keys.length && c.every((k, i) => k === keys[i]));
   const walk = (x: unknown, keys: PathKey[]) => {
     if (typeof x === 'string') {

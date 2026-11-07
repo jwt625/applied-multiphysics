@@ -1,12 +1,16 @@
 // Ported from eo-modulator-atlas/engine/src/yaml-edit.d.mts at 5a06dfd (GPL-3.0-or-later). Changes: declarations for
-// parseStrict, fmt, insertIn, stats and the deleteIn {prune} option.
+// parseStrict, disallowed, FORBIDDEN_KEYS, fmt, insertIn, stats and the deleteIn {prune} option.
 // SPDX-License-Identifier: GPL-3.0-or-later
 import type { Document } from 'yaml';
 export type PathKey = string | number;
 export { parseDocument as parseYamlDocument } from 'yaml';
 /** Fallback printer options (lineWidth 0, flowCollectionPadding false); setIn/deleteIn splice the source when possible. */
 export const PRINT: { readonly lineWidth: 0; readonly flowCollectionPadding: false };
-/** Parse with duplicate keys, anchors and aliases rejected; throws Error('YAML: ...'). */
+/** Mapping keys rejected everywhere (audit S3). */
+export const FORBIDDEN_KEYS: ReadonlySet<string>;
+/** Reason a YAML node or pair is not allowed (alias, anchor, custom tag, forbidden key), or null. */
+export function disallowed(n: unknown): string | null;
+/** Parse with duplicate keys, anchors, aliases, custom tags and forbidden keys rejected; throws Error('YAML: ...'). */
 export function parseStrict(text: string): Document.Parsed;
 /** One-line flow YAML for a plain value. */
 export function fmt(v: unknown): string;

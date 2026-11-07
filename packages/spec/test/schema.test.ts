@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import * as z from 'zod';
 import { parseSpecText, formatIssues } from '../src/yaml.ts';
 import { validateSpec, resolveDotted } from '../src/validate.ts';
-import { specJsonSchema, quantity, SpecSchema, type Spec } from '../src/schema.ts';
+import { specJsonSchema, quantity, SpecSchema, schemaAt, type Spec } from '../src/schema.ts';
 import { createRegistry } from '../src/registry.ts';
 import { wave1Registry, WAVE1 } from '../src/provisional/wave1.ts';
 import { resolveQuantity, classifyString } from '../src/quantity.ts';
@@ -151,17 +151,19 @@ test('provenance and dotted paths resolve by index or element id', () => {
   assert.deepEqual(resolveDotted(r.data, 'physics.0.bcs.2.settings.h'), ['physics', 0, 'bcs', 2, 'settings', 'h']);
   assert.equal(resolveDotted(r.data, 'physics.ht.bcs.nope'), null);
   assert.deepEqual(codes(edit(read('heat-plate-fin'), 'params.Lx: {basis', 'params.Lz: {basis')), ['unresolved_path provenance.values.params.Lz']);
+  assert.deepEqual(codes(edit(read('heat-plate-fin'), '{path: materials.solid.override.k,', '{path: materials.solid.override.kk,')), ['unresolved_path missing.0.path', 'na_without_missing materials.0.override.k.value']);
 });
 
 test('JSON Schema export: one generated schema, dimensional quantities exclude bare numbers', () => {
-  const js = specJsonSchema(reg) as { $defs?: Record<string, { anyOf?: { type?: string }[]; 'x-amp-quantity'?: string }>; properties?: Record<string, unknown> };
+  const js = specJsonSchema(reg) as { $defs?: Record<string, { $ref?: string; anyOf?: { type?: string }[]; 'x-amp-quantity'?: string }>; properties?: Record<string, unknown> };
   const text = JSON.stringify(js);
   assert.ok(text.length > 1000);
   const defs = js.$defs ?? {};
-  const qm = defs['Quantity_m'];
-  assert.ok(qm, 'Quantity_m in $defs');
-  assert.ok(!qm.anyOf?.some((b) => b.type === 'number'), 'length quantity admits no bare number');
-  assert.ok(defs['Quantity_1']?.anyOf?.some((b) => b.type === 'number'), 'dimensionless quantity admits a number');
+  const forms = (name: string) => defs[(defs[name]?.$ref ?? '').replace('#/$defs/', '')]?.anyOf ?? [];
+  assert.equal(defs['Quantity_m']?.['x-amp-quantity'], 'm');
+  assert.ok(forms('Quantity_m').length === 2 && !forms('Quantity_m').some((b) => b.type === 'number'), 'length quantity admits no bare number');
+  assert.ok(forms('Quantity_1').some((b) => b.type === 'number'), 'dimensionless quantity admits a number');
+  assert.ok(text.length < 41053, `JSON Schema below the audited size (${text.length} B)`);
   assert.ok(text.includes('"x-amp-selection"'));
   assert.ok(text.includes('"additionalProperties":false'));
   for (const t of ['elastic', 'heat', 'magnetostatics', 'em-modes', 'emw', 'acoustics']) assert.ok(text.includes(`"const":"${t}"`), t);
@@ -187,4 +189,47 @@ test('selections resolve against a built entity table (split parts, unknown ids)
   const missing = checkSelections(spec, table).map((i) => i.dotted);
   assert.ok(missing.includes('physics.0.bcs.1.select.0'));
   assert.ok(!missing.includes('physics.0.bcs.0.select.0'));
+});
+
+test('audit S3: __proto__/constructor/prototype keys are rejected in YAML records, ids and dotted paths', () => {
+  for (const k of ['__proto__', 'constructor', 'prototype']) {
+    const r = parseSpecText(edit(KIRSCH, 'params:\n', `params:\n  ${k}: "5 mm"\n`), reg);
+    assert.equal(r.ok, false, k);
+    assert.match(r.issues[0]!.message, new RegExp(`key '${k}' is not allowed`));
+    assert.equal(parseSpecText(edit(KIRSCH, '    params.W: {basis', `    ${k}.x: {basis: user}\n    params.W: {basis`), reg).ok, false);
+  }
+  const bad = validateSpec({ ...(parseSpecText(KIRSCH, reg).data as object), params: JSON.parse('{"__proto__": "5 mm"}') }, reg);
+  assert.equal(bad.ok, false, 'plain data with an own __proto__ key (JSON.parse) is rejected too');
+  assert.equal(parseSpecText(edit(KIRSCH, '{id: std1,', '{id: constructor,').replace('data: std1', 'data: constructor').replace('data: std1', 'data: constructor'), reg).ok, false);
+});
+
+test('audit S4: non-finite, zero, negative and below-absolute-zero values are rejected', () => {
+  for (const [from, to] of [
+    ['size: {hmax: "W/40"}', 'size: {hmax: {value: 1e308, unit: km}}'],
+    ['size: {hmax: "W/40"}', 'size: {hmax: "1e400 mm"}'],
+    ['size: {hmax: "W/40"}', 'size: {hmax: "W*10^400"}'],
+    ['size: {hmax: "W/40"}', 'size: {hmax: "W/0"}'],
+    ['size: {hmax: "W/40"}', 'size: {hmax: "-1 mm"}'],
+    ['size: {hmax: "W/40"}', 'size: {hmax: "0 m"}'],
+    ['radius: "D/2"', 'radius: "-D/2"'],
+    ['size: ["W/2", "W/2"]', 'size: ["W/2", "0 mm"]'],
+  ] as [string, string][]) assert.equal(parseSpecText(edit(KIRSCH, from, to), reg).ok, false, to);
+  const heat = read('heat-plate-fin');
+  const cold = parseSpecText(edit(heat, 'T: "100 degC"', 'T: "-300 degC"'), reg);
+  assert.match(cold.issues[0]!.message, /must be >= 0 K/);
+  assert.match(parseSpecText(edit(KIRSCH, 'W: {value: 200, unit: mm,', 'W: {value: "D*10^400",'), reg).issues.map((i) => i.message).join('\n'), /not finite/);
+  const js = JSON.stringify(specJsonSchema(reg));
+  assert.ok(js.includes('"x-amp-exclusive-min":0') && js.includes('"x-amp-min":0'), 'bounds exported');
+});
+
+test('schemaAt: the sub-schema at a pointer, registered unions resolved by type, @id tokens', () => {
+  const data = parseSpecText(KIRSCH, reg).data;
+  const t = schemaAt(reg, '/physics/@solid/bcs/@tension/settings/traction', data)!;
+  assert.equal(t.json['x-amp-vector'], 'Pa');
+  assert.equal(t.schema.safeParse(['2 MPa', '0 Pa']).success, true);
+  const settings = schemaAt(reg, '/physics/0/settings', data)!;
+  assert.equal(settings.schema.safeParse({ model: 'plane-stress' }).success, true);
+  assert.equal(settings.schema.safeParse({ model: 'plane-stres' }).success, false);
+  assert.equal(schemaAt(reg, '/mesh/size/hmax')!.json['x-amp-quantity'], 'm');
+  assert.equal(schemaAt(reg, '/nope', data), null);
 });

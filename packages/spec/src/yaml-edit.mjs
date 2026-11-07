@@ -3,7 +3,8 @@
 // in place instead of reprinting the document; (3) a key added to a block map that starts on a `- ` line (sequence
 // item) is indented under the item; (4) deleteIn option {prune} (default true = original behaviour; false keeps an
 // emptied map/sequence as {} / [] for RFC 6902 semantics); (5) parse rejects anchors and aliases (an edit by path
-// must change exactly one value); (6) exported parseStrict; (7) JSDoc types; (8) splice/fallback counters (stats).
+// must change exactly one value), as are custom tags and the keys __proto__/constructor/prototype; (6) exported
+// parseStrict and disallowed; (7) JSDoc types; (8) splice/fallback counters (stats); (9) -0 is written as 0.
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // YAML round-trip helpers for form editing (EO DevLog-023 D6, L-UI requests DevLog-027): edits are source splices,
@@ -21,13 +22,28 @@ export const stats = { splice: 0, fallback: 0 };
 /** Fallback printer options: no line folding, flow collections without inner padding (`{a: 1}`). */
 export const PRINT = Object.freeze({ lineWidth: 0, flowCollectionPadding: false });
 
-/** Parse with duplicate keys, anchors and aliases rejected. Throws Error('YAML: ...'). */
+/** Mapping keys that reach Object.prototype machinery (audit S3). */
+export const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/** Why a node is not allowed in amp YAML (aliases, anchors, custom tags, forbidden keys), or null. */
+export function disallowed(n) {
+  if (isAlias(n)) return 'aliases are not allowed';
+  if (n.anchor) return 'anchors are not allowed';
+  if (n.tag && !String(n.tag).startsWith('tag:yaml.org,2002:')) return `tag ${n.tag} is not allowed`;
+  if (isPair(n) && isScalar(n.key) && FORBIDDEN_KEYS.has(String(n.key.value))) return `key '${n.key.value}' is not allowed`;
+  return null;
+}
+
+/** Parse with duplicate keys, anchors, aliases, custom tags and forbidden keys rejected. Throws Error('YAML: ...'). */
 export function parseStrict(text) {
   const doc = parseDocument(text, { uniqueKeys: true });
   if (doc.errors.length) throw new Error(`YAML: ${doc.errors.map((e) => e.message).join('; ')}`);
-  let shared = false;
-  visit(doc, { Node(_, n) { if (isAlias(n) || n.anchor) { shared = true; return visit.BREAK; } return undefined; } });
-  if (shared) throw new Error('YAML: anchors and aliases are not allowed');
+  let bad = null;
+  visit(doc, {
+    Node(_, n) { bad = disallowed(n); return bad ? visit.BREAK : undefined; },
+    Pair(_, n) { bad = disallowed(n); return bad ? visit.BREAK : undefined; },
+  });
+  if (bad) throw new Error(`YAML: ${bad}`);
   return doc;
 }
 const parse = parseStrict;
@@ -52,7 +68,7 @@ export function fmt(v) {
   if (v === null || v === undefined) return 'null';
   if (typeof v === 'number') {
     if (!Number.isFinite(v)) throw new Error('non-finite numbers are not written');
-    return Object.is(v, -0) ? '-0.0' : String(v);
+    return String(v); // -0 prints as 0 (canonical JSON and spec hash treat them as equal)
   }
   if (typeof v === 'boolean') return v ? 'true' : 'false';
   if (typeof v === 'string') return PLAIN.test(v) && !RESERVED.test(v) && !/\s$/.test(v) && !/:\s|\s#/.test(v) ? v : JSON.stringify(v);

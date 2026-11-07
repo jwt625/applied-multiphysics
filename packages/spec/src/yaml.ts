@@ -2,7 +2,8 @@
 // YAML text <-> typed spec (DevLog-003 s.1.3). YAML is the canonical text; parse errors and schema issues come back
 // with key paths, JSON Pointers and 1-based line/column positions in the source.
 
-import { parseDocument, LineCounter, isMap, isSeq, isScalar, isPair, isAlias, visit, type Document } from 'yaml';
+import { parseDocument, LineCounter, isMap, isSeq, isScalar, isPair, visit, type Document } from 'yaml';
+import { disallowed } from './yaml-edit.mjs';
 import { validateSpec, issue, type SpecIssue, type ValidationResult } from './validate.ts';
 import type { Registry, PathKey } from './registry.ts';
 
@@ -14,7 +15,7 @@ export interface ParseResult extends ValidationResult {
   trust: 'untrusted';
 }
 
-/** Parse YAML (duplicate keys, anchors, aliases and tags rejected) to plain data with positions. */
+/** Parse YAML (duplicate keys, anchors, aliases, custom tags and forbidden keys rejected) to plain data with positions. */
 export function parseYaml(text: string): { data: unknown; doc: Document.Parsed | null; lc: LineCounter; issues: SpecIssue[] } {
   const lc = new LineCounter();
   const doc = parseDocument(text, { uniqueKeys: true, lineCounter: lc, prettyErrors: false });
@@ -23,15 +24,16 @@ export function parseYaml(text: string): { data: unknown; doc: Document.Parsed |
     const pos = lc.linePos(e.pos[0]);
     issues.push({ ...issue([], 'yaml', e.message.split('\n')[0] ?? e.message), line: pos.line, col: pos.col });
   }
+  const flag = (n: unknown, range: number[] | undefined | null) => {
+    const bad = disallowed(n);
+    if (!bad) return;
+    const pos = range ? lc.linePos(range[0] as number) : { line: 0, col: 0 };
+    const why = /alias|anchor/.test(bad) ? ' (an edit by path must change exactly one value)' : '';
+    issues.push({ ...issue([], 'yaml', `${bad}${why}`), line: pos.line, col: pos.col });
+  };
   visit(doc, {
-    Node(_, n) {
-      const bad = isAlias(n) ? 'aliases are not allowed' : n.anchor ? 'anchors are not allowed' : n.tag && !n.tag.startsWith('tag:yaml.org,2002:') ? `tag ${n.tag} is not allowed` : null;
-      if (bad && n.range) {
-        const pos = lc.linePos(n.range[0]);
-        issues.push({ ...issue([], 'yaml', `${bad} (an edit by path must change exactly one value)`), line: pos.line, col: pos.col });
-      }
-      return undefined;
-    },
+    Node(_, n) { flag(n, (n as { range?: number[] }).range); return undefined; },
+    Pair(_, p) { flag(p, (p.key as { range?: number[] } | null)?.range); return undefined; },
   });
   if (issues.length) return { data: null, doc: null, lc, issues };
   return { data: doc.toJS({ maxAliasCount: 0 }), doc, lc, issues };

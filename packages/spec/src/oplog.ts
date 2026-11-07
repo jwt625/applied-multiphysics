@@ -6,9 +6,14 @@
 //   redo   = append the undone op again (its forward text delta);
 //   revert = append the inverse of any earlier op, applied by splice; its `test` guards fail on conflicting edits.
 // Serialization: JSONL, a genesis line (initial text and hashes) then one canonical-JSON op per line.
+// v1 (audit S1/S2): id-anchored guarded inverses (patch.ts), per-op effect (applied | undone | reverted) so only ops
+// in effect can be reverted, replay that recomputes every derived field instead of trusting it, an `expectHead`
+// check against a head hash stored elsewhere (RunRecord.oplogHead), and slider coalescing into the head op.
+// The hash chain detects corruption, not forgery: it has no key, so anyone can reseal a modified log. Replay
+// therefore re-derives inverse, invalidations, validation and the actor/reason rules from the patch and the text.
 
 import { parseStrict, setIn, insertIn, deleteIn } from './yaml-edit.mjs';
-import { applyPatch, invertPatch, type JsonPatchOp, type PatchStep } from './patch.ts';
+import { applyPatch, invertPatch, checkPatchShape, type JsonPatchOp, type PatchStep } from './patch.ts';
 import { canonicalJson, sha256Hex, specHash, jsonEqual } from './canonical.ts';
 import { invalidationsFor, type Artifact } from './invalidation.ts';
 import { validateSpec } from './validate.ts';
@@ -16,7 +21,7 @@ import { isValidActor, isAgentActor, type Actor } from './ids.ts';
 import { isoNow } from './run-record.ts';
 import type { Registry } from './registry.ts';
 
-export const OPLOG_SCHEMA = 'amp-oplog/0';
+export const OPLOG_SCHEMA = 'amp-oplog/1';
 
 export interface TextDelta { at: number; del: string; ins: string }
 
@@ -30,6 +35,8 @@ export interface Operation {
   kind: OpKind;
   /** undo/redo/revert: seq of the op acted on. */
   target?: number;
+  /** Number of slider/drag edits merged into this op (absent = 1). */
+  coalesced?: number;
   patch: JsonPatchOp[];
   inverse: JsonPatchOp[];
   before: string;
@@ -55,6 +62,13 @@ export interface Genesis {
 
 export interface OpMeta { actor: Actor; reason?: string; ts?: string }
 
+export type Effect = 'applied' | 'undone' | 'reverted';
+
+export interface ApplyOptions {
+  /** Merge into the head op when it is an edit by the same actor replacing the same single path within windowMs. */
+  coalesce?: { windowMs: number };
+}
+
 export interface OpLogOptions {
   /** Validation after every op (C7 `validation`); without it ops record {ok: true, errors: []} and `validated: false`. */
   registry?: Registry;
@@ -77,7 +91,9 @@ export interface OpLog {
   /** Seq of the op the next undo reverses / the next redo re-applies. */
   readonly undoTarget: number | null;
   readonly redoTarget: number | null;
-  apply(patch: JsonPatchOp[], meta: OpMeta): Promise<Operation>;
+  apply(patch: JsonPatchOp[], meta: OpMeta, opts?: ApplyOptions): Promise<Operation>;
+  /** Effect of an op (edit, revert, undo record); null for redo records and unknown seqs. */
+  effectOf(seq: number): Effect | null;
   undo(meta: OpMeta): Promise<Operation | null>;
   redo(meta: OpMeta): Promise<Operation | null>;
   revert(seq: number, meta: OpMeta): Promise<Operation>;
@@ -138,13 +154,62 @@ function makeValidator(opts: OpLogOptions): (data: unknown) => { ok: boolean; er
 interface Internal {
   text: string; data: unknown; specHash: string; head: string;
   ops: Operation[]; undo: number[]; redo: number[];
+  effect: Map<number, Effect>;
 }
 
-/** Track undo/redo stacks the same way during live use and replay. */
-function stackEffect(st: Internal, op: Operation): void {
-  if (op.kind === 'edit' || op.kind === 'revert') { st.undo.push(op.seq); st.redo.length = 0; }
-  else if (op.kind === 'undo') { st.undo.pop(); st.redo.push(op.target as number); }
-  else { st.redo.pop(); st.undo.push(op.target as number); }
+/**
+ * Undo/redo stacks and per-op effect, updated the same way live and during replay. Effects: an edit or revert is
+ * `applied` until undone or reverted; an undo record is `applied` while its target stays undone, and reverting it
+ * re-applies the target (recovers a branched-off edit). A revert R of T sets T `reverted` and puts T's own
+ * target back (revert of a revert: applied again; revert of an undo: the undone op applied again); undoing R reverses
+ * that.
+ */
+function track(st: Internal, op: Operation): void {
+  const ops = st.ops;
+  const at = (seq: number | undefined) => (seq === undefined ? undefined : ops[seq - 1]);
+  /** Effect changes of the op T that a revert targets, when the revert takes effect (on) or is taken back (off). */
+  const revertEffect = (T: Operation, on: boolean) => {
+    st.effect.set(T.seq, on ? 'reverted' : 'applied');
+    const inner = at(T.target);
+    if (!inner) return;
+    if (T.kind === 'revert') revertEffect(inner, !on);
+    else if (T.kind === 'undo') st.effect.set(inner.seq, on ? 'applied' : 'undone');
+  };
+  /** Effect changes when an edit/revert X is undone (on = false) or redone (on = true). */
+  const doEffect = (X: Operation, on: boolean) => {
+    st.effect.set(X.seq, on ? 'applied' : 'undone');
+    const T = at(X.target);
+    if (X.kind === 'revert' && T) revertEffect(T, on);
+  };
+  if (op.kind === 'edit') { st.effect.set(op.seq, 'applied'); st.undo.push(op.seq); st.redo.length = 0; }
+  else if (op.kind === 'revert') {
+    st.effect.set(op.seq, 'applied');
+    revertEffect(at(op.target) as Operation, true);
+    st.undo.push(op.seq); st.redo.length = 0;
+  } else if (op.kind === 'undo') {
+    st.undo.pop(); st.redo.push(op.target as number);
+    doEffect(at(op.target) as Operation, false);
+    st.effect.set(op.seq, 'applied');
+  } else {
+    st.redo.pop(); st.undo.push(op.target as number);
+    doEffect(at(op.target) as Operation, true);
+  }
+}
+
+/** Why op `seq` cannot be reverted now, or null. */
+function revertBlocker(st: Internal, seq: number): string | null {
+  const T = st.ops[seq - 1];
+  if (!T) return `no op ${seq}`;
+  if (T.kind === 'redo') return `op ${seq} is a redo record; revert op ${T.target} instead`;
+  if (st.effect.get(seq) !== 'applied') return `op ${seq} is ${st.effect.get(seq) ?? 'unknown'}; only ops in effect can be reverted`;
+  if (T.kind === 'undo' && st.effect.get(T.target as number) !== 'undone') return `op ${seq} (undo of ${T.target}) is no longer in effect: op ${T.target} is ${st.effect.get(T.target as number)}`;
+  return null;
+}
+
+function untrack(st: Internal, op: Operation): void {
+  // only used to drop the head edit when coalescing (an edit with no effect on other ops)
+  st.effect.delete(op.seq);
+  st.undo.pop();
 }
 
 async function makeGenesis(text: string, data: unknown, ts: string, embed: boolean): Promise<Genesis> {
@@ -153,14 +218,17 @@ async function makeGenesis(text: string, data: unknown, ts: string, embed: boole
   return g;
 }
 
+const newInternal = (text: string, data: unknown, specH: string, head: string): Internal => ({ text, data, specHash: specH, head, ops: [], undo: [], redo: [], effect: new Map() });
+
 /** New operation log over a YAML spec text. */
 export async function createOpLog(text: string, opts: OpLogOptions = {}): Promise<OpLog> {
   const data = parseData(text);
   const clock = opts.clock ?? (() => isoNow());
   const genesis = await makeGenesis(text, data, clock(), opts.embedText ?? true);
-  const st: Internal = { text, data, specHash: genesis.specHash, head: genesis.hash, ops: [], undo: [], redo: [] };
-  return wrap(st, genesis, opts);
+  return wrap(newInternal(text, data, genesis.specHash, genesis.hash), genesis, opts);
 }
+
+const singleReplacePath = (p: readonly JsonPatchOp[]): string | null => (p.length === 1 && p[0]!.op === 'replace' ? p[0]!.path : null);
 
 function wrap(st: Internal, genesis: Genesis, opts: OpLogOptions): OpLog {
   const validate = makeValidator(opts);
@@ -172,7 +240,7 @@ function wrap(st: Internal, genesis: Genesis, opts: OpLogOptions): OpLog {
     return p;
   };
 
-  async function commit(kind: OpKind, meta: OpMeta, patch: JsonPatchOp[], inverse: JsonPatchOp[], newText: string, newData: unknown, target?: number): Promise<Operation> {
+  async function commit(kind: OpKind, meta: OpMeta, patch: JsonPatchOp[], inverse: JsonPatchOp[], newText: string, newData: unknown, target?: number, coalesced?: number): Promise<Operation> {
     const validation = validate(newData);
     if (opts.requireValid && !validation.ok) throw new OpLogError(`edit refused: result does not validate:\n${validation.errors.join('\n')}`);
     const after = await specHash(newData);
@@ -183,6 +251,7 @@ function wrap(st: Internal, genesis: Genesis, opts: OpLogOptions): OpLog {
       ...(meta.reason !== undefined ? { reason: meta.reason } : {}),
       kind,
       ...(target !== undefined ? { target } : {}),
+      ...(coalesced !== undefined && coalesced > 1 ? { coalesced } : {}),
       patch, inverse,
       before: st.specHash, after,
       validation,
@@ -195,7 +264,7 @@ function wrap(st: Internal, genesis: Genesis, opts: OpLogOptions): OpLog {
     op.hash = await hashRecord(op);
     st.ops.push(op);
     st.text = newText; st.data = newData; st.specHash = after; st.head = op.hash;
-    stackEffect(st, op);
+    track(st, op);
     return op;
   }
 
@@ -209,6 +278,16 @@ function wrap(st: Internal, genesis: Genesis, opts: OpLogOptions): OpLog {
     return { newText, newData, inverse };
   }
 
+  /** Can `patch` by `meta` be merged into the head op? */
+  function coalescible(patch: JsonPatchOp[], meta: OpMeta, windowMs: number, ts: string): Operation | null {
+    const last = st.ops.at(-1);
+    if (!last || last.kind !== 'edit' || last.actor !== meta.actor || st.undo.at(-1) !== last.seq) return null;
+    const p = singleReplacePath(patch);
+    if (!p || p !== singleReplacePath(last.patch)) return null;
+    const dt = Date.parse(ts) - Date.parse(last.ts);
+    return Number.isFinite(dt) && dt >= 0 && dt <= windowMs ? last : null;
+  }
+
   const log: OpLog = {
     get text() { return st.text; },
     get data() { return structuredClone(st.data); },
@@ -219,12 +298,33 @@ function wrap(st: Internal, genesis: Genesis, opts: OpLogOptions): OpLog {
     get canRedo() { return st.redo.length > 0; },
     get undoTarget() { return st.undo.at(-1) ?? null; },
     get redoTarget() { return st.redo.at(-1) ?? null; },
+    effectOf: (seq) => st.effect.get(seq) ?? null,
 
-    apply: (patch, meta) => serial(async () => {
+    apply: (patch, meta, aopts = {}) => serial(async () => {
       checkMeta(meta);
-      if (!Array.isArray(patch) || !patch.length) throw new OpLogError('empty patch');
+      checkPatchShape(patch);
+      if (!patch.length) throw new OpLogError('empty patch');
+      if (patch.every((o) => o.op === 'test' || o.op === 'absent')) throw new OpLogError('a patch of only test/absent ops changes nothing; not recorded');
+      const ts = meta.ts ?? clock();
+      const last = aopts.coalesce ? coalescible(patch, meta, aopts.coalesce.windowMs, ts) : null;
+      if (last) {
+        // replace the head op: step back to its before state (exact text), then record one op for the whole drag
+        const saved = { text: st.text, data: st.data, specHash: st.specHash, head: st.head };
+        st.text = applyDelta(st.text, last.text, 'inverse');
+        st.data = parseData(st.text);
+        st.specHash = last.before; st.head = last.prev;
+        st.ops.pop(); untrack(st, last);
+        try {
+          const { newText, newData, inverse } = spliced(patch);
+          return await commit('edit', { ...meta, ts }, structuredClone(patch), inverse, newText, newData, undefined, (last.coalesced ?? 1) + 1);
+        } catch (e) {
+          st.ops.push(last); st.effect.set(last.seq, 'applied'); st.undo.push(last.seq);
+          Object.assign(st, saved);
+          throw e;
+        }
+      }
       const { newText, newData, inverse } = spliced(patch);
-      return commit('edit', meta, structuredClone(patch), inverse, newText, newData);
+      return commit('edit', { ...meta, ts }, structuredClone(patch), inverse, newText, newData);
     }),
 
     undo: (meta) => serial(async () => {
@@ -253,10 +353,11 @@ function wrap(st: Internal, genesis: Genesis, opts: OpLogOptions): OpLog {
 
     revert: (seq, meta) => serial(async () => {
       checkMeta(meta);
-      const target = st.ops[seq - 1];
-      if (!target) throw new OpLogError(`no op ${seq}`);
+      const blocker = revertBlocker(st, seq);
+      if (blocker) throw new OpLogError(blocker);
+      const target = st.ops[seq - 1] as Operation;
       let r;
-      try { r = spliced(target.inverse); } catch (e) { throw new OpLogError(`revert of op ${seq} conflicts with later edits: ${(e as Error).message}`); }
+      try { r = spliced(target.inverse); } catch (err) { throw new OpLogError(`revert of op ${seq} conflicts with later edits: ${(err as Error).message}`); }
       return commit('revert', meta, structuredClone(target.inverse), r.inverse, r.newText, r.newData, seq);
     }),
 
@@ -280,11 +381,16 @@ export async function verifyChain(genesis: Genesis, ops: readonly Operation[]): 
   return { ok: errors.length === 0, errors };
 }
 
+const same = (a: unknown, b: unknown): boolean => canonicalJson(a ?? null) === canonicalJson(b ?? null);
+
 /**
- * Replay a JSONL log: verifies the chain, applies every text delta, checks text hashes, spec hashes and that each
- * patch reproduces its text change. Returns a live log positioned at the end (further edits continue the chain).
+ * Replay a JSONL log. Verifies the chain; applies every text delta and checks text and spec hashes; and re-derives,
+ * instead of trusting, every recorded field: the patch must reproduce the text change, the inverse, invalidations
+ * and (with a registry or validator) the validation must equal their recomputation, actors and agent reasons must
+ * follow the rules, and undo/redo/revert records must match the stacks and op effects. `expectHead` (e.g. from a
+ * RunRecord) detects truncation and resealing. Returns a live log positioned at the end.
  */
-export async function replayJSONL(jsonl: string, opts: OpLogOptions & { text?: string } = {}): Promise<{ ok: boolean; errors: string[]; log: OpLog | null }> {
+export async function replayJSONL(jsonl: string, opts: OpLogOptions & { text?: string; expectHead?: string } = {}): Promise<{ ok: boolean; errors: string[]; log: OpLog | null }> {
   const lines = jsonl.split('\n').filter((l) => l.trim());
   const errors: string[] = [];
   let genesis: Genesis;
@@ -293,7 +399,7 @@ export async function replayJSONL(jsonl: string, opts: OpLogOptions & { text?: s
     genesis = JSON.parse(lines[0] ?? 'null') as Genesis;
     ops = lines.slice(1).map((l) => JSON.parse(l) as Operation);
   } catch (e) { return { ok: false, errors: [`JSONL: ${(e as Error).message}`], log: null }; }
-  if (!genesis || genesis.kind !== 'genesis' || genesis.schema !== OPLOG_SCHEMA) return { ok: false, errors: ['first line is not an amp-oplog/0 genesis record'], log: null };
+  if (!genesis || genesis.kind !== 'genesis' || genesis.schema !== OPLOG_SCHEMA) return { ok: false, errors: [`first line is not an ${OPLOG_SCHEMA} genesis record`], log: null };
   const chain = await verifyChain(genesis, ops);
   errors.push(...chain.errors);
   const text0 = genesis.text ?? opts.text;
@@ -302,23 +408,45 @@ export async function replayJSONL(jsonl: string, opts: OpLogOptions & { text?: s
   let data: unknown;
   try { data = parseData(text0); } catch (e) { return { ok: false, errors: [...errors, (e as Error).message], log: null }; }
   if ((await specHash(data)) !== genesis.specHash) errors.push('genesis: spec hash mismatch');
-  const st: Internal = { text: text0, data, specHash: genesis.specHash, head: genesis.hash, ops: [], undo: [], redo: [] };
+  const validate = opts.registry || opts.validate ? makeValidator(opts) : null;
+  const st = newInternal(text0, data, genesis.specHash, genesis.hash);
   for (const op of ops) {
     try {
+      checkMeta({ actor: op.actor, ...(op.reason !== undefined ? { reason: op.reason } : {}) });
+      checkPatchShape(op.patch);
       if (op.before !== st.specHash) throw new Error('before hash does not match the replayed spec');
+      // kind / target consistency against the stacks and effects rebuilt so far
+      const target = op.target !== undefined ? st.ops[op.target - 1] : undefined;
+      if (op.kind === 'edit') { if (op.target !== undefined) throw new Error('an edit has no target'); }
+      else if (!target) throw new Error(`${op.kind} without a valid target`);
+      else if (op.kind === 'undo') {
+        if (st.undo.at(-1) !== op.target) throw new Error(`undo target ${op.target} is not the top of the undo stack`);
+        if (!same(op.patch, target.inverse)) throw new Error('undo patch is not the inverse of its target');
+      } else if (op.kind === 'redo') {
+        if (st.redo.at(-1) !== op.target) throw new Error(`redo target ${op.target} is not the top of the redo stack`);
+        if (!same(op.patch, target.patch)) throw new Error('redo patch is not the patch of its target');
+      } else if (op.kind === 'revert') {
+        const blocker = revertBlocker(st, target.seq);
+        if (blocker) throw new Error(`revert target: ${blocker}`);
+        if (!same(op.patch, target.inverse)) throw new Error('revert patch is not the inverse of its target');
+      } else throw new Error(`unknown kind ${String(op.kind)}`);
       const text = applyDelta(st.text, op.text, 'forward');
       if ((await sha256Hex(text)) !== op.textHash) throw new Error('text hash mismatch');
       const next = parseData(text);
       if (!jsonEqual(applyPatch(st.data, op.patch).doc, next)) throw new Error('patch does not reproduce the text change');
+      if (!same(op.inverse, invertPatch(st.data, op.patch))) throw new Error('recorded inverse differs from the recomputed inverse');
+      if (!same(op.invalidates, invalidationsFor(op.patch, st.data, next))) throw new Error('recorded invalidations differ from the recomputed ones');
+      if (validate && !same(op.validation, validate(next))) throw new Error('recorded validation differs from the recomputed validation');
       const h = await specHash(next);
       if (h !== op.after) throw new Error('after hash mismatch');
       st.text = text; st.data = next; st.specHash = h; st.head = op.hash;
       st.ops.push(op);
-      stackEffect(st, op);
+      track(st, op);
     } catch (e) {
       errors.push(`op ${op.seq}: ${(e as Error).message}`);
       break;
     }
   }
+  if (opts.expectHead !== undefined && st.head !== opts.expectHead) errors.push(`head ${st.head.slice(0, 12)}... is not the expected head ${opts.expectHead.slice(0, 12)}... (truncated or rewritten log)`);
   return { ok: errors.length === 0, errors, log: errors.length ? null : wrap(st, genesis, opts) };
 }

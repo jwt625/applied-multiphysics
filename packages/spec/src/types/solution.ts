@@ -16,6 +16,8 @@ export interface RunRecord {
   startedAt: string;
   platform: Platform;
   fidelity: 'rigorous' | 'realtime';
+  /** Head hash of the spec's operation log when the run started (optional, additive to C5; audit S2). */
+  oplogHead?: string;
 }
 
 export interface Solution {

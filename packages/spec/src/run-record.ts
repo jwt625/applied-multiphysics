@@ -58,6 +58,8 @@ export interface RunRecordInput {
   fidelity: RunRecord['fidelity'];
   startedAt?: string;
   platform?: Platform;
+  /** OpLog.head at run start, so a stored log can be checked against the run (replayJSONL expectHead). */
+  oplogHead?: string;
 }
 
 /** Build a C5 run record; the spec hash is computed from `spec` when not given. */
@@ -65,6 +67,7 @@ export async function makeRunRecord(input: RunRecordInput): Promise<RunRecord> {
   const h = input.specHash ?? (input.spec !== undefined ? await specHash(input.spec) : null);
   if (!h) throw new Error('makeRunRecord: spec or specHash required');
   if (!/^[0-9a-f]{64}$/.test(input.meshHash)) throw new Error('makeRunRecord: meshHash must be a sha-256 hex string');
+  if (input.oplogHead !== undefined && !/^[0-9a-f]{64}$/.test(input.oplogHead)) throw new Error('makeRunRecord: oplogHead must be a sha-256 hex string');
   return {
     engine: input.engine,
     specHash: h,
@@ -72,6 +75,7 @@ export async function makeRunRecord(input: RunRecordInput): Promise<RunRecord> {
     startedAt: input.startedAt ?? isoNow(),
     platform: input.platform ?? probePlatform(),
     fidelity: input.fidelity,
+    ...(input.oplogHead !== undefined ? { oplogHead: input.oplogHead } : {}),
   };
 }
 

@@ -106,6 +106,8 @@ test('strings that need quoting survive (colon, hash, quotes, newline, unicode, 
 });
 
 test('anchors, aliases and duplicate keys are rejected', () => {
-  assert.throws(() => parseStrict('a: &x 1\nb: *x\n'), /anchors and aliases/);
+  assert.throws(() => parseStrict('a: &x 1\nb: *x\n'), /anchors are not allowed/);
+  assert.throws(() => parseStrict('a: !js/function x\n'), /tag !js\/function is not allowed/);
+  for (const k of ['__proto__', 'constructor', 'prototype']) assert.throws(() => parseStrict(`p:\n  ${k}: 1\n`), /is not allowed/, k);
   assert.throws(() => parseStrict('a: 1\na: 2\n'), /YAML/);
 });

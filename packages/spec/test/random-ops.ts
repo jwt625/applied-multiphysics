@@ -92,5 +92,78 @@ export function randomPatch(r: () => number, doc: unknown, maxOps = 3): JsonPatc
     out.push(op);
     cur = applyPatch(cur, [op]).doc;
   }
+  // a patch of only guards changes nothing and is refused by the log: end with a real edit
+  if (!out.some((o) => o.op !== 'test')) out.push({ op: 'add', path: '/zz_edit', value: randomValue(r) });
   return out;
+}
+
+// ---- schema-aware edits that keep a valid spec valid (gate 3b) ----------------------------------------------------
+type AnyObj = Record<string, any>;
+const FREE_BC: Record<string, string> = { elastic: 'free', heat: 'insulation', magnetostatics: 'magnetic-insulation', 'em-modes': 'pec', emw: 'pec', acoustics: 'sound-hard' };
+const round3 = (x: number) => Math.round(x * 1000) / 1000;
+
+/** A patch that keeps a valid wave-1 spec valid. `n` makes new ids unique. Uses `@id` anchors half of the time. */
+export function validEdit(r: () => number, spec: AnyObj, n: number): JsonPatchOp[] {
+  const anchor = r() < 0.5;
+  const physIdx = Math.floor(r() * (spec.physics?.length ?? 0));
+  const phys = spec.physics?.[physIdx];
+  const pp = anchor && phys ? `/physics/@${phys.id}` : `/physics/${physIdx}`;
+  const generated = (arr: AnyObj[] | undefined, prefix: string) => (arr ?? []).map((e, i) => ({ e, i })).filter((x) => String(x.e.id).startsWith(prefix));
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const u = r();
+    if (u < 0.2) {
+      const names = Object.keys(spec.params ?? {}).filter((k) => typeof spec.params[k] === 'object' && typeof spec.params[k].value === 'number');
+      if (!names.length) continue;
+      const k = names[Math.floor(r() * names.length)]!;
+      const p = spec.params[k];
+      const v = p.range ? round3(p.range[0] + r() * (p.range[1] - p.range[0])) : round3(p.value * (0.8 + 0.4 * r()));
+      return [{ op: 'replace', path: `/params/${k}/value`, value: v }];
+    }
+    if (u < 0.3 && spec.mesh) return [{ op: 'replace', path: '/mesh/size/hmax', value: `${round3(0.1 + r() * 50)} mm` }];
+    if (u < 0.45 && phys && FREE_BC[phys.type]) {
+      const bcs: AnyObj[] = phys.bcs ?? [];
+      const bnd = bcs.filter((b) => String(b.select?.[0]).startsWith('bnd:'));
+      const sel = bnd.length ? bnd[Math.floor(r() * bnd.length)]!.select : null;
+      if (!sel) continue;
+      const bc = { id: `g${n}`, type: FREE_BC[phys.type], select: sel };
+      if (!phys.bcs) return [{ op: 'add', path: `${pp}/bcs`, value: [bc] }];
+      const i = Math.floor(r() * (bcs.length + 1));
+      const at = anchor && i > 0 ? `@${bcs[i - 1]!.id}+` : anchor && i < bcs.length ? `@${bcs[i]!.id}` : String(i);
+      return [{ op: 'add', path: `${pp}/bcs/${at}`, value: bc }];
+    }
+    if (u < 0.55 && phys) {
+      const g = generated(phys.bcs, 'g');
+      if (!g.length) continue;
+      const x = g[Math.floor(r() * g.length)]!;
+      return [{ op: 'remove', path: `${pp}/bcs/${anchor ? `@${x.e.id}` : x.i}` }];
+    }
+    if (u < 0.62 && phys) {
+      const g = generated(phys.bcs, 'g');
+      if (!g.length || phys.bcs.length < 2) continue;
+      const x = g[Math.floor(r() * g.length)]!;
+      const to = Math.floor(r() * phys.bcs.length);
+      return [{ op: 'move', from: `${pp}/bcs/${anchor ? `@${x.e.id}` : x.i}`, path: `${pp}/bcs/${to}` }];
+    }
+    if (u < 0.72 && spec.studies?.length) {
+      const res = { id: `r${n}`, type: r() < 0.5 ? 'plot2d' : 'table', data: spec.studies[0].id, expr: 'x', unit: '1' };
+      return spec.results ? [{ op: 'add', path: '/results/-', value: res }] : [{ op: 'add', path: '/results', value: [res] }];
+    }
+    if (u < 0.78) {
+      const g = generated(spec.results, 'r');
+      if (!g.length) continue;
+      const x = g[Math.floor(r() * g.length)]!;
+      return [{ op: 'remove', path: `/results/${anchor ? `@${x.e.id}` : x.i}` }];
+    }
+    if (u < 0.9) {
+      const nodes: string[] = [];
+      (spec.geometry?.features ?? []).forEach((f: AnyObj, i: number) => nodes.push(anchor ? `/geometry/features/@${f.id}` : `/geometry/features/${i}`));
+      (spec.physics ?? []).forEach((p: AnyObj, i: number) => nodes.push(anchor ? `/physics/@${p.id}` : `/physics/${i}`));
+      const node = nodes[Math.floor(r() * nodes.length)];
+      if (!node) continue;
+      return [{ op: 'add', path: `${node}/label`, value: pick(r, ['quarter plate', 'label: with colon', 'x # not a comment', 'µ-scale', 'L']) }];
+    }
+    if (u < 0.95) return [{ op: 'replace', path: '/title', value: `Title ${n}` }];
+    return spec.assumptions ? [{ op: 'add', path: '/assumptions/-', value: `generated assumption ${n}` }] : [{ op: 'add', path: '/assumptions', value: [`generated assumption ${n}`] }];
+  }
+  return [{ op: 'replace', path: '/title', value: `Title ${n}` }];
 }

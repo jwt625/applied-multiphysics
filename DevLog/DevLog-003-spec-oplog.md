@@ -84,7 +84,8 @@ H1 kirsch-plate, H2 heat-plate-fin, H3 helmholtz-coil, H4 si-rib-waveguide, H5 c
 - [x] Tests and gates, numbers in section 4
 - [x] Coordinator notes 2026-11-06 (L1 done, sweep keys, degC, tsconfig lib, root installs; L7a sims ids)
 - [x] Hand-off
-- [ ] Fresh-context audit (coordinator, after hand-off)
+- [x] Fresh-context audit (coordinator, 2026-11-06): corrections in section 7
+- [ ] S5 and agent-facing S6 helpers (with L9)
 
 ## 3. Progress log
 
@@ -177,10 +178,79 @@ await log.undo({ actor: 'user' });                 // exact bytes; log.toJSONL()
 Adding a type without editing core files: `reg.register({kind: 'physics', type, dims, settings: z.strictObject({...}), check?})`, `{kind: 'bc', type, for: [physicsTypes], select: ['bnd'], settings}`, `{kind: 'property', type, unit}`; `{replace: true}` supersedes a provisional seed.
 
 Known limits:
-- Revert of an older op whose array index shifted since fails on its guard (conflict reported); undo/redo are exact.
+- (Updated 2026-11-06 16:12, oplog v1, section 7) Reverts are id-anchored and guarded: index shifts in id-bearing arrays no longer conflict; elements without ids (e.g. selection entries) and removed elements whose previous sibling is gone still conflict, loudly, with the text unchanged. Undo/redo are exact.
 - Comments inside a block collection that an edit replaces wholesale go with it; 0.2-0.3 % of random splice steps fell back to the document printer (data verified; undo still exact through the text delta).
 - Field expressions in `results[].expr` are not checked (no output names yet); `pi` is the only built-in constant; param names `pi` and expression function names are reserved.
 - Selection ids are checked against feature ids only; sub-entity existence needs the built geometry (`checkSelections`).
-- 98 % of random gate edits produce invalid specs by design (ungated D3); a schema-aware random edit gate (valid-to-valid) is not written yet.
+- 98 % of gate-3a random edits produce invalid specs by design (ungated D3); gate 3b (valid-to-valid, section 7.4) covers realistic edits.
 - The JSON Schema was checked for `$ref` resolution, not against a draft 2020-12 meta-schema validator (none installed).
 - Not done: browser run of the package and zod bundle size (L5), fresh-context audit (coordinator).
+
+## 7. Audit corrections (audit `DevLog/audits/2026-11-06-L2-spec-audit.md`, coordinator order 2026-11-06 ~15:58 PST)
+
+### 7.1 Plan (written before coding, 2026-11-06 16:00 PST)
+
+Order as given by the coordinator. S5 and the agent-facing helpers (`agentView`, structured issue templates, `renameId`, `applyText`, tool-input schema) wait for L9.
+
+1. **S3** forbidden keys `__proto__`, `constructor`, `prototype`: rejected as YAML mapping keys (`parseStrict`, `parseYaml`), as any patch path/from token, as any key inside a patch value (deep), and excluded from `NODE_ID`, `PARAM_NAME`, `DOTTED_PATH` (so `z.record` keys and ids cannot carry them).
+2. **S4** every resolved quantity and param must be finite; `quantity(dim, {gt|ge|le})` and `vector(dim, n, {gt|ge})` constraints on the SI value, exported to the JSON Schema as `x-amp-min` / `x-amp-exclusive-min` / `x-amp-max`. Applied to mesh sizes, lengths, radii, sizes, thickness, wavelength, time step, frequencies (> 0), absolute temperatures and h (>= 0), emissivity (0..1).
+3. **Minors** M13 (rib nModes provenance), M1 (`missing[].path` must resolve), M6 (`parseStrict` rejects custom tags), M5 (patch shape validated with a zod `JsonPatch` schema before apply, readable errors).
+4. **S1 + S2, operation log v1**:
+   - Pointer tokens `@<id>` address the array element with that `id` (and `@<id>+` = insertion point after it, last token of `add` only). Inverses are written with id anchors wherever the element has an id, so a revert after index shifts still hits the right element.
+   - Guarded inverses check the target state: `replace`/`add`/`copy`/`move` inverses start with `test`; `remove` inverses start with the amp extension op `{op: 'absent', path}` (fails when the member exists), and `add` refuses an array element whose `id` already exists in that array.
+   - Per-op effect (`applied | undone | reverted`) derived from the log; `revert` of an op not in effect, or of an undo/redo record, fails with a message.
+   - Replay recomputes inverse, invalidations, validation (when a registry/validator is given), enforces actor/reason rules and kind/target/stack consistency, and accepts `expectHead` to detect truncation. `RunRecord.oplogHead` (optional, additive to C5) carries the head hash outside the log.
+   - Gate extended: valid-to-valid schema-aware edits, revert of old ops (conflicts counted, state unchanged on conflict), branches (undo k, new edits), then undo-all byte-identical.
+5. **S6 groundwork**: slider coalescing (`apply(patch, meta, {coalesce: {windowMs}})` merges into the head op when same actor, single `replace` on the same path, inside the window, head op is the undo top); `schemaAt(registry, pointer, data)`; shared `$defs` (reused sub-schemas referenced once). Report the new minified size.
+
+Then rerun tests, check and all gates.
+
+### 7.2 Corrections and dispositions
+
+| # | Disposition | What changed | Evidence |
+|---|---|---|---|
+| S3 | fixed | `__proto__`, `constructor`, `prototype` rejected: as YAML mapping keys (`parseStrict` and `parseYaml`, via `disallowed()` in yaml-edit), as any pointer token (`parsePointer`), as any key inside a patch value (deep `findForbiddenKey`), and excluded from `NODE_ID`, `PARAM_NAME`, `DOTTED_PATH`, so a record key, id or provenance path cannot carry them | tests `audit S3` (schema) and `forbidden keys are refused` (oplog); audit `proto2.ts`: both patches refused, no pollution; audit spec 06/07: rejected at YAML level with line:col |
+| S4 | fixed | every resolved quantity and param must be finite; `quantity(dim, bounds)` / `vector(dim, n, bounds)` with `gt/ge/lt/le` on the SI value, exported as `x-amp-exclusive-min` / `x-amp-min` / `x-amp-exclusive-max` / `x-amp-max`. Applied: mesh `hmax`/`hmin`/`grading`/`refine.h` > 0; rect/box size, circle/cylinder radius, cylinder height, thickness, wavelength, time step, frequencies > 0; absolute temperatures (T, T_ext, T_amb, T_ref) >= 0 K; h >= 0; emissivity in [0, 1]; property bounds E, rho, cp, c > 0; k, sigma, tan_delta >= 0; nu in (-1, 0.5) (isotropic stability). Not bounded: eps_r, mu_r, n (can be < 1 or negative), positions, loads, sources | test `audit S4` (8 rejected forms incl. 1e308 km, 1e400 mm, W*10^400, W/0, -1 mm, 0 m, -300 degC); audit `adv-schema.ts`: specs 12/13/16/17 now "value is not finite" |
+| M13 | fixed | `studies.modes.settings.nModes` in `sims/si-rib-waveguide.yaml` has `basis: user` and a note | file |
+| M1 | fixed | `missing[].path` must resolve (`unresolved_path`); absent items are described without a path | test in `provenance and dotted paths` |
+| M6 | fixed | `parseStrict` (op log path) rejects custom tags, like `parseYaml` | yaml-edit test; audit `tag-probe.ts`: refused |
+| M5 | fixed | `JsonPatchSchema` (zod) checked before every apply/invert; readable messages ("op 0: missing required key 'value'", "op must be add, remove, ...") | oplog test `malformed patches`; audit `misc-probe.ts` |
+| M10 | fixed (with S3 edit) | `fmt(-0)` writes `0`, so text and spec hash agree | yaml-edit header change (9) |
+| M11 | fixed (needed by S1) | a patch of only `test`/`absent` ops is refused, nothing appended | oplog test |
+| S1 | fixed (oplog v1) | `@<id>` / `@<id>+` pointer tokens; inverses id-anchored and guarded (`test` on the written value, amp `absent` op before re-adding a removed member or id-bearing element); `add` refuses a duplicate element id; per-op effect `applied/undone/reverted` (`effectOf`); revert refused for ops not in effect and for redo records; revert of an undo record re-applies a branched-off edit | oplog tests `v1 revert`, `v1 branch`; audit `oplog-probe.ts`: 2b now applies to the right bc (anchor `@tension`), 2c refused ("absent ... it exists"), 2d refused (anchor sibling gone; no misplacement), 2e/2e2 refused ("op 1 is undone"), branch recovery by reverting the undo record works, undo-all == original |
+| S2 | fixed (oplog v1) | replay re-derives and compares inverse, invalidations, validation (when a registry/validator is given), actor/agent-reason rules, kind/target vs stacks and effects; `expectHead` option; `RunRecord.oplogHead` (optional) via `makeRunRecord({oplogHead})`; header states that the chain detects corruption, not forgery (no key) | oplog test `v1 replay`: forged inverse, deleted agent reason, forged invalidations, forged validation (with registry) and truncation (with `expectHead`) all rejected |
+| S6 (part) | groundwork done | `apply(patch, meta, {coalesce: {windowMs}})` merges a drag into the head op (`coalesced: n`; same actor, single `replace` on the same path, head = undo top, inside the window); `schemaAt(registry, pointer, data)` (resolves registered unions by `type`, `@id` tokens); `$defs` shared (one schema per bc type, ids for selections, labels, node ids, vectors; every quantity variant refers to one of two shared form definitions) | oplog test `v1 coalescing`: 200 drag steps -> 1 op (audit: 202 ops, 159 kB JSONL); schema test `schemaAt`; JSON Schema 30,614 B minified (was 41,053, -25 %), 64,964 B pretty, 2,461 lines, 57 `$defs`, all `$ref` resolve |
+| S6 (rest) | waits for L9 (coordinator) | `renameId`, `applyText`, per-tool schemas, `describe_type`, provider dialect check | - |
+| S5 | waits for L9 (coordinator) | `agentView`, structured issue templates, position-based text classification | - |
+| M2, M3, M4 | M4 done (gate 3b, reverts, branches); M2, M3 open | M3 (`text.mode` splice/reprint) and M2 (coverage depth) not done | - |
+| M7, M8, M9, M12 | open | M7 `edg` in 2D, M8 sub-entity names (needs L3), M9 `buildSpecSchema` outside `withScope`, M12 meta-schema validation | - |
+| audit spec 48 (`nModes: 100000000`) | open | a resource bound is not a physical bound; L4 to set solver budgets | - |
+
+Format changes: the oplog schema is now `amp-oplog/1` (v0 logs do not replay: inverse format changed). JSON Pointer tokens starting with `@` and the `absent` op are amp extensions of RFC 6901/6902; a plain RFC 6902 consumer can read every recorded forward patch that was written with numeric indices.
+
+### 7.3 Progress
+
+- 2026-11-06 16:00 PST: plan 7.1 written.
+- 2026-11-06 16:02 PST: S3 (ids, YAML, patch), S4 (finite, bounds), M13, M1, M6, M5 done; 37 then 42 tests green.
+- 2026-11-06 16:06 PST: patch.ts and oplog.ts rewritten (v1). The audit probe confirmed the S1 cases; one capability the v0 probe used (recover a branched op by reverting its undo record) was first lost by refusing undo records, then restored as an explicit effect rule.
+- 2026-11-06 16:08 PST: gate 3b (valid-to-valid) pilot found a generator bug (copied a domain selection into a boundary condition, 15 invalid results); fixed the generator, 0 invalid.
+- 2026-11-06 16:10 PST: S6 groundwork. First try with zod `reused: 'ref'` grew the minified schema to 46,120 B (many tiny `$defs`); replaced by explicit ids plus shared quantity forms: 30,614 B.
+- 2026-11-06 16:12 PST: all gates rerun (below), `pnpm test` 43/43, `pnpm check` clean.
+
+### 7.4 Gate rerun (logs `logs/L2-gates-20261106T161128.{log,json}` seed 20261106, `...T161209...` seed 7, `logs/L2-test-20261106T161215.log`)
+
+| Gate | Seed 20261106 | Seed 7 |
+|---|---|---|
+| 1 schema (6 examples, unknown keys, unitless, S3, S4) | 43/43 tests | - |
+| 2 splice round trip | pass (yaml-edit tests) | - |
+| 3a raw random + reverts + branches, undo-all byte-identical, chain, replay with expectHead | 1000/1000; 3806 edits, 7798 patch ops; reverts 309 applied / 19 refused with text unchanged; 74 branches; 18 printer fallbacks of 8009 steps (0.22 %); 23.5 s | 1000/1000; 3821 edits; reverts 294 / 23 refused; 76 branches; 17 fallbacks (0.21 %); 23.5 s |
+| 3b valid-to-valid + reverts + branches, replay recomputing validation | 1000/1000; 4422 edits, 0 invalid results; reverts 441 / 42 refused; 168 branches; 0 fallbacks; 17.5 s | 1000/1000; 4492 edits, 0 invalid; reverts 502 / 49 refused; 194 branches; 17.8 s |
+| JSON Schema size budget (<= 41,053 B) | 30,614 B, pass | 30,614 B |
+
+Parse + validate medians (ms, 50 runs after 5 warm-up): kirsch 0.771, heat 0.603, helmholtz 0.824, rib 1.121 (file now 5,156 B), cavity 0.434, box 0.480.
+
+### 7.5 Contract requests added by the corrections
+
+1. **C5**: optional `RunRecord.oplogHead` (sha-256 hex of the op log head at run start).
+2. **C7**: `amp-oplog/1`; pointer tokens `@<id>` and `@<id>+`; extension op `absent`; field `coalesced`; ops of only `test`/`absent` are refused; revert rules (only ops in effect; undo records revertible, redo records not).
+3. **L4**: physical bounds in the provisional property and settings registrations are listed in 7.2 S4; keep or tighten them when superseding; set solver budgets (e.g. `nModes`) yourselves.

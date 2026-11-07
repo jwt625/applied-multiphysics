@@ -179,3 +179,8 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - FL-61 (Turek-Hron CFD1) stays class c: the values come from the FEATFLOW software benchmark pages.
   - A dataset adapter (The Well / PDEBench: start from the stored frame, integrate, VRMSE/nRMSE against our own convergence floor) is assigned to L8 in a later pass. Dataset targets stay `gate: false` until then.
   - validation/ gains devsim 2.11.2, requests, h5py and jsonschema.
+- 2026-11-06 16:3x PST, adopted from L2 audit corrections (DevLog-003 s.7):
+  - C7 is now `amp-oplog/1`: `@id` path tokens for array elements, guarded inverses including an `absent` op, per-op effect tracking, revert rules, `coalesced` ops for slider drags, and a replay that recomputes inverse, validation, invalidations and the agent-reason rule. v0 logs do not replay (none exist outside tests).
+  - C5 RunRecord gains an optional `oplogHead`, the head hash of the operation log stored outside the log.
+  - Spec quantities must be finite, with physical bounds (sizes > 0, absolute T >= 0 K, emissivity 0..1). L4 reviews the property bounds.
+  - Keys `__proto__`, `constructor` and `prototype` are rejected everywhere.

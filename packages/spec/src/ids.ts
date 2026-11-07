@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Identifier grammars of amp-spec/0 (CONTRACTS-v0 C2, C3).
 
+/** Keys that can reach Object.prototype machinery; rejected everywhere (YAML keys, patch tokens and values, ids). */
+export const FORBIDDEN_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
+const NOT_FORBIDDEN = '(?!(?:__proto__|constructor|prototype)$)';
+const SEG_NOT_FORBIDDEN = '(?!(?:.*\\.)?(?:__proto__|constructor|prototype)(?:\\.|$))';
+
 /** Node ids (features, materials, physics, bcs, studies, results): letter or underscore first. */
-export const NODE_ID = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
+export const NODE_ID = new RegExp(`^${NOT_FORBIDDEN}[A-Za-z_][A-Za-z0-9_-]{0,63}$`);
 /** Param names: usable inside expressions (no dots, no dashes). */
-export const PARAM_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+export const PARAM_NAME = new RegExp(`^${NOT_FORBIDDEN}[A-Za-z_][A-Za-z0-9_]{0,63}$`);
 /** Entity kinds of C2: domains, boundaries (codimension 1), edges (3D), points. */
 export const ENTITY_KINDS = ['dom', 'bnd', 'edg', 'pnt'] as const;
 export type EntityKind = (typeof ENTITY_KINDS)[number];
@@ -15,7 +20,21 @@ export const MATERIAL_REF = /^materials\/[a-z0-9][a-z0-9._-]{0,127}$/;
 /** ISO 8601 calendar date. */
 export const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Dotted spec path: segments are keys, array indices or element ids. */
-export const DOTTED_PATH = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/;
+export const DOTTED_PATH = new RegExp(`^${SEG_NOT_FORBIDDEN}[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$`);
+
+/** First forbidden key found in a value (deep), as a path, or null. */
+export function findForbiddenKey(x: unknown, at: Array<string | number> = []): Array<string | number> | null {
+  if (Array.isArray(x)) {
+    for (let i = 0; i < x.length; i++) { const r = findForbiddenKey(x[i], [...at, i]); if (r) return r; }
+  } else if (x && typeof x === 'object') {
+    for (const k of Object.keys(x)) {
+      if (FORBIDDEN_KEYS.has(k)) return [...at, k];
+      const r = findForbiddenKey((x as Record<string, unknown>)[k], [...at, k]);
+      if (r) return r;
+    }
+  }
+  return null;
+}
 
 export interface EntityIdParts { kind: EntityKind; feature: string; sub: string[]; split: number | null }
 
