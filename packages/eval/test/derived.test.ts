@@ -91,3 +91,22 @@ test('item 3: a target may name its own spec; one worker run per spec, the case 
     assert.equal(out.results[0]!.levelRuns.length, 6);
   } finally { fx.cleanup(); }
 });
+
+test('RESULT_NAMES pre-check reads every name in extract.fields (I1 bug)', async () => {
+  const phys = MOCK_PHYSICS.replace("meshHash: 'm' + h, fields: [],", "meshHash: 'm' + h, fields: ['sxx', 'syy', 'sxy'].map((name) => ({ name, unit: 'Pa', space: 'H1P1', components: 1, data: new Float64Array(1) })),")
+    + "\nexport const RESULT_NAMES = { mock: { fields: ['sxx', 'syy', 'sxy'], scalars: ['q'] } };\n";
+  const fx = makeRoot({ physicsSrc: phys });
+  try {
+    fx.write('packages/post/package.json', JSON.stringify({ name: '@amp/post', version: '0.0.0-mock', type: 'module', exports: { '.': './src/index.mjs' } }));
+    fx.write('packages/post/src/index.mjs', 'export function sample(sol, field, points) { return Float64Array.from(points, () => ({ sxx: 1, syy: 2, sxy: 3 })[field]); }');
+    fx.write('eval/expected/XX-01.json', JSON.stringify({ case: 'XX-01', generator: 'g', versions: {}, generated_at: '2026-11-06T00:00:00-08:00', targets: [], samples: { s: { points: [[0, 1], [1, 0]], values: [[1, 1], [2, 2], [3, 3]] } } }));
+    const mk = (fields: string) => caseYaml({ tol: '{rel: 1.0e-9}', refExtra: `\n    extract: {kind: field, fields: ${fields}, samples_key: samples.s}` });   // unit "1": relative metric, samples in SI
+    const runIt = async () => { let buf = ''; await main(['--root', fx.root, '--no-log', '--json'], { out: (x) => { buf += x; }, err: () => {} }); return JSON.parse(buf) as { results: Array<{ targets: Array<{ status: string; reason?: string }> }> }; };
+    fx.write('eval/cases/a/XX-01.yaml', mk('[sxx, syy, sxy]'));
+    assert.equal((await runIt()).results[0]!.targets[0]!.status, 'pass');
+    fx.write('eval/cases/a/XX-01.yaml', mk('[sxx, szz, sxy]'));
+    const t = (await runIt()).results[0]!.targets[0]!;
+    assert.equal(t.status, 'pending'); assert.match(t.reason!, /does not produce field 'szz'/);
+  } finally { fx.cleanup(); }
+});
+

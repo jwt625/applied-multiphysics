@@ -177,7 +177,10 @@ export function extractFromSolution(
     let vals: ArrayLike<number>;
     try { vals = o.sample(sol, part.field, pts, { ...(o.mesh !== undefined ? { mesh: o.mesh } : {}), ...(part.component !== undefined ? { component: part.component } : {}) }); }
     catch (e) { return { error: `sample(${part.field}): ${(e as Error).message}` }; }
-    for (const v of Array.from(vals)) { const c = Number.isFinite(v) ? conv(v, fd.unit) : v; if (typeof c !== 'number') return c; out.push(c); }
+    // a dimensionless target unit on a field target names a relative metric (e.g. relative L2): samples stay in the
+    // engine's SI field unit, like the evaluator's; a dimensional target unit converts the samples to it
+    const relField = ex.kind === 'field' && DIMLESS.has(r.unit.trim());
+    for (const v of Array.from(vals)) { const c = Number.isFinite(v) && !relField ? conv(v, fd.unit) : v; if (typeof c !== 'number') return c; out.push(c); }
   }
   return ex.kind === 'probe' ? { value: out[0]! } : { value: { values: out } };
 }
@@ -402,10 +405,12 @@ export class EngineSource implements Source {
       if (!r.metric_id && !r.extract?.name) { pre[targetId(r)] = { pending: 'no metric_id: targets are looked up by metric_id only' }; continue; }
       // B3: the metric must be one the module declares (RESULT_NAMES), else pending with the reason
       const kind = r.extract?.kind ?? 'scalar';
-      if (rn && (kind === 'scalar' || kind === 'probe' || kind === 'field')) {
-        const name = kind === 'scalar' ? (r.extract?.name ?? r.metric_id!) : (r.extract?.field ?? r.extract?.name ?? '');
+      if (rn && (kind === 'scalar' || kind === 'probe' || kind === 'field' || kind === 'reduce')) {
+        // every engine name the target needs: the scalar, or each field (`fields` lists several)
+        const names = kind === 'scalar' ? [r.extract?.name ?? r.metric_id!] : r.extract?.fields?.length ? r.extract.fields : [r.extract?.field ?? r.extract?.name ?? ''];
         const list = kind === 'scalar' ? rn.scalars : rn.fields;
-        if (!known(list, name)) { pre[targetId(r)] = { pending: `module '${s.module.type}' does not produce ${kind === 'scalar' ? 'scalar' : 'field'} '${name}' (declares: ${list.join(', ') || 'none'})` }; continue; }
+        const missing = names.filter((n) => !known(list, n));
+        if (missing.length) { pre[targetId(r)] = { pending: `module '${s.module.type}' does not produce ${kind === 'scalar' ? 'scalar' : 'field'}${missing.length > 1 ? 's' : ''} ${missing.map((n) => `'${n}'`).join(', ')} (declares: ${list.join(', ') || 'none'})` }; continue; }
       }
       const pts = r.extract?.kind === 'field' ? (r.extract.points ?? samplePoints(lc.expected, r.extract.samples_key)) : undefined;
       targets.push({ tid: targetId(r), ref: r, ...(pts ? { points: pts } : {}) });

@@ -87,7 +87,7 @@ export async function runCase(lc: LoadedCase, source: Source, opts: RunOptions =
         rs = [];
         for (const name of names) {
           const ef = await exact(ex.evaluator!, ex.evaluator_case ?? c.id, name, ex.points!, { ...(ex.params ? { params: ex.params } : {}) });
-          if (ef.unit !== undefined && ef.unit !== r.unit) return pendingTarget(r, ref, `evaluator unit '${ef.unit}' (${name}) vs reference unit '${r.unit}'`, 'error');
+          if (ef.unit !== undefined && !['', '1', '-', 'dimensionless'].includes(r.unit.trim()) && ef.unit !== r.unit) return pendingTarget(r, ref, `evaluator unit '${ef.unit}' (${name}) vs reference unit '${r.unit}'`, 'error');
           // complex fields: re and im concatenated, so the L2 norm is the complex L2 norm
           rs.push(...(Array.isArray(ef.values) ? ef.values : [...ef.values.re, ...ef.values.im]));
         }
