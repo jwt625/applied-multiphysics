@@ -1,0 +1,30 @@
+{
+  "name": "@amp/physics",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "Physics modules (C4): heat, elastic, electrostatics, magnetostatics (axisym), em-modes, emw eigen (3D Nedelec), acoustics; C5 solutions with run records (DevLog-010)",
+  "exports": {
+    ".": "./src/index.ts",
+    "./common/*": "./src/common/*.ts"
+  },
+  "scripts": {
+    "test": "node --max-old-space-size=1536 --test --test-concurrency=1 \"test/*.test.ts\"",
+    "check": "tsc -p . --noEmit",
+    "gates": "nice -n 10 node --max-old-space-size=1536 gates/run-all.ts"
+  },
+  "dependencies": {
+    "@amp/core": "link:../core",
+    "@amp/spec": "link:../spec",
+    "@amp/geom": "link:../geom",
+    "@amp/mesh": "link:../mesh",
+    "@amp/post": "link:../post",
+    "zod": "link:../spec/node_modules/zod",
+    "@amp/materials": "link:../materials"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@amp/post",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "Post-processing: solution store, derived values, field evaluation at points, sampling for plots, CSV export (DevLog-010)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --max-old-space-size=1536 --test --test-concurrency=1 \"test/*.test.ts\"",
+    "check": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "@amp/core": "link:../core",
+    "@amp/spec": "link:../spec",
+    "@amp/physics": "link:../physics",
+    "@amp/mesh": "link:../mesh"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  }
+}
