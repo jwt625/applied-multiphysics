@@ -270,22 +270,33 @@ export async function solveAxisymModes(p: AxisymProblem): Promise<Solution & { d
  * Nodal (E_r, E_phi, E_z) of the meridional field at the mesh vertices (averaged over the triangles sharing a vertex;
  * E_phi = w / r, on the axis the limit dw/dr). 3 components per vertex.
  */
-function nodalFields(mesh: Mesh, sp: Space, order: 1 | 2, x: Float64Array): Float64Array {
+export function nodalFields(mesh: Mesh, sp: Space, order: 1 | 2, x: Float64Array, tri6?: Int32Array): Float64Array {
   const E = ndBasis(order, 3) as Term[][], W = h1Basis(order, 3) as Term[][];
   const nle = E.length, out = new Float64Array(3 * sp.nV), cnt = new Float64Array(sp.nV), o3 = [0, 0, 0];
+  // evaluation points per triangle: the 3 corners, plus (tri6 meshes) the 3 edge midpoints written to the tri6
+  // mid nodes (VTK order m01 m12 m20 of the original local corners), so a P2 interpolation of the nodal data is the
+  // field's quadratic interpolant (web audit V1 S4: mid nodes were left at 0)
+  const MIDS = [[0, 1], [1, 2], [2, 0]] as const;
+  let rScale = 0; for (let i = 0; i < sp.nV; i++) rScale = Math.max(rScale, Math.abs(mesh.nodes[2 * i]!));
   for (let t = 0; t < sp.nT; t++) {
     const v = [sp.triV[3 * t]!, sp.triV[3 * t + 1]!, sp.triV[3 * t + 2]!];
     const X = v.map((i) => [mesh.nodes[2 * i]!, mesh.nodes[2 * i + 1]!]) as [number, number][];
     const det = (X[1]![0] - X[0]![0]) * (X[2]![1] - X[0]![1]) - (X[2]![0] - X[0]![0]) * (X[1]![1] - X[0]![1]);
     const g = [0, 1, 2].map((i) => { const j = (i + 1) % 3, k = (i + 2) % 3; return [(X[j]![1] - X[k]![1]) / det, (X[k]![0] - X[j]![0]) / det]; });
-    for (let c = 0; c < 3; c++) {
-      const l = [0, 0, 0]; l[c] = 1;
+    // original corner order of this cell (tri6 conn) -> sorted frame index
+    const orig = tri6 ? [tri6[6 * t]!, tri6[6 * t + 1]!, tri6[6 * t + 2]!] : v;
+    const pos = orig.map((o) => v.indexOf(o));
+    const nPts = tri6 ? 6 : 3;
+    for (let c = 0; c < nPts; c++) {
+      const l = [0, 0, 0];
+      if (c < 3) l[pos[c]!] = 1;
+      else { const [i, j] = MIDS[c - 3]!; l[pos[i]!] = 0.5; l[pos[j]!] = 0.5; }
       let er = 0, ez = 0, w = 0, dwr = 0;
       for (let i = 0; i < nle; i++) { const xi = x[sp.dofs[sp.ndl * t + i]!]!; if (!xi) continue; evalVec(E[i]!, l, g, o3); er += xi * o3[0]!; ez += xi * o3[1]!; }
       for (let i = 0; i < W.length; i++) { const xi = x[sp.dofs[sp.ndl * t + nle + i]!]!; if (!xi) continue; evalScalar(W[i]!, l, g, o3); w += xi * o3[0]!; dwr += xi * o3[1]!; }
-      const r = X[c]![0];
-      const n = v[c]!;
-      out[3 * n]! += er; out[3 * n + 1]! += r > 0 ? w / r : dwr; out[3 * n + 2]! += ez; cnt[n]!++;
+      const r = l[0]! * X[0]![0] + l[1]! * X[1]![0] + l[2]! * X[2]![0];
+      const n = c < 3 ? orig[c]! : tri6![6 * t + c]!;
+      out[3 * n]! += er; out[3 * n + 1]! += Math.abs(r) > 1e-12 * rScale ? w / r : dwr; out[3 * n + 2]! += ez; cnt[n]!++;
     }
   }
   for (let n = 0; n < sp.nV; n++) if (cnt[n]) for (let d = 0; d < 3; d++) out[3 * n + d]! /= cnt[n]!;
@@ -324,12 +335,17 @@ export const emwAxisymModule: PhysicsModule = {
     if (shiftHz === null) throw new Error('emw-axisym: eigen study needs a shift (Hz)');
     if (bcTypes(ctx.spec, ctx.physicsId).some((t) => t !== 'pec')) throw new Error('emw-axisym: pec only');
     const s = (physicsNode(ctx.spec, ctx.physicsId).settings ?? {}) as { azimuthal: number[]; order?: 1 | 2 };
-    let mesh = ctx.mesh;
-    if (mesh.cells.type === 'tri6') mesh = toTri3(mesh);
-    const runs = [];
+    const orig = ctx.mesh;
+    const mesh = orig.cells.type === 'tri6' ? toTri3(orig) : orig;
+    const runs: Array<Awaited<ReturnType<typeof solveAxisymModes>>> = [];
     for (const m of s.azimuthal) runs.push(await solveAxisymModes({ mesh, m, order: s.order ?? 2, epsR: values.eps_r!, muR: mu, mask, pec: bcSelections(ctx.spec, ctx.physicsId, 'pec'), nModes, shiftHz, spec: ctx.spec, signal: ctx.signal }));
     // merge: steps sorted over all m, scalars f_<k>, m_<k>, ezFraction_<k>
-    const all = runs.flatMap((r) => Array.from(r.steps!.values, (f, k) => ({ f, m: r.detail.m, ez: r.detail.ezFraction[k]!, field: r.fields[k]! })));
+    // nodal fields on the caller's mesh: on tri6 also at the mid nodes (H1P2 interpolant of the ND2 + P2 field)
+    const six = orig.cells.type === 'tri6';
+    const fieldOf = (r: (typeof runs)[number], k: number): FieldData => six
+      ? { ...r.fields[k]!, space: 'H1P2', data: nodalFields(mesh, r.space, s.order ?? 2, r.x[k]!, orig.cells.conn) }
+      : r.fields[k]!;
+    const all = runs.flatMap((r) => Array.from(r.steps!.values, (f, k) => ({ f, m: r.detail.m, ez: r.detail.ezFraction[k]!, field: fieldOf(r, k) })));
     all.sort((a, b) => a.f - b.f);
     const sol = runs[0]!;
     const timing: Record<string, number> = {};
@@ -338,7 +354,8 @@ export const emwAxisymModule: PhysicsModule = {
     all.forEach((a, k) => { scalars[`f_${k}`] = { value: a.f, unit: 'Hz' }; scalars[`m_${k}`] = { value: a.m, unit: '1' }; scalars[`ezFraction_${k}`] = { value: a.ez, unit: '1' }; });
     const out: Solution = { ...sol, fields: all.map((a, k) => ({ ...a.field, step: k })), steps: { kind: 'eigen', values: Float64Array.from(all, (a) => a.f), unit: 'Hz' }, scalars, timing,
       stats: { ...sol.stats, dof: runs.reduce((s2, r) => s2 + r.stats.dof, 0), solver: `axisym per m (${s.azimuthal.join(', ')})` } };
-    attachMesh(out, mesh);
+    out.meshHash = orig.hash; out.run = { ...out.run, meshHash: orig.hash };
+    attachMesh(out, orig);
     return out;
   },
 };

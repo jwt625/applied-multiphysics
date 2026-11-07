@@ -410,3 +410,14 @@ Result:
 - The eigenvalue check at 1e-12 was not run because the kernel is not adopted. The one-solve difference is 4.1e-12 relative.
 
 Browser worker: the kernel builds its module bytes at run time (`new WebAssembly.Module(bytes)` in `la/ldlt-wasm.mjs`), so the worker needs CSP `script-src 'wasm-unsafe-eval'`. `apps/web` already grants it: `static/_headers` for `/_app/*` (worker scripts get their CSP from their own response), and `vite.config.ts` kit csp `script-src: ['self', 'wasm-unsafe-eval']` for pages. This is checked by reading the configuration only. The kernel was not loaded in a browser here: no browser run, no server started.
+
+## 10. Fix: emw-axisym nodal field on tri6 meshes (2026-11-06 18:00 PST; web audit DevLog/audits/2026-11-06-web-pass2-V1-audit.md S4)
+
+- **Bug:** `emw-axisym` solves on the straight tri3 copy of a tri6 mesh and wrote `E_rphiz` only at the corner nodes, so the tri6 mid nodes kept 0. `@amp/post` P2 interpolation on the tri6 mesh then returned wrong values (audit: E_z +38 where -114 is correct).
+- **Fix** (`src/em-axisym/index.ts nodalFields`):
+  - on tri6 meshes the ND2 + P2 field is also evaluated at the three edge midpoints of every triangle and written to the tri6 mid nodes (VTK m01 m12 m20 of the original corner order);
+  - the field is labelled `H1P2`, so a P2 interpolation of the nodal data is the field's quadratic interpolant;
+  - the Solution carries the caller's tri6 mesh (hash and attached mesh), not the internal tri3 copy;
+  - E_phi on the axis uses the limit dw/dr, with an axis tolerance relative to the mesh size.
+- **Test** `test/followup3.test.ts`: spec path on a tri6 mesh (hmax a/8). It checks that no interior node is 0 and that E_z(r, z) of TM010 matches C J0(x01 r / a) at 15 interior points (r = 0.13..0.83 a, z = 0.21..0.77 d), with C from the axis value. Max relative deviation 7.7e-4 (limit 1e-3, at a coarser mesh than the gate's finest level).
+- physics 44/44; tsc clean.

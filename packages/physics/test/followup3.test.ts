@@ -72,3 +72,29 @@ test('prepareRun: dtFactor scales the transient time step (L8 dt_with_h)', async
 });
 import { heatModule } from '../src/index.ts';
 async function heatModuleRun(c: Parameters<typeof heatModule.run>[0]) { const s = await heatModule.run(c); return s.steps!.values.length; }
+
+test('emw-axisym on a tri6 mesh: mid-node values filled; E_z at interior points follows TM010 (J0) to 1e-3', async () => {
+  const sp = structuredClone(spec);
+  sp.mesh = { size: { hmax: '0.125*a' } };
+  (sp.physics[0]!.settings as { azimuthal: number[] }).azimuthal = [0];
+  const ctx = await prepareRun({ spec: sp });
+  assert.equal(ctx.mesh.cells.type, 'tri6');
+  const s = await emwAxisymModule.run(ctx);
+  const k = Array.from({ length: s.steps!.values.length }, (_, i) => i).find((i) => s.scalars[`ezFraction_${i}`]!.value > 0.99)!;
+  const fld = s.fields.find((f) => f.name === 'E_rphiz' && f.step === k)!;
+  assert.equal(fld.space, 'H1P2');
+  // every node carries a value (no zero mid nodes inside the domain)
+  const nN = ctx.mesh.nodes.length / 2;
+  let zeros = 0;
+  for (let i = 0; i < nN; i++) if (ctx.mesh.nodes[2 * i]! < 0.019 && Math.abs(fld.data[3 * i + 2]!) === 0) zeros++;
+  assert.equal(zeros, 0);
+  const a = 0.02, d = 0.04, x01 = 2.404825557695773;
+  const J0 = (x: number) => { let s0 = 0, t = 1; for (let j = 0; j < 30; j++) { if (j) t *= -(x * x) / (4 * j * j); s0 += t; } return s0; };
+  const ez = (r: number, z: number) => sample(s, 'E_rphiz', [r, z], { component: 2, step: k })[0]!;
+  const C = ez(0, d / 2);
+  let worst = 0;
+  for (const r of [0.13, 0.31, 0.47, 0.66, 0.83].map((f) => f * a)) for (const z of [0.21, 0.5, 0.77].map((f) => f * d)) worst = Math.max(worst, Math.abs(ez(r, z) - C * J0((x01 * r) / a)) / Math.abs(C));
+  assert.ok(worst < 1e-3, `max rel deviation ${worst}`);
+  console.log(`TM010 E_z max rel deviation from C J0 at 15 interior points: ${worst.toExponential(2)}`);
+});
+import { sample } from '../../post/src/index.ts';
