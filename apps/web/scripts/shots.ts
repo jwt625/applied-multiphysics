@@ -123,7 +123,7 @@ result.browser = { shell: shell.version() };
 
 // ---- first paint (fresh context each load, no service worker)
 const paints: Record<string, number[]> = {};
-for (const path of ONLY ? [] : ['/', '/play/kirsch-plate', '/play/rt/lbm-d2q9']) {
+for (const path of ONLY ? [] : ['/workbench', '/play/kirsch-plate', '/play/rt/lbm-d2q9']) {
 	paints[path] = [];
 	for (let i = 0; i < 5; i++) {
 		const p = await newPage(shell, 1440, 900);
@@ -138,7 +138,7 @@ result.fcp = Object.fromEntries(Object.entries(paints).map(([k, v]) => [k, { med
 const wbShots: string[] = [];
 for (const v of VIEWS) for (const sim of ONLY ? [] : ['kirsch-plate', 'box-acoustics']) {
 	const p = await newPage(shell, v.w, v.h);
-	await p.goto(`${origin}/?sim=${sim}`);
+	await p.goto(`${origin}/workbench?sim=${sim}`);
 	await ready(p, 'wb');
 	const f = `${out}/L5-workbench-${sim}-${v.tag}-${ts}.png`;
 	await p.screenshot({ path: f });

@@ -1,0 +1,141 @@
+# CP-04 (eval/cases/c/CP-04.yaml): Si electro-thermal-compliant (hot-arm) microactuator at 15 V, currents -> heat ->
+# elastic, 3D (lane MX, DevLog-035). Inputs from the public Ansys VM223 input listing (Hlp_V_VM223TXT.html, 2025R2), which
+# re-derives N. D. Mankame, G. K. Ananthasuresh, J. Micromech. Microeng. 11(5), 452-462 (2001), doi 10.1088/0960-1317/11/5/303
+# (paywalled, not read; CP-04's "11:252" is a page typo of the VM223 HTML page). The 14-point outline extruded by D11 is
+# written as six boxes (anchors, hot arm, end connector, cold arm, flexure). Target: tip displacement 27 um at
+# (2582, -330, 20) um (VM223 from the paper's Fig. 5, p.458; read from a figure).
+# NOT reproduced here (spec limits, see missing): temperature-dependent k(T), alpha(T) and h(T) of the listing, the
+# geometric non-linearity (NLGEOM) and surface-to-surface radiation exchange. This sim uses the 300 K values, so its
+# result is informative only (gate false). Rights: Ansys VM listing cite_values + re_derive_setup.
+schema: amp-spec/0
+id: hot-arm-actuator
+title: Si hot-arm electrothermal actuator (currents -> heat -> stress)
+description: U-shaped Si microactuator; current heats the thin arm more than the wide arm and the tip deflects; 3D, constant 300 K properties.
+params:
+  D1: {value: 40, unit: um, description: thin (hot) arm width}
+  D2: {value: 255, unit: um, description: wide (cold) arm width}
+  D3: {value: 40, unit: um, description: flexure width}
+  D4: {value: 330, unit: um, description: flexure length}
+  D5: {value: 1900, unit: um, description: wide arm length}
+  D6: {value: 90, unit: um, description: end connector length}
+  D7: {value: 75, unit: um, description: gap between the arms}
+  D8: {value: 352, unit: um, description: anchor length (x)}
+  D9: {value: 352, unit: um, description: anchor width (y)}
+  D11: {value: 20, unit: um, description: thickness}
+  VLT: {value: 15, unit: V, range: [0, 15], description: applied voltage}
+  TBLK: {value: 300, unit: K, description: ambient and anchor temperature}
+geometry:
+  dim: 3
+  features:
+    - {id: anc_t, type: box, settings: {size: ["D8", "D9", "D11"], center: ["D8/2", "D9/2", "D11/2"]}}
+    - {id: hot, type: box, settings: {size: ["D4 + D5 - D6", "D1", "D11"], center: ["D8 + (D4 + D5 - D6)/2", "D1/2", "D11/2"]}}
+    - {id: conn, type: box, settings: {size: ["D6", "D1 + D7 + D2", "D11"], center: ["D8 + D4 + D5 - D6/2", "(D1 - D7 - D2)/2", "D11/2"]}}
+    - {id: cold, type: box, settings: {size: ["D5 - D6", "D2", "D11"], center: ["D8 + D4 + (D5 - D6)/2", "-(D7 + D2/2)", "D11/2"]}}
+    - {id: flex, type: box, settings: {size: ["D4", "D3", "D11"], center: ["D8 + D4/2", "-(D7 + D3/2)", "D11/2"]}}
+    - {id: anc_b, type: box, settings: {size: ["D8", "D9", "D11"], center: ["D8/2", "-(D7 + D9/2)", "D11/2"]}}
+materials:
+  - id: si
+    override: {E: {value: 169, unit: GPa}, nu: 0.3, sigma: {value: 2380.952380952381, unit: S/m}, k: {value: 146.4, unit: W/(m*K)}, alpha: {value: 2.568e-6, unit: 1/K}}
+    select: ["dom:anc_t", "dom:hot", "dom:conn", "dom:cold", "dom:flex", "dom:anc_b"]
+physics:
+  - id: ec
+    type: currents
+    select: ["dom:anc_t", "dom:hot", "dom:conn", "dom:cold", "dom:flex", "dom:anc_b"]
+    bcs:
+      - {id: pad_v, type: potential, select: ["bnd:anc_t.zmax"], settings: {V: "VLT"}}
+      - {id: pad_g, type: ground, select: ["bnd:anc_b.zmax"]}
+  - id: ht
+    type: heat
+    select: ["dom:anc_t", "dom:hot", "dom:conn", "dom:cold", "dom:flex", "dom:anc_b"]
+    bcs:
+      - {id: sink, type: temperature, select: ["bnd:anc_t.zmin", "bnd:anc_b.zmin"], settings: {T: "TBLK"}}
+      - {id: h_top_thin, type: convection, select: ["bnd:hot.zmax", "bnd:flex.zmax"], settings: {h: "17.8 W/(m^2*K)", T_ext: "TBLK"}}
+      - {id: h_top_wide, type: convection, select: ["bnd:cold.zmax"], settings: {h: "11.2 W/(m^2*K)", T_ext: "TBLK"}}
+      - {id: h_top_conn, type: convection, select: ["bnd:conn.zmax"], settings: {h: "15.0 W/(m^2*K)", T_ext: "TBLK"}}
+      - {id: h_top_anc, type: convection, select: ["bnd:anc_t.zmax", "bnd:anc_b.zmax"], settings: {h: "10.3 W/(m^2*K)", T_ext: "TBLK"}}
+      - {id: h_bot_thin, type: convection, select: ["bnd:hot.zmin", "bnd:flex.zmin"], settings: {h: "22.4 W/(m^2*K)", T_ext: "TBLK"}}
+      - {id: h_bot_wide, type: convection, select: ["bnd:cold.zmin"], settings: {h: "13.0 W/(m^2*K)", T_ext: "TBLK"}}
+      - {id: h_bot_conn, type: convection, select: ["bnd:conn.zmin"], settings: {h: "24.0 W/(m^2*K)", T_ext: "TBLK"}}
+      - {id: h_side, type: convection, select: ["bnd:hot.ymin", "bnd:hot.ymax", "bnd:cold.ymin", "bnd:cold.ymax", "bnd:flex.ymin", "bnd:flex.ymax", "bnd:conn.xmax", "bnd:conn.ymin", "bnd:conn.ymax", "bnd:conn.xmin#1", "bnd:cold.xmin#1"], settings: {h: "929 W/(m^2*K)", T_ext: "TBLK"}}
+  - id: solid
+    type: elastic
+    select: ["dom:anc_t", "dom:hot", "dom:conn", "dom:cold", "dom:flex", "dom:anc_b"]
+    settings: {model: 3d}
+    bcs:
+      - {id: anchors, type: fixed, select: ["bnd:anc_t.zmin", "bnd:anc_b.zmin"]}
+couplings:
+  - {id: jh, type: joule-heating, from: ec, to: ht}
+  - {id: th2sm, type: thermal-expansion, from: ht, to: solid, settings: {Tref: "TBLK"}}
+mesh:
+  size: {hmax: "D1/2"}
+studies:
+  - {id: std1, type: stationary, physics: [ec, ht, solid]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: tip, type: cutpoint, data: sol_std1, points: [["D8 + D4 + D5", "-(D7 + D2)", "D11"]]}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: tip_uy, type: point, data: tip, expr: solid.u.y, unit: um}
+        - {id: tip_usum, type: point, data: tip, expr: "sqrt(solid.u.x^2 + solid.u.y^2 + solid.u.z^2)", unit: um}
+        - {id: T_max, type: global, expr: ht.T_max, unit: K}
+        - {id: P_in, type: global, expr: ec.P, unit: W}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: T_map
+      type: plot3d
+      data: sol_std1
+      items:
+        - {id: T_surf, type: surface, expr: ht.T, unit: K}
+    - id: u_map
+      type: plot3d
+      data: sol_std1
+      items:
+        - {id: u_surf, type: surface, expr: "sqrt(solid.u.x^2 + solid.u.y^2 + solid.u.z^2)", unit: um}
+        - {id: u_def, type: deformation, expr: solid.u, scale: auto}
+provenance:
+  values:
+    params.D1: {basis: benchmark, source: "Ansys VM223 input listing (Hlp_V_VM223TXT.html, 2025R2) 'D1=40E-6', after Mankame-Ananthasuresh 2001", date: 2026-11-07}
+    params.D2: {basis: benchmark, source: "VM223 listing 'D2=255E-6'", date: 2026-11-07}
+    params.D3: {basis: benchmark, source: "VM223 listing 'D3=40E-6'", date: 2026-11-07}
+    params.D4: {basis: benchmark, source: "VM223 listing 'D4=330E-6'", date: 2026-11-07}
+    params.D5: {basis: benchmark, source: "VM223 listing 'D5=1900E-6'", date: 2026-11-07}
+    params.D6: {basis: benchmark, source: "VM223 listing 'D6=90E-6'", date: 2026-11-07}
+    params.D7: {basis: benchmark, source: "VM223 listing 'D7=75E-6'", date: 2026-11-07}
+    params.D8: {basis: benchmark, source: "VM223 listing 'D8=352E-6'", date: 2026-11-07}
+    params.D9: {basis: benchmark, source: "VM223 listing 'D9=352E-6'", date: 2026-11-07}
+    params.D11: {basis: benchmark, source: "VM223 listing 'VEXT,1,,,,,D11' with 'D11=20E-6'", date: 2026-11-07}
+    params.VLT: {basis: benchmark, source: "VM223 listing 'VLT=15'", date: 2026-11-07}
+    params.TBLK: {basis: benchmark, source: "VM223 listing 'TBLK=300' (bulk temperature, anchor temperature, radiation ambient)", date: 2026-11-07}
+    geometry.features: {basis: benchmark, source: "VM223 listing keypoints K1..K14 (outline A,1..14) extruded by D11, decomposed into six boxes", date: 2026-11-07}
+    materials.si.override.E: {basis: benchmark, source: "VM223 listing 'MP,EX,1,169E9'", date: 2026-11-07}
+    materials.si.override.nu: {basis: benchmark, source: "VM223 listing 'MP,PRXY,1,0.3'", date: 2026-11-07}
+    materials.si.override.sigma: {basis: derived, source: "1 / resistivity, VM223 listing 'MP,RSVX,1,4.2E-4' (ohm m, constant)", date: 2026-11-07}
+    materials.si.override.k: {basis: benchmark, source: "VM223 listing 'MPDATA,KXX,1,1,146.4,...' first entry, at 300 K (table 300-1500 K)", date: 2026-11-07, note: "300 K value only; the listing's k falls to 25.1 W/(m K) at 1500 K"}
+    materials.si.override.alpha: {basis: benchmark, source: "VM223 listing 'MPDATA,ALPX,1,1,2.568E-6,...' first entry, at 300 K", date: 2026-11-07, note: "300 K value only; TREF = TBLK"}
+    physics.ht.bcs.h_top_thin.settings.h: {basis: benchmark, source: "VM223 listing 'MPDATA,HF,1,1,17.8,...' (upper face, thin arm and flexure) at 300 K", date: 2026-11-07, note: "units not printed; SI assumed (W/(m^2 K))"}
+    physics.ht.bcs.h_top_wide.settings.h: {basis: benchmark, source: "VM223 listing 'MPDATA,HF,2,1,11.2,...' (upper face, wide arm) at 300 K", date: 2026-11-07}
+    physics.ht.bcs.h_top_conn.settings.h: {basis: benchmark, source: "VM223 listing 'MPDATA,HF,3,1,15.,...' (upper face, end connection) at 300 K", date: 2026-11-07}
+    physics.ht.bcs.h_top_anc.settings.h: {basis: benchmark, source: "VM223 listing 'MPDATA,HF,4,1,10.3,...' (upper face, anchors) at 300 K", date: 2026-11-07}
+    physics.ht.bcs.h_bot_thin.settings.h: {basis: benchmark, source: "VM223 listing 'MPDATA,HF,5,1,22.4,...' (bottom face, thin arm and flexure) at 300 K", date: 2026-11-07}
+    physics.ht.bcs.h_bot_wide.settings.h: {basis: benchmark, source: "VM223 listing 'MPDATA,HF,6,1,13.,...' (bottom face, wide arm) at 300 K", date: 2026-11-07}
+    physics.ht.bcs.h_bot_conn.settings.h: {basis: benchmark, source: "VM223 listing 'MPDATA,HF,7,1,24.,...' (bottom face, end connection) at 300 K", date: 2026-11-07}
+    physics.ht.bcs.h_side.settings.h: {basis: benchmark, source: "VM223 listing 'MPDATA,HF,8,1,929,...' (side walls, anchors excluded) at 300 K", date: 2026-11-07}
+    couplings.th2sm.settings.Tref: {basis: benchmark, source: "VM223 listing 'TREF,TBLK'", date: 2026-11-07}
+    results.datasets.tip.points.0: {basis: benchmark, source: "VM223 listing 'NPOST=NODE(0.25820E-02,-0.33000E-03,0.20000E-04)'", date: 2026-11-07}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice: 2 cells across the thin arm; converged per lane MT (DevLog-033), D1/4 is 840k dof, too heavy for the browser"}
+assumptions:
+  - {text: "Constant properties and film coefficients at 300 K (the listing's tables run 300-1500 K); the arm temperatures are far above 300 K at 15 V, so this sim does not reproduce the 27 um target", paths: [materials.si, physics.ht]}
+  - {text: "Anchor electrodes: potential / ground on the anchor top faces; VM223 couples the voltage of every node of each anchor volume (equipotential anchors)", paths: [physics.ec]}
+  - {text: "Side walls with h 929: every exterior box face except the anchors. The exterior remainders of split faces are selected as bnd:conn.xmin#1 (gap face) and bnd:cold.xmin#1; plain bnd:conn.xmin / bnd:cold.xmin would also select the interfaces hot.xmax, cold.xmax, flex.xmax through parent links (@amp/geom naming after lane MG G2, DevLog-036; checked 2026-11-07)", paths: [physics.ht.bcs.h_side]}
+  - {text: "Linear (small-deflection) elasticity; VM223 runs NLGEOM,ON", paths: [physics.solid]}
+missing:
+  - {what: "temperature-dependent k(T) 146.4 -> 25.1 W/(m K) and alpha(T) 2.568e-6 -> 4.556e-6 /K over 300-1500 K (VM223 listing): spec material overrides are scalars; needs a T-dependent material entry or a table override", needed_for: [solution]}
+  - {what: "temperature-dependent film coefficients h(T) per face group (VM223 HF tables 1-8): the convection BC takes h(x, t), not h(T)", needed_for: [solution]}
+  - {what: "surface-to-surface radiation, emissivity 0.7 to 300 K (VM223 'SF,ALL,RDSF,0.7,1'): only the ambient surface-radiation BC exists (no view factors)", needed_for: [solution]}
+  - {what: "geometric non-linearity (VM223 NLGEOM,ON)", needed_for: [solution]}
+  - {what: "Si resistivity vs temperature: the listing uses a constant 4.2e-4 ohm m (as does this sim)", needed_for: [solution]}
+# eval: [CP-04]   (informative: inputs at 300 K only)

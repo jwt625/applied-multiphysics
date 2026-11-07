@@ -4,7 +4,11 @@
 // equal-priority overlap is an error: no later-wins ownership). IDs: domain `dom:<box>`; facets `bnd:<box>.<dir>` with
 // dir in xmin xmax ymin ymax zmin zmax, owned by the box on the minus side for interfaces (the plus-side face is in
 // `parent`); one (box, dir) split by different neighbours gives `#k` (exterior first, then neighbour box order);
-// symmetry planes `bnd:sym.x` / `bnd:sym.y`.
+// symmetry planes `bnd:sym.x` / `bnd:sym.y`. A min-side face (xmin, ymin, zmin) whose interfaces are owned by the
+// neighbours is numbered over all its pieces too (DevLog-036 G2): exterior remainder first (`<box>.<dir>#1` when it
+// exists), then the interface pieces in neighbour box order, which list `bnd:<box>.<dir>#k` in `parent`; so
+// `<box>.<dir>` still selects every piece and, with an exterior remainder, `<box>.<dir>#1` selects it alone. A face
+// with a single piece keeps its plain id.
 
 import type { EntityRef, Mesh } from '@amp/geom';
 import { buildGrid, type GridPart } from './grid/index.mjs';
@@ -118,6 +122,22 @@ export function meshBoxes(boxes: Box3[], o: BoxGridOptions): Mesh {
   const perPD = new Map<string, number>();
   for (const gr of list) if (gr.nb !== -2) perPD.set(`${gr.p},${gr.d}`, (perPD.get(`${gr.p},${gr.d}`) ?? 0) + 1);
   const seenPD = new Map<string, number>();
+  // min-side faces (even dir) split into an exterior remainder and interfaces owned by neighbours: piece numbers
+  const minPieces = new Map<string, Array<{ p: number; d: number; nb: number; faces: number[] }>>();
+  for (const gr of list) {
+    if (gr.nb === -2) continue;
+    const key = gr.nb === -1 && gr.d % 2 === 0 ? `${gr.p},${gr.d}` : gr.nb >= 0 && gr.d % 2 === 1 ? `${gr.nb},${OPP[gr.d]!}` : null;
+    if (!key) continue;
+    const l = minPieces.get(key);
+    if (l) l.push(gr); else minPieces.set(key, [gr]);
+  }
+  const minK = new Map<object, string>();
+  for (const [key, l] of minPieces) {
+    if (l.length < 2) continue;
+    const [p, d] = key.split(',').map(Number) as [number, number];
+    l.sort((a, b) => (a.nb === -1 ? -1 : a.p) - (b.nb === -1 ? -1 : b.p));
+    l.forEach((gr, i) => minK.set(gr, `${boxes[p]!.id}.${DIRS[d]}#${i + 1}`));
+  }
   const boundaries: EntityRef[] = [];
   const fconn: number[] = [], fb: number[] = [];
   for (const gr of list) {
@@ -127,10 +147,11 @@ export function meshBoxes(boxes: Box3[], o: BoxGridOptions): Mesh {
       const pd = `${gr.p},${gr.d}`, cnt = perPD.get(pd)!, k = (seenPD.get(pd) ?? 0) + 1;
       seenPD.set(pd, k);
       const base = `${boxes[gr.p]!.id}.${DIRS[gr.d]}`;
-      ref = { id: `bnd:${cnt > 1 ? `${base}#${k}` : base}` };
+      const ext = gr.nb === -1 ? minK.get(gr) : undefined;
+      ref = { id: `bnd:${ext ?? (cnt > 1 ? `${base}#${k}` : base)}` };
       const par: string[] = [];
-      if (cnt > 1) par.push(`bnd:${base}`);
-      if (gr.nb >= 0) par.push(`bnd:${boxes[gr.nb]!.id}.${DIRS[OPP[gr.d]!]}`);
+      if (cnt > 1 || ext) par.push(`bnd:${base}`);
+      if (gr.nb >= 0) par.push(`bnd:${minK.get(gr) ?? `${boxes[gr.nb]!.id}.${DIRS[OPP[gr.d]!]}`}`);
       if (par.length) ref.parent = par;
     }
     const bi = boundaries.length;

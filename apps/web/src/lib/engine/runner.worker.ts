@@ -1,20 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Engine runner Web Worker (C6, DevLog-011 s.1.6): spec text -> parse/validate (@amp/spec) -> geometry + mesh
-// (@amp/geom, @amp/mesh; @amp/physics prepareRun when exported) -> physics module run (@amp/physics) -> result.
-// Without a registered module the run ends with `unavailable` and its reasons; nothing is computed in its place.
+// (@amp/geom, @amp/mesh; @amp/physics prepareRun when exported) -> every physics of the first study through the
+// @amp/physics study driver `runStudy` (C11: couplings, merged solution with physics tags; DevLog-031), or the single
+// module run when the driver is not exported. Without a registered module or coupling implementation the run ends
+// with `unavailable` and its reasons; nothing is computed in its place.
 /// <reference lib="webworker" />
 import { formatIssues, parseSpecText } from '@amp/spec';
-import type { Mesh, PhysicsModule, RunContext, Solution } from '@amp/spec/types';
+import type { Mesh, PhysicsModule, RunContext, Solution, Spec } from '@amp/spec/types';
 import { buildMesh } from './spec-adapter';
-import { preloadMaterials } from './materials-node-shim';
+import { preloadMaterials, defaultLibrary } from './materials-node-shim';
 import { meshFromSpec } from '@amp/mesh/spec';
 import { toMesh2D, triShapeQuality } from '../post/field2d';
 import { cellQuality } from '../post/solid3d';
-import { findModule, loadPhysics } from './physics';
+import { findModule, loadPhysics, type PhysicsExports } from './physics';
 import { appRegistry } from './registry';
 import { nowIso, type FromRunner, type RunOptions, type ToRunner } from './protocol';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
+
+/** @amp/physics study driver (C11), when exported. */
+interface StudyDriver {
+	runStudy?: (prep: RunContext, o?: { progress?: RunContext['progress']; signal?: AbortSignal }) => Promise<Solution>;
+	studyReadiness?: (spec: Spec, studyId?: string) => { ready: boolean; reasons: string[]; order: string[] };
+}
 const runs = new Map<string, AbortController>();
 
 const post = (m: FromRunner, transfer: Transferable[] = []) => ctx.postMessage(m, transfer);
@@ -40,15 +48,20 @@ async function run(id: string, specText: string, opts: RunOptions) {
 		progress('parse', 1, `${source}, ${tParse.toFixed(1)} ms`);
 		if (ac.signal.aborted) return;
 
-		// readiness of the first study's physics (C4) before any mesh at solve order is built
+		// readiness of every physics of the first study and of its couplings (C4, C11) before any mesh at solve order
 		const study = parsed.spec.studies?.[0];
 		const reasons: string[] = [];
 		const ready: Array<{ mod: PhysicsModule; pid: string }> = [];
-		for (const pid of (study as { physics?: string[] } | undefined)?.physics ?? []) {
+		const drv = phys as (PhysicsExports & StudyDriver) | null;
+		const sr = study && drv?.studyReadiness ? drv.studyReadiness(parsed.spec, study.id) : null;
+		const order: string[] = sr ? sr.order : ((study as { physics?: string[] } | undefined)?.physics ?? []);
+		if (sr) reasons.push(...sr.reasons);
+		for (const pid of order) {
 			const node = parsed.spec.physics?.find((p) => p.id === pid);
 			const mod = node ? findModule(phys, node.type) : null;
-			if (!node) reasons.push(`physics '${pid}' not in the spec`);
-			else if (!mod) reasons.push(`no @amp/physics module registered for type '${node.type}' (${pid})`);
+			if (!node) { if (!sr) reasons.push(`physics '${pid}' not in the spec`); }
+			else if (!mod) { if (!sr) reasons.push(`no @amp/physics module registered for type '${node.type}' (${pid})`); }
+			else if (sr) ready.push({ mod, pid });
 			else {
 				const r = mod.readiness(parsed.spec, pid);
 				if (!r.ready) reasons.push(...r.reasons.map((x) => `${pid}: ${x}`));
@@ -68,7 +81,9 @@ async function run(id: string, specText: string, opts: RunOptions) {
 		const tm = performance.now();
 		if (solve) {
 			await preloadMaterials();
-			prep = await phys!.prepareRun!({ spec: parsed.data as Record<string, unknown>, physicsId: ready[0]!.pid, hFactor: opts.meshScale ?? 1, signal: ac.signal, ...(opts.case ? { case: opts.case } : {}) });
+			// prepareRun's own default library is Node-only (null in a worker): pass the preloaded browser library so
+			// `ref: materials/<id>` properties resolve (found 2026-11-07, DevLog-030 / DevLog-029)
+			prep = await phys!.prepareRun!({ spec: parsed.data as Record<string, unknown>, physicsId: ready[0]!.pid, studyId: study!.id, hFactor: opts.meshScale ?? 1, signal: ac.signal, library: defaultLibrary(), ...(opts.case ? { case: opts.case } : {}) });
 			mesh = prep.mesh;
 			meshSource = '@amp/physics prepareRun (solve order)';
 		} else {
@@ -97,11 +112,14 @@ async function run(id: string, specText: string, opts: RunOptions) {
 		const { mod, pid } = ready[0]!;
 		let sol;
 		try {
-			sol = await mod.run({ ...prep, physicsId: pid, progress, signal: ac.signal });
+			// all physics of the study in coupling order (one physics without couplings = the plain module run)
+			sol = drv?.runStudy
+				? await drv.runStudy({ ...prep, physicsId: pid, progress, signal: ac.signal }, { progress, signal: ac.signal })
+				: await mod.run({ ...prep, physicsId: pid, progress, signal: ac.signal });
 		} catch (e) {
 			// a module that cannot run with the inputs it was given (e.g. a material value that is N/A) has no result
 			if (ac.signal.aborted) return;
-			post({ type: 'unavailable', id, reasons: [`${pid}: ${(e as Error).message}`, ...(prep.notes ?? [])], ts: nowIso() });
+			post({ type: 'unavailable', id, reasons: [`${ready.length > 1 ? 'study' : pid}: ${(e as Error).message}`, ...(prep.notes ?? [])], ts: nowIso() });
 			return;
 		}
 		if (ac.signal.aborted) return;

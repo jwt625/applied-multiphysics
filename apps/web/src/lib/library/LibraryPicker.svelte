@@ -28,7 +28,7 @@
 		open?: boolean;
 	} = $props();
 
-	const SHORT: Record<Category, string> = { heat: 'Heat', structural: 'Structural', 'em-static': 'EM static', rf: 'RF', optics: 'Optics', acoustics: 'Acoustics', 'fluids-rt': 'Fluids / RT', coupled: 'Coupled' };
+	const SHORT: Record<Category, string> = { multiphysics: 'Multiphysics', heat: 'Heat', structural: 'Structural', 'em-static': 'EM static', rf: 'RF', optics: 'Optics', acoustics: 'Acoustics', 'fluids-rt': 'Fluids / RT' };
 	const DIMS: Dim[] = ['2D', 'axisym', '3D'];
 	const CLASSES: EvalClass[] = ['a', 'b', 'c'];
 	const STATUS_TIP: Record<RefStatus, string> = {

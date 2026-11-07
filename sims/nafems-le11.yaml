@@ -1,0 +1,107 @@
+# CP-02 (eval/cases/a/CP-02.yaml): NAFEMS LE11, solid cylinder / taper / sphere under a temperature field, as an
+# axisymmetric heat -> elastic chain (lane MX, DevLog-035). Meridian points from FeenoX examples/nafems-le11.geo via
+# advanced-packaging-atlas validation/cases/B/nafems-LE11.yaml (at fe39985). E 210 GPa, nu 0.3, alpha 2.3e-4 /C; temperature
+# T = r + z (C, r and z in m), stress-free at 0 C (assumed in CP-02). Uz = 0 on z = 0 and on the top face.
+# The heat physics reproduces T = r + z exactly: T = r + z on every boundary and the volume source Q = -k lap(T) = -k / r
+# (axisymmetric Laplacian of r is 1/r; of z is 0), so T = r + z solves -div(k grad T) = Q. Target sigma_zz(A = (1, 0)) =
+# -105 MPa (CP-02). Rights: NAFEMS values cited via public vendor / open-source pages (cite_values, re_derive_setup).
+schema: amp-spec/0
+id: nafems-le11
+title: NAFEMS LE11 thermal stress (axisym)
+description: Axisymmetric cylinder / taper / sphere; a heat solve reproduces T = r + z and drives the thermal stress; sigma_zz at A.
+params:
+  k_h: {value: 1, unit: W/(m*K), description: "conductivity of the auxiliary heat solve (does not change T, see header)"}
+  z4: {value: "1[m]/sqrt(2)", description: "r and z of P4 (inner sphere r 1.0 at 45 deg), exact"}
+  r5: {value: "sqrt(1.96 - 0.5)*1[m]", description: "r of P5 (outer sphere r 1.4 at z = z4), exact"}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: c_out, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "1.4 m"}}
+    - {id: zbox, type: rect, settings: {size: ["1.5 m", z4], center: ["0.75 m", "z4/2"]}}
+    - {id: band, type: intersection, settings: {inputs: [c_out, zbox]}}
+    - {id: c_in, type: circle, settings: {center: {value: [0, 0], unit: m}, radius: "1.0 m"}}
+    - {id: sph, type: difference, settings: {base: band, tools: [c_in]}}
+    - id: upper
+      type: polygon
+      settings:
+        points:
+          - [z4, z4]
+          - [r5, z4]
+          - ["1.0 m", "z4 + 0.69[m]"]
+          - ["1.0 m", "z4 + 1.09[m]"]
+          - [z4, "z4 + 1.09[m]"]
+    - {id: body, type: union, settings: {inputs: [sph, upper]}}
+materials:
+  - {id: steel, override: {E: {value: 210, unit: GPa}, nu: 0.3, alpha: {value: 2.3e-4, unit: 1/K}, k: "k_h"}, select: ["dom:body"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:body"]
+    bcs:
+      - {id: T_field, type: temperature, select: ["bnd:zbox.bottom", "bnd:c_out.edge", "bnd:c_in.edge", "bnd:upper.e1", "bnd:upper.e2", "bnd:upper.e3", "bnd:upper.e4"], settings: {T: "273.15[K] + (r + z)*1[K/m]"}}
+      - {id: src, type: heat-source, select: ["dom:body"], settings: {Q: "-k_h*1[K/m]/r"}}
+  - id: solid
+    type: elastic
+    select: ["dom:body"]
+    settings: {model: axisym}
+    bcs:
+      - {id: base, type: roller, select: ["bnd:zbox.bottom"]}
+      - {id: top, type: roller, select: ["bnd:upper.e3"]}
+      - {id: open, type: free, select: ["bnd:c_out.edge", "bnd:c_in.edge", "bnd:upper.e1", "bnd:upper.e2", "bnd:upper.e4"]}
+couplings:
+  - {id: th2sm, type: thermal-expansion, from: ht, to: solid, settings: {Tref: "0 degC"}}
+mesh:
+  size: {hmax: "0.05 m"}
+  refine:
+    - {select: ["bnd:zbox.bottom"], h: "0.02 m"}
+studies:
+  - {id: std1, type: stationary, physics: [ht, solid]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: A_pt, type: cutpoint, data: sol_std1, points: [["1.0 m", "0 m"]]}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: szz_A, type: point, data: A_pt, expr: solid.szz, unit: MPa}
+        - {id: T_A, type: point, data: A_pt, expr: ht.T, unit: degC}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: T_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: T_map_surf, type: surface, expr: ht.T, unit: degC}
+    - id: szz_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: szz_surf, type: surface, expr: solid.szz, unit: MPa}
+provenance:
+  values:
+    geometry.features.1.settings.size: {basis: benchmark, source: "FeenoX nafems-le11.geo via advanced-packaging-atlas validation/cases/B/nafems-LE11.yaml profile_points_xz_m (sphere part below z = z4 = 1/sqrt(2) m, atlas 0.70711); x extent 1.5 m is a construction size > 1.4 m", date: 2026-11-07}
+    geometry.features.0.settings.radius: {basis: benchmark, source: "atlas nafems-LE11.yaml: outer sphere r 1.4 (B = (1.4, 0))", date: 2026-11-07}
+    geometry.features.3.settings.radius: {basis: benchmark, source: "atlas nafems-LE11.yaml: inner sphere r 1.0 (A = (1.0, 0))", date: 2026-11-07}
+    geometry.features.5.settings.points: {basis: benchmark, source: "atlas nafems-LE11.yaml points P4 (0.70711, 0.70711), P5 (1.20830, 0.70711), P7 (1.0, 1.39711), I (1.0, 1.79711), H (0.70711, 1.79711), heights 0.345 + 0.345 + 0.400 above z = 0.70711; written exactly as P4 = (z4, z4), P5 = (r5, z4), P7 z = z4 + 0.69, I and H z = z4 + 1.09 so P4 and P5 lie on the sphere arcs (rounded values left 2.7e-6 m sliver edges); P6 (z4, z4 + 0.69) lies on the straight inner edge H-P4 and is omitted", date: 2026-11-07}
+    params.z4: {basis: derived, source: "P4 on the inner sphere r 1.0 at 45 deg: r = z = 1/sqrt(2) m (atlas nafems-LE11.yaml P4 0.70711)", date: 2026-11-07}
+    params.r5: {basis: derived, source: "P5 on the outer sphere r 1.4 at z = z4: r = sqrt(1.4^2 - 0.5) m = 1.20830 m (atlas nafems-LE11.yaml P5)", date: 2026-11-07}
+    materials.steel.override.E: {basis: benchmark, source: "eval/cases/a/CP-02.yaml materials.steel.E 2.1e11 Pa (NAFEMS LE11 via Altair OS-V 0070 / FeenoX)", date: 2026-11-07}
+    materials.steel.override.nu: {basis: benchmark, source: "eval/cases/a/CP-02.yaml materials.steel.nu 0.3", date: 2026-11-07}
+    materials.steel.override.alpha: {basis: benchmark, source: "eval/cases/a/CP-02.yaml materials.steel.alpha 2.3e-4", date: 2026-11-07}
+    physics.ht.bcs.T_field.settings.T: {basis: benchmark, source: "eval/cases/a/CP-02.yaml bcs[4] temperature_load sqrt(x^2 + y^2) + z degC = r + z in the meridian plane", date: 2026-11-07}
+    physics.ht.bcs.src.settings.Q: {basis: derived, source: "Q = -k lap(r + z) = -k / r (axisymmetric Laplacian), so the heat solve returns T = r + z", date: 2026-11-07}
+    params.k_h: {basis: user, date: 2026-11-07, note: "modelling choice: T = r + z holds for any k because Q scales with k"}
+    couplings.th2sm.settings.Tref: {basis: user, source: "eval/cases/a/CP-02.yaml missing", date: 2026-11-07, note: "assumption: reference temperature not stated on the public pages; 0 C assumed as in CP-02 and the atlas case"}
+    results.datasets.A_pt.points.0: {basis: benchmark, source: "eval/cases/a/CP-02.yaml references[0] point A = (1.0, 0, 0) m", date: 2026-11-07}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice, to be set by the convergence study"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-07, note: "modelling choice: refinement near A"}
+assumptions:
+  - {text: "Temperature field sqrt(x^2 + y^2) + z (FeenoX, Altair 2023, CAST3M; CP-02 assumptions); in the axisymmetric meridian this is r + z", paths: [physics.ht.bcs.T_field]}
+  - {text: "The quarter 3D model of the benchmark is the same body of revolution; its symmetry planes are implied by axisymmetry", paths: [geometry]}
+  - {text: "Boundary names follow @amp/geom (circle edge, polygon e0..e4 with e0 = P4-P5, interior after the union; e3 = top face I-H)", paths: [geometry.features]}
+missing:
+  - {what: "reference temperature (stress-free state) not stated on the public pages; 0 C assumed (CP-02)", needed_for: [solution]}
+# eval: [CP-02]

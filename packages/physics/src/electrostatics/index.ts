@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Electrostatics (C4 type 'electrostatics'), 2D (per unit length) and 2D axisymmetric (full 3D body of revolution):
+// Electrostatics (C4 type 'electrostatics'), 2D (per unit length), 2D axisymmetric (full 3D body of revolution) and 3D:
 //   -div(eps0 eps_r grad V) = rho_v,  V fixed on potential / ground boundaries, zero normal D elsewhere (natural).
 // Terminals: boundaries of conductors; the Maxwell capacitance matrix C_ij = int eps grad V_i . grad V_j dV with
 // V_i = 1 on terminal i and 0 on the others and on ground (energy form, symmetric by construction); dV = 2 pi r dr dz
-// in axisymmetry, per unit length in 2D. For a 2D two-conductor line, C'_0 (all eps_r = 1) gives the TEM
+// in axisymmetry, per unit length in 2D (F/m); F in axisymmetry and 3D. For a 2D two-conductor line, C'_0 (all eps_r = 1) gives the TEM
 // L' = mu0 eps0 / C'_0 and Z0 = sqrt(L' / C').
+// Anisotropic permittivity (2D planar; DevLog-036 R3): uniaxial eps_r.perp / eps_r.par with a crystal orientation,
+// in-plane tensor per cell (aniso.ts); C_ij = int grad V_i . eps grad V_j dA. Without anisotropic materials the
+// scalar path is unchanged.
 
 import type { Mesh, PhysicsModule, RunContext, Solution, Spec } from '@amp/spec/types';
 import { facetNodes, facetsOn, nCells, nNodes, cellMask } from '../common/mesh.ts';
@@ -13,6 +16,7 @@ import { makeSolution, StageTimer, scalar } from '../common/solution.ts';
 import { attachMesh } from '../common/solution.ts';
 import { bcsOf, cellProps, physicsNode } from '../common/ctx.ts';
 import { compileField, spaceOf } from '../common/field.ts';
+import { assembleTensor2D, cellPermittivity } from './aniso.ts';
 
 /** Vacuum permittivity, F/m (CODATA 2018). */
 export const EPS0 = 8.8541878128e-12;
@@ -22,6 +26,8 @@ export const MU0 = 1.25663706212e-6;
 export interface ElectrostaticsProblem {
   mesh: Mesh;
   epsR: Float64Array;           // per cell (NaN = not in the domain)
+  /** relative in-plane tensor per cell [xx, xy, yy] (2D planar); when given it replaces epsR in the assembly */
+  epsTensor?: Float64Array;
   mask?: Uint8Array;
   /** terminal boundary selections, in matrix order */
   terminals: Array<{ id: string; select: string[] }>;
@@ -37,9 +43,12 @@ export interface ElectrostaticsProblem {
 export async function solveElectrostatics(p: ElectrostaticsProblem): Promise<Solution & { C: Float64Array; C0?: Float64Array }> {
   const timer = new StageTimer();
   const m = p.mesh, n = nNodes(m), axi = !!m.axisym;
-  const mask = p.mask ?? Uint8Array.from(p.epsR, (v) => (Number.isFinite(v) ? 1 : 0));
-  const eps = Float64Array.from(p.epsR, (v, c) => (mask[c] ? EPS0 * v : 0));
-  const A = timer.time('assemble', () => assembleCells(m, { k: eps, mask, weight: axi ? 'r' : 'none' }));
+  const T = p.epsTensor;
+  if (T && (axi || m.dim !== 2)) throw new Error('electrostatics: a permittivity tensor is supported in 2D (planar) only');
+  const mask = p.mask ?? (T ? Uint8Array.from({ length: T.length / 3 }, (_, c) => (Number.isFinite(T[3 * c]!) ? 1 : 0)) : Uint8Array.from(p.epsR, (v) => (Number.isFinite(v) ? 1 : 0)));
+  const A = T
+    ? timer.time('assemble', () => assembleTensor2D(m, Float64Array.from(T, (v, i) => (mask[(i / 3) | 0] ? EPS0 * v : 0)), mask))
+    : timer.time('assemble', () => assembleCells(m, { k: Float64Array.from(p.epsR, (v, c) => (mask[c] ? EPS0 * v : 0)), mask, weight: axi ? 'r' : 'none' }));
   const fac = axi ? 2 * Math.PI : 1;
   const termNodes = p.terminals.map((t) => facetNodes(m, facetsOn(m, t.select)));
   const fixed = new Uint8Array(n);
@@ -85,7 +94,8 @@ export async function solveElectrostatics(p: ElectrostaticsProblem): Promise<Sol
   timer.add('post', performance.now() - t0);
   let C0: Float64Array | undefined;
   const scalars: Solution['scalars'] = {};
-  const unit = axi ? 'F' : 'F/m';
+  // capacitance of a body: F (axisymmetric, 3D); per unit length: F/m (2D planar)
+  const unit = axi || m.dim === 3 ? 'F' : 'F/m';
   for (let i = 0; i < nt; i++) for (let j = 0; j < nt; j++) scalars[`C_${p.terminals[i]!.id}_${p.terminals[j]!.id}`] = scalar(C[i * nt + j]!, unit);
   if (p.vacuum) {
     const A0 = timer.time('assemble', () => assembleCells(m, { k: Float64Array.from(mask, (v) => (v ? EPS0 : 0)), mask, weight: axi ? 'r' : 'none' }));
@@ -114,7 +124,8 @@ export async function solveElectrostatics(p: ElectrostaticsProblem): Promise<Sol
 
 export function electrostaticsProblemFromContext(ctx: RunContext): ElectrostaticsProblem {
   const spec = ctx.spec as Spec;
-  const { mask, values } = cellProps(ctx, ['eps_r']);
+  const an = cellPermittivity(ctx);
+  const { mask, values } = an ? { mask: an.mask, values: { eps_r: an.epsR } } : cellProps(ctx, ['eps_r']);
   const terminals: ElectrostaticsProblem['terminals'] = [], ground: string[] = [], potentials: NonNullable<ElectrostaticsProblem['potentials']> = [];
   let rho = false;
   for (const b of bcsOf(spec, ctx.physicsId)) {
@@ -127,12 +138,12 @@ export function electrostaticsProblemFromContext(ctx: RunContext): Electrostatic
   }
   if (rho) throw new Error('electrostatics: space charge is not implemented in wave 1');
   void cellMask;
-  return { mesh: ctx.mesh, epsR: values.eps_r!, mask, terminals, ground, potentials, vacuum: ctx.mesh.dim === 2 && !ctx.mesh.axisym && terminals.length === 1, spec };
+  return { mesh: ctx.mesh, epsR: values.eps_r!, ...(an ? { epsTensor: an.tensor! } : {}), mask, terminals, ground, potentials, vacuum: ctx.mesh.dim === 2 && !ctx.mesh.axisym && terminals.length === 1, spec };
 }
 
 export const electrostaticsModule: PhysicsModule = {
   type: 'electrostatics',
-  dims: ['2d', '2d-axisym'],
+  dims: ['2d', '2d-axisym', '3d'],
   readiness(spec, physicsId) {
     const reasons: string[] = [];
     try {

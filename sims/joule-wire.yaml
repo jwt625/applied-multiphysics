@@ -1,0 +1,85 @@
+# CP-03 (eval/cases/c/CP-03.yaml) as a Joule chain (lane MX, DevLog-035): currents -> heat, axisymmetric. Same wire as
+# sims/heated-wire.yaml (Rohsenow-Choi 1963 ex. 6.5 via Ansys VM58; SI values from CP-03), but the volume heat comes from
+# a DC current along the wire: a potential difference V0 over the modelled length gives E_z = V0 / Lz and Q = sigma E_z^2.
+# CP-03 fixes only q''' = 1.152 MW/m^3, not the conductivity, so sigma is a modelling choice and V0 follows from it:
+# V0 = sqrt(q_gen / sigma) Lz (validation/mp/references.py joule_wire). Closed form (eval/expected/CP-03.json): T_center
+# 488.6719 K, T_surface 487.5106 K. Rights: Ansys VM page cite_values + re_derive_setup only.
+schema: amp-spec/0
+id: joule-wire
+title: Joule-heated wire (currents -> heat)
+description: DC current along a wire heats it; convection at the surface; centre and surface temperature against the CP-03 closed form.
+params:
+  r0: {value: 0.009525, unit: m, description: wire radius}
+  Lz: {value: 0.3048, unit: m, description: modelled length (1 ft)}
+  h: {value: 28.391316688883375, unit: W/(m^2*K), description: film coefficient}
+  T_inf: {value: 294.26111111111106, unit: K, description: air temperature}
+  q_gen: {value: 1152043.498788998, unit: W/m^3, description: volumetric heat generation to reproduce}
+  sigma_w: {value: 1.0e6, unit: S/m, description: "wire conductivity (modelling choice; CP-03 fixes q''' only)"}
+  V0: {value: "sqrt(q_gen/sigma_w)*Lz", description: voltage over the modelled length}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: wire, type: rect, settings: {size: ["r0", "Lz"], center: ["r0/2", "Lz/2"]}}
+materials:
+  - {id: wire_mat, override: {k: {value: 22.4995506496063, unit: W/(m*K)}, sigma: "sigma_w"}, select: ["dom:wire"]}
+physics:
+  - id: ec
+    type: currents
+    select: ["dom:wire"]
+    bcs:
+      - {id: gnd, type: ground, select: ["bnd:wire.bottom"]}
+      - {id: drive, type: potential, select: ["bnd:wire.top"], settings: {V: "V0"}}
+      - {id: skin, type: insulation, select: ["bnd:wire.right"]}
+  - id: ht
+    type: heat
+    select: ["dom:wire"]
+    bcs:
+      - {id: film, type: convection, select: ["bnd:wire.right"], settings: {h: "h", T_ext: "T_inf"}}
+      - {id: ends, type: insulation, select: ["bnd:wire.top", "bnd:wire.bottom"]}
+couplings:
+  - {id: jh, type: joule-heating, from: ec, to: ht}
+mesh:
+  size: {hmax: "r0/4"}
+studies:
+  - {id: std1, type: stationary, physics: [ec, ht]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: T_center, type: global, expr: ht.T_max, unit: K}
+        - {id: T_surface, type: global, expr: ht.T_min, unit: K}
+        - {id: P_joule, type: global, expr: ec.P, unit: W}
+        - {id: Q_mean, type: average, expr: ec.Q, unit: W/m^3, over: ["dom:wire"]}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_map_surf, type: surface, expr: ec.V, unit: V}
+    - id: T_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: T_map_surf, type: surface, expr: ht.T, unit: K}
+provenance:
+  values:
+    params.r0: {basis: benchmark, source: "eval/cases/c/CP-03.yaml geometry.spec.r0_m (VM58 via gen_suites.py)", date: 2026-11-07}
+    params.Lz: {basis: benchmark, source: "eval/cases/c/CP-03.yaml geometry.spec.length_m", date: 2026-11-07}
+    params.h: {basis: benchmark, source: "eval/cases/c/CP-03.yaml bcs[0].params.h_W_per_m2K (5 Btu/hr-ft2-F)", date: 2026-11-07}
+    params.T_inf: {basis: benchmark, source: "eval/cases/c/CP-03.yaml bcs[0].params.T_inf_K", date: 2026-11-07}
+    params.q_gen: {basis: benchmark, source: "eval/cases/c/CP-03.yaml bcs[1].params.q_W_per_m3", date: 2026-11-07}
+    params.sigma_w: {basis: user, date: 2026-11-07, note: "modelling choice: CP-03 gives the heat generation, not the conductivity; the temperatures depend on sigma E^2 only"}
+    params.V0: {basis: derived, source: "V0 = sqrt(q_gen / sigma_w) Lz so that sigma E_z^2 = q_gen (validation/mp/references.py joule_wire: 0.32715 V)", date: 2026-11-07}
+    materials.wire_mat.override.k: {basis: benchmark, source: "eval/cases/c/CP-03.yaml materials.wire.k_W_per_mK (13 Btu/hr-ft-F)", date: 2026-11-07}
+    materials.wire_mat.override.sigma: {basis: user, date: 2026-11-07, note: "= params.sigma_w (modelling choice)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice"}
+assumptions:
+  - {text: "Long wire: insulated ends and a uniform axial field make the heat source uniform and the temperature purely radial (T_max = T(r = 0), T_min = T(r0))", paths: [physics.ht.bcs.ends, physics.ec]}
+  - {text: "sigma independent of temperature (the closed form assumes a uniform q''')", paths: [materials.wire_mat]}
+# eval: [CP-03]

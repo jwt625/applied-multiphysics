@@ -276,13 +276,26 @@ export async function solveHeat(p: HeatProblem): Promise<Solution & { detail: He
   const t0 = performance.now();
   let Tmax = -Infinity, Tmin = Infinity;
   for (let i = 0; i < n; i++) if (S.active[i]) { Tmax = Math.max(Tmax, T[i]!); Tmin = Math.min(Tmin, T[i]!); }
+  // Q_total (DevLog-031 R5): integral of the volume heat sources (per-cell Q incl. coupled Joule heat, heat-source
+  // conditions; at the last solved time) over the heat domain; boundary fluxes are not included. W/m per unit depth in
+  // 2D, W in axisymmetry (2 pi r) and 3D. Present only when the problem has a volume source.
+  let Qtot: number | undefined;
+  if (p.Q || p.sources?.length) {
+    const mask = p.mask ?? Uint8Array.from(p.k, (v) => (Number.isFinite(v) ? 1 : 0));
+    const w = m.axisym ? 'r' as const : 'none' as const, tEnd = p.transient ? p.transient.t1 : 0;
+    const sum = (F?: Float64Array) => { let x = 0; if (F) for (let i = 0; i < F.length; i++) x += F[i]!; return x; };
+    Qtot = 0;
+    if (p.Q) Qtot += sum(assembleCells(m, { mask, weight: w, f: Float64Array.from(p.Q, (v, c) => (mask[c] && Number.isFinite(v) ? v : 0)) }).F);
+    for (const src of p.sources ?? []) Qtot += sum(assembleCells(m, { mask: Uint8Array.from(src.mask, (v, c) => (v && mask[c] ? 1 : 0)), weight: w, fFn: (x) => evalField(src.Q, x, tEnd) }).F);
+    if (m.axisym) Qtot *= 2 * Math.PI;
+  }
   timer.add('post', performance.now() - t0);
   let nActive = 0; for (let i = 0; i < n; i++) nActive += S.active[i]!;
   const dof = nActive - S.fixedNodes.length;
   const sol = await makeSolution({
     mesh: m, ...(p.spec !== undefined ? { spec: p.spec } : { problemDigest: { physics: 'heat', bcs: p.bcs.map((b) => b.type), n } }),
     fields, ...(times ? { steps: { kind: 'time' as const, values: times, unit: 's' } } : {}),
-    scalars: { T_max: scalar(Tmax, 'K'), T_min: scalar(Tmin, 'K') },
+    scalars: { T_max: scalar(Tmax, 'K'), T_min: scalar(Tmin, 'K'), ...(Qtot !== undefined ? { Q_total: scalar(Qtot, m.dim === 2 && !m.axisym ? 'W/m' : 'W') } : {}) },
     stats: { dof, nnz: S.pat.nnz, iterations: newton.reduce((s, v) => s + v, 0), solver: `${kind}${S.rad.length ? '+newton' : ''}${p.transient ? `+${method}` : ''}` },
     timer,
   });
@@ -316,6 +329,17 @@ export function heatProblemFromContext(ctx: RunContext): HeatProblem {
   }
   const p: HeatProblem = { mesh: m, k, mask, bcs, spec, signal: ctx.signal };
   if (sources.length) p.sources = sources.map((sc) => ({ mask: sc.cm, Q: sc.Q }));
+  // coupled inputs (C11): Joule heat per cell from a currents physics, summed into the per-cell source Q
+  const joule = (ctx.inputs ?? []).filter((i) => i.kind === 'joule-heating');
+  if (joule.length) {
+    const Q = new Float64Array(nc);
+    for (const i of joule) {
+      const q = i.data.Q as Float64Array;
+      if (!(q instanceof Float64Array) || q.length !== nc) throw new Error(`heat: coupled input '${i.coupling}' Q is not per cell`);
+      for (let c = 0; c < nc; c++) Q[c]! += q[c]!;
+    }
+    p.Q = Q;
+  }
   if (transient) {
     const st = (ctx.study.settings ?? {}) as { start?: unknown; stop?: unknown; dt?: unknown; step?: unknown; method?: string; output?: unknown[] };
     const ph = physicsNode(spec, ctx.physicsId) as { settings?: { T0?: unknown } };

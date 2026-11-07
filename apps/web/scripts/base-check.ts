@@ -72,7 +72,7 @@ const get = async (p: string) => { const r = await fetch(origin + p, { redirect:
 const shell = await chromium.launch({ executablePath: SHELL, headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ctx = await shell.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, serviceWorkers: 'allow' });
 const views: Array<{ path: string; hook: '__ampWorkbench' | '__ampPlay'; tag: string }> = [
-	{ path: `${BASE}/`, hook: '__ampWorkbench', tag: 'workbench' },
+	{ path: `${BASE}/workbench`, hook: '__ampWorkbench', tag: 'workbench' },
 	{ path: `${BASE}/play/kirsch-plate`, hook: '__ampPlay', tag: 'kirsch-plate' },
 	{ path: `${BASE}/play/heat-plate-fin`, hook: '__ampPlay', tag: 'heat-plate-fin' }
 ];

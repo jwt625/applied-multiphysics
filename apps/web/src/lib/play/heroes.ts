@@ -54,7 +54,16 @@ export const FOCUS: Record<string, (p: P) => [number, number, number, number]> =
 	// the whole plate (re-framed after Lx / Ly change)
 	'heat-plate-fin': (p) => { const x = si(p, 'Lx'), y = si(p, 'Ly'); return [-0.04 * x, -0.04 * y, 1.04 * x, 1.04 * y]; },
 	// the rib and the guided field around it
-	'si-rib-waveguide': (p) => { const w = si(p, 'w_rib'), H = si(p, 'H'), W = si(p, 'W_win'); const hw = Math.min(W / 2, 1.15 * w); return [-hw, -Math.min(si(p, 'D_sub'), 1.2 * H), hw, Math.min(si(p, 'H_cov'), 1.8 * H)]; }
+	'si-rib-waveguide': (p) => { const w = si(p, 'w_rib'), H = si(p, 'H'), W = si(p, 'W_win'); const hw = Math.min(W / 2, 1.15 * w); return [-hw, -Math.min(si(p, 'D_sub'), 1.2 * H), hw, Math.min(si(p, 'H_cov'), 1.8 * H)]; },
+	// core, cladding and heater (lane LP, DevLog-030): 1.5 heater widths each side; from (t_wg + t_c) below the core to
+	// one heater thickness above the heater
+	'si-microheater-to': (p) => { const wh = si(p, 'w_h'), up = si(p, 't_wg') + si(p, 't_c'); return [-1.5 * wh, -up, 1.5 * wh, up + 2 * si(p, 't_h')]; },
+	// the rib in the electrode gap (lane LP, DevLog-030): the gap g wide (electrode edges at x = +-g/2), from mid box to
+	// two electrode thicknesses above the slab
+	'tfln-mzm-eo': (p) => { const g = si(p, 'g'); return [-g / 2, -si(p, 't_box') / 2, g / 2, si(p, 't_film') - si(p, 'h_rib') + 2 * si(p, 't_el')]; },
+	// LN film and both electrodes (lane LP, DevLog-030): out to the electrode outer edges, from one film thickness below
+	// the film to one electrode thickness above the electrodes
+	'ln-fbar-2d': (p) => { const x = si(p, 'w_gap') / 2 + si(p, 'w_metal'), t = si(p, 't_LN'); return [-x, -2 * t, x, si(p, 'g_metal') + 2 * si(p, 't_metal')]; }
 };
 
 /**

@@ -36,7 +36,7 @@ speed:
   reference_timings: []
   note: "budget set after the first timing run (R3 O3)"
 dataset: null
-spec: {status: pending, ref: sims/CP-43.yaml, reason: "atlas config not yet ported to amp-spec/0 (C8); EO chain port is a later lane"}
+spec: {status: pending, ref: sims/tfln-mzm-eo.yaml, reason: "atlas config not yet ported to amp-spec/0 (C8); EO chain port is a later lane"}
 rights:
   source_license: "Optics Express open access (Optica OA licence); atlas sims/ and data/ carry no licence file (only eo-modulator-atlas engine/ is GPL-3.0); same owner, internal use"
   allowed: [cite_values, re_derive_setup]

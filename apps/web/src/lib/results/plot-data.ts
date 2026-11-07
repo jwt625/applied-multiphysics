@@ -251,13 +251,15 @@ export async function overlay2d(rc: ResultsClient, spec: unknown, g: PlotGroup, 
 }
 
 /** A field reference `<physics>.<field>[.<comp>]` of an expression: the field name and component index (-1: scalar). */
-export function fieldRef(expr: string | undefined, fields: ReadonlyArray<{ name: string; components: number }>, physics: string[], axisym: boolean): { name: string; comp: number } | null {
+export function fieldRef(expr: string | undefined, fields: ReadonlyArray<{ name: string; components: number; physics?: string }>, physics: string[], axisym: boolean): { name: string; comp: number; physics?: string } | null {
 	const m = /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)(?:\.(x|y|z|r|phi))?$/.exec((expr ?? '').trim());
 	if (!m || !physics.includes(m[1]!)) return null;
-	const f = fields.find((x) => x.name === m[2]);
+	// merged multiphysics solutions (C11): a field tagged with another physics is not this one
+	const f = fields.find((x) => x.name === m[2] && (x.physics === undefined || x.physics === m[1]));
 	if (!f) return null;
-	if (!m[3]) return f.components === 1 ? { name: f.name, comp: -1 } : null;
+	const ph = f.physics !== undefined ? { physics: f.physics } : {};
+	if (!m[3]) return f.components === 1 ? { name: f.name, comp: -1, ...ph } : null;
 	const names = axisym ? (f.components === 3 ? ['r', 'phi', 'z'] : ['r', 'z']) : ['x', 'y', 'z'];
 	const c = names.indexOf(m[3]);
-	return c >= 0 && c < f.components ? { name: f.name, comp: c } : null;
+	return c >= 0 && c < f.components ? { name: f.name, comp: c, ...ph } : null;
 }

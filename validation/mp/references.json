@@ -1,0 +1,115 @@
+{
+ "bimetal-strip": {
+  "kappa_1_per_m": 0.039340405474568005,
+  "radius_m": 25.419158443764896,
+  "dw_centre_to_quarter_m": 4.4257956158889e-06,
+  "x_quarter_m": 0.015,
+  "sign": "a2 > a1 and dT > 0: the bottom (Al, higher alpha) layer lengthens more, the strip bends concave towards the top (Cu): ends move up relative to the centre (+y), so uy(L/4) - uy(0) > 0",
+  "inputs": {
+   "t1": 0.001,
+   "t2": 0.003,
+   "E1": 123500000000.0,
+   "E2": 68258097202.36677,
+   "alpha1": 1.657068574830686e-05,
+   "alpha2": 2.2642347668173694e-05,
+   "dT": 19.850000000000023,
+   "L": 0.06
+  }
+ },
+ "chip-warpage-2d": {
+  "nu_si_hill": 0.2230536341292338,
+  "kappa_1_per_m": 1.355533403931294,
+  "bow_over_interposer_length_m": 0.00016283345014724668,
+  "bow_over_substrate_length_m": 0.00030605402635636256,
+  "dT_K": -125.0,
+  "note": "eps(z) = eps0 + kappa z with z up, so kappa = -w'' > 0 = top fibres longer than the bottom: convex up (dome, centre higher than the ends); approximation: all layers full length"
+ },
+ "joule-wire": {
+  "E_z_V_per_m": 1.0733328928105195,
+  "V0_V": 0.32715186572864635,
+  "I_A": 305.92451494599925,
+  "T_center_K": 488.6719453208466,
+  "T_surface_K": 487.5105902777777
+ },
+ "si-microheater-to": {
+  "sigma_Ti_film_S_per_m": 461538.4615384615,
+  "rho_Ti_film_ohm_m": 2.166666666666667e-06,
+  "Q_at_P_pi_W_per_m3": 125925925925925.94,
+  "P_per_length_W_per_m": 18.88888888888889,
+  "dneff_for_pi_at_1550": 0.0017222222222222222
+ },
+ "ln-fbar-2d": {
+  "2d_plane_strain": [
+   {
+    "G_Pa": 90934100837.65546,
+    "v_m_per_s": 4432.683399143094,
+    "f1_Hz": 4432683399.143094
+   },
+   {
+    "G_Pa": 203000000000.0,
+    "v_m_per_s": 6622.947978872827,
+    "f1_Hz": 6622947978.872827
+   }
+  ],
+  "3d_unconstrained": [
+   {
+    "G_Pa": 78201265054.84221,
+    "v_m_per_s": 4110.6472901586485,
+    "f1_Hz": 4110647290.1586485,
+    "polarization_XYZ": [
+     -0.0,
+     -0.7532629769986586,
+     -0.6577194595594069
+    ]
+   },
+   {
+    "G_Pa": 107634890257.61378,
+    "v_m_per_s": 4822.584667301962,
+    "f1_Hz": 4822584667.301963,
+    "polarization_XYZ": [
+     0.0,
+     -0.6577194595594069,
+     0.7532629769986586
+    ]
+   },
+   {
+    "G_Pa": 203000000000.0,
+    "v_m_per_s": 6622.947978872827,
+    "f1_Hz": 6622947978.872827,
+    "polarization_XYZ": [
+     1.0,
+     0.0,
+     0.0
+    ]
+   }
+  ],
+  "inputs": {
+   "c11": 203000000000.0,
+   "c12": 53000000000.0,
+   "c13": 75000000000.0,
+   "c14": 9000000000.0,
+   "c33": 245000000000.0,
+   "c44": 60000000000.0,
+   "c66": 75000000000.0,
+   "e15": 3.7,
+   "e22": 2.5,
+   "e31": 0.2,
+   "e33": 1.3,
+   "eps11S_rel": 44.3,
+   "rho": 4628.0,
+   "t_LN": 5e-07
+  }
+ },
+ "membrane-air": {
+  "lambda01": 3.1962206165825418,
+  "lambda01_sq": 10.215826229867284,
+  "D_N_m": 4.682591352513229e-06,
+  "f01_plate_Hz": 197.45352587628872,
+  "air_column_length_m": 0.014987499999999999,
+  "f_cavity_Hz": [
+   11342.785654712261,
+   22685.571309424522,
+   34028.35696413678
+  ]
+ }
+}

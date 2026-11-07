@@ -5,7 +5,11 @@ import type { Mesh, Solution } from '@amp/spec/types';
 import { evaluateField } from './evaluate.ts';
 import { fieldOf, meshOf } from './store.ts';
 
-export interface SampleOptions { mesh?: Mesh; component?: number | 'norm'; step?: number; /** reference-coordinate tolerance for points on curved walls (e.g. 1e-3) */ snap?: number }
+export interface SampleOptions {
+  mesh?: Mesh; component?: number | 'norm'; step?: number; /** reference-coordinate tolerance for points on curved walls (e.g. 1e-3) */ snap?: number;
+  /** physics id of the field in a merged multiphysics solution (C11); `field` may also be written `<physics id>.<name>` */
+  physics?: string;
+}
 
 /**
  * L8 hook (CONTRACTS-v0 changelog; DevLog-009 request 4): values of `field` at points ([[x, y(, z)], ...] or flat),
@@ -13,7 +17,10 @@ export interface SampleOptions { mesh?: Mesh; component?: number | 'norm'; step?
  */
 export function sample(sol: Solution, field: string, points: ArrayLike<number> | number[][], o: SampleOptions = {}): Float64Array {
   const mesh = meshOf(sol, o.mesh);
-  const f = fieldOf(sol, field, o.step);
+  let name = field, physics = o.physics;
+  const dot = field.indexOf('.');
+  if (physics === undefined && dot > 0 && sol.fields.some((x) => x.physics === field.slice(0, dot))) { physics = field.slice(0, dot); name = field.slice(dot + 1); }
+  const f = fieldOf(sol, name, o.step, physics);
   const flat = Array.isArray(points) && Array.isArray(points[0]) ? Float64Array.from((points as number[][]).flat()) : (points as ArrayLike<number>);
   if (flat.length % mesh.dim) throw new Error(`sample: ${flat.length} coordinates is not a multiple of dim ${mesh.dim}`);
   const { values } = evaluateField(mesh, f, flat, o.snap ? { snap: o.snap } : {});

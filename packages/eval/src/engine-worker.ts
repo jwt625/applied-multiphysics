@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Worker entry for one engine case (audit B1): loads @amp/physics / @amp/spec / @amp/post from the repo root, runs
-// every mesh level through prepareRun + module.run, extracts the targets while each level's mesh is alive (audit B5),
+// every mesh level through prepareRun + runStudy (the @amp/physics study driver, C11; one physics = module.run) or module.run, extracts the targets while each level's mesh is alive (audit B5),
 // optionally times every level (warm-up + median of 5, audit S5) and posts one structured-clone result. The parent
 // enforces the wall-clock timeout (terminate) and the heap cap (resourceLimits).
 
@@ -16,7 +16,7 @@ import { importWorkspace } from './workspace.ts';
 import { timeRuns } from './speed.ts';
 import type { LevelTimingSummary } from './source.ts';
 
-interface Data { root: string; caseData: EvalCase; spec: Spec; physicsId: string; type: string; factors: number[]; levelIdx: number[]; speed: boolean; targets: WorkerTarget[]; timeoutMs: number }
+interface Data { root: string; caseData: EvalCase; spec: Spec; physicsId: string; type: string; factors: number[]; levelIdx: number[]; speed: boolean; targets: WorkerTarget[]; timeoutMs: number; studyId?: string }
 
 async function main(d: Data): Promise<WorkerResult> {
   const { registry } = await loadDefaultRegistry(d.root);
@@ -42,7 +42,7 @@ async function main(d: Data): Promise<WorkerResult> {
     if (!adapter) return adapterReason ? () => ({ error: `results adapter not loaded: ${adapterReason}` }) : undefined;
     const spec = (ctx.spec && typeof ctx.spec === 'object' && 'results' in ctx.spec ? ctx.spec : d.spec) as { params?: unknown; studies?: Array<{ id?: string; physics?: string[] }> };
     const resolve = (sr.rt as unknown as { resolveParams?: (p: unknown) => { scope: unknown } } | null)?.resolveParams;
-    const study = (spec.studies ?? []).find((st) => st.physics?.includes(d.physicsId))?.id;
+    const study = d.studyId ?? (spec.studies ?? []).find((st) => st.physics?.includes(d.physicsId))?.id;
     const run = { key: 'eval', solution: sol, mesh: ctx.mesh, params: resolve ? resolve(spec.params).scope : new Map(), studies: study ? [study] : [], label: '' };
     const ad = adapter;
     return (node, o) => ad.evalItemValue(spec, node, run, o);
@@ -51,9 +51,9 @@ async function main(d: Data): Promise<WorkerResult> {
   const dtf = dtFactorsFor(d.caseData, d.factors);
   const once = async (level: number) => {
     const t0 = performance.now();
-    const ctx = await callPrepare(registry.prepare!, { case: d.caseData, spec: d.spec, physicsId: d.physicsId, level, hFactor: d.factors[level]!, dtFactor: dtf[level]!, signal });
+    const ctx = await callPrepare(registry.prepare!, { case: d.caseData, spec: d.spec, physicsId: d.physicsId, level, hFactor: d.factors[level]!, dtFactor: dtf[level]!, signal, ...(d.studyId ? { studyId: d.studyId } : {}) });
     const t1 = performance.now();
-    const sol: Solution = await mod.run(ctx);
+    const sol: Solution = registry.runStudy ? await registry.runStudy(ctx) : await mod.run(ctx);
     const t2 = performance.now();
     return { ctx, sol, wall_ms: t2 - t0, prepare_ms: t1 - t0, run_ms: t2 - t1 };
   };

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Example library catalog (lane W3, DevLog-021): one entry per sims/<id>.yaml, grouped by category, with the paired
 // eval case and the result of the last engine run against its reference. Entries for the class-b / class-c sims of
-// lane W4 live in ./catalog-bc.ts. No physical value is stated here; `ref` records only run outcomes (pass / fail /
-// pending / not run) and where they were logged (logs/, repo-relative).
+// lane W4 live in ./catalog-bc.ts, the multiphysics sims of lane MX in ./catalog-mp.ts (DevLog-029). No physical value
+// is stated here; `ref` records only run outcomes (pass / fail / pending / not run) and where they were logged (logs/,
+// repo-relative).
 
 import { CATALOG_BC } from './catalog-bc';
+import { CATALOG_MP } from './catalog-mp';
 
-export type Category = 'heat' | 'structural' | 'em-static' | 'rf' | 'optics' | 'acoustics' | 'fluids-rt' | 'coupled';
+export type Category = 'multiphysics' | 'heat' | 'structural' | 'em-static' | 'rf' | 'optics' | 'acoustics' | 'fluids-rt';
 export type Dim = '2D' | 'axisym' | '3D';
 export type EvalClass = 'a' | 'b' | 'c';
 /** pass / fail / error / pending: gated targets of the case on this sims file; info: only non-gated targets ran; not-run: no harness run of this file (e.g. a hero variant) */
@@ -45,9 +47,12 @@ export interface CatalogEntry {
 	hero?: boolean;
 	/** solved with another module's identical equation (e.g. TE cutoffs with the acoustics eigen solver) */
 	analog?: string;
+	/** coupling chain of a multiphysics model (spec `couplings`, C11): coupling type and the physics types it links */
+	couplings?: Array<{ type: string; from: string; to: string }>;
 }
 
 export const CATEGORIES: ReadonlyArray<{ id: Category; label: string; tip: string }> = [
+	{ id: 'multiphysics', label: 'Multiphysics', tip: 'Coupled physics: one physics feeds another (couplings, DevLog-029)' },
 	{ id: 'heat', label: 'Heat transfer', tip: 'Conduction, convection, radiation; steady and transient' },
 	{ id: 'structural', label: 'Structural mechanics', tip: 'Linear elasticity, plane stress / strain, 3D' },
 	{ id: 'em-static', label: 'Electrostatics / magnetostatics', tip: 'Capacitance, inductance, static fields' },
@@ -55,7 +60,6 @@ export const CATEGORIES: ReadonlyArray<{ id: Category; label: string; tip: strin
 	{ id: 'optics', label: 'Wave optics / photonics', tip: 'Waveguide modes, photonic band edges' },
 	{ id: 'acoustics', label: 'Acoustics', tip: 'Pressure acoustics eigenmodes' },
 	{ id: 'fluids-rt', label: 'Fluids / real-time', tip: 'Flow and real-time (Play) kernels' },
-	{ id: 'coupled', label: 'Coupled', tip: 'Multiphysics couplings' },
 ];
 
 const BASE = { date: '2026-11-06' } as const;
@@ -122,10 +126,10 @@ export const CATALOG_A: CatalogEntry[] = [
 		ref: { ...BASE, status: 'pass', targets: '10/10 gated', via: 'harness', log: CLI_A }, tags: ['hero', 'room modes', 'eigenmodes'] },
 ];
 
-/** Every catalog entry (class a + existing sims here, W4 class b / c in catalog-bc.ts); first entry per id wins. */
+/** Every catalog entry (class a + existing sims here, W4 class b / c in catalog-bc.ts, MX multiphysics in catalog-mp.ts); first entry per id wins. */
 export const CATALOG: CatalogEntry[] = (() => {
 	const seen = new Set<string>();
-	return [...CATALOG_A, ...CATALOG_BC].filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
+	return [...CATALOG_A, ...CATALOG_BC, ...CATALOG_MP].filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
 })();
 
 export interface Filters {
@@ -144,7 +148,7 @@ export function matches(e: CatalogEntry, query: string, f: Filters = {}): boolea
 	const words = query.toLowerCase().split(/\s+/).filter(Boolean);
 	if (!words.length) return true;
 	const cat = CATEGORIES.find((c) => c.id === e.category)?.label ?? '';
-	const hay = [e.id, e.title, cat, ...e.physics, ...e.evalCases, ...e.tags, e.analog ?? ''].join(' ').toLowerCase();
+	const hay = [e.id, e.title, cat, ...e.physics, ...e.evalCases, ...e.tags, e.analog ?? '', ...(e.couplings ?? []).map((c) => c.type)].join(' ').toLowerCase();
 	return words.every((w) => hay.includes(w));
 }
 
@@ -166,7 +170,22 @@ export function entryTip(e: CatalogEntry): string {
 	if (r.note) lines.push(r.note);
 	if (r.log) lines.push(`log: ${r.log}`);
 	lines.push(`Physics: ${e.physics.join(', ')}; ${e.dimension}`);
+	if (e.couplings?.length) lines.push(`Couplings: ${e.couplings.map((c) => `${c.type} (${c.from} -> ${c.to})`).join(', ')}`);
 	if (e.analog) lines.push(`Analog: ${e.analog}`);
 	if (e.tags.length) lines.push(`Tags: ${e.tags.join(', ')}`);
 	return lines.join('\n');
+}
+
+/** Physics chain of a coupled entry in coupling order (e.g. currents -> heat -> elastic); null without couplings. */
+export function physicsChain(e: CatalogEntry): string[] | null {
+	const cs = e.couplings ?? [];
+	if (!cs.length) return null;
+	const out: string[] = [];
+	const add = (p: string) => { if (!out.includes(p)) out.push(p); };
+	// sources first (a physics no coupling feeds), then follow the couplings breadth first
+	const fed = new Set(cs.map((c) => c.to));
+	for (const c of cs) if (!fed.has(c.from)) add(c.from);
+	for (let i = 0; i < out.length; i++) for (const c of cs) if (c.from === out[i]) add(c.to);
+	for (const c of cs) { add(c.from); add(c.to); }
+	return out;
 }

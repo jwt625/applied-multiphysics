@@ -3,7 +3,7 @@
 
 import { parse as parseYaml } from 'yaml';
 import { materialSchema, type MaterialDoc, type Leaf, type AltLeaf, type Table, type Fit, type Component, type Valid } from './schema.ts';
-import { PROPERTY_BY_NAME, SYMMETRY_COMPONENTS, type PropertyDef, type Symmetry } from './properties.ts';
+import { PROPERTY_BY_NAME, tensorComponents, type PropertyDef, type Symmetry } from './properties.ts';
 import { FORMULAS, checkFormulaCoeffs } from './formulas.ts';
 import { parseUnit, parseQuantity, sameDim } from './units.ts';
 
@@ -83,7 +83,7 @@ function checkLeaf(issues: Issue[], where: string, l: Leaf | AltLeaf, def: Prope
   if (l.tensor) {
     const sym = l.tensor.symmetry as Symmetry;
     if (!def.tensor.includes(sym)) issues.push({ path: `${where}.tensor.symmetry`, message: `${def.name} does not take a ${sym} tensor (allowed: ${def.tensor.join(', ') || 'none'})` });
-    const want = SYMMETRY_COMPONENTS[sym];
+    const want = tensorComponents(def, sym);
     const have = Object.keys(l.tensor.components);
     for (const k of want) if (!have.includes(k)) issues.push({ path: `${where}.tensor.components`, message: `component ${k} missing (use N/A with missing)` });
     for (const k of have) if (!want.includes(k)) issues.push({ path: `${where}.tensor.components.${k}`, message: `unknown component for ${sym}` });

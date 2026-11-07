@@ -12,7 +12,7 @@ export const BASIS = ['measured', 'handbook', 'datasheet', 'paper_model_input', 
 export const ACCESS = ['open', 'vendor_open', 'paywalled', 'local_cache'] as const;
 export const CLASSES = ['metal', 'gas', 'liquid', 'semiconductor', 'glass', 'crystal', 'polymer', 'ceramic', 'piezoelectric', 'dielectric_film'] as const;
 export const VARIABLES = ['T', 'lambda', 'f'] as const;
-export const SYMMETRIES = ['cubic', 'uniaxial', 'trigonal-3m'] as const;
+export const SYMMETRIES = ['cubic', 'uniaxial', 'trigonal-3m', 'hexagonal-6mm', 'tetragonal-4mm'] as const;
 export const STAGES = ['geometry', 'mesh', 'solution', 'plots', 'eval'] as const;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -92,7 +92,7 @@ export const componentSchema = z.union([
 export const tensorSchema = z.strictObject({
   symmetry: z.enum(SYMMETRIES),
   components: z.record(z.string(), componentSchema),
-}).meta({ description: 'Tensor property: independent components for the symmetry (cubic C11 C12 C44; uniaxial perp par; trigonal-3m r13 r22 r33 r51)' });
+}).meta({ description: 'Tensor property: independent components for the symmetry (cubic C11 C12 C44; uniaxial perp par; trigonal-3m r13 r22 r33 r51 for r_eo, C11 C12 C13 C14 C33 C44 for C, e15 e22 e31 e33 for e_piezo; hexagonal-6mm C11 C12 C13 C33 C44 for C, e15 e31 e33 for e_piezo; tetragonal-4mm as 6mm with C66)' });
 
 const provenance = {
   unit: text(64),

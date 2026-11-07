@@ -1,0 +1,85 @@
+# Gallium arsenide (lane MX, DevLog-035 s.11, 2026-11-07; requested by lane MOM, DevLog-034 R-MX1). Optical dispersion
+# from Skauli et al. 2003; isotropic mechanics as used by Baker et al. 2014 (their model inputs). Photoelastic constants
+# are listed under `missing`: @amp/materials has no photoelastic property type yet.
+schema: amp-material/0
+id: gaas
+name: Gallium arsenide (GaAs)
+class: semiconductor
+description: >-
+  Undoped GaAs. Refractive index from the Skauli 2003 dispersion relation (22 C). Density, Young's modulus and Poisson's
+  ratio are the isotropic approximation Baker et al. 2014 used for disk resonators (paper model inputs, not a measurement
+  read here); the cubic stiffness tensor is not authored.
+verified_on: 2026-11-07
+frame: "crystal axes: x = [100], y = [010], z = [001] (for tensor data; none stored yet)"
+sources:
+  skauli2003:
+    citation: "T. Skauli, P. S. Kuo, K. L. Vodopyanov, T. J. Pinguet, O. Levi, L. A. Eyres, J. S. Harris, M. M. Fejer, B. Gerard, L. Becouarn, E. Lallier, Improved dispersion relations for GaAs and applications to nonlinear optics, J. Appl. Phys. 94, 6447-6455 (2003)"
+    doi: 10.1063/1.1621740
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/GaAs/nk/Skauli.yml
+    access: paywalled
+    read: "primary not read; refractiveindex.info entry (CC0) fetched 2026-11-07 by lane MX (sha256 4c7b62ff..., same file as lane MOM's): formula 1, coefficients 4.372514 5.466742 0.4431307 0.02429960 0.8746453 1.957522 36.9166, 0.97-17 um, 22 C"
+    licence: "refractiveindex.info database: CC0 1.0"
+  baker2014:
+    citation: "C. Baker, W. Hease, D.-T. Nguyen, A. Andronico, S. Ducci, G. Leo, I. Favero, Photoelastic coupling in gallium arsenide optomechanical disk resonators, Opt. Express 22(12), 14072-14086 (2014); arXiv:1403.4269v1"
+    doi: 10.1364/OE.22.014072
+    url: https://arxiv.org/abs/1403.4269
+    access: open
+    read: "text layer of the arXiv v1 PDF (sha256 3c4930ba...), Table 2 and Table 4, read by lane MX 2026-11-07"
+properties:
+  n:
+    fit:
+      formula: sellmeier-c2
+      vars: [{name: lambda, unit: um, range: [0.97, 17]}]
+      coeffs: {A: 4.372514, B: [5.466742, 0.02429960, 1.957522], C: [0.4431307, 0.8746453, 36.9166]}
+    unit: "1"
+    basis: measured
+    source: skauli2003
+    locator: "refractiveindex.info GaAs/nk/Skauli.yml: formula 1 (n^2 = 1 + C1 + C2 l^2 / (l^2 - C3^2) + C4 l^2 / (l^2 - C5^2) + C6 l^2 / (l^2 - C7^2)), converted by the database from the paper's g0..g3, lambda1..lambda3 (conversion lines in the entry)"
+    accessed: 2026-11-07
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {T: "22 degC", text: "database comment: 22 C; temperature dependence in the original publication"}
+    n_medium: unstated
+    n_medium_note: "the database entry does not state air or vacuum wavelength and the primary was not read"
+    valid: {T: {unit: degC, range: [22, 22]}, note: "fit at 22 C only; lambda range in the fit"}
+    alternatives: []
+  rho:
+    value: 5317
+    unit: kg/m^3
+    basis: paper_model_input
+    source: baker2014
+    locator: "arXiv v1 Table 4 'GaAs material parameters used in the calculations': rho 5317 kg m^-3"
+    accessed: 2026-11-07
+    uncertainty: {na: "not stated"}
+    conditions: {text: "model input of Baker et al.; source of the value not stated in the table"}
+    valid: {T: {na: "not stated"}}
+    alternatives: []
+  E:
+    value: 85.9
+    unit: GPa
+    basis: paper_model_input
+    source: baker2014
+    locator: "arXiv v1 Table 4: E 85.9 GPa"
+    accessed: 2026-11-07
+    uncertainty: {na: "not stated"}
+    conditions: {text: "isotropic approximation of cubic GaAs used by Baker et al. for disk radial breathing modes"}
+    valid: {T: {na: "not stated"}}
+    alternatives: []
+  nu:
+    value: 0.31
+    unit: "1"
+    basis: paper_model_input
+    source: baker2014
+    locator: "arXiv v1 Table 4: nu 0.31"
+    accessed: 2026-11-07
+    uncertainty: {na: "not stated"}
+    conditions: {text: "isotropic approximation (Baker et al.)"}
+    valid: {T: {na: "not stated"}}
+    alternatives: []
+  C:
+    value: N/A
+    unit: GPa
+    missing: "cubic stiffness C11, C12, C44 of GaAs not read from a primary source in this lane"
+    alternatives: []
+missing:
+  - {what: "photoelastic constants p11 -0.165, p12 -0.140, p44 -0.072 at 1.15 um: Baker et al. 2014 arXiv v1 Table 2 citing the CRC Handbook of Chemistry and Physics (2012) (secondary, primary not read); not stored: @amp/materials has no photoelastic property type"}
+  - {what: "temperature dependence of n (in Skauli 2003, not read)"}

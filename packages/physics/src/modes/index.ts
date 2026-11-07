@@ -12,12 +12,16 @@
 //   (non-dispersive materials: eps_g = eps), powerW_<k>; fields per mode (step k) on triangle centroids (DG0):
 //   Ex, Ey, Ez, Hx, Hy, Hz, normE (EO phase convention: E_t, H_t real, E_z = j ez, H_z = j hz), normalised to
 //   max |E| = 1 V/m. Result expression names: <physicsId>.neff, <physicsId>.Ex ... <physicsId>.normE.
+// Coupled inputs (C11, DevLog-032): with thermo-optic / electro-optic entries in RunContext.inputs, run() goes through
+//   modes/coupled.ts (perturbed permittivity, first-order overlaps, VpiL, Ppi); without inputs the path above is
+//   unchanged. Uniaxial materials (n.perp, n.par) need settings.crystals [{material, cut, propagation, rotation?}].
 
 import type { FieldData, Mesh, PhysicsModule, RunContext, Solution, Spec, StudyNode } from '@amp/spec/types';
 import { resolveParams, resolveQuantity } from '@amp/spec';
 import { buildVectorModel, solveVectorModes } from './vector-mode.mjs';
 import { NPC, nCells, nNodes, selectEntities } from '../common/mesh.ts';
 import { StageTimer, checkAbort, makeSolution, scalar, attachMesh } from '../common/solution.ts';
+import { runCoupledModes, photonicInputs, crystalsOf, materialOptics, kernelTensor, type Crystal } from './coupled.ts';
 
 const UM = 1e6; // metres -> um
 
@@ -43,6 +47,10 @@ export interface ModesProblem {
   blockSize?: number;
   tol?: number;
   fields?: boolean;
+  /** per-triangle permittivity tensors [xx, xy, yy, zz] (4 per triangle) replacing `eps` (coupled path, DevLog-032) */
+  epsTri?: Float64Array;
+  /** a kernel model built earlier for the same mesh, PEC set, order and cell mask (reused by the coupled path) */
+  model?: any;
   signal?: AbortSignal;
   progress?: (stage: string, frac: number, msg?: string) => void;
 }
@@ -95,20 +103,22 @@ export async function solveModes(p: ModesProblem, meta: { spec?: unknown; physic
   const nDom = p.mesh.entities.domains.length;
   if (p.eps.length !== nDom) throw new Error(`em-modes: eps needs one entry per domain (${nDom}), got ${p.eps.length}`);
   p.progress?.('model', 0);
-  const km = timer.time('model', () => kernelMesh(p.mesh, p.pec ?? []));
-  const nT = km.mesh.nTris;
+  const km = p.model ? null : timer.time('model', () => kernelMesh(p.mesh, p.pec ?? []));
+  const nT = p.model ? p.model.mesh.nTris : km!.mesh.nTris;
   const dead = new Uint8Array(nT);
   if (p.cellMask) for (let t = 0; t < nT; t++) dead[t] = p.cellMask[t] ? 0 : 1;
-  const model = timer.time('model', () => buildVectorModel(km.mesh, {
-    order: p.order ?? 2, pecNodes: km.pecNodes, pecEdge: km.pecEdge, dead,
+  const model = p.model ?? timer.time('model', () => buildVectorModel(km!.mesh, {
+    order: p.order ?? 2, pecNodes: km!.pecNodes, pecEdge: km!.pecEdge, dead,
     regionNames: p.mesh.entities.domains.map((d) => d.id),
   }));
   checkAbort(p.signal);
   const eps = new Float64Array(4 * nT);
   const epsIm = p.epsIm ? new Float64Array(4 * nT) : null;
+  if (p.epsTri && p.epsTri.length !== 4 * nT) throw new Error(`em-modes: epsTri needs 4 * nTris = ${4 * nT} values`);
   for (let t = 0; t < nT; t++) {
-    const d = km.mesh.triRegion[t]!;
-    eps.set(tensorOf(p.eps[d]!), 4 * t);
+    const d = p.mesh.cells.domain[t]!;
+    if (p.epsTri) eps.set(p.epsTri.subarray(4 * t, 4 * t + 4), 4 * t);
+    else eps.set(tensorOf(p.eps[d]!), 4 * t);
     if (epsIm) epsIm.set(tensorOf(p.epsIm![d]!), 4 * t);
   }
   const lam = p.wavelength * UM;
@@ -171,6 +181,9 @@ function modeStudy(spec: Spec, physicsId: string, study?: StudyNode): AnyRec | u
   return (spec.studies ?? []).find((s) => s.type === 'mode' && s.physics.includes(physicsId)) as AnyRec | undefined;
 }
 
+const baseName = (id: string) => id.replace(/^dom:/, '').replace(/#.*$/, '');
+const pieceOf = (id: string) => baseName(id).split('&');
+
 function readiness(spec: Spec, physicsId: string): { ready: boolean; reasons: string[] } {
   const reasons: string[] = [];
   const ph = physicsNode(spec, physicsId);
@@ -189,7 +202,8 @@ function readiness(spec: Spec, physicsId: string): { ready: boolean; reasons: st
   const sel = (ph.select ?? []) as string[];
   const mats = spec.materials ?? [];
   for (const d of sel) {
-    const m = mats.find((mm) => mm.select.some((s) => s === d || d.startsWith(`${s}#`) || s.startsWith(`${d}#`)));
+    // fragment pieces 'dom:a&b' belong to the materials selecting 'dom:a' or 'dom:b' (origin-set naming, @amp/geom)
+    const m = mats.find((mm) => mm.select.some((s) => s === d || d.startsWith(`${s}#`) || s.startsWith(`${d}#`) || (!s.includes('#') && pieceOf(d).includes(baseName(s)))));
     if (!m) { reasons.push(`domain ${d}: no material`); continue; }
     const ov = (m.override ?? {}) as AnyRec;
     const v = ov.n ?? ov.eps_r;
@@ -201,7 +215,7 @@ function readiness(spec: Spec, physicsId: string): { ready: boolean; reasons: st
 }
 
 /** Build the ModesProblem from a RunContext (spec + C2 mesh + resolved materials). */
-export function problemFromContext(ctx: RunContext): ModesProblem {
+export function problemFromContext(ctx: RunContext, crystals?: Map<string, Crystal>): ModesProblem {
   const { spec, mesh, physicsId } = ctx;
   const ph = physicsNode(spec, physicsId);
   if (!ph) throw new Error(`em-modes: no physics '${physicsId}'`);
@@ -220,12 +234,23 @@ export function problemFromContext(ctx: RunContext): ModesProblem {
   // permittivity per domain index from materials (property n -> eps = n^2, else eps_r)
   const nDom = mesh.entities.domains.length;
   const eps: Array<DomainEps | undefined> = new Array(nDom).fill(undefined);
+  const activeDoms = new Set(selectEntities(mesh.entities, 'domains', (ph.select ?? []) as string[]));
   for (const m of spec.materials ?? []) {
     const props = ctx.materials[m.id];
     if (!props) continue;
     const doms = selectEntities(mesh.entities, 'domains', m.select);
     const e = props.n !== undefined ? props.n * props.n : props.eps_r;
-    if (e === undefined || !Number.isFinite(e)) continue;
+    if (e === undefined || !Number.isFinite(e)) {
+      // uniaxial index (n.perp, n.par; DevLog-032) with a crystal orientation from settings.crystals
+      if (props['n.perp'] === undefined || props['n.par'] === undefined) continue;
+      // only materials of domains this physics solves need an orientation (others keep the old skip)
+      if (!doms.some((d) => activeDoms.has(d))) continue;
+      const o = materialOptics(m.id, props, crystals ?? crystalsOf(ctx));
+      if (!o) continue;
+      const t = kernelTensor(o.A, [o.n[0] ** 2, o.n[1] ** 2, o.n[2] ** 2], `material '${m.id}'`);
+      for (const d of doms) eps[d] = t;
+      continue;
+    }
     for (const d of doms) eps[d] = e;
   }
   const sel = (ph.select ?? []) as string[];
@@ -251,6 +276,10 @@ export const emModes: PhysicsModule = {
   async run(ctx: RunContext): Promise<Solution> {
     const r = readiness(ctx.spec, ctx.physicsId);
     if (!r.ready) throw new Error(`em-modes not ready: ${r.reasons.join('; ')}`);
+    if (photonicInputs(ctx).length || ctx.inputs?.length) {
+      const crystals = crystalsOf(ctx);
+      return runCoupledModes(ctx, problemFromContext(ctx, crystals), (p) => solveModes(p, { spec: ctx.spec, physicsId: ctx.physicsId }));
+    }
     const out = await solveModes(problemFromContext(ctx), { spec: ctx.spec, physicsId: ctx.physicsId });
     return out.solution;
   },

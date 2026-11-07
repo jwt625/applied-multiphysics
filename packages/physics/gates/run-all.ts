@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
-const scripts: Array<[string, string[]]> = [['heat.ts', []], ['elastic.ts', []], ['em.ts', []], ['modes-wo01.ts', []], ['modes-wo02.ts', []], ['ac-02.ts', []], ['rf-axisym.ts', []], ['rf-01.ts', ['--mesh', 'nested']], ['rf-01.ts', ['--mesh', 'rings', '--levels', '4,5,6']]];
+const scripts: Array<[string, string[]]> = [['heat.ts', []], ['elastic.ts', []], ['em.ts', []], ['modes-wo01.ts', []], ['modes-wo02.ts', []], ['ac-02.ts', []], ['rf-axisym.ts', []], ['rf-01.ts', ['--mesh', 'nested']], ['rf-01.ts', ['--mesh', 'rings', '--levels', '4,5,6']], ['mt-gates.ts', []]];
 let worst = 0;
 for (const [s, args] of scripts) {
   console.log(`\n=== ${s} ${args.join(' ')}`);

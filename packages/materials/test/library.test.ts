@@ -157,7 +157,7 @@ test('listNA covers every N/A with its reason', () => {
   const na = lib.listNA();
   assert.ok(na.length > 0);
   for (const n of na) assert.ok(n.missing.length > 10, `${n.material}.${n.property}`);
-  assert.ok(na.some((n) => n.material === 'pzt-4' && n.property === 'C'));
+  assert.ok(na.some((n) => n.material === 'linbo3-congruent' && n.property === 'dndT')); // was pzt-4 C until 2026-11-07 (now sourced, DevLog-035)
 });
 
 test('registry: property types (with scalar / tensor forms) supersede the provisional spec seed; sims/ outcomes unchanged', () => {
@@ -166,16 +166,37 @@ test('registry: property types (with scalar / tensor forms) supersede the provis
   assert.ok(done.includes('E') && done.includes('C') && done.includes('r_eo'));
   for (const d of PROPERTY_DEFS) assert.equal(reg.get('property', d.name)?.owner, '@amp/materials');
   assert.deepEqual(registerMaterialProperties(reg), []); // idempotent
-  assert.deepEqual(reg.get('property', 'C')?.tensor, { cubic: ['C11', 'C12', 'C44'] });
+  assert.deepEqual(reg.get('property', 'C')?.tensor, {
+    cubic: ['C11', 'C12', 'C44'], 'hexagonal-6mm': ['C11', 'C12', 'C13', 'C33', 'C44'],
+    'tetragonal-4mm': ['C11', 'C12', 'C13', 'C33', 'C44', 'C66'], 'trigonal-3m': ['C11', 'C12', 'C13', 'C14', 'C33', 'C44'],
+  });
+  assert.deepEqual(reg.get('property', 'e_piezo')?.tensor, { 'hexagonal-6mm': ['e15', 'e31', 'e33'], 'tetragonal-4mm': ['e15', 'e31', 'e33'], 'trigonal-3m': ['e15', 'e22', 'e31', 'e33'] });
   assert.equal(reg.get('property', 'C')?.scalar, false);
   assert.deepEqual(reg.get('property', 'r_eo')?.tensor, { 'trigonal-3m': ['r13', 'r22', 'r33', 'r51'] });
   const sims = resolve(import.meta.dirname, '../../../sims');
   for (const f of readdirSync(sims).filter((x) => x.endsWith('.yaml'))) {
-    // sims/ grows with other lanes' types; the materials registration must not change any outcome
+    // sims/ grows with other lanes' types; the materials registration must not change any outcome, except for the sims
+    // that use material-registered property forms (MAT_SIMS), checked below against the merged app registry
+    if (MAT_SIMS.includes(f.replace(/\.yaml$/, ''))) continue;
     const text = readFileSync(resolve(sims, f), 'utf8');
     const r = parseSpecText(text, reg), r0 = parseSpecText(text, wave1Registry());
     assert.equal(r.ok, r0.ok, `${f}: ${JSON.stringify(r.issues?.slice(0, 2))}`);
     assert.deepEqual(r.issues.map((i) => i.message), r0.issues.map((i) => i.message), f);
+  }
+});
+
+/**
+ * Sims (lane MX, DevLog-035) whose overrides use property forms that only @amp/materials registers (dndT, r_eo,
+ * uniaxial n / eps_r, tensor C): their outcome differs from the provisional seed by design. They must validate with the
+ * merged app registry (@amp/physics physicsRegistry: @amp/materials properties + physics registrations; DevLog-031 X4).
+ */
+const MAT_SIMS = ['ln-fbar-2d', 'pzt4-cube', 'si-microheater-to', 'tfln-mzm-eo'];
+test('registry: sims using material-registered property forms validate with the merged app registry', async () => {
+  const { physicsRegistry } = await import('../../physics/src/index.ts');
+  const sims = resolve(import.meta.dirname, '../../../sims');
+  for (const id of MAT_SIMS) {
+    const r = parseSpecText(readFileSync(resolve(sims, `${id}.yaml`), 'utf8'), physicsRegistry());
+    assert.ok(r.ok, `${id}: ${JSON.stringify(r.issues.filter((i) => i.severity !== 'notice').slice(0, 3))}`);
   }
 });
 

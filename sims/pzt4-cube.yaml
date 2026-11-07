@@ -1,0 +1,108 @@
+# CP-06 (eval/cases/c/CP-06.yaml): PZT-4 cube 20 mm, poled along z, short- and open-circuit breathing modes; elastic <->
+# electrostatics (piezoelectric, monolithic eigen), 3D quarter model (lane MX, DevLog-035). Inputs from the public Ansys
+# VM175 input listing (Hlp_V_VM175TXT.html, 2025R1), which cites D. Boucher, M. Lagier, C. Maerfeld, IEEE Trans. Sonics
+# Ultrason. SU-28(5), 318-330 (1981) (paywalled, not read): quarter model L = W = 10 mm, H = 20 mm with symmetry planes
+# x = 0 and y = 0; rho 7500; eps 804.6 (x, y) / 659.7 (z); e31 -4.1, e33 14.1, e15 10.5 C/m^2; c11 13.2, c12 7.1,
+# c13 7.3, c33 11.5, c44 2.6, c66 3.0 (1e10 N/m^2); stored in materials/pzt-4.yaml (ref). Electrodes on z = 0 (ground) and z = H: short circuit = both
+# grounded; open circuit = top electrode floating (VM175 'CP,1,VOLT,ALL'). Targets (measured, Boucher 1981 Table 1 via
+# VM175): f1 / f2 short 66560 / 88010 Hz, open 81590 / 93410 Hz (CP-06; the VM page labels the column kHz, Hz is
+# consistent). Rights: Ansys VM listing cite_values + re_derive_setup; the page is marked proprietary (rights note in
+# DevLog-035 s.6).
+schema: amp-spec/0
+id: pzt4-cube
+title: PZT-4 cube breathing modes (piezo)
+description: Poled PZT-4 cube, electrodes on the poled faces; eigenfrequencies with the electrodes shorted and open.
+params:
+  L: {value: 10, unit: mm, description: quarter-model half side (x)}
+  W: {value: 10, unit: mm, description: quarter-model half side (y)}
+  H: {value: 20, unit: mm, description: cube height along the poling axis z}
+geometry:
+  dim: 3
+  features:
+    - {id: cube, type: box, settings: {size: ["L", "W", "H"], center: ["L/2", "W/2", "H/2"]}}
+materials:
+  - {id: pzt4, ref: materials/pzt-4, select: ["dom:cube"]}
+physics:
+  - id: solid
+    type: elastic
+    select: ["dom:cube"]
+    settings: {model: 3d}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:cube.xmin"]}
+      - {id: sym_y, type: roller, select: ["bnd:cube.ymin"]}
+      - {id: open, type: free, select: ["bnd:cube.xmax", "bnd:cube.ymax", "bnd:cube.zmin", "bnd:cube.zmax"]}
+  - id: es_sc
+    type: electrostatics
+    select: ["dom:cube"]
+    bcs:
+      - {id: bottom_sc, type: ground, select: ["bnd:cube.zmin"]}
+      - {id: top_sc, type: ground, select: ["bnd:cube.zmax"]}
+      - {id: sides_sc, type: zero-charge, select: ["bnd:cube.xmin", "bnd:cube.xmax", "bnd:cube.ymin", "bnd:cube.ymax"]}
+  - id: es_oc
+    type: electrostatics
+    select: ["dom:cube"]
+    bcs:
+      - {id: bottom_oc, type: ground, select: ["bnd:cube.zmin"]}
+      - {id: top_oc, type: terminal, select: ["bnd:cube.zmax"]}
+      - {id: sides_oc, type: zero-charge, select: ["bnd:cube.xmin", "bnd:cube.xmax", "bnd:cube.ymin", "bnd:cube.ymax"]}
+couplings:
+  - {id: pz_sc, type: piezoelectric, from: solid, to: es_sc}
+  - {id: pz_oc, type: piezoelectric, from: solid, to: es_oc}
+mesh:
+  size: {hmax: "L/8"}
+studies:
+  - {id: std_sc, type: eigen, physics: [solid, es_sc], settings: {nModes: 10, shift: "50 kHz"}}
+  - {id: std_oc, type: eigen, physics: [solid, es_oc], settings: {nModes: 10, shift: "50 kHz"}}
+results:
+  datasets:
+    - {id: sol_short, type: solution, data: std_sc}
+    - {id: sol_open, type: solution, data: std_oc}
+  evaluations:
+    - id: ev_short
+      data: sol_short
+      steps: first
+      items:
+        - {id: f1_short, type: global, expr: solid.f_2, unit: Hz, label: "breathing mode f1 (electrically active; index 0 = rigid z translation); target 66560 Hz"}
+        - {id: f2_short, type: global, expr: solid.f_7, unit: Hz, label: "breathing mode f2 (electrically active; VM175 'mode 5'); target 88010 Hz"}
+    - id: ev_open
+      data: sol_open
+      steps: first
+      items:
+        - {id: f1_open, type: global, expr: solid.f_4, unit: Hz, label: "f1 open (floating-electrode potential non-zero); target 81590 Hz"}
+        - {id: f2_open, type: global, expr: solid.f_8, unit: Hz, label: "f2 open; target 93410 Hz"}
+  tables:
+    - {id: tbl_short, from: ev_short}
+    - {id: tbl_open, from: ev_open}
+  plots:
+    - id: u_short
+      type: plot3d
+      data: sol_short
+      items:
+        - {id: u_short_surf, type: surface, expr: "sqrt(solid.u.x^2 + solid.u.y^2 + solid.u.z^2)", unit: m}
+        - {id: u_short_def, type: deformation, expr: solid.u, scale: auto}
+    - id: V_open
+      type: plot3d
+      data: sol_open
+      items:
+        - {id: V_open_surf, type: surface, expr: es_oc.V, unit: V}
+provenance:
+  values:
+    materials.pzt4.ref: {basis: paper_model_input, source: "materials/pzt-4.yaml: rho, C (tetragonal-4mm, listed C66), e_piezo, eps_r (clamped assumed) from the Ansys VM175 input listing (Boucher et al. 1981 as cited); identical to the former spec overrides", date: 2026-11-07}
+    params.L: {basis: benchmark, source: "Ansys VM175 input listing (2025R1) 'L=10E-3', quarter model", date: 2026-11-07}
+    params.W: {basis: benchmark, source: "VM175 listing 'W=10E-3'", date: 2026-11-07}
+    params.H: {basis: benchmark, source: "VM175 listing 'H=20E-3'", date: 2026-11-07}
+    studies.0.settings.shift: {basis: benchmark, source: "VM175 listing 'MODOPT,LANB,10,50000,150000' (10 modes in 50-150 kHz)", date: 2026-11-07}
+    studies.1.settings.shift: {basis: benchmark, source: "VM175 listing (as studies.0)", date: 2026-11-07}
+    studies.0.settings.nModes: {basis: benchmark, source: "VM175 listing 'MODOPT,LANB,10,...'", date: 2026-11-07}
+    studies.1.settings.nModes: {basis: benchmark, source: "VM175 listing 'MODOPT,LANB,10,...'", date: 2026-11-07}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice; VM175 uses a mapped hex mesh, 4 divisions along an edge ('LESIZE,1,,,4', 'ESIZE,,2')"}
+assumptions:
+  - {text: "Quarter model with symmetry planes x = 0, y = 0 (VM175 'DSYM'): only modes symmetric about both planes appear, as in VM175", paths: [geometry, physics.solid.bcs]}
+  - {text: "Study order: std_sc (short circuit, the reference set) is first: the workbench solves the first study, and the eval harness picks the first study of the case type (eigen; packages/eval select(), DevLog-031 s.5 O1), so only the short-circuit targets run there. Open circuit is the second study std_oc and needs its own run (studyId std_oc)", paths: [studies]}
+  - {text: "Each table of an eigen solution also lists every eigenfrequency as its step column (DevLog-028 tables)", paths: [results.tables]}
+  - {text: "Breathing modes = the electrically active modes (lane MT, DevLog-033 s.4.3: open circuit |V_top| > 1 % of the largest; short circuit: modes absent from the open-circuit spectrum). With shift 50 kHz and 10 modes, index 0 is the f = 0 rigid z translation (absent from VM175's 50-150 kHz list): short f_2, f_7; open f_4, f_8, the same on three meshes (MT run 2026-11-07)", paths: [results.evaluations]}
+  - {text: "Open circuit = floating top electrode with zero net charge (MT terminal semantics), as VM175 couples the top-electrode voltage DOFs", paths: [physics.es_oc.bcs.top_oc]}
+  - {text: "Material tensors from materials/pzt-4.yaml: C tetragonal-4mm with the listed C66, e_piezo, uniaxial eps_r = clamped eps^S (MT / MC registrations)", paths: [materials.pzt4]}
+missing:
+  - {what: "primary source of the PZT-4 constants (Boucher et al. 1981 Table 1, paywalled; values via the Ansys VM175 listing)", needed_for: [solution]}
+# eval: [CP-06]

@@ -1,0 +1,103 @@
+# GaAs microdisk optomechanics (lane MOM, DevLog-034): vacuum coupling g0 between the TE p = 1, m = 10 whispering-gallery
+# mode and the radial breathing modes of a free 1 um radius, 320 nm thick GaAs disk, axisymmetric (r, z). Inputs and
+# reference values from C. Baker et al., "Photoelastic coupling in gallium arsenide optomechanical disk resonators",
+# Opt. Express 22, 14072 (2014), arXiv 1403.4269v1: geometry and modes (Table 3 caption, p.11 text: no AlGaAs pedestal),
+# isotropic GaAs mechanics (Table 4), photoelastic constants (Table 2, at 1.15 um). Refractive index: Skauli et al. 2003
+# Sellmeier at 1.32 um (Baker Table 1 wavelength). Reference (Baker Table 3, FEM, g = -d omega / dx; printed "GHz/nm" and
+# "MHz" are angular rates, rad/s, DevLog-034 F1): 1st RBM 1.375 GHz, g_om geo 1080, pe 984 (printed GHz/nm), x_zpf
+# 1.23e-15 m, |g0| geo 1.33e6, pe 1.21e6 rad/s; 2nd RBM 3.5 GHz, g_om 412 / 1720 (printed GHz/nm), |g0| 0.474e6 / 1.98e6
+# rad/s. Convention: the engine reports g0 / 2 pi in Hz with the sign of d omega / d alpha (negative for expansion: the
+# WGM frequency drops when the disk rim moves out); Baker quotes |g0| in rad/s, so compare |g0| x 2 pi with Baker.
+# Gate results: DevLog-034 s.4; tests packages/physics/test/mom-coupling.test.ts.
+schema: amp-spec/0
+id: gaas-microdisk-om
+title: GaAs microdisk optomechanical coupling g0
+description: Whispering-gallery mode (m = 10) and radial breathing modes of a free GaAs disk; moving-boundary and photoelastic g0 per mode pair, axisymmetric.
+params:
+  R: {value: 1, unit: um, description: disk radius}
+  h: {value: 320, unit: nm, description: disk thickness}
+  Rb: {value: 2, unit: um, description: optical window radius (PEC wall)}
+  Hb: {value: 2, unit: um, description: optical window height (PEC walls)}
+  n_GaAs: {value: 3.4021, description: GaAs refractive index at 1.32 um}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: disk, type: rect, settings: {size: ["R", "h"], center: ["R/2", "0 um"]}}
+    - {id: box, type: rect, settings: {size: ["Rb", "Hb"], center: ["Rb/2", "0 um"]}}
+    - {id: air, type: difference, settings: {base: box, tools: [disk], keepTools: true}}
+materials:
+  - {id: GaAs, ref: materials/gaas, override: {eps_r: "n_GaAs^2", mu_r: 1}, select: ["dom:disk"]}
+  - {id: vacuum, override: {eps_r: 1, mu_r: 1}, select: ["dom:air"]}
+physics:
+  - id: mech
+    type: elastic
+    select: ["dom:disk"]
+    settings: {model: axisym}
+  - id: opt
+    type: emw-axisym
+    select: ["dom:disk", "dom:air"]
+    settings: {azimuthal: [10], order: 2}
+    bcs:
+      - {id: window, type: pec, select: ["bnd:box.right", "bnd:box.top", "bnd:box.bottom"]}
+couplings:
+  - id: om
+    type: optomechanical
+    from: mech
+    to: opt
+    settings:
+      optical: {nModes: 4, shift: "227 THz"}
+      mechanical: {nModes: 6, shift: "2 GHz"}
+      photoelastic:
+        - {material: GaAs, p11: -0.165, p12: -0.140, p44: -0.072, frame: crystal-avg}
+mesh:
+  size: {hmax: "Rb/12"}
+  refine:
+    - {select: ["dom:disk"], h: "h/8"}
+studies:
+  - {id: eig, type: eigen, physics: [mech, opt], settings: {nModes: 4, shift: "227 THz"}}
+results:
+  datasets:
+    - {id: sol_eig, type: solution, data: eig}
+  evaluations:
+    - id: ev_om
+      data: sol_eig
+      items:
+        - {id: fo, type: global, expr: opt.f_0, unit: THz, label: "optical mode 0 frequency"}
+        - {id: fm, type: global, expr: mech.f_2, unit: GHz, label: "first radial breathing mode RBM1 (mechanical index 2 at the default mesh; index 0 is the f = 0 rigid axial translation; re-identify after a mesh change, DevLog-034)"}
+        - {id: g0mb, type: global, expr: mech.g0MB_0_2, unit: Hz, label: "g0/2pi moving boundary, optical 0 x breathing mode (Hz, sign d omega/d alpha, negative for expansion; vs Baker compare |g0| x 2 pi in rad/s)"}
+        - {id: g0pe, type: global, expr: mech.g0PE_0_2, unit: Hz, label: "g0/2pi photoelastic, optical 0 x breathing mode (Hz, sign d omega/d alpha, negative for expansion; vs Baker compare |g0| x 2 pi in rad/s)"}
+        - {id: g0, type: global, expr: mech.g0_0_2, unit: Hz, label: "g0/2pi total, optical 0 x breathing mode (Hz, sign d omega/d alpha, negative for expansion; vs Baker compare |g0| x 2 pi in rad/s)"}
+  tables:
+    - {id: tbl_om, from: ev_om}
+  plots:
+    - id: p_opt
+      type: plot2d
+      data: sol_eig
+      steps: first
+      items:
+        - {id: e_surf, type: surface, expr: opt.E_rphiz.r, unit: V/m}
+provenance:
+  values:
+    materials.GaAs.ref: {basis: paper_model_input, source: "materials/gaas.yaml: rho 5317 kg/m^3, E 85.9 GPa, nu 0.31 (Baker et al. 2014 arXiv v1 Table 4), identical to the former overrides; eps_r stays an override (n_GaAs^2 at 1.32 um; materials/gaas.yaml n gives 3.40212 there, Skauli)", date: 2026-11-07}
+    params.R: {basis: paper_model_input, source: "Baker et al. 2014 Opt. Express 22 14072, arXiv 1403.4269v1, Table 3 caption (320 nm thick, 1 um radius GaAs disk)", date: 2026-11-07}
+    params.h: {basis: paper_model_input, source: "Baker et al. 2014, arXiv 1403.4269v1, Table 3 caption", date: 2026-11-07}
+    params.Rb: {basis: user, date: 2026-11-07, note: "modelling choice: closed PEC window; at m = 10 and lambda 1.32 um the free-space caustic is at m / k0 = 2.1 um, outside the window, so no propagating air mode of order 10 lies near the WGM"}
+    params.Hb: {basis: user, date: 2026-11-07, note: "modelling choice (closed window)"}
+    params.n_GaAs: {basis: reference_correlation, source: "T. Skauli et al., J. Appl. Phys. 94, 6447 (2003), Sellmeier (22 C, 0.97-17 um) via refractiveindex.info GaAs/nk/Skauli.yml (CC0, fetched 2026-11-07, sha256 4c7b62ff...); evaluated at 1.32 um (Baker Table 1 wavelength): n = 3.40212", date: 2026-11-07, note: "material dispersion not iterated to the computed WGM wavelength (DevLog-034 s.4)"}
+    couplings.0.settings.photoelastic.0.p11: {basis: paper_model_input, source: "Baker et al. 2014, Table 2: GaAs p11 -0.165 at 1.15 um (their ref. 34)", date: 2026-11-07}
+    couplings.0.settings.photoelastic.0.p12: {basis: paper_model_input, source: "Baker et al. 2014, Table 2: p12 -0.140", date: 2026-11-07}
+    couplings.0.settings.photoelastic.0.p44: {basis: paper_model_input, source: "Baker et al. 2014, Table 2: p44 -0.072", date: 2026-11-07}
+    couplings.0.settings.optical.shift: {basis: derived, date: 2026-11-07, note: "c / 1.32 um = 227.1 THz (Baker Table 1 wavelength)"}
+    couplings.0.settings.mechanical.shift: {basis: user, date: 2026-11-07, note: "modelling choice: between the 1st (1.375 GHz) and 2nd (3.5 GHz) RBM of Baker Table 3"}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-07, note: "modelling choice: 8 cells through the thickness (convergence: DevLog-034 s.4)"}
+assumptions:
+  - {text: "No AlGaAs pedestal (Baker 2014 p.11: valid for >= 90 % undercut); free disk, so the z translation is a rigid mode (f = 0, skipped)", paths: [physics.mech]}
+  - {text: "Isotropic GaAs mechanics as in Baker 2014 (Fig. 6 caption); the cubic anisotropy of GaAs is not modelled", paths: [materials.GaAs]}
+  - {text: "Photoelastic frame crystal-avg: crystal [001] on the disk axis, azimuthal average of the cubic p tensor (exact for m != 2). Baker eq. 13 applies the cubic matrix in the local (r, theta, z) frame; both are reported in DevLog-034 s.4", paths: [couplings.0.settings.photoelastic]}
+  - {text: "Closed PEC optical window instead of an open boundary: the radiation loss of the WGM is not modelled; the real part of the frequency is", paths: [physics.opt.bcs]}
+  - {text: "Optical permittivity at a single wavelength (1.32 um); the computed WGM wavelength is reported", paths: [params.n_GaAs]}
+missing:
+  - {what: "GaAs photoelastic constants are not storable in materials/ (no photoelastic property type; materials/gaas.yaml records them under missing): they are coupling settings here with provenance (Baker Table 2). rho, E, nu come from materials/gaas.yaml; eps_r is an override (n_GaAs^2)", needed_for: [solution]}
+# eval: []   (reference: Baker 2014 Table 3; gates in DevLog-034 s.4)

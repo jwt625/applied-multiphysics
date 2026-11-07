@@ -27,12 +27,21 @@ export function meshOf(sol: Solution, mesh?: Mesh): Mesh {
   return m;
 }
 
-/** Field by name (and step index for transient / eigen solutions; default: the last step present). */
-export function fieldOf(sol: Solution, name: string, step?: number): FieldData {
-  const all = sol.fields.filter((f) => f.name === name);
-  if (!all.length) throw new Error(`field '${name}' not in solution (have: ${[...new Set(sol.fields.map((f) => f.name))].join(', ')})`);
+/**
+ * Field by name (and step index for transient / eigen solutions; default: the last step present). `physics` selects the
+ * fields of one physics of a merged multiphysics solution (C11: `FieldData.physics`; untagged fields belong to the
+ * study's single physics). Without it, a name carried by fields of several physics is an error.
+ */
+export function fieldOf(sol: Solution, name: string, step?: number, physics?: string): FieldData {
+  let all = sol.fields.filter((f) => f.name === name && (physics === undefined || f.physics === undefined || f.physics === physics));
+  if (!all.length) throw new Error(`field '${name}' not in solution${physics !== undefined ? ` for physics '${physics}'` : ''} (have: ${[...new Set(sol.fields.map((f) => (f.physics ? `${f.physics}.${f.name}` : f.name)))].join(', ')})`);
+  const tags = [...new Set(all.map((f) => f.physics).filter((x) => x !== undefined))];
+  if (physics === undefined && tags.length > 1) throw new Error(`field '${name}' is solved by several physics (${tags.join(', ')}): write <physics id>.${name}`);
+  if (physics !== undefined && all.some((f) => f.physics === physics)) all = all.filter((f) => f.physics === physics);
   if (step === undefined) return all.reduce((a, b) => ((b.step ?? -1) > (a.step ?? -1) ? b : a));
-  const f = all.find((x) => (x.step ?? 0) === step);
+  const f = all.find((x) => (x.step ?? 0) === step)
+    // merged multiphysics solution (C11): a stationary physics' field (no steps) holds for every step of the other one
+    ?? (all.length === 1 && all[0]!.step === undefined && all[0]!.physics !== undefined && sol.fields.some((x) => x.physics !== all[0]!.physics && x.step !== undefined) ? all[0] : undefined);
   if (!f) throw new Error(`field '${name}' has no step ${step}`);
   return f;
 }

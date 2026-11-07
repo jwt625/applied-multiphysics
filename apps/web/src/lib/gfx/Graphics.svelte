@@ -241,7 +241,9 @@
 
 	// ---------------------------------------------------------------- field choice
 	const fieldList = $derived((sol?.fields ?? []).map((f, i) => ({ f, i })));
-	const names = $derived([...new Set(fieldList.map((x) => x.f.name))]);
+	/** field key: `<physics>.<name>` on merged multiphysics solutions (C11 FieldData.physics), else the name */
+	const keyOf = (f: FieldData) => (f.physics ? `${f.physics}.${f.name}` : f.name);
+	const names = $derived([...new Set(fieldList.map((x) => keyOf(x.f)))]);
 	const exprIs = (expr: string | undefined, name: string | undefined) => !!expr && !!name && (expr === name || expr.endsWith(`.${name}`));
 	/** the spec's results block (CONTRACTS C10) */
 	const resultsSpec = $derived((s.model.data as { results?: unknown } | null)?.results ?? null);
@@ -253,16 +255,16 @@
 		if (g2) {
 			if (!gBase || gDsType !== 'solution') return null;
 			if (!gRef) return gNodal && gNodal.key === gKey && gNodal.meshHash === mesh?.hash ? gNodal.f : null;
-			const st = fieldList.filter((x) => x.f.name === gRef.name);
+			const st = fieldList.filter((x) => x.f.name === gRef.name && (gRef.physics === undefined || x.f.physics === gRef.physics));
 			const k = gStep === 'last' ? st.length - 1 : typeof gStep === 'number' ? gStep : step;
 			return (st[Math.min(k, st.length - 1)] ?? st[0])?.f ?? null;
 		}
 		const name = fieldKey && names.includes(fieldKey) ? fieldKey
-			: (names.find((n) => exprIs(plotResult?.expr, n)) ?? names.find((n) => drawableSpace(fieldList.find((x) => x.f.name === n)?.f)) ?? names[0]!);
-		const steps = fieldList.filter((x) => x.f.name === name);
+			: (names.find((n) => exprIs(plotResult?.expr, n)) ?? names.find((n) => drawableSpace(fieldList.find((x) => keyOf(x.f) === n)?.f)) ?? names[0]!);
+		const steps = fieldList.filter((x) => keyOf(x.f) === name);
 		return (steps[Math.min(step, steps.length - 1)] ?? steps[0])!.f;
 	});
-	const nSteps = $derived(field ? fieldList.filter((x) => x.f.name === field.name).length : 0);
+	const nSteps = $derived(field ? fieldList.filter((x) => keyOf(x.f) === keyOf(field)).length : 0);
 	const drawable = $derived(drawableSpace(field));
 	const eigen = $derived(sol?.steps?.kind === 'eigen');
 	/** the phase animation Re(u e^(i phase)) is meaningful for a signed component, not for a magnitude */
@@ -290,7 +292,7 @@
 		}
 		if (g2 && field && !gRef) return { a: 1, b: 0, unit: gNodal?.unit || '1', note: `${gBase?.expr} evaluated at the mesh nodes (results adapter, @amp/post) and interpolated in the element basis${gNodal && !gNodal.continuous ? '; the expression jumps across elements: each node takes its first cell' : ''}` };
 		if (g2 && field) return { ...displayScale(gBase?.unit ?? field.unit), note: '' };
-		const u = resultUnits(resultsSpec).find((r) => exprIs(r.expr, field?.name))?.unit ?? field?.unit;
+		const u = resultUnits(resultsSpec).find((r) => exprIs(r.expr, field ? keyOf(field) : undefined))?.unit ?? field?.unit;
 		return { ...displayScale(u), note: '' };
 	});
 	const lu = $derived(lengthUnit(m2 ? Math.max(m2.bbox[2] - m2.bbox[0], m2.bbox[3] - m2.bbox[1]) : mesh ? bbox3(mesh.nodes).diag : 1));
@@ -338,7 +340,7 @@
 	/** refined-lattice level, lowered on large meshes (nested accuracy levels) to keep the display near 3e5 sub-triangles */
 	// (audit S2: about 3e5 sub-triangles; a finer nested level needs fewer sub-triangles per element for the same look)
 	const lv = $derived(m2 ? Math.max(1, Math.min(level, Math.floor(Math.sqrt(3e5 / Math.max(1, m2.nT))))) : level);
-	const fkey = $derived(field && m2 ? `${m2.nT}:${sol?.run.startedAt}:${field.name}:${field.step ?? 0}:${comp}:${lv}:${rule}:${disp.a}:${rangeBox?.join(',')}:${rawField}:${gNodal?.key ?? ''}` : '');
+	const fkey = $derived(field && m2 ? `${m2.nT}:${sol?.run.startedAt}:${keyOf(field)}:${field.step ?? 0}:${comp}:${lv}:${rule}:${disp.a}:${rangeBox?.join(',')}:${rawField}:${gNodal?.key ?? ''}` : '');
 	$effect(() => {
 		const f = field, m = m2, key = fkey;
 		if (!f || !m || mode !== 'results' || !drawable) return;
@@ -354,7 +356,7 @@
 		const e = typeof gv?.deform?.expr === 'string' ? gv.deform.expr.trim() : '';
 		const m = /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)$/.exec(e);
 		if (!m || !sol || !physIds.includes(m[1]!)) return null;
-		const fs = sol.fields.filter((f) => f.name === m[2] && f.components === 2 && (f.space === 'H1P1' || f.space === 'H1P2'));
+		const fs = sol.fields.filter((f) => f.name === m[2] && (f.physics === undefined || f.physics === m[1]) && f.components === 2 && (f.space === 'H1P1' || f.space === 'H1P2'));
 		// the displacement of the shown step
 		return fs.find((f) => (f.step ?? 0) === (field?.step ?? 0)) ?? fs[0] ?? null;
 	});
@@ -570,7 +572,7 @@
 	const shownExpr = $derived.by(() => {
 		if (g2) return typeof gBase?.expr === 'string' ? gBase.expr : null;
 		if (!field || eigen) return null;
-		const ph = physIds[0] ?? '';
+		const ph = field.physics ?? physIds[0] ?? '';
 		return componentExpr(ph, field.name, field.components > 1 ? comp : -1, field.components, !!mesh?.axisym);
 	});
 	async function drawn(p0: { x: number; y: number }, p1: { x: number; y: number } | null) {
@@ -911,7 +913,7 @@
 				<button data-tip="Save the quick view (field, component, step, range rule, colormap, log, contours, wireframe) as a 2D plot group in the spec (one operation)" onclick={saveQuick}>Save as plot group</button>
 			{/if}
 			{#if mode === 'results' && sol && names.length && !g2}
-				{#if names.length > 1}<select value={field?.name} onchange={(e) => (fieldKey = (e.currentTarget as HTMLSelectElement).value)} data-tip="Field">{#each names as n}<option value={n}>{n}</option>{/each}</select>{/if}
+				{#if names.length > 1}<select value={field ? keyOf(field) : undefined} onchange={(e) => (fieldKey = (e.currentTarget as HTMLSelectElement).value)} data-tip="Field">{#each names as n}<option value={n}>{n}</option>{/each}</select>{/if}
 			{#if drawable}
 				{#if field && field.components > 1}
 						<select bind:value={compUser} data-tip="Component">

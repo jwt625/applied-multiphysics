@@ -1,0 +1,125 @@
+# Mass-loaded membrane in an air-filled tube, elastic <-> acoustics (acoustic-structure, monolithic eigen), axisymmetric
+# (lane MX, DevLog-035). Materials, thicknesses, mass size, tube length and air properties are Wentao's model inputs,
+# <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only):
+# PEI membrane 25 um (rho 1270, E 2.9 GPa, nu 0.44), steel mass cylinder R 2.5 mm x h_k 2 mm on the membrane (rho 7860,
+# E 210 GPa, nu 0.3), duct length L 30 mm, air rho0 1.225, c0 340; eigen study 5 modes around 1 Hz. His model is 3D with
+# a square 20 x 20 mm membrane and duct, an extra offset cylinder (r 1.5 mm at l0 0.5 mm) cut from the mass, and ports at
+# the duct ends. Axisymmetric reduction (modelling choices): circular membrane of radius a = Lx/2 (inscribed circle),
+# centred mass without the offset cut, rigid (sound-hard) tube wall and ends. Uncoupled checks (validation/mp/
+# references.py membrane_air): clamped circular Kirchhoff plate without the mass f01 = 197.45 Hz; rigid closed air
+# half-columns f_n = n c0 / (2 Lc) = 11.34 kHz (n = 1). No coupled closed form: the mass-loaded coupled frequencies are
+# unreferenced (informative).
+schema: amp-spec/0
+id: membrane-air
+title: Mass-loaded membrane in air (structure-acoustics)
+description: Thin PEI membrane with a steel mass in a closed air-filled tube; coupled structural-acoustic eigenmodes, axisymmetric.
+params:
+  a: {value: 10, unit: mm, description: membrane radius (= Lx / 2 of the square original)}
+  h_M: {value: 0.025, unit: mm, description: membrane thickness}
+  R: {value: 2.5, unit: mm, description: mass radius}
+  h_k: {value: 2, unit: mm, description: mass height}
+  L: {value: 30, unit: mm, description: tube length (membrane at mid-length)}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: memb, type: rect, settings: {size: ["a", "h_M"], center: ["a/2", "0 mm"]}}
+    - {id: mass, type: rect, settings: {size: ["R", "h_k"], center: ["R/2", "h_M/2 + h_k/2"]}}
+    - {id: tube, type: rect, settings: {size: ["a", "L"], center: ["a/2", "0 mm"]}}
+    - {id: air, type: difference, settings: {base: tube, tools: [memb, mass], keepTools: true}}
+materials:
+  - {id: PEI, override: {rho: {value: 1270, unit: kg/m^3}, E: {value: 2.9, unit: GPa}, nu: 0.44}, select: ["dom:memb"]}
+  - {id: steel, override: {rho: {value: 7860, unit: kg/m^3}, E: {value: 210, unit: GPa}, nu: 0.3}, select: ["dom:mass"]}
+  - {id: air_mat, override: {rho: {value: 1.225, unit: kg/m^3}, c: {value: 340, unit: m/s}}, select: ["dom:air"]}
+physics:
+  - id: solid
+    type: elastic
+    select: ["dom:memb", "dom:mass"]
+    settings: {model: axisym}
+    bcs:
+      - {id: clamp, type: fixed, select: ["bnd:memb.right"]}
+  - id: ac
+    type: acoustics
+    select: ["dom:air"]
+    bcs:
+      - {id: walls, type: sound-hard, select: ["bnd:tube.right", "bnd:tube.top", "bnd:tube.bottom"]}
+couplings:
+  - {id: fsi, type: acoustic-structure, from: solid, to: ac}
+mesh:
+  size: {hmax: "L/30"}
+  refine:
+    - {select: ["dom:memb"], h: "h_M/2"}
+    - {select: ["dom:mass"], h: "R/10"}
+studies:
+  - {id: eig, type: eigen, physics: [solid, ac], settings: {nModes: 5, shift: "1 Hz"}}
+  - {id: eig_vac, type: eigen, physics: [solid], settings: {nModes: 3, shift: "1 Hz"}}
+results:
+  datasets:
+    - {id: sol_eig, type: solution, data: eig}
+    - {id: sol_vac, type: solution, data: eig_vac}
+    - {id: axis_pt, type: cutpoint, data: sol_eig, points: [["0 mm", "0 mm"]]}
+  evaluations:
+    - id: ev_air
+      data: sol_eig
+      steps: first
+      items:
+        - {id: f_memb_air, type: global, expr: solid.f_2, unit: Hz, label: "coupled membrane fundamental: first mode with f > 0 (indices 0, 1 are f = 0; see assumptions)"}
+        - {id: f_eig_3, type: global, expr: solid.f_3, unit: Hz}
+        - {id: f_eig_4, type: global, expr: solid.f_4, unit: Hz}
+    - id: ev_eig
+      enabled: false
+      data: sol_eig
+      items:
+        - {id: uz_centre, type: point, enabled: false, data: axis_pt, expr: solid.u.z, unit: m, label: "membrane centre displacement per mode (normalised; shape indicator only)"}
+    - id: ev_vac
+      data: sol_vac
+      steps: first
+      items:
+        - {id: f_memb_vac, type: global, expr: solid.f_0, unit: Hz, label: "membrane + mass fundamental in vacuo (same solid, no air)"}
+  tables:
+    - {id: tbl_air, from: ev_air}
+    - {id: tbl_eig, from: ev_eig}
+    - {id: tbl_vac, from: ev_vac}
+  plots:
+    - id: p_mode
+      type: plot2d
+      data: sol_eig
+      steps: first
+      items:
+        - {id: p_surf, type: surface, expr: ac.p, unit: Pa}
+    - id: u_mode
+      type: plot2d
+      data: sol_eig
+      steps: first
+      items:
+        - {id: uz_surf, type: surface, expr: solid.u.z, unit: m}
+provenance:
+  values:
+    params.h_M: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): h_M = 0.025[mm] 'membrane thickness'", date: 2026-11-07}
+    params.R: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): R = 2.5[mm] (Cylinder 1 radius)", date: 2026-11-07}
+    params.h_k: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): h_k = 2[mm] 'height' (Cylinder 1 at z = h_M/2)", date: 2026-11-07}
+    params.L: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): L = 30[mm] (Block 1 duct Lx x Ly x L, centred)", date: 2026-11-07}
+    params.a: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): Lx = Ly = 20[mm] (square membrane and duct)", date: 2026-11-07, note: "modelling choice: circular reduction with a = Lx / 2"}
+    materials.PEI.override.rho: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): rho_M = 1270 [kg/m^3] 'polyetherimid (PEI) membrane'", date: 2026-11-07}
+    materials.PEI.override.E: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): E_M = 2.9[GPa]", date: 2026-11-07}
+    materials.PEI.override.nu: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): v_M = 0.44", date: 2026-11-07}
+    materials.steel.override.rho: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): rho_k = 7860 [kg/m^3]", date: 2026-11-07}
+    materials.steel.override.E: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): E_k = 210[GPa]", date: 2026-11-07}
+    materials.steel.override.nu: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): v_k = 0.3", date: 2026-11-07}
+    materials.air_mat.override.rho: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): rho0 = 1.225 [kg/m^3]", date: 2026-11-07, note: "materials/air.yaml (Lemmon 2000) gives 1.2046 kg/m^3 at 293.15 K, 0.101325 MPa"}
+    materials.air_mat.override.c: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): c0 = 340[m/s]", date: 2026-11-07, note: "materials/air.yaml gives 343.36 m/s at 293.15 K"}
+    studies.0.settings.nModes: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): Eigenfrequency neigs = 5", date: 2026-11-07}
+    studies.0.settings.shift: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20240922_mass_loaded_membrane_acoustics (inputs only): Eigenfrequency shift = 1[Hz]", date: 2026-11-07}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-07, note: "modelling choice: two cells through the membrane"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-07, note: "modelling choice"}
+assumptions:
+  - {text: "Axisymmetric reduction of Wentao's 3D square model: circular membrane a = Lx/2, centred mass without the offset cylinder cut (l0 = 0.5 mm, r = 1.5 mm), so only axisymmetric (m = 0) modes appear", paths: [geometry]}
+  - {text: "Membrane modelled as a thin elastic solid without pre-tension (as in Wentao's model: no tension parameter); clamped at r = a", paths: [physics.solid]}
+  - {text: "Closed rigid tube (sound-hard wall and ends); Wentao's model had ports at the duct ends for a transmission study", paths: [physics.ac]}
+  - {text: "Wet interface = all faces shared by the solid and the air (membrane top and bottom, mass top and side), MT convention", paths: [couplings.fsi]}
+  - {text: "Study eig_vac solves the same solid without air (membrane + mass in vacuo) to separate mass loading from air loading. Air-loading direction (derivation, DevLog-035 s.10): a closed cavity much smaller than the wavelength has a uniform pressure p = -rho c^2 dV / V (the acoustics constitutive law), so the two cavities add a stiffness 2 rho c^2 (int u_z dA)^2 / V_c per unit modal amplitude (raises f); the air inertia adds mass (lowers f). MX run 2026-11-07: 21.19 Hz in vacuo -> 66.39 Hz coupled (stiffening dominates)", paths: [studies]}
+  - {text: "The coupled study returns two f = 0 modes (indices 0, 1): the null space of the u-p form, one f = 0 mode per closed fluid cavity (uniform pressure in that cavity with the static membrane deformation it causes); the membrane spans the tube radius, so there are two closed cavities (air below and above), hence two (lane MT, DevLog-033 progress 2026-11-07 09:38: p uniform to 5 digits in each cavity). They are not vibration modes. The membrane fundamental is the first mode with f > 0 (index 2)", paths: [results.evaluations.ev_air]}
+missing:
+  - {what: "coupled closed form for the mass-loaded plate in a tube: none; the frequencies are informative. Uncoupled checks only (plate without mass, rigid air columns)", needed_for: [solution]}
+# eval: []   (uncoupled checks: validation/mp/references.py membrane_air)

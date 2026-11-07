@@ -1,38 +1,80 @@
-# PZT-4 (lane L10, DevLog-013). Placeholder with every value N/A: the Boucher et al. 1981 constants (eval case CP-06)
-# were not obtainable from an open source in this lane, and no other primary PZT-4 data set was read.
+# PZT-4 (lane L10, DevLog-013; values added by lane MX, DevLog-035 s.9, 2026-11-07). The Boucher et al. 1981 constants
+# (eval case CP-06) as printed in the public Ansys VM175 input listing; the primary paper is paywalled and was not read.
 schema: amp-material/0
 id: pzt-4
-name: PZT-4 (lead zirconate titanate, hard piezoceramic)
+name: PZT-4, Boucher et al. 1981 data set as listed in Ansys VM175 (lead zirconate titanate, hard piezoceramic)
 class: piezoelectric
 description: >-
-  Poled piezoceramic, 6mm symmetry with the poling axis = frame z. Needs the stiffness c^E, piezoelectric e and clamped
-  permittivity eps^S tensors; the 6mm tensor symmetry is not yet a registered symmetry of @amp/materials.
-verified_on: 2026-11-06
+  PZT-4, Boucher et al. 1981 data set as listed in Ansys VM175; differs from Berlincourt/Morgan PZT-4 datasheet values.
+  Poled piezoceramic, 6mm symmetry with the poling axis = frame z. Stiffness c^E (stored as tetragonal-4mm so that the
+  listed C66 is kept), piezoelectric stress constants e and clamped permittivity eps^S from the Ansys VM175 listing.
+verified_on: 2026-11-07
 frame: "z = poling direction"
 sources:
   boucher1981:
     citation: "D. Boucher, M. Lagier, C. Maerfeld, Computation of the vibrational modes for piezoelectric array transducers using a mixed finite element-perturbation method, IEEE Trans. Sonics Ultrason. SU-28(5), 318-330 (1981)"
     access: paywalled
     read: "not read (IEEE, paywalled; DOI not verified in this lane); the eval case CP-06 cites its Table 1 via Ansys VM175, where the matrices are images"
+  vm175:
+    citation: "Ansys Mechanical APDL Verification Manual, Release 2025 R1, VM175 Input Listing 'Natural frequency of a piezoelectric transducer' (cites Boucher, Lagier, Maerfeld, IEEE Trans. Sonics Ultrason. SU-28(5), 318-330 (1981))"
+    url: https://ansyshelp.ansys.com/public/Views/Secured/corp/v251/en/ans_vm/Hlp_V_VM175TXT.html
+    access: vendor_open
+    read: "text of the listing read by lane MX 2026-11-07 (scratch copy, not cached in the repo); page marked proprietary to ANSYS, Inc.: numeric values cited only"
 properties:
   rho:
-    value: N/A
+    value: 7500
     unit: kg/m^3
-    missing: "PZT-4 density not read from a primary source (CP-06 lists 7500 kg/m3 from Ansys VM175, a vendor manual, not used here)"
-    needed_for: [solution]
+    basis: paper_model_input
+    source: vm175
+    locator: "VM175 input listing line 'MP,DENS,3,7500 ! DENSITY' (constants credited to Boucher et al. 1981)"
+    accessed: 2026-11-07
+    uncertainty: {na: "not stated"}
+    conditions: {text: "PZT-4 as used in the Boucher 1981 model via VM175; temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    note: "added 2026-11-07 by lane MX (DevLog-035 s.9), was N/A; vendor listing of a paywalled primary (Boucher 1981 not read)"
     alternatives: []
   eps_r:
-    value: N/A
+    tensor:
+      symmetry: uniaxial
+      components: {perp: 804.6, par: 659.7}
     unit: "1"
-    missing: "clamped permittivity eps^S_11, eps^S_33 / eps0 of PZT-4 not read (Boucher et al. 1981 paywalled)"
-    needed_for: [solution]
+    basis: paper_model_input
+    source: vm175
+    locator: "VM175 listing 'MP,PERX,3,804.6 ! PERMITTIVITY (X AND Y DIRECTION)', 'MP,PERZ,3,659.7 ! PERMITTIVITY (Z DIRECTION)'"
+    accessed: 2026-11-07
+    uncertainty: {na: "not stated"}
+    conditions: {text: "clamped (constant strain) eps^S / eps0 assumed: the VM175 listing does not state it; Ansys VM231 labels its PERX 'PERMITTIVITY AT CONSTANT STRAIN'"}
+    valid: {T: {na: "temperature not stated"}, f: {na: "not stated; clamped = above the mechanical resonances"}}
+    note: "added 2026-11-07 by lane MX, was N/A"
     alternatives: []
   C:
-    value: N/A
+    tensor:
+      symmetry: tetragonal-4mm
+      components: {C11: 132, C12: 71, C13: 73, C33: 115, C44: 26, C66: 30}
     unit: GPa
-    missing: "stiffness c^E (6mm: c11, c12, c13, c33, c44, c66) of PZT-4 not read; 6mm symmetry also needs a schema extension"
-    needed_for: [solution]
+    basis: paper_model_input
+    source: vm175
+    locator: "VM175 listing 'TBDATA,1,13.2E10,7.1E10,7.3E10 ! INPUT [C] MATRIX', 'TBDATA,7,13.2E10,7.3E10', 'TBDATA,12,11.5E10', 'TBDATA,16,3.0E10', 'TBDATA,19,2.6E10', 'TBDATA,21,2.6E10' (Ansys Voigt order x, y, z, xy, yz, xz: row 4 = xy -> C66; rows 5, 6 -> C44 = C55)"
+    accessed: 2026-11-07
+    derivation: "listing values in N/m^2 (e.g. 13.2E10) written in GPa (x 1e-9, exact)"
+    uncertainty: {na: "not stated"}
+    conditions: {text: "constant electric field c^E assumed (the listing does not state it); poling axis z"}
+    valid: {T: {na: "temperature not stated"}}
+    note: "added 2026-11-07 by lane MX, was N/A. PZT-4 is 6mm; tetragonal-4mm (independent C66) reproduces the listed C66 = 3.0e10 exactly, the 6mm form would give (C11 - C12)/2 = 3.05e10"
+    alternatives: []
+  e_piezo:
+    tensor:
+      symmetry: tetragonal-4mm
+      components: {e15: 10.5, e31: -4.1, e33: 14.1}
+    unit: C/m^2
+    basis: paper_model_input
+    source: vm175
+    locator: "VM175 listing 'TBDATA,3,-4.1 ! E13', 'TBDATA,6,-4.1 ! E23', 'TBDATA,9,14.1 ! E33', 'TBDATA,14,10.5 ! E52', 'TBDATA,16,10.5 ! E61' (Ansys rows 5 = yz, 6 = xz: e24 = e15 = 10.5)"
+    accessed: 2026-11-07
+    uncertainty: {na: "not stated"}
+    conditions: {text: "stress constants e (C/m^2); axis convention: poling direction = +z; signs as in the listing (e31 < 0, e33 > 0, e15 > 0)"}
+    valid: {T: {na: "temperature not stated"}}
     alternatives: []
 missing:
-  - {what: "piezoelectric stress constants e31, e33, e15 (C/m^2) of PZT-4: not read; property type e_piezo not registered yet"}
-  - {what: "open primary candidates to search: manufacturer data sheets giving PZT-4 constants, or an open copy of Boucher et al. 1981 Table 1"}
+  - {what: "primary source: Boucher et al. 1981 Table 1 is paywalled and not read; all values via the Ansys VM175 listing (vendor page, cite_values)"}
+  - {what: "a second PZT-4 set (Ansys VM231 listing, citing Parton, Kudryavtsev, Senik 1989 p.28) not transcribed"}

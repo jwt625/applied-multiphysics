@@ -16,6 +16,9 @@
 /
   Cache-Control: public, max-age=0, must-revalidate, no-transform
 
+/workbench
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
 /play/*
   Cache-Control: public, max-age=0, must-revalidate, no-transform
 

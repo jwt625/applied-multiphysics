@@ -4,10 +4,11 @@ schema: amp-eval/0
 id: CP-06
 class: c
 title: PZT-4 cube 20 mm, short- and open-circuit breathing modes (Boucher et al. 1981)
-status: untestable
-untestable_reason: PZT-4 stiffness, piezoelectric and permittivity matrices are images on VM175 (not recoverable as text);
-  target is experimental
-activation: PZT-4 constants from an open primary source (e.g. Boucher 1981 Table or a materials datasheet with locator)
+status: unvalidated
+untestable_reason: null
+activation: 'resolved 2026-11-07 (DevLog-035 s.2.10, s.10, s.12): the PZT-4 constants (Boucher 1981 as listed) are text in
+  the public VM175 input listing, stored in materials/pzt-4.yaml; sims/pzt4-cube.yaml runs both studies (logs/MX-run-all-20261107T094211.jsonl:
+  short f1, f2 -2.19 %, +0.15 %; open f1, f2 -2.18 %, +0.19 %; 4/4 within 3 %, default mesh, single level)'
 physics: [coupled-piezo, solid-modal]
 dimension: 3D
 units: SI
@@ -85,7 +86,7 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_with_attribution, copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pzt-cube.yaml}
+spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pzt4-cube.yaml}
 missing: ['PZT-4 [c], [e], [eps_r] values']
 assumptions: []
 source_case: {suite: Ansys VM175 (pointer), file: Hlp_V_VM175.html, url: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM175.html,

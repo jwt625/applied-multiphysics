@@ -202,7 +202,7 @@
 {:else}
 	<div class="play" class:withagent={agentOpen}>
 		<header>
-			<a href="{resolve('/')}?sim={simId}" data-sveltekit-reload class="dim" data-tip="Open this model in the workbench (same op log format)">workbench</a>
+			<a href="{resolve('/workbench')}?sim={simId}" data-sveltekit-reload class="dim" data-tip="Open this model in the workbench (same op log format)">workbench</a>
 			<span class="t">{title}</span>
 			<span class="sp"></span>
 			<button disabled={!s || s.status === 'solving'} onclick={() => s?.requestCompute()} data-tip="Compute at full resolution">Compute</button>

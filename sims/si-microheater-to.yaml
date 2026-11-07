@@ -1,0 +1,154 @@
+# Thermo-optic phase shifter: Ti microheater above a Si strip waveguide, heat -> em-modes (thermo-optic), 2D cross-section
+# (lane MX, DevLog-035; DevLog-001 H11). Device: reference switch without thermal isolation of X. Wang et al., IEEE
+# Photon. Technol. Lett. 32(19), 1281-1284 (2020), doi 10.1109/LPT.2020.3020428 (NSF public-access copy
+# par.nsf.gov/servlets/purl/10198282): Si 450 x 220 nm, BOX 3 um, SiO2 cladding t_c 500 nm above the Si top, Ti heater
+# 1.5 um x 100 nm x 450 um on the cladding, substrate 300 um held at 300 K in the paper's simulation; measured P_pi
+# 8.5 mW at 1550 nm (TE), heater resistance 6.5 kOhm. Chain: currents (out-of-plane drive along the heater, MC's
+# outOfPlane {I}, I = sqrt(P_h / R_h)) -> joule-heating -> heat -> thermo-optic -> em-modes; with P_h = 8.5 mW the
+# computed phase over L_h should be near pi (Ppi output).
+# Materials: Si (Li 1980 n, dn/dT at 1.55 um, 293 K; Ho-Powell-Liley 1972 k), SiO2 (Malitson n, Leviton-Frey 2006 dn/dT,
+# Corning k), Ti k (Ho-Powell-Liley 1972, bulk), air (Ciddor n; Kadoya 1985 k). References: validation/mp/README.md.
+schema: amp-spec/0
+id: si-microheater-to
+title: Si microheater phase shifter (currents -> heat -> optics)
+description: Ti heater on SiO2 above a Si strip; the heat solve feeds the mode solver through dn/dT; phase shift and P_pi at 1550 nm.
+params:
+  w_wg: {value: 450, unit: nm, description: Si waveguide width}
+  t_wg: {value: 220, unit: nm, description: Si waveguide height (fully etched)}
+  t_box: {value: 3, unit: um, description: buried oxide}
+  t_c: {value: 500, unit: nm, description: SiO2 cladding above the Si top}
+  w_h: {value: 1.5, unit: um, description: heater width}
+  t_h: {value: 100, unit: nm, description: heater thickness}
+  L_h: {value: 450, unit: um, description: heater length}
+  t_sub: {value: 300, unit: um, description: Si substrate (ground wafer)}
+  P_h: {value: 8.5, unit: mW, range: [0, 20], description: heater power}
+  R_h: {value: 6.5, unit: kohm, description: measured heater resistance}
+  I_h: {value: "sqrt(P_h/R_h)", description: "heater current for power P_h (I = sqrt(P / R))"}
+  T_sink: {value: 300, unit: K, description: substrate bottom temperature}
+  W: {value: 300, unit: um, description: lateral width of the heat domain (modelling choice)}
+  H_air: {value: 5, unit: um, description: air layer modelled above the cladding (modelling choice)}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+geometry:
+  dim: 2
+  features:
+    - {id: sub, type: rect, settings: {size: ["W", "t_sub"], center: ["0 um", "-t_box - t_sub/2"]}}
+    - {id: boxl, type: rect, settings: {size: ["W", "t_box"], center: ["0 um", "-t_box/2"]}}
+    - {id: cladr, type: rect, settings: {size: ["W", "t_wg + t_c"], center: ["0 um", "(t_wg + t_c)/2"]}}
+    - {id: core, type: rect, settings: {size: ["w_wg", "t_wg"], center: ["0 um", "t_wg/2"]}}
+    - {id: clad, type: difference, settings: {base: cladr, tools: [core], keepTools: true}}
+    - {id: airr, type: rect, settings: {size: ["W", "H_air"], center: ["0 um", "t_wg + t_c + H_air/2"]}}
+    - {id: heater, type: rect, settings: {size: ["w_h", "t_h"], center: ["0 um", "t_wg + t_c + t_h/2"]}}
+    - {id: air, type: difference, settings: {base: airr, tools: [heater], keepTools: true}}
+    - {id: win, type: rect, settings: {size: ["4 um", "3.5 um"], center: ["0 um", "0.25 um"]}}
+    - {id: opt, type: fragment, settings: {inputs: [win, boxl, clad, core, air, heater]}}
+materials:
+  - {id: Si, override: {n: 3.476687043586583, dndT: {value: 1.8181439688454373e-4, unit: 1/K}, k: {value: 148, unit: W/(m*K)}}, select: ["dom:core", "dom:sub"]}
+  - {id: SiO2, override: {n: 1.4444232909003691, dndT: {value: 8.161870601597343e-6, unit: 1/K}, k: {value: 1.38, unit: W/(m*K)}}, select: ["dom:boxl", "dom:clad"]}
+  - {id: Ti, override: {k: {value: 21.9, unit: W/(m*K)}, sigma: "L_h/(R_h*w_h*t_h)"}, select: ["dom:heater"]}
+  - {id: Air, override: {n: 1.0002732603157674, dndT: {value: 0, unit: 1/K}, k: {value: 0.02570666, unit: W/(m*K)}}, select: ["dom:air"]}
+physics:
+  - id: eh
+    type: currents
+    select: ["dom:heater"]
+    settings: {outOfPlane: {I: "I_h"}}
+  - id: ht
+    type: heat
+    select: ["dom:sub", "dom:boxl", "dom:clad", "dom:core", "dom:air", "dom:heater"]
+    bcs:
+      - {id: sink, type: temperature, select: ["bnd:sub.bottom"], settings: {T: "T_sink"}}
+      - {id: sides, type: insulation, select: ["bnd:sub.left", "bnd:sub.right", "bnd:boxl.left", "bnd:boxl.right", "bnd:cladr.left", "bnd:cladr.right", "bnd:airr.left", "bnd:airr.right", "bnd:airr.top"]}
+  - id: ewg
+    type: em-modes
+    select: ["dom:win&boxl", "dom:win&clad", "dom:win&core", "dom:win&air"]
+    settings: {order: 2}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:win.left", "bnd:win.right", "bnd:win.top", "bnd:win.bottom", "bnd:heater.left", "bnd:heater.right", "bnd:heater.top", "bnd:heater.bottom"]}
+couplings:
+  - {id: jh, type: joule-heating, from: eh, to: ht}
+  - {id: to, type: thermo-optic, from: ht, to: ewg, settings: {Tref: "T_sink", power: "P_h/L_h"}}
+mesh:
+  size: {hmax: "W/30", grading: 0.3}
+  refine:
+    - {select: ["dom:win&core", "dom:win&clad", "dom:win&air"], h: "t_wg/4"}
+    - {select: ["bnd:core.left", "bnd:core.right", "bnd:core.top", "bnd:core.bottom"], h: "t_wg/16"}
+    - {select: ["dom:heater"], h: "t_h/2"}
+studies:
+  - {id: std1, type: mode, physics: [eh, ht, ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: core_pt, type: cutpoint, data: sol_std1, points: [["0 um", "t_wg/2"]]}
+    - {id: vline, type: cutline, data: sol_std1, from: ["0 um", "-t_box"], to: ["0 um", "t_wg + t_c + t_h"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      steps: first
+      items:
+        - {id: T_core, type: point, data: core_pt, expr: ht.T, unit: K}
+        - {id: T_max, type: global, expr: ht.T_max, unit: K}
+        - {id: P_heater, type: global, expr: eh.P, unit: W/m, label: "Joule power per unit length (should equal P_h / L_h)"}
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: dneff, type: global, expr: ewg.dneff_0, unit: "1"}
+        - {id: Ppi, type: global, expr: ewg.Ppi_0, unit: mW}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: T_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: T_surf, type: surface, expr: ht.T, unit: K}
+    - id: E_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: E_surf, type: surface, expr: ewg.normE, unit: V/m}
+    - id: T_line
+      type: plot1d
+      items:
+        - {id: T_curve, type: linegraph, data: vline, x: arc, expr: ht.T, unit: K}
+provenance:
+  values:
+    params.w_wg: {basis: paper_exact, source: "Wang et al. 2020 PTL 32(19) 1281", locator: "p.1282 Sec. II: 'The cross-section of the waveguide is 450 nm x 220 nm.'", date: 2026-11-07}
+    params.t_wg: {basis: paper_exact, source: "Wang et al. 2020", locator: "p.1282 Sec. II (220 nm top Si); p.1283 'Fully-etched (220 nm) waveguides'", date: 2026-11-07}
+    params.t_box: {basis: paper_exact, source: "Wang et al. 2020", locator: "p.1282 Sec. II: 'a 3 um thick buried oxide layer'", date: 2026-11-07}
+    params.t_c: {basis: paper_exact, source: "Wang et al. 2020", locator: "p.1282: 'The thickness of SiO2 cladding (tc) is set to 500 nm'; Fig. 1(b) draws t_c from the Si-layer top to the cladding top (read from figure)", date: 2026-11-07}
+    params.w_h: {basis: paper_exact, source: "Wang et al. 2020", locator: "p.1282: 'The width (Wh), thickness (th), and length (Lh) of the Ti heater are 1.5 um, 100 nm, and 450 um'", date: 2026-11-07}
+    params.t_h: {basis: paper_exact, source: "Wang et al. 2020", locator: "p.1282 (as w_h)", date: 2026-11-07}
+    params.L_h: {basis: paper_exact, source: "Wang et al. 2020", locator: "p.1282 (as w_h)", date: 2026-11-07}
+    params.t_sub: {basis: paper_exact, source: "Wang et al. 2020", locator: "p.1283: 'the 720 um SOI wafer was ground to 300 um from the backside'", date: 2026-11-07}
+    params.P_h: {basis: paper_exact, source: "Wang et al. 2020", locator: "p.1284: 'The Pi of the switches without thermal isolation structure ... are 8.5 mW' (measured)", date: 2026-11-07, note: "default power = the measured P_pi of the reference device"}
+    params.T_sink: {basis: paper_model_input, source: "Wang et al. 2020", locator: "p.1283: 'The starting temperature of the SOI substrate is set to 300 K.'", date: 2026-11-07}
+    params.lambda0: {basis: paper_exact, source: "Wang et al. 2020", locator: "abstract: 'At 1550 nm for TE mode'", date: 2026-11-07}
+    params.W: {basis: user, date: 2026-11-07, note: "modelling choice: lateral truncation of the heat domain (insulated sides), to be checked by a width study"}
+    params.H_air: {basis: user, date: 2026-11-07, note: "modelling choice: air above the cladding (insulated top; no film coefficient given in the paper)"}
+    materials.Si.override.n: {basis: derived, source: "materials/silicon.yaml n (Li 1980 p.576 Table 1, 293 K) at 1.55 um, converted to vacuum with air.n by @amp/materials getProperty", date: 2026-11-07}
+    materials.Si.override.dndT: {basis: derived, source: "materials/silicon.yaml dndT (Li 1980 p.578 Table 2, 293 K) at 1.55 um", date: 2026-11-07}
+    materials.Si.override.k: {basis: measured, source: "materials/silicon.yaml k (Ho, Powell, Liley 1972 p.394) at 300 K: 1.48 W/(cm K)", date: 2026-11-07}
+    materials.SiO2.override.n: {basis: derived, source: "materials/sio2-thermal-oxide.yaml n (Malitson 1965 Sellmeier) at 1.55 um", date: 2026-11-07}
+    materials.SiO2.override.dndT: {basis: derived, source: "materials/sio2-thermal-oxide.yaml dndT (Leviton, Frey 2006 temperature-dependent Sellmeier of bulk Corning 7980, differentiated) at 1.55 um, 293.15 K", date: 2026-11-07, note: "fit valid 30-300 K and 0.4-2.6 um; bulk fused silica stands in for the oxide film (analog_of fused-silica); heated cladding above 300 K is outside the fit range"}
+    materials.SiO2.override.k: {basis: datasheet, source: "materials/sio2-thermal-oxide.yaml k (Corning HPFS 7980 2014 p.3: 1.38 W/(m K), bulk value used for the film)", date: 2026-11-07}
+    materials.Ti.override.k: {basis: measured, source: "C. Y. Ho, R. W. Powell, P. E. Liley, J. Phys. Chem. Ref. Data 1, 279-421 (1972), doi 10.1063/1.3253100 (NIST reprint)", locator: "reprint pdf p.130 'Thermal conductivity of titanium', recommended values, polycrystalline solid, T = 300 K: 0.219 W/(cm K); remarks: accurate within +-10 % at moderate temperatures", date: 2026-11-07, note: "bulk well-annealed high-purity Ti; a 100 nm sputtered film is expected to differ (not quantified from a source)"}
+    materials.Ti.override.sigma: {basis: derived, source: "sigma = L_h / (R_h w_h t_h) = 4.615e5 S/m from Wang et al. 2020 p.1284 'The measured resistance of Ti heater is 6.5 kOhm' and the p.1282 heater dimensions (validation/mp/references.py microheater)", date: 2026-11-07, note: "assumes the 6.5 kOhm is the heater strip alone (leads not stated)"}
+    params.R_h: {basis: paper_exact, source: "Wang et al. 2020", locator: "p.1284: 'The measured resistance of Ti heater is 6.5 k[Ohm].'", date: 2026-11-07}
+    params.I_h: {basis: derived, source: "I = sqrt(P_h / R_h): the paper gives the heater resistance and P_pi but no drive voltage or current; with sigma = L_h / (R_h w_h t_h) the out-of-plane drive gives P' = I^2 / (sigma w_h t_h) = P_h / L_h", date: 2026-11-07}
+    materials.Air.override.n: {basis: reference_correlation, source: "materials/air.yaml n (Ciddor 1996 via refractiveindex.info) at 1.55 um", date: 2026-11-07}
+    materials.Air.override.dndT: {basis: user, date: 2026-11-07, note: "assumption: thermo-optic change of air neglected (no sourced dn/dT of air in the library)"}
+    materials.Air.override.k: {basis: derived, source: "materials/air.yaml k (Kadoya et al. 1985 p.962 Table 12, 0.10 MPa) at 293.15 K", date: 2026-11-07}
+    couplings.to.settings.Tref: {basis: user, date: 2026-11-07, note: "= T_sink so that the index change is zero at zero heater power (the n values are at 293 K; offset stated in assumptions)"}
+    couplings.to.settings.power: {basis: derived, source: "P_h / L_h (heater power per unit length of the 2D section)", date: 2026-11-07}
+    geometry.features.8.settings.size: {basis: user, date: 2026-11-07, note: "modelling choice: optical window 4 x 3.5 um around the core (PEC walls), includes 0.28 um of air above the heater"}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-07, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-07, note: "modelling choice (core corners)"}
+    mesh.refine.2.h: {basis: user, date: 2026-11-07, note: "modelling choice"}
+assumptions:
+  - {text: "Out-of-plane current along the heater (uniform E_z, J_z = sigma E_z): Joule density uniform in the homogeneous strip; end effects and leads over L_h ignored (2D section)", paths: [physics.eh]}
+  - {text: "Ti heater excluded from the optical domain: its boundary is a PEC wall for the mode (metal; Ti optical constants not in the library)", paths: [physics.ewg]}
+  - {text: "Material indices are at 293 K (Li 1980, Malitson 20 C) while Tref = T_sink = 300 K: the base n_eff carries a 7 K offset (Si: about 1.818e-4 x 7 = 1.3e-3 in n), the phase change per power does not", paths: [couplings.to]}
+  - {text: "Si dn/dT is the 293 K value (Li 1980 Table 2, 293 K column only); its temperature dependence over the heated range is not applied", paths: [materials.Si]}
+  - {text: "Insulated top (air above, no film coefficient in the paper) and insulated lateral truncation at W/2; heat leaves only through the substrate bottom at 300 K (paper's simulation boundary)", paths: [physics.ht]}
+missing:
+  - {what: "thin-film Ti thermal conductivity (bulk value used)", needed_for: [solution]}
+  - {what: "dn/dT of air", needed_for: [solution]}
+# eval: []   (reference: measured P_pi 8.5 mW, Wang 2020 p.1284; informative)

@@ -24,6 +24,12 @@ sources:
     access: local_cache
     read: "not re-read by L10; EO lane T3 read Table 1 (p.197) and Table 4 (p.199) from 110 and 260 dpi page renders on 2026-10-15 (subscription copy, local only)"
     via: "eo-modulator-atlas engine/data/materials.json at bc68738 (library.lithium_niobate_congruent) and DevLog-038"
+  ogi2002:
+    citation: "H. Ogi, Y. Kawasaki, M. Hirao, H. Ledbetter, Acoustic spectroscopy of lithium niobate: elastic and piezoelectric coefficients, J. Appl. Phys. 92, 2451-2456 (2002)"
+    doi: 10.1063/1.1497702
+    url: https://hdl.handle.net/11094/84216
+    access: open
+    read: "Osaka University repository copy (version of record, personal use), p.2452 text and p.2455 Table III read from a page render by lane MX 2026-11-07"
 properties:
   n:
     tensor:
@@ -130,12 +136,77 @@ properties:
         uncertainty: {na: "not stated"}
         conditions: {lambda: "633 nm", text: "unclamped (constant stress)"}
         valid: {lambda: {unit: nm, range: [633, 633]}, T: {na: "not given"}}
-  rho:
-    value: N/A
-    unit: kg/m^3
-    missing: "not read from a primary source in this lane (Weis and Gaylord 1985 is the candidate)"
+  C:
+    tensor:
+      symmetry: trigonal-3m
+      components: {C11: 203, C12: 53, C13: 75, C14: 9, C33: 245, C44: 60}
+    unit: GPa
+    basis: measured
+    source: weis1985
+    locator: "Table 6 p.200 'Elastic stiffness coefficients [x 10^11 N/m^2] at constant electric field', row c^E [23] (Warner, Onoe, Coquin 1967): 2.03 0.53 0.75 0.09 2.45 0.60 (c11 c12 c13 c14 c33 c44); read from a page render by lane MX 2026-11-07"
+    accessed: 2026-11-07
+    derivation: "1e11 N/m^2 = 100 GPa (exact); C66 = (C11 - C12)/2 by symmetry"
+    uncertainty: {na: "not stated per row; other rows of Table 6: [24] Smith-Welsh 2.030 0.573 0.752 0.085 2.424 0.595, [27] 2.0 0.54 0.6 0.08 2.43 0.60"}
+    conditions: {text: "constant electric field c^E; axes per the IRE 1949 standard (Proc. IRE 37, 1378), Weis-Gaylord p.195: +z and +y faces become negative on compression, x normal to the mirror plane; C14 positive as tabulated. The IEEE 1978/1987 standard (opposite sense of y, which flips C14, e15, e22) is not read here"}
+    valid: {T: {na: "temperature not stated in the table"}}
+    alternatives:
+      - id: smith_welsh1971
+        use: "sensitivity (second measurement in the same table)"
+        tensor:
+          symmetry: trigonal-3m
+          components: {C11: 203.0, C12: 57.3, C13: 75.2, C14: 8.5, C33: 242.4, C44: 59.5}
+        unit: GPa
+        basis: measured
+        source: weis1985
+        locator: "Table 6 p.200 row c^E [24] (Smith, Welsh 1971): 2.030 0.573 0.752 0.085 2.424 0.595 x 1e11 N/m^2"
+        accessed: 2026-11-07
+        derivation: "1e11 N/m^2 = 100 GPa (exact)"
+        uncertainty: {na: "not stated"}
+        conditions: {text: "constant electric field; IRE 1949 axes"}
+        valid: {T: {na: "not stated"}}
+  e_piezo:
+    tensor:
+      symmetry: trigonal-3m
+      components: {e15: 3.7, e22: 2.5, e31: 0.2, e33: 1.3}
+    unit: C/m^2
+    basis: measured
+    source: ogi2002
+    locator: "Table III p.2455, column 'Warner and co-workers (Ref. 28)': e15 3.7, e22 2.5, e31 0.2, e33 1.3 C/m^2 (same column: C values identical to Weis-Gaylord Table 6 row [23]); read from a page render by lane MX 2026-11-07"
+    accessed: 2026-11-07
+    uncertainty: {na: "not stated; other columns of Table III: Smith-Welsh 3.76 2.43 0.23 1.33, Kovacs 3.69 2.42 0.30 1.77"}
+    conditions: {text: "stress constants e; signs as printed by Ogi (all positive; Ogi states no axis convention). Consistent with the IRE 1949 axes of Weis-Gaylord, under which d22 and d33 are positive (Weis p.197); not verified against Warner 1967 itself"}
+    valid: {T: {na: "not stated"}}
     alternatives: []
+  dndT:
+    value: N/A
+    unit: 1/K
+    missing: "no open primary source found (lane MX, 2026-11-07, for MO request M1): Moretti et al., J. Appl. Phys. 98, 036101 (2005), doi 10.1063/1.1988987 (n_o and n_e at 632 and 1523 nm, 320-515 K) is paywalled and its CNR IRIS record has no file; Weis-Gaylord 1985 p.197 (refractive-index paragraph) only points to refs [30]-[32] (temperature-dependent indices, no numbers in the review); Jundt 1997 (n_e only), Schlarb-Betzler 1993 and Edwards-Lawrence 1984 not reachable openly; Gayer et al. 2008 is MgO-doped LN, not undoped congruent"
+    n_medium: unstated
+    alternatives: []
+  rho:
+    value: 4.628
+    unit: g/cm^3
+    basis: measured
+    source: weis1985
+    locator: "p.194 text: 'mass density (4.628 x 10^3 kg/m3)', used there in the hexagonal unit-cell volume calculation"
+    accessed: 2026-11-07
+    uncertainty: {na: "not stated"}
+    conditions: {text: "composition not stated at this point of the source"}
+    valid: {T: {na: "temperature not stated"}}
+    note: "added 2026-11-07 by lane MX (DevLog-035), was N/A; read from the text layer of the local subscription copy (p.194) by MX"
+    alternatives:
+      - id: ogi2002_measured
+        use: "sensitivity (measured on a congruent-grown crystal)"
+        value: 4.636
+        unit: g/cm^3
+        basis: measured
+        source: ogi2002
+        locator: "p.2452: 'we found a mass density rho=4.636 g/cm3' (Archimedes method); handbook value 4.633 g/cm3 quoted in the same sentence"
+        accessed: 2026-11-07
+        uncertainty: {na: "not stated"}
+        conditions: {text: "Ogi et al. specimen"}
+        valid: {T: {na: "temperature not stated"}}
 missing:
   - {property: r_eo, what: "Pockels coefficients at 1550 nm / 1957 nm: none in Weis and Gaylord Table 4; the 633 nm clamped row is the default (EO DevLog-038)"}
   - {property: n, what: "temperature dependence of n_o, n_e (Zelmon 1997 fits are at 21 C only)"}
-  - {what: "elastic, piezoelectric and photoelastic tensors not authored"}
+  - {what: "photoelastic tensor not authored"}

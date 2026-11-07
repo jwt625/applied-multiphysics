@@ -14,8 +14,12 @@ import { makeSolution, StageTimer, scalar } from '../common/solution.ts';
 import { attachMesh } from '../common/solution.ts';
 import { bcsOf, cellProps, physicsNode, optionalCellProp } from '../common/ctx.ts';
 import { compileField, spaceOf, evalField } from '../common/field.ts';
+import { eigenStudy, q } from '../common/ctx.ts';
+import { solveElasticModes } from './modal.ts';
+import { solveElasticAxisym } from './axisym.ts';
+import { bcNodes } from '../coupled/assemble.ts';
 
-export type Model = 'plane-stress' | 'plane-strain' | '3d';
+export type Model = 'plane-stress' | 'plane-strain' | '3d' | 'axisym';   // axisym: elastic/axisym.ts (lane MT)
 export type VecFn = (x: Float64Array, n: Float64Array) => number[];
 export type ElasticBc =
   | { type: 'fixed'; select: string[] }
@@ -118,6 +122,8 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
   const timer = new StageTimer();
   const m = p.mesh, dim = m.dim, k = NPC[m.cells.type], nn = nNodes(m), nc = nCells(m);
   if ((dim === 3) !== (p.model === '3d')) throw new Error(`elastic: model ${p.model} on a ${dim}D mesh`);
+  if (p.model === 'axisym' || m.axisym) throw new Error('elastic: axisymmetric problems go through solveElasticAxisym (elastic/axisym.ts)');
+  if (m.cells.type === 'hex8') throw new Error('elastic: hex8 cells are not supported (trilinear hexes lock in bending); split the box mesh into tet10 with elastic/hex2tet.ts hexToTet10');
   const nv = dim === 2 ? 3 : 6, nd = k * dim;
   const mask = p.mask ?? Uint8Array.from(p.E, (v) => (Number.isFinite(v) ? 1 : 0));
   const node = cellPattern(m);
@@ -190,8 +196,9 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
   const fixed = new Uint8Array(nn * dim), uc = new Float64Array(nn * dim);
   for (let v = 0; v < nn; v++) if (!active[v]) for (let d = 0; d < dim; d++) fixed[dim * v + d] = 1;
   for (const b of p.bcs) {
-    if (b.type === 'fixed') for (const v of facetNodes(m, facetsOn(m, b.select))) for (let d = 0; d < dim; d++) fixed[dim * v + d] = 1;
-    else if (b.type === 'displacement') for (const v of facetNodes(m, facetsOn(m, b.select))) { fixed[dim * v + b.component] = 1; uc[dim * v + b.component] = b.value; }
+    // bcNodes: boundary facets as before, plus pnt: selections through Mesh.pointNode (lane MT)
+    if (b.type === 'fixed') for (const v of bcNodes(m, b.select)) for (let d = 0; d < dim; d++) fixed[dim * v + d] = 1;
+    else if (b.type === 'displacement') for (const v of bcNodes(m, b.select)) { fixed[dim * v + b.component] = 1; uc[dim * v + b.component] = b.value; }
     else if (b.type === 'roller') {
       const fs = facetsOn(m, b.select);
       // axis of the normal: all nodes share one coordinate
@@ -357,7 +364,8 @@ export function stressErrorL2(p: ElasticProblem, u: Float64Array, exact: (x: Flo
 export function elasticProblemFromContext(ctx: RunContext): ElasticProblem {
   const spec = ctx.spec as Spec, m = ctx.mesh;
   const ph = physicsNode(spec, ctx.physicsId) as { settings?: { model?: Model; thickness?: unknown } };
-  const model = ph.settings?.model ?? (m.dim === 3 ? '3d' : undefined);
+  const model = ph.settings?.model ?? (m.dim === 3 ? '3d' : m.axisym ? 'axisym' : undefined);
+  if (model && (model === 'axisym') !== !!m.axisym) throw new Error(`elastic: settings.model ${model} on a ${m.axisym ? 'axisymmetric' : 'planar'} mesh`);
   if (!model) throw new Error('elastic: settings.model (plane-stress | plane-strain) required in 2D');
   const { mask, values } = cellProps(ctx, ['E', 'nu']);
   const sp = spaceOf(m);
@@ -367,6 +375,13 @@ export function elasticProblemFromContext(ctx: RunContext): ElasticProblem {
     switch (b.type) {
       case 'fixed': bcs.push({ type: 'fixed', select: b.select }); break;
       case 'roller': bcs.push({ type: 'roller', select: b.select }); break;
+      case 'displacement': {   // prescribed components (lane MT): ux / uy / uz, any subset; bnd: or pnt: selections
+        const comps = (['ux', 'uy', 'uz'] as const).slice(0, m.dim);
+        let n = 0;
+        comps.forEach((k, c) => { if (s[k] !== undefined) { bcs.push({ type: 'displacement', select: b.select, component: c, value: q(spec, s[k], `${b.id}.${k}`) }); n++; } });
+        if (!n) throw new Error(`${b.id}: displacement needs at least one of ${comps.join(', ')}`);
+        break;
+      }
       case 'free': break;
       case 'boundary-load': {
         // vector of field components ({value: [..], unit} or a list of field settings), static: t = 0
@@ -383,20 +398,39 @@ export function elasticProblemFromContext(ctx: RunContext): ElasticProblem {
     }
   }
   void optionalCellProp;
-  return { mesh: m, model, E: values.E!, nu: values.nu!, mask, bcs, spec };
+  const out: ElasticProblem = { mesh: m, model, E: values.E!, nu: values.nu!, mask, bcs, spec };
+  // coupled input (C11): thermal strain from a heat physics (alpha per cell, nodal T, Tref)
+  const th = (ctx.inputs ?? []).filter((i) => i.kind === 'thermal-expansion');
+  if (th.length > 1) throw new Error(`elastic: ${th.length} thermal-expansion couplings into '${ctx.physicsId}' (one is supported)`);
+  if (th.length) {
+    const d = th[0]!.data as { alpha: Float64Array; T: Float64Array; Tref: number };
+    if (!(d.alpha instanceof Float64Array) || d.alpha.length !== values.E!.length || !(d.T instanceof Float64Array) || d.T.length !== m.nodes.length / m.dim) throw new Error(`elastic: coupled input '${th[0]!.coupling}' does not match the mesh`);
+    out.thermal = { alpha: d.alpha, T: d.T, Tref: d.Tref };
+  }
+  return out;
 }
 
 export const elasticModule: PhysicsModule = {
   type: 'elastic',
-  dims: ['2d', '3d'],
+  dims: ['2d', '2d-axisym', '3d'],
   readiness(spec, physicsId) {
     const reasons: string[] = [];
     try {
       const ph = physicsNode(spec as Spec, physicsId);
-      const ok = new Set(['fixed', 'roller', 'free', 'boundary-load', 'pressure']);
+      const ok = new Set(['fixed', 'roller', 'free', 'boundary-load', 'pressure', 'displacement']);
       for (const b of ph.bcs ?? []) if (!ok.has(b.type)) reasons.push(`unsupported condition '${b.type}'`);
     } catch (e) { reasons.push((e as Error).message); }
     return { ready: !reasons.length, reasons };
   },
-  async run(ctx) { return solveElastic(elasticProblemFromContext(ctx)); },
+  async run(ctx) {
+    // eigen study -> solid modal analysis; axisymmetric mesh -> axisym solve (lane MT, DevLog-033); else unchanged
+    const p = elasticProblemFromContext(ctx);
+    if (ctx.study.type === 'eigen') {
+      const { nModes, shiftHz } = eigenStudy(ctx);
+      const rho = cellProps(ctx, ['rho']).values.rho!;
+      return solveElasticModes({ ...p, rho, nModes, shiftHz, signal: ctx.signal });
+    }
+    if (p.model === 'axisym') return solveElasticAxisym(p);
+    return solveElastic(p);
+  },
 };

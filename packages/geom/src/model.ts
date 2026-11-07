@@ -13,8 +13,12 @@
 //   the source entities (edges: parameter along the source; domains: first boundary contact), which is invariant
 //   under parameter changes that keep topology.
 // - boundary IDs come from the first source in construction order; coincident sources are listed in `parent`.
+// - footprints (DevLog-036 G1): tool edge pieces that a difference drops and that coincide with an edge of the target
+//   (exterior on both sides, e.g. an electrode's bottom edge on the target's own boundary) are carried on the result and through later booleans; a final boundary
+//   whose every piece lies on footprints of entity X also lists `bnd:X` in `parent` (X's ancestors in `ancestors`), so
+//   a shared edge resolves from both owners' names (CONTRACTS-v0 changelog: selections match split pieces).
 
-import { type Curve, type Vec2, point, deriv, reverse } from './curves.ts';
+import { type Curve, type Vec2, point, deriv, reverse, project } from './curves.ts';
 import { arrange, type Arrangement } from './arrangement.ts';
 import { hyp2 } from './detmath.ts';
 import type { EntityRef, EntityTable } from './types.ts';
@@ -35,7 +39,9 @@ export interface EdgeRec {
   embedded: boolean;
 }
 export interface PointRec { id: string; p: Vec2; parent?: string[]; anc?: string[] }
-export interface Obj { feature: string; domains: DomainRec[]; edges: EdgeRec[]; points: PointRec[]; curveOnly: boolean }
+/** A boundary piece removed by a difference (tool edge with exterior on both sides): curve and the tool entity. */
+export interface Footprint { curve: Curve; id: string; anc?: string[] }
+export interface Obj { feature: string; domains: DomainRec[]; edges: EdgeRec[]; points: PointRec[]; curveOnly: boolean; footprints?: Footprint[] }
 
 export type Feature =
   | { id: string; type: 'rect'; x: [number, number]; y: [number, number] }
@@ -462,7 +468,22 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
   }
   newPts.sort((a, b) => keyLess(a.key, b.key));
   newPts.forEach((q, i) => points.push({ id: `${fid}.x${i + 1}`, p: [A.vx[q.v]!, A.vy[q.v]!] }));
-  return { obj: { feature: fid, domains: curveOnly ? [] : domains, edges, points, curveOnly }, arr: A, subKept, subRec, faceDom };
+  // footprints: those of the inputs, plus the dropped tool edge pieces of a difference
+  const footprints: Footprint[] = objs.flatMap((o) => o.footprints ?? []);
+  if (op === 'difference')
+    for (let s = 0; s < nS; s++) {
+      // only pieces that coincide with an edge of the target (the tool sat on the target's own boundary, e.g. an
+      // electrode on a layer surface); tool edges in free space outside the target leave no footprint
+      if (subKept[s] || !A.subs[s]!.srcs.some((q) => recObj[q.rec] === 0)) continue;
+      for (const q of A.subs[s]!.srcs) {
+        if (recObj[q.rec]! < 1) continue;
+        const e = recs[q.rec]!;
+        footprints.push(e.anc?.length ? { curve: A.subs[s]!.curve, id: e.id, anc: e.anc } : { curve: A.subs[s]!.curve, id: e.id });
+      }
+    }
+  const obj: Obj = { feature: fid, domains: curveOnly ? [] : domains, edges, points, curveOnly };
+  if (footprints.length) obj.footprints = footprints;
+  return { obj, arr: A, subKept, subRec, faceDom };
 }
 
 // ---------------------------------------------------------------- build
@@ -577,6 +598,7 @@ function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: st
   }
   const vertices = new Float64Array(2 * nv);
   for (let v = 0; v < arr.vx.length; v++) if (used[v]! >= 0) { vertices[2 * used[v]!] = arr.vx[v]!; vertices[2 * used[v]! + 1] = arr.vy[v]!; }
+  if (obj.footprints?.length) addFootprintParents(boundaries, edges, obj.footprints, tol);
   const pointsRef: EntityRef[] = [];
   const pv: number[] = [];
   for (const p of obj.points) {
@@ -623,6 +645,38 @@ function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: st
     dim: 2, axisym, tol, bbox: [x0, y0, x1, y1], vertices, edges,
     entities: { domains, boundaries, points: pointsRef }, pointVertex: Int32Array.from(pv), features, warnings: [],
   };
+}
+
+/** Distance from p to the curve (closest point by projection from a few starting guesses). */
+function distToCurve(cv: Curve, p: Vec2): number {
+  let best = Infinity;
+  for (const g of cv.kind === 'line' ? [0] : [0, 0.25, 0.5, 0.75, 1]) {
+    const q = point(cv, project(cv, p, g));
+    best = Math.min(best, hyp2(q[0] - p[0], q[1] - p[1]));
+  }
+  return best;
+}
+
+/** G1: a boundary whose every edge lies on footprints of entity X also lists bnd:X in parent (whole-entity rule). */
+function addFootprintParents(boundaries: EntityRef[], edges: GeomEdge[], fps: Footprint[], tol: number): void {
+  const byId = new Map<string, Footprint[]>();
+  for (const f of fps) { const l = byId.get(f.id); if (l) l.push(f); else byId.set(f.id, [f]); }
+  const edgesOf: GeomEdge[][] = boundaries.map(() => []);
+  for (const e of edges) edgesOf[e.boundary]!.push(e);
+  const T = [0, 0.25, 0.5, 0.75, 1];
+  boundaries.forEach((b, i) => {
+    const es = edgesOf[i]!;
+    if (!es.length) return;
+    for (const [id, list] of byId) {
+      const x = `bnd:${id}`;
+      if (isPieceOf(b.id, x) || b.parent?.includes(x)) continue;
+      const on = es.every((e) => T.every((t) => { const p = point(e.curve, t); return list.some((f) => distToCurve(f.curve, p) <= tol); }));
+      if (!on) continue;
+      b.parent = [...(b.parent ?? []), x];
+      const anc = uniqNot([...(b.ancestors ?? []), x, ...list.flatMap((f) => f.anc ?? [])], b.id);
+      b.ancestors = anc;
+    }
+  });
 }
 
 /** Does entity id `a` belong to selection id `x`: equal, or a piece `x#k`, `x#k#m`, ... */

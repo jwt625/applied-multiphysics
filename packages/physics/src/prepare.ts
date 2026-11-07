@@ -17,16 +17,19 @@ import { refineUniform, meshCylinder, cylinderSideProjector } from '@amp/mesh';
 import { makeResolver, geometryFromSpec } from '@amp/geom/spec';
 import { physicsRegistry } from './registrations.ts';
 import { boxMesh } from './common/mesh.ts';
+import { hexToTet10 } from './elastic/hex2tet.ts';
+import { COUPLING_NEEDS } from './couplings/index.ts';
 
 const NEEDS: Record<string, string[]> = {
   heat: ['k', 'rho', 'cp'], elastic: ['E', 'nu', 'alpha'], electrostatics: ['eps_r'], magnetostatics: ['mu_r'],
   'em-modes': ['n', 'eps_r'], emw: ['eps_r', 'tan_delta', 'mu_r'], 'emw-axisym': ['eps_r', 'mu_r'], acoustics: ['c', 'rho'],
+  currents: ['sigma'],
 };
 /** Case-file property names per spec property (the eval cases use 'c' for the specific heat in heat cases). */
 const CASE_ALIAS: Record<string, Record<string, string[]>> = { heat: { cp: ['cp', 'c'] } };
 
 /** The part of the @amp/materials Library that prepareRun uses (inject it in the browser). */
-export interface MaterialLibrary { getProperty(id: string, prop: string, o?: { T?: number }): { value: number | Record<string, number> } }
+export interface MaterialLibrary { getProperty(id: string, prop: string, o?: { T?: number; lambda?: number }): { value: number | Record<string, number> } }
 
 export interface CaseCtx {
   case?: Record<string, unknown>; physicsId?: string; level?: number; hFactor?: number; signal?: AbortSignal;
@@ -35,6 +38,8 @@ export interface CaseCtx {
   /** temperature for T-dependent material tables (K) */
   T?: number;
   library?: MaterialLibrary | null;
+  /** study to prepare (default: the first study of the physics, or the eval case's study type) */
+  studyId?: string;
 }
 export interface PrepareArgs extends CaseCtx { spec: Record<string, unknown> }
 export interface Prepared extends RunContext { notes: string[]; timing: Record<string, number> }
@@ -66,13 +71,29 @@ export async function prepareRun(a: PrepareArgs | Record<string, unknown>, b?: C
   const ph = args.physicsId ? phys.find((p) => p.id === args.physicsId) : phys[0];
   if (!ph) throw new Error(`no physics ${args.physicsId ?? ''} in spec`);
   const f = args.hFactor ?? 1;
-  const mesh = tick('geometry_mesh', () => levelMesh(raw, spec, ph.type, f, notes));
+  let study = pickStudy(spec, ph.id, args.case, args.studyId);
+  // hex8 -> tet10 split only when the selected study solves an elastic physics (audit FE item 8, DevLog-031 s.9)
+  const listed = (study as { physics?: string[] }).physics;
+  const elasticInStudy = listed?.length ? listed.some((pid) => phys.find((p) => p.id === pid)?.type === 'elastic') : ph.type === 'elastic';
+  const mesh = tick('geometry_mesh', () => levelMesh(raw, spec, ph.type, f, notes, elasticInStudy));
   for (const w of (mesh as Mesh & { warnings?: string[] }).warnings ?? []) notes.push(`mesh warning: ${w}`);
   const lib = args.library !== undefined ? args.library : await defaultLibrary();
+  // materials for every physics the study solves (multiphysics, C11). The property list of a single physics without
+  // couplings is unchanged, but a mode study evaluates library n and dndT at its wavelength (MatContext.lambda), so
+  // wavelength-dependent library values can differ from the earlier lambda-free evaluation
+  const types = [ph.type];
+  for (const pid of (study as { physics?: string[] }).physics ?? []) {
+    const t = phys.find((p) => p.id === pid)?.type;
+    if (t && !types.includes(t)) types.push(t);
+  }
   const t0 = performance.now();
-  const materials = resolveMaterials(spec, ph.type, args.case, args.T, lib, notes);
+  const mctx = couplingMaterialContext(spec, study, scopeOf(spec));
+  // elastic mass density only where a mass matrix is assembled (eigen study, acoustic-structure group; DevLog-031 MT R4b):
+  // a stationary single-physics elastic run resolves exactly as before
+  const fsi = ((spec as { couplings?: Array<{ type: string; to: string }> }).couplings ?? []).some((c) => c.type === 'acoustic-structure' && ((study as { physics?: string[] }).physics ?? []).includes(c.to));
+  if (types.includes('elastic') && (study.type === 'eigen' || fsi) && !mctx.props.includes('rho')) mctx.props.push('rho');
+  const materials = resolveMaterials(spec, types, args.case, args.T, lib, notes, mctx);
   timing.materials = performance.now() - t0;
-  let study = pickStudy(spec, ph.id, args.case);
   if (args.dtFactor !== undefined && args.dtFactor !== 1 && study.type === 'time') study = scaleDt(spec, study, args.dtFactor, notes);
   return {
     spec, physicsId: ph.id, mesh, materials, study, notes, timing,
@@ -102,7 +123,7 @@ const chains = new Map<string, { meshes: Mesh[]; refine: (m: Mesh) => Mesh }>();
 const lastHash = new Map<string, { hash: string; f: number }>();
 const MAX_CHAINS = 8;
 
-function baseMesh(raw: Record<string, unknown>, spec: Spec, type: string, notes: string[]): { m: Mesh; refine: (m: Mesh) => Mesh } {
+function baseMesh(raw: Record<string, unknown>, spec: Spec, type: string, notes: string[], elastic: boolean): { m: Mesh; refine: (m: Mesh) => Mesh } {
   const ph = (spec.physics ?? []).find((p) => p.type === type) as { settings?: { order?: 1 | 2 } } | undefined;
   // element order: settings.order of acoustics / emw / em-modes (default 2); heat, elastic, statics: P2
   const order: 1 | 2 = ph?.settings?.order ?? 2;
@@ -128,23 +149,27 @@ function baseMesh(raw: Record<string, unknown>, spec: Spec, type: string, notes:
     const m = meshCylinder(c, { mesh2d: { hmax }, dz: hmax, cell: 'tet4', order });
     return { m, refine: (x) => refineUniform(x, { project: cylinderSideProjector(x, c) }) };
   }
-  const m = meshFromSpec(raw, { order });
+  const m0 = meshFromSpec(raw, { order });
+  // elasticity on box-union grids: hex8 split into conforming tet10 (trilinear hexes lock in bending; lane MT R7, DevLog-033)
+  const toTets = G.dim === 3 && m0.cells.type === 'hex8' && elastic;
+  const m = toTets ? hexToTet10(m0) : m0;
+  if (toTets) notes.push('mesh: hex8 box grid split into tet10 for elasticity (elastic/hex2tet.ts; trilinear hexes lock in bending)');
   if (G.dim === 2) return { m, refine: (x) => refineUniform(x, { geometry: G.geometry }) };
   notes.push(`mesh: ${m.cells.type} levels are re-meshed (refineUniform supports simplices only)`);
   return { m, refine: () => { throw new Error('no nested refinement for this cell type'); } };
 }
 
-function levelMesh(raw: Record<string, unknown>, spec: Spec, type: string, f: number, notes: string[]): Mesh {
+function levelMesh(raw: Record<string, unknown>, spec: Spec, type: string, f: number, notes: string[], elastic: boolean): Mesh {
   const k = Math.round(-Math.log2(f));
   const nested = k >= 0 && Math.abs(2 ** -k - f) <= 1e-12 * f;
   const feats = (spec.geometry as { features: Array<{ type: string }> }).features;
   const ord = ((spec.physics ?? []).find((p) => p.type === type) as { settings?: { order?: number } } | undefined)?.settings?.order ?? 2;
   const simplexOk = (spec.geometry as { dim: number }).dim === 2 || (feats.length === 1 && (feats[0]!.type === 'cylinder' || (feats[0]!.type === 'box' && ord === 2)));
   if (nested && simplexOk) {
-    const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type });
+    const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type, elastic });
     let entry = chains.get(key);
     if (!entry) {
-      const bm = baseMesh(raw, spec, type, notes);
+      const bm = baseMesh(raw, spec, type, notes, elastic);
       entry = { meshes: [bm.m], refine: bm.refine };
       chains.set(key, entry);
       while (chains.size > MAX_CHAINS) chains.delete(chains.keys().next().value!);
@@ -155,9 +180,9 @@ function levelMesh(raw: Record<string, unknown>, spec: Spec, type: string, f: nu
     return chain[k]!;
   }
   if (f !== 1) notes.push(`mesh: hFactor ${f} is not a power of 1/2 (or no nested refinement for this cell type): re-meshed with scaled sizes, levels are not nested`);
-  const m = baseMesh(scaleSpecMesh(raw, f), spec, type, notes).m;
+  const m = baseMesh(scaleSpecMesh(raw, f), spec, type, notes, elastic).m;
   // a level identical to the previous one is reported (L8 'no_change'; I1 bug report)
-  const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type });
+  const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type, elastic });
   const prev = lastHash.get(key);
   if (prev && prev.hash === m.hash && prev.f !== f) notes.push(`mesh warning: hFactor ${f} gives the same mesh as hFactor ${prev.f} (hash ${m.hash.slice(0, 12)})`);
   lastHash.set(key, { hash: m.hash, f });
@@ -166,13 +191,50 @@ function levelMesh(raw: Record<string, unknown>, spec: Spec, type: string, f: nu
 
 // --------------------------------------------------------------------------------------------------- materials
 
-function resolveMaterials(spec: Spec, type: string, cs: Record<string, unknown> | undefined, T: number | undefined, lib: MaterialLibrary | null, notes: string[]) {
+const scopeOf = (spec: Spec) => resolveParams(spec.params ?? {}).scope;
+
+/**
+ * Property context of the study's couplings (DevLog-031 R1): the properties the couplings need (COUPLING_NEEDS, incl.
+ * PHOTONIC_NEEDS), optional ones (r_eo with an electro-optic coupling: absent = not electro-optic, no note), the mode
+ * study wavelength (library n and dndT are wavelength tables / fits) and the thermo-optic Tref (library dndT at T).
+ */
+interface MatContext { props: string[]; optional: string[]; lambda?: number; Tref?: number }
+function couplingMaterialContext(spec: Spec, study: StudyNode, scope: ReturnType<typeof scopeOf>): MatContext {
+  const inStudy = new Set((study as { physics?: string[] }).physics ?? []);
+  const nodes = ((spec as { couplings?: Array<{ type: string; from: string; to: string; settings?: Record<string, unknown> }> }).couplings ?? []).filter((c) => inStudy.has(c.to));
+  const ctx: MatContext = { props: [], optional: [] };
+  for (const c of nodes) {
+    const nd = COUPLING_NEEDS[c.type];
+    for (const pr of [...(nd?.to ?? []), ...(nd?.from ?? [])]) if (!ctx.props.includes(pr)) ctx.props.push(pr);
+    if (c.type === 'electro-optic' && !ctx.optional.includes('r_eo')) ctx.optional.push('r_eo');
+    // piezoelectric (lane MT): library tensors where a material has them (absent = isotropic / non-piezo solid, no note)
+    if (c.type === 'piezoelectric') for (const pr of ['C', 'e_piezo', 'rho']) if (!ctx.optional.includes(pr)) ctx.optional.push(pr);
+    if (c.type === 'thermo-optic' && c.settings?.Tref !== undefined) { const r = resolveQuantity(c.settings.Tref, scope); if (!r.na) ctx.Tref = r.si; }
+  }
+  const wl = study.type === 'mode' ? (study.settings as { wavelength?: unknown } | undefined)?.wavelength : undefined;
+  if (wl !== undefined) { const r = resolveQuantity(wl, scope); if (!r.na) ctx.lambda = r.si; }
+  return ctx;
+}
+
+const isTensor = (v: unknown): v is { symmetry: string; unit?: string; components: Record<string, unknown> } =>
+  !!v && typeof v === 'object' && 'symmetry' in v && 'components' in v;
+
+function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknown> | undefined, T: number | undefined, lib: MaterialLibrary | null, notes: string[], mc: MatContext = { props: [], optional: [] }) {
   const scope = resolveParams(spec.params ?? {}).scope;
   const out: Record<string, Record<string, number>> = {};
   const caseMats = (cs?.materials ?? {}) as Record<string, Record<string, unknown>>;
-  const need = NEEDS[type] ?? [];
+  const need = [...new Set([...types.flatMap((t) => NEEDS[t] ?? []), ...mc.props, ...mc.optional])];
+  const optional = new Set(mc.optional);
+  /** library options per property: n and dndT at the mode wavelength, dndT at the thermo-optic Tref */
+  const libOpts = (p: string): { T?: number; lambda?: number } => {
+    const o: { T?: number; lambda?: number } = T !== undefined ? { T } : {};
+    if ((p === 'n' || p === 'dndT') && mc.lambda !== undefined) o.lambda = mc.lambda;
+    if (p === 'dndT' && mc.Tref !== undefined) o.T = mc.Tref;
+    return o;
+  };
+  const has = (rec: Record<string, number>, p: string) => p in rec || Object.keys(rec).some((k) => k.startsWith(`${p}.`));
   const fromCase = (matId: string, prop: string): number | undefined => {
-    const names = CASE_ALIAS[type]?.[prop] ?? [prop];
+    const names = types.map((t) => CASE_ALIAS[t]?.[prop]).find((x) => x) ?? [prop];
     const direct = caseMats[matId];
     for (const nm of names) if (direct && typeof direct[nm] === 'number') return direct[nm] as number;
     for (const nm of names) {
@@ -190,6 +252,14 @@ function resolveMaterials(spec: Spec, type: string, cs: Record<string, unknown> 
       notes.push(`materials.${m.id}.${k}: ${why}, ${c} from the eval case (written into the prepared spec)`);
     };
     for (const [k, q] of Object.entries(ov)) {
+      if (isTensor(q)) {
+        // tensor override {symmetry, unit?, components}: rec['<prop>.<component>'] in SI (N/A components left out)
+        for (const [c, x] of Object.entries(q.components)) {
+          const r = resolveQuantity(typeof x === 'number' ? { value: x, unit: q.unit ?? '1' } : x, scope);
+          if (!r.na) rec[`${k}.${c}`] = r.si;
+        }
+        continue;
+      }
       const r = resolveQuantity(q, scope);
       if (!r.na) { rec[k] = r.si; continue; }
       const c = fromCase(m.id, k);
@@ -200,11 +270,12 @@ function resolveMaterials(spec: Spec, type: string, cs: Record<string, unknown> 
       const id = ref.replace(/^materials\//, '');
       if (!lib) notes.push(`materials.${m.id}: no material library available for ${ref} (inject one with prepareRun({library}))`);
       for (const p of need) {
-        if (p in rec || !lib) continue;
+        if (has(rec, p) || !lib) continue;
         try {
-          const pv = lib.getProperty(id, p, T !== undefined ? { T } : {});
+          const pv = lib.getProperty(id, p, libOpts(p));
           if (typeof pv.value === 'number') rec[p] = pv.value;
-        } catch (e) { notes.push(`materials.${m.id} (${ref}).${p}: ${(e as Error).message.slice(0, 160)}`); }
+          else for (const [c, v] of Object.entries(pv.value)) if (typeof v === 'number') rec[`${p}.${c}`] = v;   // tensor: '<prop>.<component>'
+        } catch (e) { if (!optional.has(p)) notes.push(`materials.${m.id} (${ref}).${p}: ${(e as Error).message.slice(0, 160)}`); }
       }
     }
     for (const p of need) if (!(p in rec)) { const c = fromCase(m.id, p); if (c !== undefined) fill(p, c, 'not in the spec'); }
@@ -218,7 +289,12 @@ function unitOf(_spec: Spec, prop: string): string | undefined {
   return (physicsRegistry().get('property', prop) as { unit?: string } | undefined)?.unit;
 }
 
-function pickStudy(spec: Spec, physicsId: string, cs: Record<string, unknown> | undefined): StudyNode {
+function pickStudy(spec: Spec, physicsId: string, cs: Record<string, unknown> | undefined, studyId?: string): StudyNode {
+  if (studyId !== undefined) {
+    const s = (spec.studies ?? []).find((x) => x.id === studyId);
+    if (!s) throw new Error(`no study '${studyId}' in spec`);
+    return s;
+  }
   const st = (spec.studies ?? []).filter((s) => !(s as { physics?: string[] }).physics || (s as { physics?: string[] }).physics!.includes(physicsId));
   const want = ((cs?.study as { type?: string } | undefined)?.type ?? '').replace('transient', 'time');
   const hit = st.find((s) => s.type === want) ?? st.find((s) => s.type !== 'parametric') ?? st[0];

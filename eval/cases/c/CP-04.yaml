@@ -5,8 +5,11 @@ id: CP-04
 class: c
 title: Si electrothermal (hot-arm) microactuator at 15 V (Mankame-Ananthasuresh 2001)
 status: untestable
-untestable_reason: VM223 page gives no convection coefficient, emissivity or ambient temperature, and does not define d10
-  (geometry); the primary paper (JMM 11:252) is paywalled
+untestable_reason: 'inputs located 2026-11-07 (DevLog-035 s.2.7): the public VM223 input listing gives the outline from
+  D1..D9 and D11, k(T), alpha(T), film-coefficient tables h(T), emissivity and the 300 K ambient; still untestable because the
+  engine has no temperature-dependent k, alpha, h, no surface-to-surface radiation and no geometric non-linearity (NLGEOM).
+  sims/hot-arm-actuator.yaml runs with 300 K values only (logs/MX-run-all-20261107T094211.jsonl: tip u_y -7.719 um vs 27 um,
+  informative)'
 activation: source h, emissivity, T_ambient and the full geometry from Mankame-Ananthasuresh 2001
 physics: [coupled-joule, coupled-thermoelastic]
 dimension: 3D

@@ -15,6 +15,8 @@ import { emModes as modes0 } from './modes/index.ts';
 import { emwModule as emw0 } from './em3d/index.ts';
 import { acousticsModule as ac0 } from './acoustics/index.ts';
 import { emwAxisymModule as emax0 } from './em-axisym/index.ts';
+import { currentsModule as cur0 } from './currents/index.ts';
+import { useModules } from './driver.ts';
 import { specReadiness, type ReadinessNeeds } from './common/ctx.ts';
 
 export type SolutionExt = Solution & { notes?: string[]; normalization?: string };
@@ -28,6 +30,7 @@ const NEEDS: Record<string, ReadinessNeeds> = {
   emw: { props: ['eps_r', 'mu_r'], eigen: true },
   'emw-axisym': { props: ['eps_r', 'mu_r'], eigen: true },
   acoustics: { props: ['c'], propsIfMulti: ['rho'], eigen: true },
+  currents: { props: ['sigma'] },
 };
 
 export const NORMALIZATION: Record<string, string> = {
@@ -71,9 +74,11 @@ export const emModes = wrap(modes0);
 export const emwModule = wrap(emw0);
 export const acousticsModule = wrap(ac0);
 export const emwAxisymModule = wrap(emax0);
+export const currentsModule = wrap(cur0);
 
-export const modules: PhysicsModule[] = [heatModule, elasticModule, electrostaticsModule, magnetostaticsModule, emModes, emwModule, acousticsModule, emwAxisymModule];
+export const modules: PhysicsModule[] = [heatModule, elasticModule, electrostaticsModule, magnetostaticsModule, emModes, emwModule, acousticsModule, emwAxisymModule, currentsModule];
 export const registry: Record<string, PhysicsModule> = Object.fromEntries(modules.map((x) => [x.type, x]));
+useModules(registry);
 
 export { solveHeat, SIGMA_SB, type HeatProblem, type HeatBc } from './heat/index.ts';
 export { solveElastic, stressErrorL2, dMatrix, type ElasticProblem, type ElasticBc } from './elastic/index.ts';
@@ -87,3 +92,10 @@ export { prepareRun, type PrepareArgs, type CaseCtx, type MaterialLibrary } from
 export { physicsRegistry, registerPhysics, L4_REGISTRATIONS, RESULT_NAMES } from './registrations.ts';
 export { ENGINE, PHYSICS_VERSION } from './common/solution.ts';
 export { compileField, type FieldValue } from './common/field.ts';
+export { solveElasticModes, ELASTIC_MODAL_NORMALIZATION } from './elastic/modal.ts';
+export { solveElasticAxisym } from './elastic/axisym.ts';
+export { solvePiezo, PIEZO_NORMALIZATION } from './coupled/piezo.ts';
+export { solveAcousticStructure, FSI_NORMALIZATION } from './coupled/fsi.ts';
+export { solveCurrents, type CurrentsProblem, type CurrentsTerminal } from './currents/index.ts';
+export { runStudy, studyReadiness, planStudy, type StudyPlan, type StudyGroup, type StudyOptions, type RunStudyOptions } from './driver.ts';
+export { COUPLINGS, COUPLING_REGISTRATIONS, couplingImpl, type CouplingImpl } from './couplings/index.ts';

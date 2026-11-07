@@ -14,7 +14,9 @@ import { self as sw } from '$app/service-worker';
 const PREFIX = 'amp-web-';
 const CACHE = PREFIX + version;
 const SCOPE = new URL(sw.registration.scope).pathname;
-const PRECACHE = [...prerendered.map((f) => resolve(f.path as '/')), ...assets.map((f) => asset(f.path)).filter((p) => !p.endsWith('/_headers'))];
+// landing previews (static/previews, DevLog-030) are not precached: stored in this deploy's cache on first view
+const preview = (path: string) => path.includes('/previews/');
+const PRECACHE = [...prerendered.map((f) => resolve(f.path as '/')), ...assets.map((f) => asset(f.path)).filter((p) => !p.endsWith('/_headers') && !preview(p))];
 const hashed = (path: string) => path.includes('/_app/immutable/');
 // one key per page: trailing slash dropped, except the scope root (/ or base + '/'), so every key lies under the scope
 const pageKey = (url: URL) => url.origin + (url.pathname === SCOPE ? SCOPE : url.pathname.replace(/\/$/, '') || '/');
@@ -58,7 +60,7 @@ async function respond(e: FetchEvent, url: URL): Promise<Response> {
 		}
 	}
 	const res = await fetch(e.request);
-	if (res.ok && cache && hashed(url.pathname)) e.waitUntil(cache.put(key, res.clone()).catch(() => {}));
+	if (res.ok && cache && (hashed(url.pathname) || preview(url.pathname))) e.waitUntil(cache.put(key, res.clone()).catch(() => {}));
 	return res;
 }
 

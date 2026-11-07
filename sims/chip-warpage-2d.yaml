@@ -1,0 +1,113 @@
+# Si interposer on an organic substrate, cool-down warpage, 2D plane strain (lane MX, DevLog-035). Case: Xilinx TSV
+# interposer "COC on pkg after C4 UF process", ECTC 2011 (doi 10.1109/ECTC.2011.5898527), as curated in
+# advanced-packaging-atlas (read only, at fe39985): validation/cases/C/ectc.2011.5898527-b.yaml, references/ectc.2011.5898527/
+# text.md, data/{metrics,stack_layers,components}.csv. Stress-free at the underfill cure 150 C, cooled to 25 C (paper p.2-3).
+# Section through the centre along the 31 mm interposer side, half model (symmetry x = 0). Layers: substrate core 800 um,
+# C4 underfill layer (thickness N/A in the paper: atlas template 55 um), Si interposer 100 um. FPGA dies omitted (die
+# thickness N/A in the paper). Reference: paper Table 3 (p.3) 13.2 mil = 335 um max package warpage at 25 C from a 3D
+# quarter ABAQUS model with dies, positive = dome (inference: no sign convention is stated; the paper's p.2 text calls the
+# negative COC-only case a smiley face, atlas metric definition); this 2D
+# section is QUALITATIVE only (sign, order of magnitude).
+# Closed-form laminate estimate (all layers full length, plane strain): validation/mp/references.py chip_warpage.
+schema: amp-spec/0
+id: chip-warpage-2d
+title: Interposer-on-substrate warpage (2D)
+description: Si interposer on an organic substrate cooled from the underfill cure temperature; plane-strain section, warpage sign and size.
+params:
+  W_sub: {value: 42.5, unit: mm, description: substrate width (full)}
+  t_sub: {value: 800, unit: um, description: substrate core thickness}
+  W_int: {value: 31, unit: mm, description: interposer length along the section (full)}
+  t_int: {value: 100, unit: um, description: interposer thickness}
+  t_uf: {value: 55, unit: um, description: "C4 + underfill layer thickness (atlas template, not in the paper)"}
+  T_cure: {value: 150, unit: degC, description: stress-free temperature (underfill cure)}
+  T_room: {value: 25, unit: degC, description: final temperature}
+geometry:
+  dim: 2
+  features:
+    - {id: sub, type: rect, settings: {size: ["W_sub/2", "t_sub"], center: ["W_sub/4", "t_sub/2"]}}
+    - {id: uf, type: rect, settings: {size: ["W_int/2", "t_uf"], center: ["W_int/4", "t_sub + t_uf/2"]}}
+    - {id: itp, type: rect, settings: {size: ["W_int/2", "t_int"], center: ["W_int/4", "t_sub + t_uf + t_int/2"]}}
+materials:
+  - {id: core, override: {E: {value: 18.9, unit: GPa}, nu: 0.11, alpha: {value: 11, unit: ppm/K}, k: {value: 1, unit: W/(m*K)}}, select: ["dom:sub"]}
+  - {id: c4uf, override: {E: {value: 8.5, unit: GPa}, nu: 0.29, alpha: {value: 32, unit: ppm/K}, k: {value: 1, unit: W/(m*K)}}, select: ["dom:uf"]}
+  - {id: si, override: {E: {value: 150, unit: GPa}, nu: 0.2230536341292338, alpha: {value: 3, unit: ppm/K}, k: {value: 1, unit: W/(m*K)}}, select: ["dom:itp"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:sub", "dom:uf", "dom:itp"]
+    bcs:
+      - {id: room, type: temperature, select: ["bnd:sub.bottom", "bnd:sub.right", "bnd:sub.top#1", "bnd:uf.right", "bnd:itp.right", "bnd:itp.top"], settings: {T: "T_room"}}
+      - {id: sym, type: insulation, select: ["bnd:sub.left", "bnd:uf.left", "bnd:itp.left"]}
+  - id: solid
+    type: elastic
+    select: ["dom:sub", "dom:uf", "dom:itp"]
+    settings: {model: plane-strain}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:sub.left", "bnd:uf.left", "bnd:itp.left"]}
+      - {id: pin, type: fixed, select: ["pnt:sub.p0"]}
+      - {id: open, type: free, select: ["bnd:sub.bottom", "bnd:sub.right", "bnd:sub.top#1", "bnd:uf.right", "bnd:itp.right", "bnd:itp.top"]}
+couplings:
+  - {id: th2sm, type: thermal-expansion, from: ht, to: solid, settings: {Tref: "T_cure"}}
+mesh:
+  size: {hmax: "t_int/2"}
+studies:
+  - {id: std1, type: stationary, physics: [ht, solid]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: bot_pts, type: cutpoint, data: sol_std1, points: [["0 mm", "0 mm"], ["W_int/2", "0 mm"], ["W_sub/2", "0 mm"]]}
+    - {id: bottom, type: cutline, data: sol_std1, from: ["0 mm", "0 mm"], to: ["W_sub/2", "0 mm"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: uy_bottom, type: point, data: bot_pts, expr: solid.u.y, unit: um, label: "uy on the substrate bottom at the centre, under the interposer edge and at the substrate edge; warpage = uy(0) - uy(edge), > 0 = dome"}
+        - {id: mises_max, type: max, expr: solid.mises, unit: MPa, over: ["dom:itp"], method: nodal}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: mises_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: mises_surf, type: surface, expr: solid.mises, unit: MPa}
+        - {id: warp_def, type: deformation, expr: solid.u, scale: auto}
+    - id: warp_line
+      type: plot1d
+      items:
+        - {id: warp_curve, type: linegraph, data: bottom, x: arc, expr: solid.u.y, unit: um}
+provenance:
+  values:
+    params.W_sub: {basis: paper_exact, source: "ECTC 2011 doi 10.1109/ECTC.2011.5898527 via advanced-packaging-atlas", locator: "paper p.2 Table 1 (substrate 42.5 x 42.5 mm); atlas components.csv ectc.2011.5898527-a-c3", date: 2026-11-07}
+    params.t_sub: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 Table 1 (core 800 um); atlas stack_layers.csv -a-L12", date: 2026-11-07, note: "core only; build-up layers and solder mask N/A in the paper (not modelled)"}
+    params.W_int: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 Package Description '25x31 mm 100um thick interposer'; atlas components.csv -a-c2", date: 2026-11-07}
+    params.t_int: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 (100 um interposer); atlas stack_layers.csv -a-L08", date: 2026-11-07}
+    params.t_uf: {basis: template, source: "advanced-packaging-atlas template 55 um = C4 30 + 25 um, analog ectc51909.2023.00155-a-i3 (a different package)", date: 2026-11-07, note: "estimate: the paper does not state the C4 / underfill height"}
+    params.T_cure: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 3D Thermo-Mechanical Simulation: 'stress-free at underfill cure temperature of 150C'", date: 2026-11-07}
+    params.T_room: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.3 Sec. a: 'after cooling down the package to room temperature'; Table 3 title 'at 25C'", date: 2026-11-07}
+    materials.core.override.E: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 Table 2 'Material properties of package compounds at room temperature': Substrate core 18.9 GPa", date: 2026-11-07}
+    materials.core.override.alpha: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 Table 2: substrate core CTE x,y = 11, z = 16 ppm; in-plane value used (plane strain section, both in-plane directions 11)", date: 2026-11-07}
+    materials.core.override.nu: {basis: template, source: "advanced-packaging-atlas laminates template 0.11 (analog tcpmt.2025.3614186 Table II, PCB)", date: 2026-11-07, note: "estimate: the paper gives no Poisson ratio"}
+    materials.c4uf.override.E: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 Table 2: C4 UF 8.5 GPa", date: 2026-11-07}
+    materials.c4uf.override.alpha: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 Table 2: C4 UF CTE 32 ppm", date: 2026-11-07}
+    materials.c4uf.override.nu: {basis: template, source: "advanced-packaging-atlas template 0.29 from tcpmt.2025.3614186 p.6 Table II (a different paper)", date: 2026-11-07, note: "estimate"}
+    materials.si.override.E: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 Table 2: Si 150 GPa", date: 2026-11-07}
+    materials.si.override.alpha: {basis: paper_exact, source: "ECTC 2011 (as above)", locator: "paper p.2 Table 2: Si CTE 3 ppm", date: 2026-11-07}
+    materials.si.override.nu: {basis: derived, source: "Voigt-Reuss-Hill isotropic average of materials/silicon.yaml C (Hall 1967 Table III: C11 165.64, C12 63.94, C44 79.51 GPa); validation/mp/references.py hill_isotropic", date: 2026-11-07, note: "the paper gives no Poisson ratio"}
+    materials.core.override.k: {basis: user, date: 2026-11-07, note: "modelling choice: T is uniform (all outer boundaries at T_room), k does not enter"}
+    materials.c4uf.override.k: {basis: user, date: 2026-11-07, note: "modelling choice (see core k)"}
+    materials.si.override.k: {basis: user, date: 2026-11-07, note: "modelling choice (see core k)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice: 2 cells through the interposer, to be refined by a convergence study"}
+assumptions:
+  - {text: "Material properties at room temperature used as constants over 25-150 C (paper Table 2 gives RT values only; the paper's model is T-dependent and non-linear)", paths: [materials]}
+  - {text: "C4 bumps and underfill homogenised as one layer with the underfill properties", paths: [materials.c4uf]}
+  - {text: "Plane strain section through the centre along the 31 mm side; the reference is a 3D quarter-model maximum, so the comparison is qualitative (sign: dome after cooling; magnitude: hundreds of um)", paths: [physics.solid.settings.model]}
+  - {text: "bnd:sub.top#1 = the exposed part of the substrate top (piece #2 is the interface under the underfill, parent uf.bottom; checked with @amp/mesh on 2026-11-07)", paths: [physics]}
+  - {text: "Dies, build-up layers and solder mask not modelled (thicknesses N/A in the paper)", paths: [geometry]}
+missing:
+  - {what: "FPGA die thickness (paper: not reported); dies omitted", needed_for: [geometry]}
+  - {what: "build-up layer and solder-mask stack of the substrate (paper: not reported)", needed_for: [geometry]}
+  - {what: "C4 + underfill height (paper: not reported; atlas template used, labelled)", needed_for: [geometry]}
+  - {what: "Poisson ratios of the substrate core and underfill (paper: not reported; atlas templates used, labelled)", needed_for: [solution]}
+  - {what: "definition of 'max package warpage' (surface, reference points) in the paper", needed_for: [solution]}
+# eval: []   (reference: ECTC 2011 Table 3, 335 um, qualitative; atlas metric ectc.2011.5898527-b-m2)

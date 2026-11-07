@@ -195,6 +195,11 @@
 	function save() { try { localStorage.setItem(KEY, JSON.stringify(sizes)); } catch { /* storage unavailable */ } }
 
 	const tree = $derived(s ? buildTree(s.model.data, s.model.parsed?.issues ?? []) : []);
+	/** physics types of the first study, in the study's order (header label of multiphysics models, C11) */
+	const studyPhys = $derived.by(() => {
+		const d = s?.model.data as { physics?: Array<{ id?: string; type?: string }>; studies?: Array<{ physics?: string[] }> } | null | undefined;
+		return (d?.studies?.[0]?.physics ?? []).map((id) => d?.physics?.find((p) => p.id === id)?.type ?? id);
+	});
 	const node = $derived(findNode(tree, selected) ?? tree[1] ?? null);
 
 	// Compute delivered a full-resolution solution: show it (a later manual mode click is not undone)
@@ -324,7 +329,9 @@
 {:else}
 	<div class="wb" bind:clientHeight={wbH} style="--tw: {eff.tree}px; --sw: {eff.settings}px; --bh: {eff.bottom}px; --cw: {agentOpen ? eff.agent : 0}px; --cs: {agentOpen ? 3 : 0}px">
 		<div class="tb">
+			<a class="home" href={resolve('/')} data-tip="Example library (landing page)">amp</a>
 			<LibraryPicker current={simId} onpick={goModel} available={LIB_IDS} entries={LIB_ENTRIES} />
+			{#if studyPhys.length > 1}<span class="phys" data-tip="Physics solved by the first study (couplings set the solve order)">{studyPhys.join(' + ')}</span>{/if}
 			<button disabled={!s || s.status === 'solving'} onclick={() => s?.buildMesh()} data-tip="Build the mesh (geometry and mesh edits re-mesh automatically)">Mesh</button>
 			<button disabled={!s || s.status === 'solving'} onclick={() => s?.requestCompute()} data-tip="Mesh and run the registered physics module of the first study">Compute</button>
 			<button disabled={!s || (s.status !== 'solving' && s.status !== 'meshing')} onclick={() => s?.cancel()} data-tip="Cancel the run">Cancel</button>
@@ -402,6 +409,8 @@
 <style>
 	.fail { padding: 20px; color: var(--crit); }
 	.wb { height: 100%; display: grid; grid-template-rows: 30px minmax(0, 1fr) 3px var(--bh); background: var(--bg); }
+	.tb .home { color: var(--ink); text-decoration: none; font-weight: 600; padding: 0 4px; }
+	.tb .phys { color: var(--ink-2); white-space: nowrap; padding: 0 4px; }
 	.tb { display: flex; align-items: center; gap: 4px; padding: 0 6px; background: var(--surface); border-bottom: 1px solid var(--line); min-width: 0; overflow: hidden; }
 	.gap { width: 8px; flex: none; }
 	.case { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--ink-2); white-space: nowrap; }

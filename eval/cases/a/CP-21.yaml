@@ -78,7 +78,7 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/nafems-t1.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
+spec: {status: pending, ref: sims/nafems-t1-hotspot.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
     proposal}
 missing: ['Hot-spot radius 1.0: from the Abaqus deck via advanced-packaging-atlas; no live public page states it (Altair
     OS-V 0100 omits geometry).', 'Membrane geometry from the Abaqus deck, now unreachable at its MIT URL; no live public

@@ -205,7 +205,84 @@ Values and artifacts:
 - Edits under `results` invalidate stage `plots` only (C7). `changedResultNodes(before, after)` lists the nodes to recompute (dependents follow through the hashes).
 - Honesty rules carry over (DevLog-023 s.3.1): a plot is drawn only on its own mesh; stale or coarse results are badged; eigenmodes are drawn normalized; each max / min states its method; range rules are stated; unavailable is never shown as a value.
 
+## C11 Couplings (multiphysics; DevLog-029 s.3.1, 2026-11-07)
+
+Spec (C3, unchanged keys): `couplings: [{id, type, from: <physics id>, to: <physics id>, settings?}]`; the study lists every physics it solves (`studies[].physics`). All physics of a study share one mesh; each physics keeps its own `select`.
+
+Coupling types (registered with `kind: 'coupling'`, `for: [from type, to type]`; owner in brackets):
+
+| type | from -> to | kind | carries |
+|---|---|---|---|
+| `joule-heating` [MC] | currents -> heat | sequential | per-cell Q = J . E (W/m^3) |
+| `thermal-expansion` [MC] | heat -> elastic | sequential | nodal T, `settings.Tref` (quantity, K) |
+| `thermo-optic` [MO] | heat -> em-modes | sequential | nodal T, per-material dn/dT (property `dndT`, 1/K), `settings.Tref` |
+| `electro-optic` [MO] | electrostatics -> em-modes | sequential | nodal V (E = -grad V at quadrature points); Pockels tensor (material property `r_eo`, m/V); output dneff/dV, VpiL |
+| `piezoelectric` [MT] | elastic -> electrostatics | monolithic | coupled u, V (eigen and stationary) |
+| `acoustic-structure` [MT] | elastic -> acoustics | monolithic | coupled u, p (eigen) |
+| `optomechanical` [MOM, DevLog-034] | elastic -> emw-axisym | monolithic | both eigen solutions (optical E_rphiz, mechanical u) on one meridional mesh; outputs g0 / gOM per optical x mechanical mode pair (`g0_<i>_<j>`, `g0MB_`, `g0PE_` in Hz as g0 / 2 pi; `gOM_`, `gOMMB_`, `gOMPE_` in Hz/m), `meff_<j>`, `xzpf_<j>` |
+
+```ts
+// packages/spec/src/types/physics.ts (MC adds)
+interface CoupledInput { coupling: string; from: string; kind: string; data: Record<string, unknown> }  // kind = coupling type
+interface RunContext { /* C4 */ inputs?: CoupledInput[] }                 // filled by the driver for downstream physics
+interface FieldData { /* C5 */ physics?: string }                          // physics id; set by the driver on merged solutions
+// packages/physics/src/couplings/core.ts (MC)
+interface CouplingImpl {
+  type: string; from: string; to: string;                                  // physics types
+  kind: 'sequential' | 'monolithic';
+  map?(a: { up: Solution; upId: string; down: RunContext; node: CouplingNode }): CoupledInput;           // sequential
+  run?(a: { ctx: Record<string, RunContext>; node: CouplingNode }): Promise<Solution>;                   // monolithic
+}
+export async function runStudy(prep: RunContext, opts?): Promise<Solution>;  // driver (MC): topological order, merge
+```
+
+Rules:
+- `runStudy` with one physics and no couplings is exactly the old single-module run (same Solution, no tags required).
+- Merged Solution: fields carry `physics`; scalars keyed `<physics id>.<name>` when the study has more than one physics (also kept unprefixed when the name is unique); `stats`/`timing` keyed per physics; `run` is one record.
+- Post resolves `<physics id>.<name>` against `FieldData.physics` (untagged fields belong to the study's single physics).
+- A coupling node whose implementation is missing is a readiness reason, never a silent skip.
+- Each lane registers its coupling types from its own file (`couplings/core.ts`, `couplings/photonic.ts`, `couplings/twoway.ts`); `couplings/index.ts` (MC) concatenates `CORE_COUPLINGS`, `PHOTONIC_COUPLINGS`, `TWOWAY_COUPLINGS`, `OPTOMECH_COUPLINGS` (MOM, `couplings/optomech.ts`) and the matching `*_REGISTRATIONS` (and `CORE_NEEDS`, `PHOTONIC_NEEDS`, `OPTOMECH_NEEDS` into `COUPLING_NEEDS`).
+
 ## Changelog
+
+- 2026-11-07 08:3x PST, coordinator: C11 couplings added (DevLog-029). Owners: MC = DevLog-031, MO = DevLog-032, MT = DevLog-033.
+- 2026-11-07 08:46 PST, from MC (DevLog-031), C11 as implemented (additive; no rename of C11 names):
+  - Types: `CoupledInput`, `RunContext.inputs?`, `FieldData.physics?` as in C11; also `Solution.stats.byPhysics?` (per-physics stats of a merged solution, keyed by physics id, `a+b` for a monolithic group).
+  - `runStudy(prep, opts?: {studyId?, modules?, couplings?, progress?, signal?})`; also exported: `studyReadiness(spec, studyId?, opts?) -> {ready, reasons, order}` (module readiness + coupling checks; used by the web runner) and `planStudy`. Couplings take part when `to` is solved by the study; `from` not solved = readiness reason.
+  - Merged Solution: timing keys `<physics id>.<stage>` plus stage sums, the prepareRun stages once, `<physics id>.couple` for the map time; `stats.solver` = `<pid>: <solver>; ...`; `run` = the first physics' record with the driver's `startedAt`; at most one distinct `steps` among the physics (else an error); `notes` concatenated (de-duplicated, not prefixed); `normalization` merged as `<physics id>: <text>` per solve group (ids joined by `+` for a monolithic group), groups joined by `; ` (as amended in the 2026-11-07 audit-fix entry).
+  - Monolithic `run()` results: untagged fields are tagged `node.from`; scalar keys not starting with one of the group's physics ids are prefixed `node.from`.
+  - `thermal-expansion` settings key is `Tref` (C11), replacing the provisional seed's `T_ref`. Elastic cells outside the heat domain get alpha 0 (noted). `joule-heating` data: `{Q: Float64Array per cell}`; `thermal-expansion` data: `{alpha per cell, T nodal, Tref, notes}`.
+  - New physics `currents` (2d, 2d-axisym, 3d) with BCs `ground`, `potential`, `terminal` (`V` or `I`), `insulation`, scoped to `currents`; `sigma` resolved by prepareRun. prepareRun resolves materials for the union of the physics types of the chosen study and takes an optional `studyId`.
+  - `@amp/post`: `fieldOf(sol, name, step?, physics?)`; `sample` takes `physics` or a `<pid>.<name>` field; a bare field name carried by several physics is an error.
+- 2026-11-07 09:2x PST, from MC (DevLog-031 s.6; requests of MO DevLog-032 s.4.1, MX DevLog-035 s.6, MT DevLog-033 s.5):
+  - Registry: `physicsRegistry()` = wave-1 seed, then `registerMaterialProperties` (@amp/materials; seed bounds kept), then the @amp/physics registrations; a property both register (MT's `C`, `e_piezo`, `eps_r`) is merged (tensor symmetries unioned, scalar allowed when either allows it) and marked settled (not provisional). @amp/materials `C` takes cubic, hexagonal-6mm, tetragonal-4mm, trigonal-3m; new property `e_piezo` (C/m^2; 6mm, 4mm, 3m); `PropertyDef.components` per symmetry; `tensorMatrix(sym, c, prop?)` with the matrix forms of `@amp/physics` `coupled/tensors.ts`.
+  - Registrations: elastic dims + `2d-axisym`, `settings.model` + `axisym` (checked against the geometry space); electrostatics dims + `3d`; em-modes `settings.crystals`; currents `settings.outOfPlane {Ez | V + length | I}` (2D section driven along z); `RESULT_NAMES` heat + `Q_total`, elastic + `srr sphi srz f_<k>`, em-modes + the coupled names of MO, currents + out-of-plane scalars, `piezoelectric`, `acoustic-structure`.
+  - `CouplingImpl.readiness?(spec, node): string[]`; `studyReadiness` skips the single-module readiness of physics in a monolithic group and calls the coupling's. A study whose solve groups would produce more than one step set (e.g. electrostatics with several terminals + em-modes) is a readiness reason. `COUPLING_NEEDS` = core + `PHOTONIC_NEEDS`.
+  - prepareRun: tensor overrides and library tensors flattened to `rec['<prop>.<component>']` (SI); library `n`, `dndT` at the mode-study wavelength, `dndT` at the thermo-optic `Tref`; coupling needs pulled (thermo-optic `dndT`; optional `r_eo`, piezo `C`, `e_piezo`, `rho`: no note when absent); elastic `rho` in eigen studies and acoustic-structure groups.
+  - Heat scalar `Q_total` (integral of the volume sources; W/m in 2D planar, W otherwise; only when a volume source exists). `@amp/post` `fieldOf`: a step-less field of one physics in a merged solution holds for every step of the other physics.
+- 2026-11-07 08:51 PST, from MO (DevLog-032), C11 photonic couplings as implemented (additive):
+  - Property names are the registered `@amp/materials` names `dndT` (1/K, scalar or uniaxial perp / par) and `r_eo` (m/V, trigonal-3m r13 r22 r33 r51); C11's `dn_dT` reads `dndT`.
+  - `thermo-optic` (heat -> em-modes) settings: `Tref` (K, required), `power` (W/m, optional: heat input per length of the 2D heat solution; enables Ppi), `crystals` (optional). Data: `{T nodal (Tref outside the heat domain), space, Tref, power?, powerSource?, crystals?, notes}`.
+  - `electro-optic` (electrostatics -> em-modes) settings: `armB: none | mirror | ideal` (required: the push-pull convention is stated, never assumed), `mirrorX` (m, for mirror), `terminal` (an electrostatics terminal id: its 1 V solve) or else the `V_applied` solve with `voltage` (V) or V_t = max(V) - min(V), `direct` (boolean, default true), `crystals`. Data: `{V nodal, space, Vt, VtSource, armB, mirrorX?, direct, crystals?}`.
+  - `crystals: [{material, cut, propagation, rotation?}]` (lab y = film normal = crystal `cut`, lab z = `propagation`, rotation = CCW rotation of the lab frame about z; eo-modulator-atlas E2 frame). Accepted in either photonic coupling's settings and in em-modes `settings.crystals` (the latter needs MC to add the key to the em-modes registration).
+  - em-modes reads `RunContext.materials` flat keys `n` | `n.perp`, `n.par` (uniaxial, needs a crystal) | `eps_r`; `dndT` | `dndT.perp`, `dndT.par`; `r_eo.r13` .. `r_eo.r51` (requested from MC: prepareRun flattens tensor values to `<prop>.<component>`).
+  - em-modes result names added by the coupled path (per mode k; unprefixed copies for k = 0): `neff0_<k>`, `dneff_<k>` (direct), `dneffPert_<k>` (first order), `dphidz_<k>` (rad/m), `Ppi_<k>` (W); `dneffdV_<k>` (1/V, first order, arm A), `dneffdVdirect_<k>` (central difference of two re-solves), `dneffdVB_<k>` (arm B), `VpiL_<k>` (V*m, lambda / (2 |dn_A/dV - dn_B/dV|), V = full terminal voltage V_t), `VpiLsingle_<k>` (V*m, lambda / (2 |dn_A/dV|)). Conventions in `packages/physics/src/modes/coupled.ts` header.
+  - `photonic.ts` exports `PHOTONIC_NEEDS` (`thermo-optic`: to `dndT`) for `COUPLING_NEEDS`.
+
+- 2026-11-07 09:10 PST, from MT (DevLog-033), C11 two-way couplings and solid modal / axisym elastic as implemented (additive):
+  - `elastic`: eigen study -> solid modal analysis (plane stress / strain, 3D, axisym); `settings.model` gains `axisym` (default on an axisymmetric mesh) and the physics dims `2d-axisym` (the registration change is requested from MC, DevLog-033 s.5 R1). Eigen outputs: `u` per step, `steps {kind: eigen, Hz}`, scalars `f_<k>` (rigid modes reported as 0), `Solution.normalization` set by the solver. Axisym stationary outputs: `u` (u_r, u_z), `srr`, `szz` (axial), `sphi`, `srz`, `mises`, `s1..s3`, `mises_max`, `u_max`; thermal input as the planar models.
+  - `piezoelectric` (elastic -> electrostatics, monolithic): orientation by `settings.crystals` (the em-modes / electrostatics `crystalsSchema`: per material cut / propagation / rotation, merged with the electrostatics physics' crystals; user-facing) or `settings.euler` (advanced: 3 angles, ZXZ, R = Rz(phi) Rx(theta) Rz(psi) maps crystal-frame to model-frame components, every material); exactly one (amended 2026-11-07 09:17 PST, coordinator decision). Electrodes from the electrostatics BCs: `ground` V = 0, `potential` V fixed (homogeneous in eigen), `terminal` = floating electrode (one DOF, net charge 0: open circuit), `zero-charge` natural. Eigen and stationary studies; 3d and plane-strain. Outputs: `u` (tag = from), `V` (tag = to, NaN off the dielectric), eigen `f_<k>`, `V_<terminal>_<k>`; stationary `V_<terminal>`, `Q_<electrode bc id>` (C, C/m in 2D; `Q_ground` for the ground set), `u_max`.
+  - `acoustic-structure` (elastic -> acoustics, monolithic): unsymmetric u-p form, eigen only; wet interface = faces shared by elastic and acoustics cells; acoustics walls `sound-hard` or `pressure` (p = 0). Outputs `u` (tag = from), `p` (tag = to, NaN off the fluid), `f_<k>`; a closed cavity gives an f = 0 pair.
+  - Material properties registered (provisional, until `@amp/materials` adopts them): `C` (Pa, tensor only: `hexagonal-6mm` C11 C12 C13 C33 C44; `tetragonal-4mm` + C66; `trigonal-3m` C11 C12 C13 C14 C33 C44; `cubic` C11 C12 C44), `e_piezo` (C/m^2, tensor only: `hexagonal-6mm` / `tetragonal-4mm` e15 e31 e33; `trigonal-3m` e15 e22 e31 e33), `eps_r` gains the `uniaxial` tensor form (perp, par; as in `@amp/materials`; piezoelectric materials give the clamped eps^S). Matrix forms and axis conventions: `packages/physics/src/coupled/tensors.ts` header. The couplings read tensor overrides from the spec or the flattened `<prop>.<component>` keys of `RunContext.materials`; a solid without `C` uses its isotropic E, nu.
+  - `CouplingImpl` objects of MT carry an optional `readiness(spec, node): string[]` (requested as part of the interface, DevLog-033 s.5 R3).
+  - 2026-11-07 09:38 PST additions: elastic `fixed` accepts `pnt:` selections (nodes from `Mesh.pointNode`); new elastic BC `displacement` (`bnd` / `pnt`, settings `ux`, `uy`, `uz`, any non-empty subset); `roller` on a point is an error. Elastic on hex8 is an error; 3D box-union hex8 meshes are split into tet10 by `elastic/hex2tet.ts` `hexToTet10` (call site in prepareRun requested from MC). Acoustic-structure solutions carry `detail.closedRegions` and a note: each closed fluid region (no p = 0) adds one f = 0 mode of the u-p form.
+
+- 2026-11-07 10:21 PST, coordinator, audit fixes (fresh-context audit of the uncommitted multiphysics work; applied by lane FC, DevLog-035 s.13):
+  - C11 table: `optomechanical` row added (elastic -> emw-axisym, monolithic, carries both eigen solutions; g0 / gOM per mode pair; owner MOM, DevLog-034). Thermo-optic property name `dndT` (was `dn_dT`). Electro-optic carries the nodal V of the electrostatics solve, E = -grad V evaluated at the quadrature points (was "E field per cell").
+  - Rule: `couplings/index.ts` also concatenates `OPTOMECH_COUPLINGS` / `OPTOMECH_REGISTRATIONS` (and `OPTOMECH_NEEDS` into `COUPLING_NEEDS`).
+  - Merged Solution (`packages/physics/src/driver.ts`): `notes` are concatenated and de-duplicated, not prefixed; only `normalization` is prefixed (`<physics ids joined by +>: <text>`, groups joined by `; `). The 08:46 MC entry is corrected accordingly.
+  - prepareRun: library `n` and `dndT` are evaluated at the mode-study wavelength also for single-physics mode studies (not only in coupled studies), so wavelength-dependent library values can differ from the earlier lambda-free evaluation (`prepare.ts`).
+  - Electro-optic one-terminal limit: the coupling uses one electrostatics solve, so the `from` electrostatics physics must have exactly one terminal condition (`settings.terminal` selects its 1 V solve; absent = the applied-potential solve); more than one terminal is a readiness reason (`studyReadiness`), since several terminals give one solve per terminal (param steps) that the coupling cannot use.
 
 - 2026-11-06 15:3x PST (before commit 3698b3f), adopted from L7a (DevLog-006 s.5) and L8:
   - `eval/schema/amp-eval-0.schema.json` (owned by L8) is now authoritative for C8, including `spec`, `metric_id`, `gate`, `expected`, `field_reference`, structured `tolerance.rule`/`norm`, and `budget_s.native`.
@@ -304,3 +381,4 @@ Values and artifacts:
   - C6: the post worker gains the results message set (defined in `apps/web/src/lib/results/api.ts`, to move to `@amp/spec` types in contracts v2): `results:run {key, solution, mesh, params}` (the worker holds up to 4 runs, LRU; key = `runId` of the C5 run record), `results:drop {key}`, `results:table {spec, id, runs}` (evaluation group or table -> rows x columns), `results:dataset {spec, id, expr, unit?, run, step?}` (points, arc length, values), `results:nodal {spec, expr, unit?, dataset?, run, step?}` (an expression at every mesh node), `results:adhoc {spec, q, runs}` (a temporary item, nothing stored). Replies `results:ok | results:table | results:dataset | results:nodal`, errors as the existing `error`. Tables and dataset values are cached by `artifactKey(resultNodeHash, runId)` (C10): a results edit recomputes only the nodes whose hash changed. The existing messages are unchanged.
   - C8: extract kind `result` (additive; `eval/schema/amp-eval-0.schema.json` enum + `node`, `step`): `extract: {kind: result, node: <evaluation item id>, step?, index?}` evaluates an evaluation item of the case spec's `results` on each level with the results adapter (`apps/web/src/lib/results/adapter.ts`, @amp/post kernels; loaded by path in the engine worker), SI value converted to the target unit. `index` = point of a point item with several points. No case uses it yet; class a unchanged.
   - Agent tools (C7 actors unchanged): `evaluate`, `get_table` (read-only, through the host's `ResultsHost`), `show_plot` (navigation; `NavigationHost.showPlot?(id)`, recorded in the trail). No `export` tool (DevLog-023 s.5.1).
+- 2026-11-07 09:31 PST, coordinator: C2 adopted from MG (DevLog-036): G1 difference footprints add `bnd:<tool entity>` to `parent` of a final boundary lying entirely on that tool's edges inside the target (both owners' names select the shared piece); G2 box-grid min-side faces with several pieces are numbered over all pieces, exterior remainder first as `<box>.<dir>#1`, interface pieces list `bnd:<box>.<dir>#k` in parent; `<box>.<dir>` still selects every piece. G2 changes tagHash of affected box-grid meshes. Electrostatics: uniaxial eps_r tensors with `settings.crystals` (registration added by coordinator per MG R-MC-1); 3D capacitance unit F.

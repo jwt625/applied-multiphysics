@@ -91,6 +91,8 @@ export function compileFieldExpr(sol: Solution, src: string, o: ExprOptions & { 
 function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defsDone: Map<string, FieldExpr>, chain: string[]): FieldExpr {
   const dim = mesh.dim, axisym = !!mesh.axisym;
   const fieldNames = new Set(sol.fields.map((f) => f.name));
+  // merged multiphysics solutions (C11): a first segment equal to a field's physics tag selects that physics' fields
+  const tagged = new Set(sol.fields.flatMap((f) => (f.physics !== undefined ? [f.physics] : [])));
   const sources = new Map<string, Source>();
   const fieldsRead = new Set<string>();
   // d(f, v) -> synthetic name __d<k>
@@ -108,11 +110,16 @@ function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defs
   /** field (+ component) for a name without the d() wrapper, or null */
   const fieldRef = (name: string): { field: FieldData; comp: number | 'norm' } | null => {
     const segs = name.split('.');
-    const tries: string[][] = [segs];
-    if (segs.length > 1 && (o.physicsId ? segs[0] === o.physicsId : !fieldNames.has(segs[0]!))) tries.unshift(segs.slice(1));
-    for (const s of tries) {
+    const tries: Array<{ s: string[]; physics?: string }> = [{ s: segs }];
+    if (segs.length > 1 && tagged.has(segs[0]!)) {
+      // a tagged physics prefix: only that physics' fields (an untagged-style fallback would pick another physics' field)
+      const pid = segs[0]!;
+      if (!sol.fields.some((f) => f.name === segs[1] && f.physics === pid)) return null;
+      tries.splice(0, 1, { s: segs.slice(1), physics: pid });
+    } else if (segs.length > 1 && (o.physicsId ? segs[0] === o.physicsId : !fieldNames.has(segs[0]!))) tries.unshift({ s: segs.slice(1) });
+    for (const { s, physics } of tries) {
       if (!s.length || !fieldNames.has(s[0]!)) continue;
-      const f = fieldOf(sol, s[0]!, o.step);
+      const f = fieldOf(sol, s[0]!, o.step, physics);
       const names = compNames(mesh, f.components);
       if (s.length === 1) {
         if (f.components === 1) return { field: f, comp: 0 };

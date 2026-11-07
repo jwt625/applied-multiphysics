@@ -1,0 +1,94 @@
+# CP-21 (eval/cases/a/CP-21.yaml): NAFEMS T1, plane-stress membrane with a circular hot spot, as a heat -> elastic chain
+# (lane MX, DevLog-035). Quarter membrane 10 x 10 with the hot spot r = 1 (Abaqus deck nt1xxf8x.inp via
+# advanced-packaging-atlas validation/cases/B/nafems-T1.yaml); E 100 GPa, nu 0.3; alpha 1e-5 /K in the hot spot, 0 in the
+# membrane (Altair OS-V 0100). The benchmark prescribes T = 100 C in the hot spot; here a heat physics with T = 100 C on
+# the outer edges and no source gives a uniform 100 C everywhere, which equals the benchmark load because the membrane
+# has alpha = 0. Target sigma_yy(D = (1, 0)) = 50 MPa (CP-21). Length unit cancels for plane-stress stresses (case).
+# Rights: NAFEMS values cited via public vendor pages (cite_values, re_derive_setup).
+schema: amp-spec/0
+id: nafems-t1-hotspot
+title: NAFEMS T1 hot spot (heat -> stress)
+description: Quarter membrane with a circular hot spot; heat sets T = 100 C, thermal expansion of the hot spot loads the membrane; sigma_yy at D = (1, 0).
+params:
+  Lq: {value: 10, unit: mm, description: quarter membrane side}
+  a: {value: 1, unit: mm, description: hot spot radius}
+  T_hot: {value: 100, unit: degC, description: hot spot temperature}
+geometry:
+  dim: 2
+  features:
+    - {id: qa, type: rect, settings: {size: ["Lq", "Lq"], center: ["Lq/2", "Lq/2"]}}
+    - {id: hs, type: circle, settings: {center: {value: [0, 0], unit: mm}, radius: "a"}}
+    - {id: spot, type: intersection, settings: {inputs: [qa, hs]}}
+    - {id: qb, type: rect, settings: {size: ["Lq", "Lq"], center: ["Lq/2", "Lq/2"]}}
+    - {id: memb, type: difference, settings: {base: qb, tools: [spot], keepTools: true}}
+materials:
+  - {id: hot_spot, override: {E: {value: 100, unit: GPa}, nu: 0.3, alpha: {value: 1.0e-5, unit: 1/K}, k: {value: 1, unit: W/(m*K)}}, select: ["dom:spot"]}
+  - {id: membrane, override: {E: {value: 100, unit: GPa}, nu: 0.3, alpha: {value: 0, unit: 1/K}, k: {value: 1, unit: W/(m*K)}}, select: ["dom:memb"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:spot", "dom:memb"]
+    bcs:
+      - {id: outer, type: temperature, select: ["bnd:qb.right", "bnd:qb.top"], settings: {T: "T_hot"}}
+      - {id: sym, type: insulation, select: ["bnd:qb.left", "bnd:qb.bottom", "bnd:qa.left", "bnd:qa.bottom"]}
+  - id: solid
+    type: elastic
+    select: ["dom:spot", "dom:memb"]
+    settings: {model: plane-stress}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:qb.left", "bnd:qa.left"]}
+      - {id: sym_y, type: roller, select: ["bnd:qb.bottom", "bnd:qa.bottom"]}
+      - {id: open, type: free, select: ["bnd:qb.right", "bnd:qb.top"]}
+couplings:
+  - {id: th2sm, type: thermal-expansion, from: ht, to: solid, settings: {Tref: "0 degC"}}
+mesh:
+  size: {hmax: "Lq/20"}
+  refine:
+    - {select: ["bnd:hs.edge"], h: "a/20"}
+studies:
+  - {id: std1, type: stationary, physics: [ht, solid]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: syy_D, type: max, expr: solid.syy, unit: MPa, over: ["dom:memb"], method: nodal, label: "sigma_yy max in the membrane (= at D for the circular inclusion)"}
+        - {id: T_mean, type: average, expr: ht.T, unit: degC, over: ["dom:memb"]}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: T_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: T_map_surf, type: surface, expr: ht.T, unit: degC}
+    - id: syy_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: syy_surf, type: surface, expr: solid.syy, unit: MPa}
+provenance:
+  values:
+    params.Lq: {basis: benchmark, source: "eval/cases/a/CP-21.yaml geometry.spec.quarter_membrane [10, 10] (Abaqus deck nt1xxf8x.inp via advanced-packaging-atlas validation/cases/B/nafems-T1.yaml); length unit cancels for plane-stress stresses", date: 2026-11-07}
+    params.a: {basis: benchmark, source: "eval/cases/a/CP-21.yaml geometry.spec.hot_spot_radius 1.0", date: 2026-11-07}
+    params.T_hot: {basis: benchmark, source: "eval/cases/a/CP-21.yaml bcs[3] temperature_load 100 degC, T_ref 0 (Altair OS-V 0100)", date: 2026-11-07}
+    materials.hot_spot.override.E: {basis: benchmark, source: "eval/cases/a/CP-21.yaml materials.hot_spot.E 1e11 Pa (Altair OS-V 0100, NAFEMS T1)", date: 2026-11-07}
+    materials.hot_spot.override.nu: {basis: benchmark, source: "eval/cases/a/CP-21.yaml materials.hot_spot.nu 0.3", date: 2026-11-07}
+    materials.hot_spot.override.alpha: {basis: benchmark, source: "eval/cases/a/CP-21.yaml materials.hot_spot.alpha 1e-5", date: 2026-11-07}
+    materials.membrane.override.E: {basis: benchmark, source: "eval/cases/a/CP-21.yaml materials.membrane.E 1e11 Pa", date: 2026-11-07}
+    materials.membrane.override.nu: {basis: benchmark, source: "eval/cases/a/CP-21.yaml materials.membrane.nu 0.3", date: 2026-11-07}
+    materials.membrane.override.alpha: {basis: benchmark, source: "eval/cases/a/CP-21.yaml materials.membrane.alpha 0.0", date: 2026-11-07}
+    materials.hot_spot.override.k: {basis: user, date: 2026-11-07, note: "modelling choice: with T fixed on the outer edges and no source the steady T is uniform for any k; T1 prescribes temperatures, not k"}
+    materials.membrane.override.k: {basis: user, date: 2026-11-07, note: "modelling choice (see hot_spot k)"}
+    couplings.th2sm.settings.Tref: {basis: benchmark, source: "eval/cases/a/CP-21.yaml bcs[3] T_ref 0.0", date: 2026-11-07}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice, to be set by the convergence study"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-07, note: "modelling choice: resolves the stress jump at the hot-spot edge"}
+assumptions:
+  - {text: "Uniform 100 C everywhere is equivalent to the benchmark's hot-spot-only temperature because the membrane has alpha = 0 (CP-21 materials)", paths: [physics.ht, materials]}
+  - {text: "For a circular eigenstrain inclusion in a plane-stress plate of the same material, sigma_yy outside the inclusion peaks at D = (a+, 0) (sigma_theta = E e*/2 a^2 / r^2 at theta = 0), so the membrane maximum is the D value (advanced-packaging-atlas nafems-T1 independent_check)", paths: [results.evaluations.ev_std1]}
+  - {text: "Thermal strain is discontinuous across the hot-spot edge: the edge is a mesh boundary (separate domains)", paths: [geometry.features]}
+missing:
+  - {what: "membrane thickness (does not enter plane-stress stresses)", needed_for: [solution]}
+# eval: [CP-21]

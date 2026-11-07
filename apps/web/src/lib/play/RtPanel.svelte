@@ -160,7 +160,7 @@
 <Tip />
 <div class="rt">
 	<header>
-		<a href={resolve('/')} class="dim" data-tip="Workbench">applied-multiphysics</a>
+		<a href={resolve('/workbench')} class="dim" data-tip="Workbench">applied-multiphysics</a>
 		<span class="t">{def.title}</span>
 		<span class="badge" data-tip={def.caveat}>realtime fidelity</span>
 		<span class="sp"></span>

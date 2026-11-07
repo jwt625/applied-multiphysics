@@ -90,9 +90,12 @@
 		const studies = runStudies(data);
 		const st = ((data as { studies?: Array<{ id?: string; physics?: string[] }> } | null)?.studies ?? []).find((x) => x.id === studies[0]);
 		const physicsId = st?.physics?.length === 1 ? st.physics[0] : undefined;
-		const { patch, items, skipped } = pinPatch(data, rows, {
+		// merged multiphysics solution (C11 FieldData.physics): each row's field gets the physics id of its tag
+		const tagOf = (name: string) => { const t = [...new Set((sol?.fields ?? []).filter((x) => x.name === name && x.physics).map((x) => x.physics!))]; return t.length === 1 ? t[0] : undefined; };
+		const rowsP = physicsId ? rows : rows.map((r) => { const b = r.field.split(' ')[0]!, t = b.includes('.') ? undefined : tagOf(b); return t ? { ...r, field: `${t}.${r.field}` } : r; });
+		const { patch, items, skipped } = pinPatch(data, rowsP, {
 			studies, ...(physicsId ? { physicsId } : {}), axisym: !!mesh.axisym, dim: mesh.dim, eigen: sol?.steps?.kind === 'eigen',
-			components: (f) => sol?.fields.find((x) => x.name === f)?.components,
+			components: (f) => { const i = f.indexOf('.'), ph = i > 0 ? f.slice(0, i) : undefined, nm = i > 0 ? f.slice(i + 1) : f; return sol?.fields.find((x) => x.name === nm && (ph === undefined || x.physics === undefined || x.physics === ph))?.components; },
 		});
 		if (!patch.length) { pinMsg = `nothing pinned: ${skipped.map((k) => `#${k.n} ${k.reason}`).join('; ')}`; return; }
 		const op = await s.model.apply(patch, `pin probe ${rows.map((r) => `#${r.n}`).join(', ')} as ${items.join(', ')}`);

@@ -1,0 +1,95 @@
+# Bimetal strip (lane MX, DevLog-035): Cu on Al heated uniformly, heat -> elastic, 2D plane stress (beam = uniaxial stress,
+# Timoshenko's assumption). Topic, layer thicknesses (t1 = 1 mm, t2 = 3 t1), material pair (Al, Cu) and the temperatures
+# (T0 = 313 K applied, strain reference 293.15 K) are Wentao's model inputs, <NAS>/COMSOL/20241210_CTE_bending
+# (inputs only, no COMSOL value used; his model is plane strain with layers of
+# different widths, 12 vs 24 mm, here both layers have the same length L so that the closed form applies).
+# Material values: materials/copper.yaml (Ledbetter-Naimon 1974 E, nu; NIST cryo OFHC alpha fit) and
+# materials/aluminum-6061-t6.yaml (MIL-HDBK-5J E, nu; NIST cryo 6061 alpha fit); the library has no pure Al.
+# Reference: Timoshenko 1925 curvature (validation/mp/references.py bimetal_strip): kappa 0.03934 1/m; on the half model,
+# uy(L/4, 0) - uy(0, 0) = kappa (L/4)^2 / 2 = 4.426 um (ends up). Half model: symmetry plane x = 0.
+schema: amp-spec/0
+id: bimetal-strip
+title: Bimetal strip, Cu on Al (heat -> stress)
+description: Uniform heating of a Cu-on-Al strip bends it; mid-span curvature against Timoshenko's 1925 bimetal formula.
+params:
+  L: {value: 60, unit: mm, range: [24, 120], description: full strip length (half model L/2)}
+  t1: {value: 1, unit: mm, description: top layer (Cu) thickness}
+  t2: {value: 3, unit: mm, description: bottom layer (Al 6061-T6) thickness}
+  T0: {value: 313, unit: K, description: applied uniform temperature}
+  Tref: {value: 293.15, unit: K, description: stress-free temperature}
+geometry:
+  dim: 2
+  features:
+    - {id: cu, type: rect, settings: {size: ["L/2", "t1"], center: ["L/4", "t1/2"]}}
+    - {id: al, type: rect, settings: {size: ["L/2", "t2"], center: ["L/4", "-t2/2"]}}
+materials:
+  - {id: Cu, override: {E: {value: 123.5, unit: GPa}, nu: 0.35, alpha: {value: 1.657068574830686e-5, unit: 1/K}, k: {value: 401.404, unit: W/(m*K)}}, select: ["dom:cu"]}
+  - {id: Al, override: {E: {value: 68.25809720236677, unit: GPa}, nu: 0.33, alpha: {value: 2.2642347668173694e-5, unit: 1/K}, k: {value: 154.366564394444, unit: W/(m*K)}}, select: ["dom:al"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:cu", "dom:al"]
+    bcs:
+      - {id: hot, type: temperature, select: ["bnd:cu.top", "bnd:cu.right", "bnd:al.right", "bnd:al.bottom"], settings: {T: "T0"}}
+      - {id: sym, type: insulation, select: ["bnd:cu.left", "bnd:al.left"]}
+  - id: solid
+    type: elastic
+    select: ["dom:cu", "dom:al"]
+    settings: {model: plane-stress}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:cu.left", "bnd:al.left"]}
+      - {id: pin, type: fixed, select: ["pnt:al.p0"]}
+      - {id: open, type: free, select: ["bnd:cu.top", "bnd:cu.right", "bnd:al.right", "bnd:al.bottom"]}
+couplings:
+  - {id: th2sm, type: thermal-expansion, from: ht, to: solid, settings: {Tref: "Tref"}}
+mesh:
+  size: {hmax: "t1/4"}
+studies:
+  - {id: std1, type: stationary, physics: [ht, solid]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: mid_pts, type: cutpoint, data: sol_std1, points: [["0 mm", "0 mm"], ["L/4", "0 mm"]]}
+    - {id: interface, type: cutline, data: sol_std1, from: ["0 mm", "0 mm"], to: ["L/2", "0 mm"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: uy_mid, type: point, data: mid_pts, expr: solid.u.y, unit: um, label: "uy at x = 0 and x = L/4 on the interface; kappa = 2 (uy(L/4) - uy(0)) / (L/4)^2"}
+        - {id: T_mean, type: average, expr: ht.T, unit: K, over: ["dom:cu", "dom:al"]}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: sxx_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: sxx_surf, type: surface, expr: solid.sxx, unit: MPa}
+        - {id: sxx_def, type: deformation, expr: solid.u, scale: auto}
+    - id: uy_line
+      type: plot1d
+      items:
+        - {id: uy_curve, type: linegraph, data: interface, x: arc, expr: solid.u.y, unit: um}
+provenance:
+  values:
+    params.t1: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20241210_CTE_bending (inputs only): Parameters t1 = 1[mm]", date: 2026-11-07}
+    params.t2: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20241210_CTE_bending (inputs only): Parameters t2 = t1*3", date: 2026-11-07}
+    params.T0: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20241210_CTE_bending (inputs only): Parameters T0 = 313[K], Temperature 1 BC T0", date: 2026-11-07}
+    params.Tref: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20241210_CTE_bending (inputs only): Heat Transfer in Solids Tref = 293.15[K]; the thermal expansion strain reference is the common model input (assumed equal)", date: 2026-11-07}
+    params.L: {basis: user, date: 2026-11-07, note: "modelling choice: L/h = 15 so the mid-span curvature is free of end effects; Wentao's layers were 12 and 24 mm wide (w1, w2 = 2 w1)"}
+    materials.Cu.override.E: {basis: measured, source: "materials/copper.yaml E (Ledbetter, Naimon 1974, journal p.923 Table 10, polycrystal average 1.235e11 N/m2)", date: 2026-11-07}
+    materials.Cu.override.nu: {basis: measured, source: "materials/copper.yaml nu (Ledbetter, Naimon 1974, p.923 Table 10)", date: 2026-11-07}
+    materials.Cu.override.alpha: {basis: derived, source: "materials/copper.yaml alpha (NIST cryogenic OFHC Cu fit) evaluated at 293.15 K with @amp/materials getProperty", date: 2026-11-07}
+    materials.Cu.override.k: {basis: derived, source: "materials/copper.yaml k (Ho, Powell, Liley 1972 p.332 table) interpolated at 293.15 K", date: 2026-11-07, note: "T is uniform, so k does not affect the result"}
+    materials.Al.override.E: {basis: handbook, source: "materials/aluminum-6061-t6.yaml E (MIL-HDBK-5J p.3-264 Table 3.6.2.0(b1): 9.9e3 ksi)", date: 2026-11-07}
+    materials.Al.override.nu: {basis: handbook, source: "materials/aluminum-6061-t6.yaml nu (MIL-HDBK-5J p.3-264: 0.33)", date: 2026-11-07}
+    materials.Al.override.alpha: {basis: derived, source: "materials/aluminum-6061-t6.yaml alpha (NIST cryogenic 6061-T6 fit) evaluated at 293.15 K with @amp/materials getProperty", date: 2026-11-07}
+    materials.Al.override.k: {basis: derived, source: "materials/aluminum-6061-t6.yaml k (NIST cryogenic 6061-T6 fit) at 293.15 K", date: 2026-11-07, note: "T is uniform, so k does not affect the result"}
+    results.datasets.mid_pts.points.1: {basis: user, date: 2026-11-07, note: "modelling choice: L/4 from the centre, L/4 from the free end"}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice: 4 cells through the thin layer"}
+assumptions:
+  - {text: "Plane stress = Timoshenko's beam (uniaxial stress, free lateral contraction); Wentao's COMSOL model was plane strain (a wide plate needs E/(1 - nu^2) and (1 + nu) alpha in the closed form)", paths: [physics.solid.settings.model]}
+  - {text: "Layer assignment: Cu on top (t1), Al 6061-T6 below (t2). In Wentao's file the material domains (Cu on entities 3,1) could not be mapped to the rectangles from the inputs alone; this choice is a modelling choice", paths: [materials]}
+  - {text: "Instantaneous alpha at 293.15 K used as the secant alpha over 293.15-313 K (20 K span); Wentao's model used the secant input type", paths: [materials]}
+  - {text: "Closed form uses the instantaneous curvature of a long strip; the half model's uy difference over L/4 assumes small slopes", paths: [results.evaluations.ev_std1]}
+# eval: []   (reference: Timoshenko 1925 closed form, validation/mp/references.py bimetal_strip)

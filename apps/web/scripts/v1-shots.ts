@@ -37,7 +37,7 @@ for (const view of list.split(',')) {
 		p.on('pageerror', (e) => errors.push(`${view} ${v.tag}: ${e.message}`));
 		p.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(`${view} ${v.tag}: console ${m.text()}`); });
 		p.on('response', (r) => { if (r.status() >= 400) errors.push(`${view} ${v.tag}: HTTP ${r.status()} ${r.url().replace(origin, '')}`); });
-		const url = kind === 'play' ? `${origin}/play/${id}` : kind === 'rt' ? `${origin}/play/rt/${id}` : `${origin}/?sim=${id}`;
+		const url = kind === 'play' ? `${origin}/play/${id}` : kind === 'rt' ? `${origin}/play/rt/${id}` : `${origin}/workbench?sim=${id}`;
 		await p.goto(url, { waitUntil: 'load' });
 		if (kind === 'play' || kind === 'wb') {
 			const hook = kind === 'play' ? '__ampPlay' : '__ampWorkbench';

@@ -20,7 +20,7 @@ import { Worker } from 'node:worker_threads';
 import { importWorkspace } from './workspace.ts';
 
 /** dtFactor (convergence.dt_with_h): time-step scale for this level, hFactor^(space_order / time_order); 1 otherwise. */
-export interface PrepareArgs { case: EvalCase; spec: Spec; physicsId: string; level: number; hFactor: number; dtFactor: number; signal: AbortSignal }
+export interface PrepareArgs { case: EvalCase; spec: Spec; physicsId: string; level: number; hFactor: number; dtFactor: number; signal: AbortSignal; studyId?: string }
 export type PrepareFn = ((args: PrepareArgs) => Promise<RunContext>) | ((spec: Spec, caseCtx: Omit<PrepareArgs, 'spec'>) => Promise<RunContext>);
 
 /** Call prepareRun in either form: `(args)` (one object) or `(spec, caseCtx)` (two parameters, contract changelog 16:0x). */
@@ -38,6 +38,9 @@ export interface Registry {
   loadError?: string;      // present but broken @amp/physics or @amp/post (audit B2)
   sample?: SampleFn;       // @amp/post sample
   resultNames?: Record<string, { fields: string[]; scalars: string[] }>;
+  /** @amp/physics study driver (C11, DevLog-031): every physics of a study in coupling order; one physics = module.run */
+  runStudy?: (prep: RunContext) => Promise<Solution>;
+  studyReadiness?: (spec: Spec, studyId?: string) => { ready: boolean; reasons: string[]; order: string[] };
 }
 export type SampleFn = (sol: Solution, field: string, points: number[][], o?: { mesh?: unknown; component?: number }) => ArrayLike<number>;
 
@@ -75,6 +78,8 @@ export function registryFromExports(ex: Record<string, unknown>, origin: string,
   }
   // L4: RESULT_NAMES[type] = {fields, scalars}; '<x>' segments are wildcards (e.g. 'C_<i>_<j>')
   if (ex.RESULT_NAMES && typeof ex.RESULT_NAMES === 'object') reg.resultNames = ex.RESULT_NAMES as Record<string, { fields: string[]; scalars: string[] }>;
+  if (typeof ex.runStudy === 'function') reg.runStudy = ex.runStudy as Registry['runStudy'];
+  if (typeof ex.studyReadiness === 'function') reg.studyReadiness = ex.studyReadiness as Registry['studyReadiness'];
   return reg;
 }
 
@@ -306,6 +311,13 @@ async function resolveSpec(c: EvalCase, root: string, physicsRegistry: unknown):
   return { error: 'spec missing' };
 }
 
+/** Study of a multiphysics case: the case's study type, else the first non-parametric study, else the first. */
+function caseStudy(spec: Spec, c: EvalCase): { id: string } | undefined {
+  const st = ((spec as { studies?: Array<{ id: string; type: string }> }).studies ?? []);
+  const want = (((c as { study?: { type?: string } }).study?.type) ?? '').replace('transient', 'time');
+  return st.find((x) => x.type === want) ?? st.find((x) => x.type !== 'parametric') ?? st[0];
+}
+
 function physicsEntries(spec: Spec): Array<{ id: string; type: string }> {
   const ph = (spec as { physics?: unknown }).physics;
   if (!Array.isArray(ph)) return [];
@@ -344,7 +356,7 @@ export class EngineSource implements Source {
     return `engine: ${this.reg.origin}; modules: ${types.join(', ') || 'none'}${this.regReason !== 'ok' ? ` (${this.regReason})` : ''}; prepare: ${this.reg.prepare ? 'yes' : 'no'}; sample: ${this.reg.sample ? 'yes' : 'no'}; isolation: worker per case`;
   }
 
-  private async select(lc: LoadedCase, specRef?: SpecRef): Promise<{ module: PhysicsModule; spec: Spec; physicsId: string } | { pending: string } | { error: string }> {
+  private async select(lc: LoadedCase, specRef?: SpecRef): Promise<{ module: PhysicsModule; spec: Spec; physicsId: string; studyId?: string; order?: string[]; types?: string[] } | { pending: string } | { error: string }> {
     const c = lc.data!;
     const sp = specRef ?? c.spec;
     if (this.reg.loadError) return { error: `engine load failed: ${this.reg.loadError}` };
@@ -354,7 +366,19 @@ export class EngineSource implements Source {
     if (!('spec' in rs)) return rs;
     const entries = physicsEntries(rs.spec);
     if (!entries.length) return { error: 'spec has no physics entries' };
-    if (entries.length > 1) return { pending: `spec has ${entries.length} physics entries; multiphysics orchestration is not wired in the harness` };
+    if (entries.length > 1) {
+      // multiphysics (C11): the @amp/physics study driver orders and runs the study's physics (DevLog-031)
+      if (!this.reg.studyReadiness || !this.reg.runStudy) return { pending: `spec has ${entries.length} physics entries; @amp/physics exports no study driver (runStudy, studyReadiness)` };
+      const st = caseStudy(rs.spec, c);
+      if (!st) return { error: 'spec has no study' };
+      const rd = this.reg.studyReadiness(rs.spec, st.id);
+      if (!rd.ready) return { pending: `study '${st.id}' not ready: ${rd.reasons.join('; ')}` };
+      if (!this.reg.prepare) return { pending: 'no prepareRun hook to build the RunContext (mesh)' };
+      const types = rd.order.map((id) => entries.find((x) => x.id === id)?.type ?? '');
+      const m0 = this.reg.modules.get(types[0] ?? '');
+      if (!m0) return { pending: `no physics module registered for '${types[0]}'` };
+      return { module: m0, spec: rs.spec, physicsId: rd.order[0]!, studyId: st.id, order: rd.order, types };
+    }
     const e = entries[0]!;
     const m = this.reg.modules.get(e.type);
     if (!m) return { pending: `no physics module registered for '${e.type}' (registered: ${[...this.reg.modules.keys()].join(', ')})` };
@@ -383,7 +407,7 @@ export class EngineSource implements Source {
     const parts: Array<{ runnable: boolean; reason: string; error?: boolean }> = [];
     for (const g of gs) {
       const s = await this.select(lc, g.spec);
-      parts.push('module' in s ? { runnable: true, reason: `run '${s.module.type}' on ${hFactorsFor(lc.data!).length} level(s) in a worker` } : 'pending' in s ? { runnable: false, reason: s.pending } : { runnable: false, reason: s.error, error: true });
+      parts.push('module' in s ? { runnable: true, reason: `run ${s.order ? `study '${s.studyId}' (${s.order.join(' -> ')})` : `'${s.module.type}'`} on ${hFactorsFor(lc.data!).length} level(s) in a worker` } : 'pending' in s ? { runnable: false, reason: s.pending } : { runnable: false, reason: s.error, error: true });
     }
     if (gs.length === 1) return parts[0]!;
     return { runnable: parts.some((p) => p.runnable), reason: parts.map((p, i) => `[${gs[i]!.label}] ${p.reason}`).join('; '), ...(parts.some((p) => p.error) ? { error: true } : {}) };
@@ -422,7 +446,12 @@ export class EngineSource implements Source {
     const factors = hFactorsFor(c);
     const targets: WorkerTarget[] = [];
     const pre: Record<string, { pending: string }> = {};
-    const rn = this.reg.resultNames?.[s.module.type];
+    // result vocabulary: the module's, or for a study of several physics the union over its physics, bare and `<pid>.`-prefixed
+    const rn0 = this.reg.resultNames;
+    const rn = !s.order ? rn0?.[s.module.type] : rn0 && s.types!.every((t) => rn0[t]) ? {
+      fields: s.order.flatMap((id, i) => rn0[s.types![i]!]!.fields.flatMap((n) => [n, `${id}.${n}`])),
+      scalars: s.order.flatMap((id, i) => rn0[s.types![i]!]!.scalars.flatMap((n) => [n, `${id}.${n}`])),
+    } : undefined;
     const known = (names: string[], x: string) => names.some((n) => new RegExp(`^${n.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/<[^>]+>/g, '[^_]+')}$`).test(x));
     for (const r of refs) {
       if (!r.metric_id && !r.extract?.name) { pre[targetId(r)] = { pending: 'no metric_id: targets are looked up by metric_id only' }; continue; }
@@ -445,7 +474,7 @@ export class EngineSource implements Source {
     const speed = !!opts.speed && !informative;
     const timeoutMs = caseTimeoutMs(c, levelIdx.length, speed, this.opts);
     opts.log?.(`${c.id}: worker${informative ? ' (informative targets only)' : ''}, level(s) ${levelIdx.map((i) => i + 1).join(',')}, timeout ${(timeoutMs / 1000).toFixed(0)} s, heap cap ${this.opts.maxOldMb ?? 1536} MB`);
-    const res = await runWorker({ root: this.root, caseData: c, spec: s.spec, physicsId: s.physicsId, type: s.module.type, factors, levelIdx, speed, targets, timeoutMs }, timeoutMs, this.opts.maxOldMb ?? 1536);
+    const res = await runWorker({ root: this.root, caseData: c, spec: s.spec, physicsId: s.physicsId, ...(s.studyId ? { studyId: s.studyId } : {}), type: s.module.type, factors, levelIdx, speed, targets, timeoutMs }, timeoutMs, this.opts.maxOldMb ?? 1536);
     if (res.kind === 'timeout') { opts.log?.(`${c.id}: TIMEOUT after ${(timeoutMs / 1000).toFixed(1)} s, worker terminated`); return { kind: 'timeout', reason: `timeout after ${(timeoutMs / 1000).toFixed(1)} s (worker terminated)` }; }
     if (res.kind === 'error') { opts.log?.(`${c.id}: ${res.reason}`); return { kind: 'error', reason: res.reason }; }
     const w = res.result;

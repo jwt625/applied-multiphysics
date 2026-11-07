@@ -11,7 +11,7 @@ export interface PhysicsExports {
 	register?: (r: Registry) => void;
 	registerAll?: (r: Registry) => void;
 	/** L4: prepareRun(specData, {hFactor, signal, T}) -> RunContext (+ notes) */
-	prepareRun?: (a: { spec: Record<string, unknown>; physicsId?: string; hFactor?: number; signal?: AbortSignal; T?: number; case?: Record<string, unknown> }) => Promise<RunContext & { notes?: string[] }>;
+	prepareRun?: (a: { spec: Record<string, unknown>; physicsId?: string; studyId?: string; hFactor?: number; signal?: AbortSignal; T?: number; case?: Record<string, unknown>; library?: { getProperty(id: string, prop: string, o?: { T?: number }): { value: number | Record<string, number> } } | null }) => Promise<RunContext & { notes?: string[] }>;
 	RESULT_NAMES?: Record<string, { fields: string[]; scalars: string[] }>;
 }
 

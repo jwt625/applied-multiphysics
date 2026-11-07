@@ -23,6 +23,13 @@ sources:
     access: paywalled
     read: "primary not read; refractiveindex.info entry (CC0) fetched and read by L10 2026-11-06: formula 6, coefficients 0 0.05792105 238.0185 0.00167917 57.362, 0.23-1.690 um, standard air (dry, 15 C, 101.325 kPa, 450 ppm CO2)"
     licence: "refractiveindex.info database: CC0 1.0"
+  mathar2007:
+    citation: "R. J. Mathar, Refractive index of humid air in the infrared: model fits, J. Opt. A: Pure Appl. Opt. 9, 470-476 (2007); dry-air table at 15 C, 101.325 kPa, 370 ppm CO2 as computed by refractiveindex.info other/mixed gases/air/nk/Mathar-1.3.yml"
+    doi: 10.1088/1464-4258/9/5/008
+    url: "https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/other/mixed%20gases/air/nk/Mathar-1.3.yml"
+    access: open
+    read: "primary not read (its access not checked); tabulated values of the open database entry (CC0) fetched 2026-11-07 by lane MX"
+    licence: "refractiveindex.info database: CC0 1.0"
   kadoya1985:
     citation: "K. Kadoya, N. Matsunaga, A. Nagashima, Viscosity and thermal conductivity of dry air in the gaseous phase, J. Phys. Chem. Ref. Data 14(4), 947-970 (1985)"
     doi: 10.1063/1.555744
@@ -117,7 +124,24 @@ properties:
     n_medium: vacuum
     n_medium_note: "index of a gas is relative to vacuum by definition; the air / vacuum wavelength ambiguity changes n_air by far less than its other conditions"
     valid: {T: {unit: degC, range: [15, 15]}, note: "standard air only; used by the library to convert air-referenced indices (outside 0.23-1.69 um the conversion is flagged extrapolated)"}
-    alternatives: []
+    alternatives:
+      - id: mathar2007_ir
+        use: "infrared beyond the Ciddor range (1.69-2.5 um), e.g. 1.957 um TFLN models; added 2026-11-07 by lane MX (DevLog-035, MO request M1)"
+        table:
+          x: lambda
+          x_unit: um
+          xs: [1.30, 1.35, 1.40, 1.45, 1.50, 1.55, 1.60, 1.65, 1.70, 1.75, 1.80, 1.85, 1.90, 1.95, 2.00, 2.05, 2.10, 2.15, 2.20, 2.25, 2.30, 2.35, 2.40, 2.45, 2.50]
+          ys: [1.000273570659, 1.000273504092, 1.000273444601, 1.000273391217, 1.000273343125, 1.000273299637, 1.000273260175, 1.000273224247, 1.000273191437, 1.000273161390, 1.000273133799, 1.000273108403, 1.000273084975, 1.000273063316, 1.000273043255, 1.000273024641, 1.000273007341, 1.000272991237, 1.000272976227, 1.000272962216, 1.000272949124, 1.000272936875, 1.000272925403, 1.000272914648, 1.000272904557]
+        unit: "1"
+        basis: reference_correlation
+        source: mathar2007
+        locator: "refractiveindex.info other/mixed gases/air/nk/Mathar-1.3.yml, tabulated n at 0.01 um steps 1.30-2.50 um; every 5th row transcribed (0.05 um steps)"
+        accessed: 2026-11-07
+        uncertainty: {na: "not stated in the database entry; primary not read"}
+        conditions: {T: "15 degC", p: "101.325 kPa", text: "dry air, 370 ppm CO2 (database comment; CONDITIONS temperature 288.15, pressure 101325)"}
+        n_medium: vacuum
+        n_medium_note: "index of a gas is relative to vacuum by definition"
+        valid: {T: {unit: degC, range: [15, 15]}, lambda: {unit: um, range: [1.30, 2.50]}, note: "dry air at 15 C, 101.325 kPa only"}
   mu_r:
     value: N/A
     unit: "1"

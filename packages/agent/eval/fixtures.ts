@@ -12,9 +12,9 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { createOpLog, parseYaml, resolveParams, type OpLog, type Registry } from '@amp/spec';
+import { createOpLog, parseSpecText, parseYaml, resolveParams, type OpLog, type Registry } from '@amp/spec';
 import type { Mesh, Solution } from '@amp/spec/types';
-import { physicsRegistry, prepareRun, registry as physicsModules } from '@amp/physics';
+import { physicsRegistry, prepareRun, registry as physicsModules, runStudy, studyReadiness } from '@amp/physics';
 import { AgentSession } from '../src/session.ts';
 import { MemoryStore } from '../src/memory/store.ts';
 import { memoryBackend } from '../src/memory/backends.ts';
@@ -38,17 +38,22 @@ export class FeRunner implements StudyRunner {
     if (parsed.issues.length) return done({ ok: false, study, stage: 'parse', message: parsed.issues.slice(0, 3).map((i) => i.message).join('; ') });
     const spec = parsed.data as { studies?: Array<{ id?: string; physics?: string[] }>; physics?: Array<{ id?: string; type?: string }> };
     const st = spec.studies?.find((x) => x.id === study);
-    const physicsId = st?.physics?.[0];
+    // several physics: the @amp/physics study driver orders them by the couplings (C11, DevLog-031)
+    const multi = (st?.physics?.length ?? 0) > 1;
+    const vr = multi ? physicsRegistry() : null;
+    const sr = multi ? (() => { const v = parseSpecText(input.specText, vr!); return v.spec ? studyReadiness(v.spec, study) : { ready: false, reasons: v.issues.slice(0, 3).map((i) => i.message), order: [] as string[] }; })() : null;
+    if (sr && !sr.ready) return done({ ok: false, study, stage: 'readiness', message: sr.reasons.join('; '), readiness: { ready: false, reasons: sr.reasons } });
+    const physicsId = sr ? sr.order[0] : st?.physics?.[0];
     const type = spec.physics?.find((p) => p.id === physicsId)?.type;
     const mod = type ? physicsModules[type] : undefined;
     if (!st || !physicsId || !mod) return done({ ok: false, study, stage: 'prepare', message: `no physics module for study ${study}` });
     let ctx;
-    try { ctx = await prepareRun({ spec: parsed.data as Record<string, unknown>, physicsId, signal: input.signal }); }
+    try { ctx = await prepareRun({ spec: parsed.data as Record<string, unknown>, physicsId, signal: input.signal, ...(multi ? { studyId: study } : {}) }); }
     catch (e) { return done({ ok: false, study, stage: 'prepare', message: (e as Error).message.slice(0, 500) }); }
-    const rd = mod.readiness(ctx.spec, physicsId);
+    const rd = sr ? { ready: true, reasons: [] as string[] } : mod.readiness(ctx.spec, physicsId);
     if (!rd.ready) return done({ ok: false, study, stage: 'readiness', message: rd.reasons.join('; '), readiness: rd });
     try {
-      const sol = await mod.run(ctx);
+      const sol = await runStudy(ctx);
       this.last.set(study, { solution: sol as Solution, mesh: ctx.mesh as Mesh, params: resolveParams((parsed.data as { params?: unknown }).params).scope, specText: input.specText });
       return done({ ok: true, study, solution: summarizeSolution({ ...sol, run: { ...sol.run, oplogHead: input.oplogHead } }), readiness: rd, gates: [] });
     } catch (e) { return done({ ok: false, study, stage: 'solve', message: (e as Error).message.slice(0, 500), readiness: rd }); }

@@ -80,7 +80,11 @@ export function chainOf(ix: SpecIndex, id: string | undefined): { chain: Dataset
 	return { error: `dataset chain of '${id}' too long` };
 }
 
-/** Physics id accepted as the expression prefix: the root study's single physics (several: any prefix). */
+/**
+ * Physics id accepted as the expression prefix: the root study's single physics. Several physics: undefined, and
+ * @amp/post resolves `<physics id>.<name>` against the physics tags of the merged solution (C11 FieldData.physics,
+ * scalars keyed `<physics id>.<name>`).
+ */
 function physicsIdOf(ix: SpecIndex, study: string): string | undefined {
 	const p = ix.studies.get(study)?.physics ?? [];
 	return p.length === 1 ? p[0] : undefined;

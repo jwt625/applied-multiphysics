@@ -1,0 +1,145 @@
+# CP-43 (eval/cases/b/CP-43.yaml): Pan et al. 2021, x-cut TFLN-on-Si MZM at 1957 nm, GSG push-pull, designed cross-section;
+# electrostatics -> em-modes (electro-optic, Pockels), 2D (lane MX, DevLog-035). Geometry ported from eo-modulator-atlas
+# sims/pan2021/config.yaml (read only, at f418495 as in CP-43: the last atlas commit touching the file, identical at the
+# atlas HEAD 0546007 read on 2026-11-07; the atlas is the evidence holder, paper p.2-4): 600 nm LN film, rib
+# h 300 nm, top width 1.1 um, sidewall 30 deg from vertical (atlas project_inference), BOX 2 um, Si substrate; gold
+# electrodes 0.5 um thick, gap 6.5 um, signal 17 um, grounds 60 um; waveguides centred in the gaps. Frame: x lateral,
+# y film normal, z propagation; mirror plane x = -11.75 um. Target: paper-simulated VpiL 4.06 V cm push-pull (tol 10 %);
+# atlas engine 4.204 V cm (DevLog-032). Materials from this repo's library (not the atlas placeholders): LN n_o / n_e
+# (Zelmon 1997 fits at 1.957 um), eps^S (Weis-Gaylord 1985 Table 1, Warner 1967 row), r^S (Weis-Gaylord Table 4, 633 nm
+# clamped: no 1957 nm value exists in the source); SiO2 eps 3.9 (Zhu 2021) and n (Malitson); Si eps (Krupka 2006); air n (Mathar 2007).
+schema: amp-spec/0
+id: tfln-mzm-eo
+title: TFLN modulator VpiL (electrostatics -> optics)
+description: Static field of a GSG electrode on x-cut thin-film LN changes the TE0 index through the Pockels effect; push-pull VpiL at 1957 nm.
+params:
+  t_film: {value: 600, unit: nm, description: LN film thickness}
+  h_rib: {value: 300, unit: nm, description: rib etch depth}
+  t_box: {value: 2, unit: um, description: buried oxide}
+  t_el: {value: 0.5, unit: um, description: electrode thickness}
+  g: {value: 6.5, unit: um, description: electrode gap}
+  ws: {value: 17, unit: um, description: signal width}
+  wg: {value: 60, unit: um, description: ground width}
+  lambda0: {value: 1.957, unit: um, description: vacuum wavelength}
+geometry:
+  dim: 2
+  features:
+    - {id: sub, type: rect, settings: {size: ["270 um", "248 um"], center: ["-15 um", "-126 um"]}}
+    - {id: boxl, type: rect, settings: {size: ["270 um", "t_box"], center: ["-15 um", "-t_box/2"]}}
+    - {id: slab, type: rect, settings: {size: ["270 um", "t_film - h_rib"], center: ["-15 um", "(t_film - h_rib)/2"]}}
+    - id: rib_r
+      type: polygon
+      settings: {points: [{value: [-0.7232, 0.3], unit: um}, {value: [0.7232, 0.3], unit: um}, {value: [0.55, 0.6], unit: um}, {value: [-0.55, 0.6], unit: um}]}
+    - id: rib_l
+      type: polygon
+      settings: {points: [{value: [-24.2232, 0.3], unit: um}, {value: [-22.7768, 0.3], unit: um}, {value: [-22.95, 0.6], unit: um}, {value: [-24.05, 0.6], unit: um}]}
+    - {id: sig, type: rect, settings: {size: ["ws", "t_el"], center: ["-11.75 um", "t_film - h_rib + t_el/2"]}}
+    - {id: gnd_r, type: rect, settings: {size: ["wg", "t_el"], center: ["g/2 + wg/2", "t_film - h_rib + t_el/2"]}}
+    - {id: gnd_l, type: rect, settings: {size: ["wg", "t_el"], center: ["-23.5[um] - g/2 - wg/2", "t_film - h_rib + t_el/2"]}}
+    - {id: airr, type: rect, settings: {size: ["270 um", "120[um] - (t_film - h_rib)"], center: ["-15 um", "(120[um] + t_film - h_rib)/2"]}}
+    - {id: air, type: difference, settings: {base: airr, tools: [rib_r, rib_l, sig, gnd_r, gnd_l], keepTools: true}}
+    - {id: win, type: rect, settings: {size: ["6.2 um", "3 um"], center: ["0 um", "0 um"]}}
+    - {id: opt, type: fragment, settings: {inputs: [win, boxl, slab, rib_r, air]}}
+materials:
+  - id: LN
+    override:
+      n: {symmetry: uniaxial, components: {perp: 2.198050883114261, par: 2.1264792141206845}}
+      eps_r: {symmetry: uniaxial, components: {perp: 44.3, par: 27.9}}
+      r_eo: {symmetry: trigonal-3m, unit: pm/V, components: {r13: 8.6, r22: 3.4, r33: 30.8, r51: 28}}
+    select: ["dom:slab", "dom:rib_r", "dom:rib_l"]
+  - {id: SiO2, override: {n: 1.4391079374709876, eps_r: 3.9}, select: ["dom:boxl"]}
+  - {id: Si, override: {eps_r: 11.656094999999999}, select: ["dom:sub"]}
+  - {id: Air, override: {n: 1.00027306050746, eps_r: 1}, select: ["dom:air"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:sub", "dom:boxl", "dom:slab", "dom:rib_r", "dom:rib_l", "dom:air"]
+    bcs:
+      - {id: sig_t, type: terminal, select: ["bnd:sig.left", "bnd:sig.right", "bnd:sig.top", "bnd:sig.bottom"]}
+      - {id: gnds, type: ground, select: ["bnd:gnd_r.left", "bnd:gnd_r.right", "bnd:gnd_r.top", "bnd:gnd_r.bottom", "bnd:gnd_l.left", "bnd:gnd_l.right", "bnd:gnd_l.top", "bnd:gnd_l.bottom"]}
+      - {id: outer, type: zero-charge, select: ["bnd:sub.left", "bnd:sub.right", "bnd:sub.bottom", "bnd:boxl.left", "bnd:boxl.right", "bnd:slab.left", "bnd:slab.right", "bnd:airr.left", "bnd:airr.right", "bnd:airr.top"]}
+  - id: ewg
+    type: em-modes
+    select: ["dom:win&boxl", "dom:win&slab", "dom:win&rib_r", "dom:win&air"]
+    settings: {order: 2}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:win.left", "bnd:win.right", "bnd:win.top", "bnd:win.bottom"]}
+couplings:
+  - id: eo
+    type: electro-optic
+    from: es
+    to: ewg
+    settings: {armB: mirror, mirrorX: "-11.75 um", terminal: sig_t, crystals: [{material: LN, cut: x, propagation: y}]}
+mesh:
+  size: {hmax: "2 um", grading: 0.3}
+  refine:
+    - {select: ["dom:win&slab", "dom:win&rib_r", "dom:win&boxl", "dom:win&air"], h: "0.1 um"}
+    - {select: ["bnd:sig.right", "bnd:gnd_r.left"], h: "0.05 um"}
+studies:
+  - {id: std1, type: mode, physics: [es, ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: gap_line, type: cutline, data: sol_std1, from: ["-3.25 um", "0.45 um"], to: ["3.25 um", "0.45 um"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: ng, type: global, expr: ewg.ng_0, unit: "1"}
+        - {id: VpiL, type: global, expr: ewg.VpiL_0, unit: V*cm}
+        - {id: dneffdV, type: global, expr: ewg.dneffdV_0, unit: 1/V}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_surf, type: surface, expr: es.V, unit: V}
+    - id: E_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: E_surf, type: surface, expr: ewg.normE, unit: V/m}
+    - id: V_line
+      type: plot1d
+      items:
+        - {id: V_curve, type: linegraph, data: gap_line, x: arc, expr: es.V, unit: V}
+provenance:
+  values:
+    params.t_film: {basis: paper_exact, source: "Pan et al., Opt. Express 29(12) 17710 (2021) via eo-modulator-atlas sims/pan2021/config.yaml", locator: "paper p.3-4 Sec. 2 (600 nm film, rib height h = 300 nm)", date: 2026-11-07}
+    params.h_rib: {basis: paper_exact, source: "Pan 2021 via atlas", locator: "paper p.3-4 Sec. 2", date: 2026-11-07}
+    params.t_box: {basis: paper_exact, source: "Pan 2021 via atlas", locator: "paper p.4 Sec. 2 (2 um silica)", date: 2026-11-07}
+    params.t_el: {basis: paper_exact, source: "Pan 2021 via atlas", locator: "paper p.3 Sec. 2 (t = 0.5 um, designed)", date: 2026-11-07}
+    params.g: {basis: paper_exact, source: "Pan 2021 via atlas", locator: "paper p.3 Sec. 2 (g = 6.5 um)", date: 2026-11-07}
+    params.ws: {basis: paper_exact, source: "Pan 2021 via atlas", locator: "paper p.3 Sec. 2 (ws = 17 um)", date: 2026-11-07}
+    params.wg: {basis: paper_exact, source: "Pan 2021 via atlas", locator: "paper p.3 Sec. 2 (wg = 60 um)", date: 2026-11-07}
+    params.lambda0: {basis: paper_exact, source: "Pan 2021 via atlas", locator: "paper p.6 Sec. 3 (1957 nm laser)", date: 2026-11-07}
+    geometry.features.3.settings.points: {basis: inference, source: "eo-modulator-atlas pan2021 config ln_rib_r (project_inference): top width 1.1 um paper_exact, bottom half-width 0.55 + 0.3 tan 30 deg = 0.7232 um from the 30 deg sidewall read from Fig. 1(b)", date: 2026-11-07}
+    geometry.features.4.settings.points: {basis: inference, source: "atlas ln_rib_l: same rib centred at x = -23.5 um (left gap)", date: 2026-11-07}
+    geometry.features.0.settings.size: {basis: inference, source: "atlas geometry.domain x [-150, 120] um, y [-250, 120] um (project_inference); substrate 0.4 mm (paper p.4) clipped to the domain", date: 2026-11-07}
+    geometry.features.10.settings.size: {basis: inference, source: "atlas optical_window x [-3.1, 3.1] um, y [-1.5, 1.5] um (project_inference)", date: 2026-11-07}
+    couplings.eo.settings.mirrorX: {basis: inference, source: "atlas header: mirror plane (signal centre) at x = -11.75 um", date: 2026-11-07}
+    couplings.eo.settings.crystals: {basis: paper_exact, source: "Pan 2021 p.2 Sec. 2 (x-cut); propagation along crystal y is an atlas project_inference", date: 2026-11-07}
+    materials.LN.override.n: {basis: derived, source: "materials/linbo3-congruent.yaml n (Zelmon 1997 Sellmeier, 21 C) at 1.957 um: n_o (perp), n_e (par)", date: 2026-11-07}
+    materials.LN.override.eps_r: {basis: measured, source: "materials/linbo3-congruent.yaml eps_r (Weis, Gaylord 1985 Table 1 p.197 row [23], clamped eps^S 44.3 / 27.9)", date: 2026-11-07}
+    materials.LN.override.r_eo: {basis: measured, source: "materials/linbo3-congruent.yaml r_eo (Weis, Gaylord 1985 Table 4 p.199, r^S at 633 nm, Turner 1966)", date: 2026-11-07, note: "633 nm values used at 1957 nm (no 1957 nm value in the source; dispersion of r not applied)"}
+    materials.SiO2.override.n: {basis: derived, source: "materials/sio2-thermal-oxide.yaml n (Malitson 1965) at 1.957 um", date: 2026-11-07}
+    materials.SiO2.override.eps_r: {basis: paper, source: "materials/sio2-thermal-oxide.yaml eps_r (Zhu 2021 Table 1: 3.9)", date: 2026-11-07}
+    materials.Si.override.eps_r: {basis: measured, source: "materials/silicon.yaml eps_r (Krupka 2006 Fig. 2, digitized) at 293.15 K", date: 2026-11-07}
+    materials.Air.override.n: {basis: derived, source: "materials/air.yaml n alternative mathar2007_ir (Mathar 2007 via refractiveindex.info, dry air 15 C, 101.325 kPa), linear interpolation between 1.95 and 2.00 um at 1.957 um", date: 2026-11-07}
+    materials.Air.override.eps_r: {basis: user, date: 2026-11-07, note: "assumption: air as vacuum (materials/air.yaml eps_r is N/A)"}
+    mesh.size.hmax: {basis: inference, source: "atlas geometry.mesh max_edge_um 2.0", date: 2026-11-07}
+    mesh.refine.0.h: {basis: user, date: 2026-11-07, note: "modelling choice for the optical window"}
+    mesh.refine.1.h: {basis: inference, source: "atlas geometry.mesh electrode_edge_um 0.05", date: 2026-11-07}
+assumptions:
+  - {text: "Electrodes are ideal conductors (boundaries; their domains are not solved); terminal 1 V on the signal, grounds 0 V (single-ended GSG drive, push-pull by arm placement)", paths: [physics.es]}
+  - {text: "Arm B is the mirror image of arm A about x = -11.75 um (atlas two_arm_field_resolved); VpiL = lambda / (2 |dn_A - dn_B|) in the DevLog-032 convention", paths: [couplings.eo]}
+  - {text: "No top cladding (air), designed (not fabricated) dimensions, room temperature (CP-43 missing list)", paths: [geometry]}
+  - {text: "LN composition: optical dispersion is for congruent LN (Zelmon); the RF / EO rows of Weis-Gaylord do not state composition", paths: [materials.LN]}
+  - {text: "clamped (constant-strain) eps^S and r^S: high-frequency (RF) basis, as used by the eo-modulator-atlas and the CP-43 reference; the DC stress-free basis (eps^T, r^T from the same Weis-Gaylord tables) would change VpiL (audit estimate about -4 %, not run)", paths: [materials.LN]}
+missing:
+  - {what: "Pockels coefficients at 1957 nm (633 nm clamped values used)", needed_for: [solution]}
+  - {what: "air permittivity (vacuum assumed; materials/air.yaml eps_r is N/A)", needed_for: [solution]}
+# eval: [CP-43]

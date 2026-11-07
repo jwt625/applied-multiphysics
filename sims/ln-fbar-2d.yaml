@@ -1,0 +1,114 @@
+# Lateral-field LiNbO3 plate resonator with gapped electrodes ("LN FBAR gapped"), elastic <-> electrostatics
+# (piezoelectric, monolithic eigen), 2D plane strain (lane MX, DevLog-035). Geometry, electrode layout, crystal rotation and
+# electrical conditions are Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped
+# (a 3D slice t = 100 nm with periodic y faces; inputs only): LN plate 100 um x 500 nm, air box 100 x 50 um, two electrodes 5 um x 500 nm whose inner edges are 50 um apart,
+# 1 um above the LN top (not touching it), one grounded and one floating (Terminal, charge 0) = open circuit; Rotated
+# System ZXZ (0, pi/2, pi/2). His LiNbO3 values come from the COMSOL material library and are NOT used: c^E from Weis-Gaylord
+# 1985 Table 6 row [23] (Warner, Onoe, Coquin 1967), e from Ogi et al. 2002 Table III (Warner column), eps^S from Weis-Gaylord
+# Table 1 row [23], rho from Weis-Gaylord p.194. The 2D section (model x = his x, model y = his z) with his rotation gives
+# crystal X = plate normal (model y), crystal Y = -model x, crystal Z (c axis) = model z (out of plane): X-cut, lateral field
+# along crystal -Y; in this frame R = Rz(90 deg), written as crystals {cut x, propagation z}. Reference: thickness modes of a laterally infinite
+# plate with u_z = 0 (validation/mp/references.py ln_fbar): TE1 6.6229 GHz (c11), TS1 4.4327 GHz (c66 + e22^2/eps11).
+schema: amp-spec/0
+id: ln-fbar-2d
+title: LiNbO3 lateral-field plate resonator (piezo)
+description: Suspended X-cut LN plate excited by two gapped electrodes; piezoelectric eigenmodes near the thickness-extension resonance.
+params:
+  w_dom: {value: 100, unit: um, description: plate and air box width}
+  t_LN: {value: 500, unit: nm, description: LN thickness}
+  w_gap: {value: 50, unit: um, description: electrode inner-edge spacing (metal to metal gap)}
+  w_metal: {value: 5, unit: um, description: electrode width}
+  t_metal: {value: 500, unit: nm, description: electrode thickness}
+  g_metal: {value: 1, unit: um, description: electrode to LN gap}
+  t_air: {value: "w_gap", description: air box height}
+  f_shift: {value: 6.6229e9, unit: Hz, description: eigen search shift (closed-form TE1)}
+geometry:
+  dim: 2
+  features:
+    - {id: ln, type: rect, settings: {size: ["w_dom", "t_LN"], center: ["0 um", "-t_LN/2"]}}
+    - {id: el_r, type: rect, settings: {size: ["w_metal", "t_metal"], center: ["w_gap/2 + w_metal/2", "g_metal + t_metal/2"]}}
+    - {id: el_l, type: rect, settings: {size: ["w_metal", "t_metal"], center: ["-(w_gap/2 + w_metal/2)", "g_metal + t_metal/2"]}}
+    - {id: airr, type: rect, settings: {size: ["w_dom", "t_air"], center: ["0 um", "0 um"]}}
+    - {id: air, type: difference, settings: {base: airr, tools: [ln, el_r, el_l], keepTools: true}}
+materials:
+  - {id: LN, ref: materials/linbo3-congruent, select: ["dom:ln"]}
+  - {id: Air, override: {eps_r: 1}, select: ["dom:air"]}
+physics:
+  - id: solid
+    type: elastic
+    select: ["dom:ln"]
+    settings: {model: plane-strain}
+    bcs:
+      - {id: free_all, type: free, select: ["bnd:ln.left", "bnd:ln.right", "bnd:ln.top", "bnd:ln.bottom"]}
+  - id: es
+    type: electrostatics
+    select: ["dom:ln", "dom:air"]
+    bcs:
+      - {id: gnd, type: ground, select: ["bnd:el_l.left", "bnd:el_l.right", "bnd:el_l.top", "bnd:el_l.bottom"]}
+      - {id: term, type: terminal, select: ["bnd:el_r.left", "bnd:el_r.right", "bnd:el_r.top", "bnd:el_r.bottom"]}
+      - {id: outer, type: zero-charge, select: ["bnd:airr.left", "bnd:airr.right", "bnd:airr.top", "bnd:airr.bottom"]}
+couplings:
+  - {id: pz, type: piezoelectric, from: solid, to: es, settings: {crystals: [{material: LN, cut: x, propagation: z}]}}
+mesh:
+  size: {hmax: "10 um"}
+  refine:
+    - {select: ["dom:ln"], h: "t_LN/5"}
+studies:
+  - {id: eig, type: eigen, physics: [solid, es], settings: {nModes: 20, shift: "f_shift"}}
+results:
+  datasets:
+    - {id: sol_eig, type: solution, data: eig}
+    - {id: mid_pt, type: cutpoint, data: sol_eig, points: [["0 um", "-t_LN/2"]]}
+  evaluations:
+    - id: ev_te
+      data: sol_eig
+      steps: first
+      items:
+        - {id: f_te_active, type: global, expr: solid.f_18, unit: GHz, label: "electrically active thickness-extension mode: largest |floating-terminal voltage| (solid.V_term_k) among the 20 modes, index 18 on the default mesh (MX run 2026-11-07); closed form TE1 6.6229 GHz"}
+        - {id: V_te_active, type: global, expr: solid.V_term_18, unit: V, label: "floating-terminal voltage of that mode (normalised mode, relative measure only)"}
+        - {id: f_te_piston, type: global, expr: solid.f_6, unit: GHz, label: "most piston-like thickness-extension mode: largest |uy| at the plate centre, index 6 on the default mesh"}
+    - id: ev_eig
+      enabled: false
+      data: sol_eig
+      items:
+        - {id: uy_mid, type: point, enabled: false, data: mid_pt, expr: solid.u.y, unit: m, label: "thickness displacement at the plate centre per mode (normalised modes; shape indicator only)"}
+  tables:
+    - {id: tbl_te, from: ev_te}
+    - {id: tbl_eig, from: ev_eig}
+  plots:
+    - id: u_mode
+      type: plot2d
+      data: sol_eig
+      steps: first
+      items:
+        - {id: uy_surf, type: surface, expr: solid.u.y, unit: m}
+    - id: V_mode
+      type: plot2d
+      data: sol_eig
+      steps: first
+      items:
+        - {id: V_surf, type: surface, expr: es.V, unit: V}
+provenance:
+  values:
+    materials.LN.ref: {basis: measured, source: "materials/linbo3-congruent.yaml: C (Weis-Gaylord 1985 Table 6 p.200 row [23], Warner 1967; IRE 1949 axes), e_piezo (Ogi 2002 Table III, Warner column), eps_r clamped (Weis-Gaylord Table 1 row [23]), rho 4628 kg/m^3 (Weis-Gaylord p.194); identical to the former spec overrides", date: 2026-11-07}
+    params.w_dom: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): Parameters w_dom = 100[um]; Block 1 (LN) lx = w_dom", date: 2026-11-07}
+    params.t_LN: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): t_LN = 500[nm] 'LN thickness'; Block 1 lz = t_LN, pos z = -t_LN/2", date: 2026-11-07}
+    params.w_gap: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): w_gap = 50[um] 'metal to metal gap'; Blocks 3, 4 at x = +-(w_gap/2 + w_metal/2)", date: 2026-11-07}
+    params.w_metal: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): w_metal = 5[um]", date: 2026-11-07}
+    params.t_metal: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): t_metal = 500[nm]", date: 2026-11-07}
+    params.g_metal: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): g_metal = 1[um] 'metal to LN gap'; Blocks 3, 4 at z = g_metal + t_metal/2", date: 2026-11-07}
+    params.t_air: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): t_air = w_gap; Block 2 (air) w_dom x t_air centred at 0", date: 2026-11-07}
+    params.f_shift: {basis: derived, source: "validation/mp/references.py ln_fbar: TE1 = sqrt(C11 / rho) / (2 t_LN) for the 2D (u_z = 0) plate", date: 2026-11-07, note: "the shift typed in Wentao's model is not used"}
+    couplings.pz.settings.crystals: {basis: derived, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): Rotated System 2, Z-X-Z angles (0, pi/2, pi/2), used by Piezoelectric Material 1; mapped to this 2D frame (model x = his x, model y = his z, model z = -his y): crystal X along the film normal (model y) = cut x, crystal Z along model z = propagation z (equivalently R = Rz(pi/2); derivation DevLog-035 s.2.11; MT DevLog-033 F1: identical modes to the euler form, max rel diff 1.6e-14)", date: 2026-11-07}
+    materials.Air.override.eps_r: {basis: user, date: 2026-11-07, note: "assumption: air as vacuum (materials/air.yaml eps_r is N/A)"}
+    mesh.size.hmax: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): Mesh 1 Size hmax 1.0E-5", date: 2026-11-07}
+    mesh.refine.0.h: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): Free Triangular 1 Size 1 hmax = t_LN/5", date: 2026-11-07}
+assumptions:
+  - {text: "Plane strain (u_z = 0, E_z = 0): Wentao's 3D slice with periodic y faces also allows a uniform out-of-plane displacement, which couples to the in-plane shear through C14; the 2D model excludes it and the closed form is derived with the same constraint", paths: [physics.solid.settings.model]}
+  - {text: "Electrodes are ideal conductors in air (boundaries only): they do not touch the LN (1 um gap), so their mass and stiffness do not load the plate; Wentao's model had Al electrode domains in the electrostatics only", paths: [physics.es]}
+  - {text: "Open circuit: left electrode grounded, right electrode floating with zero net charge (his Terminal type Charge, Q0 = 0)", paths: [physics.es.bcs]}
+  - {text: "LN constants from Warner 1967 via two compilations (Weis-Gaylord for C and eps^S, Ogi for e); composition not stated by the sources", paths: [materials.LN]}
+  - {text: "Laterally infinite plate closed form vs a 100 um wide plate with free ends: the finite plate has a dense set of lateral overtones near TE1 (20 modes in 6.603-6.643 GHz). Comparison modes by index on the default mesh (MX run 2026-11-07): electrically active = largest |V_term| (MT's criterion, DevLog-033 s.4.3), index 18; piston-like = largest centre |uy|, index 6. Indices are mesh-dependent: re-identify after a mesh change", paths: [results.evaluations.ev_eig]}
+missing:
+  - {what: "loss (no damping in Wentao's inputs: eta = 0) and the frequency-domain admittance study of his model (Frequency Domain step; not in the engine)", needed_for: [solution]}
+# eval: []   (reference: closed-form thickness modes, validation/mp/references.py ln_fbar)

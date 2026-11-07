@@ -1,0 +1,35 @@
+# Titanium, bulk polycrystalline (lane MX, DevLog-035). Thermal conductivity only (microheater example
+# sims/si-microheater-to.yaml). Thin sputtered films are expected to differ from the bulk values (not quantified here).
+schema: amp-material/0
+id: titanium
+name: Titanium, bulk
+class: metal
+description: >-
+  Well-annealed high-purity polycrystalline titanium, Ho-Powell-Liley 1972 recommended thermal conductivity. Electrical
+  resistivity, density, elastic and expansion data not authored.
+verified_on: 2026-11-07
+sources:
+  hpl1972:
+    citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
+    doi: 10.1063/1.3253100
+    url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
+    access: open
+    read: "page render (200 dpi) of reprint pdf p.130 'Thermal conductivity of titanium', recommended values table and remarks, read by MX 2026-11-07 (scratch copy, not cached in the repo)"
+properties:
+  k:
+    table:
+      x: T
+      x_unit: K
+      xs: [250, 273.2, 298.2, 300, 323.2, 350, 373.2, 400, 473.2, 500, 573.2, 600]
+      ys: [0.229, 0.224, 0.219, 0.219, 0.215, 0.210, 0.207, 0.204, 0.198, 0.197, 0.194, 0.194]
+    unit: W/(cm*K)
+    basis: measured
+    source: hpl1972
+    locator: "reprint pdf p.130, Thermal conductivity of titanium, recommended values, solid, polycrystalline (W cm-1 K-1)"
+    accessed: 2026-11-07
+    uncertainty: {rel: 0.10, note: "remarks: accurate to within +-10 % of the true values at moderate temperatures and +-15 % at low and high temperatures"}
+    conditions: {text: "well-annealed high-purity polycrystalline titanium (remarks)"}
+    alternatives: []
+missing:
+  - {property: rho_e, what: "electrical resistivity of bulk Ti not authored; the microheater example derives its film conductivity from a measured heater resistance (Wang et al. 2020)"}
+  - {what: "density, elastic constants, thermal expansion not authored"}

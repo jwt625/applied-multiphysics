@@ -213,7 +213,7 @@ export function createLibrary(docs: readonly MaterialDoc[]): Library {
         const comps: Record<string, number> = {};
         for (const [k, c] of Object.entries(l.tensor.components)) comps[k] = toRef(evalComponent(ctx, c, l.unit, l.missing));
         value = comps;
-        matrix = tensorMatrix(symmetry, comps);
+        matrix = tensorMatrix(symmetry, comps, prop);
       }
     } else {
       if (opts.component !== undefined) throw new Error(`${d.id}.${prop} is a scalar; 'component' does not apply`);
