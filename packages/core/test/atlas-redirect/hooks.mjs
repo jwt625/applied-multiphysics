@@ -17,7 +17,9 @@ const APA = {
   'la/wasm/encoder.mjs': 'la/wasm/encoder.mjs', 'la/wasm/kernels.mjs': 'la/wasm/kernels.mjs', 'la/wasm/accel.mjs': 'la/wasm/accel.mjs',
   'params/params.mjs': 'params.mjs', 'params/units.mjs': 'units.mjs',
   'em2d/dense.mjs': 'la/dense.mjs', 'em2d/ldlt-blocked.mjs': 'la/ldlt-blocked.mjs', 'em2d/ldlt-wasm.mjs': 'la/ldlt-wasm.mjs',
-  'em2d/ldlt-select.mjs': 'la/ldlt-select.mjs', 'em2d/fe.mjs': 'fem/tri-fe.mjs',
+  'em2d/ldlt-select.mjs': 'la/ldlt-select.mjs',
+  // tri-fe defaults to SI metres (audit S1); APA meshes are in um: the shim passes lengthScale = UM
+  'em2d/fe.mjs': '../test/atlas-redirect/apa-em2d-fe-um.mjs',
   'em3d/krylov.mjs': 'la/krylov.mjs', 'em3d/amg.mjs': 'la/amg.mjs', 'em3d/ams.mjs': 'la/ams.mjs', 'em3d/pmg.mjs': 'la/pmg.mjs',
   'em3d/order.mjs': 'la/order3d.mjs', 'em3d/hcurl.mjs': 'fem/hcurl.mjs', 'em3d/elements.mjs': 'fem/nedelec1.mjs', 'em3d/space.mjs': 'fem/space.mjs',
   'thermal/assemble.mjs': 'fem/q1-grid.mjs',

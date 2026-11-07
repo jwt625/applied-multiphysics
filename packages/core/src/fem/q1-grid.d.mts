@@ -53,13 +53,4 @@ export const FACE: {
 }[];
 export function cellNode(NX: any, NY: any, i: any, j: any, k: any, a: any): any;
 /** Gauss-Legendre points and weights on [0, 1]. */
-export const GAUSS01: {
-    2: {
-        x: number[];
-        w: number[];
-    };
-    3: {
-        x: number[];
-        w: number[];
-    };
-};
+export const GAUSS01: { 2: { x: number[]; w: number[] }; 3: { x: number[]; w: number[] } };

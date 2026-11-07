@@ -1,16 +1,18 @@
-// Ported from advanced-packaging-atlas/engine/src/em2d/fe.mjs at fe39985 (GPL-3.0-or-later). Changes: moved from em2d/fe.mjs to fem/tri-fe.mjs (import ../la/sparse.mjs unchanged).
+// Ported from advanced-packaging-atlas/engine/src/em2d/fe.mjs at fe39985 (GPL-3.0-or-later). Changes: moved from em2d/fe.mjs to fem/tri-fe.mjs (import ../la/sparse.mjs unchanged); length scale explicit (audit S1, 2026-11-06): elementMass, elementLoad and assembleByTag take `lengthScale` (metres per mesh coordinate unit, default 1 = SI metres per CONTRACTS-v0 C1/C2) instead of the fixed micrometre factor UM2; the APA behaviour is lengthScale = UM (1e-6). UM2 kept as an export.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // P1 / P2 Lagrange finite elements on triangles for the EM 2D cross-section solver: DOF spaces, per-material
 // stiffness and mass matrices on one CSR pattern, restriction to free DOFs.
 // p2Space, p2Grad and restrictMatrix are ported from eo-modulator-atlas engine/src/fem.mjs at eb97f96
 // (GPL-3.0-or-later). Local changes: p2Space returns `kind` and works for any extracted mesh; added P1 space, element
 // mass matrices (P1: A/12 (1 + delta_ij); P2: the standard A/180 matrix), element load vectors and per-tag assembly.
-// Coordinates in the mesh are micrometres; this module returns areas in m^2 (scale 1e-12) for mass and load terms;
-// stiffness forms are scale free in 2D. License: GPL-3.0-or-later.
+// Mass and load terms are returned in m^2: area in mesh units times lengthScale^2 (APA: coordinates in micrometres,
+// lengthScale = UM); stiffness forms are scale free in 2D. License: GPL-3.0-or-later.
 
 import { buildPattern, buildElementPattern, elementSlots, triangleSlots } from '../la/sparse.mjs';
 
 export const UM2 = 1e-12;
+/** Metres per micrometre: lengthScale of APA / EO meshes with coordinates in um. */
+export const UM = 1e-6;
 
 export function triangleGeometry(mesh) {
   const nt = mesh.nTris;
@@ -154,9 +156,9 @@ export function elementStiffness(space, geo, t, Ke, buf) {
   return Ke;
 }
 
-/** Element mass matrix (unit coefficient, area in m^2). */
-export function elementMass(space, geo, t, Me) {
-  const A = Math.abs(geo.area[t]) * UM2;
+/** Element mass matrix (unit coefficient, area in m^2; lengthScale = metres per mesh coordinate unit). */
+export function elementMass(space, geo, t, Me, lengthScale = 1) {
+  const A = Math.abs(geo.area[t]) * lengthScale * lengthScale;
   if (space.k === 3) {
     for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) Me[3 * a + b] = (A / 12) * (a === b ? 2 : 1);
     return Me;
@@ -165,9 +167,9 @@ export function elementMass(space, geo, t, Me) {
   return Me;
 }
 
-/** Element load vector integral N_a dA (m^2). */
-export function elementLoad(space, geo, t, fe) {
-  const A = Math.abs(geo.area[t]) * UM2;
+/** Element load vector integral N_a dA (m^2; lengthScale = metres per mesh coordinate unit). */
+export function elementLoad(space, geo, t, fe, lengthScale = 1) {
+  const A = Math.abs(geo.area[t]) * lengthScale * lengthScale;
   if (space.k === 3) fe.fill(A / 3);
   else {
     fe[0] = fe[1] = fe[2] = 0;
@@ -181,7 +183,7 @@ export function elementLoad(space, geo, t, fe) {
  * coefK[tag] / coefM[tag] scale the element matrices (null = do not assemble that kind).
  * @returns {{K: Float64Array[], M: Float64Array[]}} one value array per tag (pattern slots)
  */
-export function assembleByTag(space, geo, triTag, nTags, { stiffness = true, mass = false, coefM = null } = {}) {
+export function assembleByTag(space, geo, triTag, nTags, { stiffness = true, mass = false, coefM = null, lengthScale = 1 } = {}) {
   const k = space.k,
     kk = k * k;
   const slots = elementSlots(space.pat, space.elem, k);
@@ -200,7 +202,7 @@ export function assembleByTag(space, geo, triTag, nTags, { stiffness = true, mas
       for (let q = 0; q < kk; q++) v[slots[kk * t + q]] += Ke[q];
     }
     if (M) {
-      elementMass(space, geo, t, Me);
+      elementMass(space, geo, t, Me, lengthScale);
       const c = coefM ? coefM[g] : 1;
       const v = M[g];
       for (let q = 0; q < kk; q++) v[slots[kk * t + q]] += c * Me[q];

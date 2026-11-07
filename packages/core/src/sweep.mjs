@@ -5,7 +5,9 @@
 // event loop between points, per-point errors recorded, `stopOnError`). Removed (EO-coupled, owned by the spec and
 // physics lanes): YAML reading, the study keys `stages` / `outputs` / `sweep_targets` / `section`, `runConfig`,
 // target evaluation, run globals and electrostatics reuse. The point runner is injected (`runPoint(values, index)`),
-// and the caller passes the known parameter names instead of `resolveParams(raw.params).defs`.
+// and the caller passes the known parameter names instead of `resolveParams(raw.params).defs`. Behaviour change
+// (audit M3, 2026-11-06): EO always rejects a sweep axis on an unknown parameter; here that check runs only when
+// `params` is given (null / omitted: names are not checked, e.g. when the spec layer has validated them already).
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 export const MAX_STUDY_POINTS = 2000;

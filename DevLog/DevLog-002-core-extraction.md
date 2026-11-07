@@ -37,7 +37,7 @@ Rules adopted:
 | `la/amg.mjs`, `la/ams.mjs` | APA `em3d/` | as-is (not wired in APA; status line kept) |
 | `la/pmg.mjs` | APA `em3d/pmg.mjs` (Palace-derived) | import paths |
 | `la/order3d.mjs` | APA `em3d/order.mjs` | import path |
-| `la/arnoldi.mjs` | EO `vector-mode.mjs` lines 826-1098 (block Arnoldi, thick restart, Ritz) | extracted verbatim; physics stays in EO |
+| `la/arnoldi.mjs` | EO `vector-mode.mjs` lines 825-1087 (block Arnoldi, thick restart, Ritz; range corrected 2026-11-06, audit M6) | extracted verbatim; physics stays in EO |
 | `fem/tri.mjs` | EO `fem.mjs` (P1/P2 triangles, PoissonSolver) | import path |
 | `fem/tri-fe.mjs` | APA `em2d/fe.mjs` (P1/P2 spaces, mass, load, per-tag assembly) | import path |
 | `fem/hcurl.mjs` | APA `em3d/hcurl.mjs` (hierarchical H1/ND order 1-2, exact barycentric moments, TRI_QUAD) | as-is |
@@ -91,7 +91,8 @@ Machine etiquette: `nice -n 10`, `node --max-old-space-size=1536`, one heavy pro
 - [x] Benchmarks (4 families), logs, numbers (section 4.3)
 - [x] Module table (section 5)
 - [x] Hand-off (section 8)
-- [ ] Coordinator: root `typescript` devDependency + `pnpm install` (contract request 1)
+- [x] Coordinator: root `typescript` devDependency + `pnpm install` (contract request 1; done by the coordinator, `pnpm --filter @amp/core check` exits 0)
+- [x] Audit 2026-11-06 follow-up S1, S2, S3, M3, M6 (section 9)
 
 ## 3. Progress log
 
@@ -102,7 +103,7 @@ Machine etiquette: `nice -n 10`, `node --max-old-space-size=1536`, one heavy pro
 - 2026-11-06 15:25-15:27 PST: **EO full suite against core** (resolve hook `test/atlas-redirect/`, 9 EO modules redirected to core): 334 tests, 331 pass, 0 fail, 2 skipped, 1 todo, 102.8 s; identical to EO's recorded result (DevLog-043:245: 334 / 331 / 0 / 2 / 1). Log `logs/core-redirect-eo-20261106T152519.log`.
 - 2026-11-06 15:28 PST: declarations: tsc 5.9.3 `--allowJs --declaration` baseline for la/fem (checked), hand-written units / expr / params additions / complex / sweep / quadrature; `test/types-smoke.ts`. `tsc -p . --noEmit` clean; also clean for our own .d.mts with `--skipLibCheck false` (filtered to package files; the DOM + WebWorker lib pair in tsconfig.base conflicts in lib.*.d.ts, which is why the base sets skipLibCheck). NOTICE + LICENSE-APACHE-2.0 (byte-identical to APA em3d copy).
 - 2026-11-06 15:28 PST: APA full suite against core started (27 APA modules mapped); bench script `bench/core-bench.mjs` written, run after the APA suite (one heavy process at a time).
-- 2026-11-06 15:31 PST: **APA full suite against core**: 330 / 330 pass, 245.3 s (24 APA modules actually redirected; la/wasm/kernels, em3d/amg, em3d/ams are imported only through core files or not at all); APA's recorded result is 330 / 330 in 245-257 s (DevLog-014 G13, DevLog-013:353). Log `logs/core-redirect-apa-20261106T152729.log`.
+- 2026-11-06 15:31 PST: **APA full suite against core**: 330 / 330 pass, 245.3 s (24 APA modules actually redirected; la/wasm/kernels, em3d/amg, em3d/ams are imported only through core files or not at all); APA's recorded result is 330 / 330 in 245-257 s (DevLog-014 G13 line 172, DevLog-013:354). Log `logs/core-redirect-apa-20261106T152729.log`.
 - 2026-11-06 15:31 PST: first bench run (sequential A then B) showed a 1.22x in-process LDL^T ratio on identical code (JIT / order effect); bench changed to interleaved A/B rounds. That run (`logs/core-bench-20261106T153150.jsonl`) is superseded.
 - 2026-11-06 15:32-15:33 PST: benches, interleaved, 7 rounds: `logs/core-bench-20261106T153225.jsonl` (all four families), `logs/core-bench-20261106T153312.jsonl` (PCG + GMG again in a fresh process). Load average 2.6-3.4 on 12 cores during the runs (other lanes active).
 - 2026-11-06 15:33 PST: core suite 61 / 61 pass in 6.6 s (15 files; `logs/core-test-20261106T153324.log`). tsc 5.9.3 `-p . --noEmit` with lib ES2023 + WebWorker and skipLibCheck false: exit 0 (`logs/core-tsc-20261106T153402.log`, empty). Scan of packages/core: no absolute local paths, no emoji.
@@ -143,19 +144,21 @@ So EO's tests pass against the APA units superset and against the APA copies of 
 | PCG + z-line GMG | APA bench grid M, 93,840 nodes, 4 levels, 11 iterations (log: 11), rtol 1e-10; setup + solve | 189.0 (fresh process 192.5) | 182.5 (179.3); APA solveThermal 193.6 (174.1) | 1.04 (1.07) | 249.6 (setup 35.3 + solve 214.3), APA `logs/bench-20261020T1427.jsonl` grid M wave2-mg-defaults | 0.76 (0.77) |
 | GMRES + p-MG | APA em3d TE10 guide, order 2 iterative, 18,662 DOF, coarse 3,187, 19 + 19 GMRES iterations (DevLog-014 G5: 19); solveAt wall | 573 | 586 | 0.98 | none logged (DevLog-014 records iterations only) | N/A |
 
+Interpretation (audit M7): core and atlas run byte-identical function bodies, so in-process ratios near 1.0 are expected by construction (the audit rerun gave 0.93-1.05, about +-7 % noise); the informative evidence is the bitwise-identical results and the vs-log column. The p-MG bench builds `P` with APA `prepare3d`, so `preparePMG` there is APA's; core `preparePMG` is covered by `test/core-coverage.test.mjs` and the APA redirect run.
+
 Gate 3 verdict: within 15 % of the atlas for all families in-process (0.98-1.07). Against the logged numbers: Cholesky 1.09, LDL^T 1.13, Arnoldi 0.93 (within); PCG + GMG 0.76 (outside, faster): APA's own current code measures 0.78 (solveThermal in-process 193.6 ms, fresh process 174.1 ms) against the same log line, whose 3 runs spread 262-318 ms total, so the logged number, not the port, is off; GMRES + p-MG has no logged timing (iterations match). Load average 2.6-3.4 during the runs.
 
 
 ## 5. Module table
 
-LOC = lines of the core `.mjs` (incl. the 2-line port header) / its `.d.mts`; rows that group several modules list the `.mjs` lines of each. EO = eo-modulator-atlas `engine/src` at `0546007`; APA = advanced-packaging-atlas `engine/src` at `fe39985`. "Redirect" = the unchanged atlas test files run against the core module through `test/atlas-redirect/` (section 4.2). No source file is newer than its repo's last HEAD reflog entry (EO 2026-11-03 22:22, APA 2026-11-03 23:35; mtime check, no git), so the copied working-tree files are taken as the committed ones.
+LOC = lines of the core `.mjs` (incl. the port header: 2 lines for most files; arnoldi 7, quadrature 6, sweep 11, tri-fe 2 long lines) / its `.d.mts`; rows that group several modules list the `.mjs` lines of each. EO = eo-modulator-atlas `engine/src` at `0546007`; APA = advanced-packaging-atlas `engine/src` at `fe39985`. "Redirect" = the unchanged atlas test files run against the core module through `test/atlas-redirect/` (section 4.2). No source file is newer than its repo's last HEAD reflog entry (EO 2026-11-03 22:22, APA 2026-11-03 23:35; mtime check, no git), so the copied working-tree files are taken as the committed ones.
 
 | Core module | Source path@commit | Changes | Tests (core) | Atlas tests via redirect | LOC |
 |---|---|---|---|---|---|
 | `units.mjs` | APA `params/units.mjs`@fe39985 (EO `postproc/units.mjs` + K) | none | params-units (2 of 8), expr (1) | EO postproc 18; APA la-params, thermal, materials | 179 / 23 |
 | `expr.mjs` | EO `postproc/expr.mjs`@0546007 | none (resolves to APA units) | expr 6 | EO postproc 18, postproc-refine 6 | 523 / 26 |
 | `params.mjs` | APA `params/params.mjs`@fe39985 (= EO `params.mjs`) | none; .d.mts adds 4 missing exports | params-units 6 | EO params-expressions 7; APA la-params 8 | 356 / 25 |
-| `sweep.mjs` | EO `sweep.mjs`@0546007 (generic part) | config / run / store coupling removed; runner injected; `parametricStudy`, `enumeratePoints` wrap the EO checks | sweep 3 | (EO sweep tests need EO run.mjs; not redirected) | 113 / 16 |
+| `sweep.mjs` | EO `sweep.mjs`@0546007 (generic part) | config / run / store coupling removed; runner injected; `parametricStudy`, `enumeratePoints` wrap the EO checks; unknown-parameter check only when `params` is given (audit M3, documented) | sweep 3 | (EO sweep tests need EO run.mjs; not redirected) | 115 / 17 |
 | `la/sparse.mjs` | APA `la/sparse.mjs`@fe39985 (= EO `sparse.mjs`) | none | la-sparse 7, sparse-fem 7 | EO all; APA all | 1518 / 211 |
 | `la/ldlt.mjs` | APA `la/ldlt.mjs`@fe39985 (= EO `ldlt.mjs`) | none | la-ldlt 2 | EO vector-ldlt 2, vector-mode 15; APA em2d / em3d | 831 / 193 |
 | `la/complex.mjs` | APA `la/complex.mjs`@fe39985 (= EO) | none | via dense | EO rf / response tests; APA em2d | 43 / 15 |
@@ -165,27 +168,27 @@ LOC = lines of the core `.mjs` (incl. the 2-line port header) / its `.d.mts`; ro
 | `la/arnoldi.mjs` | EO `vector-mode.mjs`@0546007 lines 825-1087 | extracted verbatim; 4 helpers exported | core-solvers 2 | (internal to EO vector-mode; bench A/B, section 4.3) | 273 / 59 |
 | `la/gmres-real.mjs` | EO `semi/linear.mjs`@0546007 | moved; import paths | core-solvers 1 | EO semi-1d-pn 11, semi-rib 10 | 149 / 54 |
 | `la/krylov.mjs` | APA `em3d/krylov.mjs`@fe39985 (Palace-derived) | moved to la/ | core-solvers 1 | APA em3d-p2 (iterative) | 221 / 22 |
-| `la/pmg.mjs` | APA `em3d/pmg.mjs`@fe39985 (Palace-derived) | moved; imports -> core | (needs a tet mesh + em3d system) | APA em3d-p2 G1/G2 iterative = direct | 436 / 67 |
-| `la/amg.mjs`, `la/ams.mjs` | APA `em3d/amg.mjs`, `ams.mjs`@fe39985 (ams Palace-derived) | moved; not wired (APA status kept) | core-solvers 1 (amg) | none in APA | 281 / 113 |
+| `la/pmg.mjs` | APA `em3d/pmg.mjs`@fe39985 (Palace-derived) | moved; imports -> core | core-coverage 1 (iterative = direct, order-2 PEC box) | APA em3d-p2 G1/G2 iterative = direct | 436 / 67 |
+| `la/amg.mjs`, `la/ams.mjs` | APA `em3d/amg.mjs`, `ams.mjs`@fe39985 (ams Palace-derived) | moved; not wired (APA status kept) | core-solvers 1 (amg), core-coverage 1 (ams) | none in APA | 281 / 113 |
 | `la/order3d.mjs` | APA `em3d/order.mjs`@fe39985 | renamed; import path | core-solvers 1 | APA em3d-* | 77 / 6 |
 | `la/stencil.mjs`, `mg.mjs`, `block.mjs`, `halfmg.mjs`, `pcg.mjs` | APA `la/`@fe39985 | none | la-block 5, la-halfmg 3, la-mg 1, la-wasm 3 | APA thermal-*, mech-*, homog-* | 200 / 460 / 685 / 647 / 105 |
-| `la/wasm/encoder.mjs`, `kernels.mjs`, `accel.mjs` | APA `la/wasm/`@fe39985 | none (opt-in) | la-wasm 3 | APA la-wasm 3 | 129 / 197 / 152 |
+| `la/wasm/encoder.mjs`, `kernels.mjs`, `accel.mjs` | APA `la/wasm/`@fe39985 | none (opt-in) | la-wasm 3, core-coverage 1 (kernels) | APA la-wasm 3 | 129 / 197 / 152 |
 | `fem/tri.mjs` | EO `fem.mjs`@0546007 | moved; import path | fem-tri 3, sparse-fem 7 | EO electrostatics 4, perf-p2 3, all ES users | 378 / 132 |
-| `fem/tri-fe.mjs` | APA `em2d/fe.mjs`@fe39985 | moved | (via redirect) | APA em2d-em0/em1/em2/mtl | 257 / 93 |
+| `fem/tri-fe.mjs` | APA `em2d/fe.mjs`@fe39985 | moved; `lengthScale` option on elementMass / elementLoad / assembleByTag, default SI metres (audit S1); APA redirect via um shim | core-coverage 1 | APA em2d-*, em3d-* (45, through `test/atlas-redirect/apa-em2d-fe-um.mjs`) | 259 / 30 |
 | `fem/hcurl.mjs` | APA `em3d/hcurl.mjs`@fe39985 | moved | fem-hcurl 1, fem-quadrature 1 | APA em3d-p2 7 | 369 / 75 |
 | `fem/nedelec1.mjs` | APA `em3d/elements.mjs`@fe39985 | moved; `LOCAL_EDGES` from mesher -> identical `TET_EDGES` | fem-hcurl 1 | APA em3d-* | 120 / 19 |
-| `fem/space.mjs` | APA `em3d/space.mjs`@fe39985 | moved | (needs a tet mesh) | APA em3d-p2 | 117 / 43 |
+| `fem/space.mjs` | APA `em3d/space.mjs`@fe39985 | moved | core-coverage 3 (space, pmg, ams; tet box helper) | APA em3d-p2 | 117 / 43 |
 | `fem/q1-grid.mjs` | APA `thermal/assemble.mjs`@fe39985 | moved (generic Q1 hex assembly) | la-block, la-mg, la-wasm | APA thermal-*, mech-* | 300 / 65 |
 | `fem/quadrature.mjs` | EO `vector-mode.mjs`@0546007 `Q4` + re-exports | TRI_Q4 copied; GAUSS01 / TRI_QUAD / simplexMoment re-exported | fem-quadrature 2 | - | 20 / 6 |
-| `index.mjs` | new | namespace per module | types-smoke.ts | - | 37 / 37 |
+| `index.mjs` | new | namespace per module | types-smoke.ts, core-coverage 1 | - | 37 / 37 |
 
-Totals: 35 `.mjs` modules, 10,720 lines incl. headers (`wc -l src/**/*.mjs`); tests / helpers / fixtures / bench 2,149 lines.
+Totals: 35 `.mjs` modules, 10,724 lines incl. headers (`wc -l src/**/*.mjs`; 10,720 before the audit follow-up); `.d.mts` 36 files incl. `la/types.d.mts`; test / helpers / fixtures / redirect / bench `.mjs` + `.ts` 2,476 lines (the earlier 2,149 was off by 3: 2,152, audit M6).
 
 ## 6. Contract requests
 
-1. **TypeScript for `check`.** `packages/core/package.json` lists `typescript` 5.9.3 as a devDependency; nothing is installed (no `pnpm install` run, the lockfile is root-owned). Request: the coordinator adds `typescript@5.9.3` (root devDependency or accepts the package one) and runs `pnpm install`. Until then `pnpm --filter @amp/core check` fails with "tsc not found"; the gate was run with the same version from `advanced-packaging-atlas/app/node_modules` (read only).
-2. **tsconfig.base libs.** `lib: [ES2023, DOM, DOM.Iterable, WebWorker]` makes lib.dom and lib.webworker conflict, which forces `skipLibCheck: true`, and skipLibCheck also skips every package's own `.d.mts`. `@amp/core` overrides to `lib: [ES2023, WebWorker]`, `skipLibCheck: false` (clean). Proposal: base without DOM + WebWorker together; each package picks one.
-3. **Tet mesh fields for H(curl).** `fem/space.mjs`, `fem/nedelec1.mjs` and `la/pmg.mjs` read the APA em3d mesh object: `nodes` (Float64Array, 3 per node, metres), `nNodes`, `tets` (Int32Array, 4 per tet, **vertex indices sorted ascending per tet**: the hierarchical basis needs it for global consistency without signs), `nTets`, `edges` (2 per edge), `nEdges`, `tetEdges` (6 per tet, local pairs 01 02 03 12 13 23), `edgeIndex(a, b)`, and `tetSolid` (pmg PEC handling). Request: C2 `Mesh` (L3) gets an adapter `toHcurlMesh(mesh)` producing these, or C2 adds them as optional derived fields.
+1. **TypeScript for `check`.** Resolved by the coordinator (root `typescript` 5.9.3; `pnpm --filter @amp/core check` exits 0). `packages/core/package.json` lists `typescript` 5.9.3 as a devDependency; nothing is installed (no `pnpm install` run, the lockfile is root-owned). Request: the coordinator adds `typescript@5.9.3` (root devDependency or accepts the package one) and runs `pnpm install`. Until then `pnpm --filter @amp/core check` fails with "tsc not found"; the gate was run with the same version from `advanced-packaging-atlas/app/node_modules` (read only).
+2. **tsconfig.base libs.** Resolved: `tsconfig.base.json` lib is now `[ES2023]`; core keeps `[ES2023, WebWorker]`, skipLibCheck false. `lib: [ES2023, DOM, DOM.Iterable, WebWorker]` makes lib.dom and lib.webworker conflict, which forces `skipLibCheck: true`, and skipLibCheck also skips every package's own `.d.mts`. `@amp/core` overrides to `lib: [ES2023, WebWorker]`, `skipLibCheck: false` (clean). Proposal: base without DOM + WebWorker together; each package picks one.
+3. **Tet mesh fields for H(curl).** Delivered by L3 (`packages/mesh/src/hcurl.ts` `toHcurlMesh`); core types the shape as `HcurlTetMesh` in `src/la/types.d.mts`. `fem/space.mjs`, `fem/nedelec1.mjs` and `la/pmg.mjs` read the APA em3d mesh object: `nodes` (Float64Array, 3 per node, metres), `nNodes`, `tets` (Int32Array, 4 per tet, **vertex indices sorted ascending per tet**: the hierarchical basis needs it for global consistency without signs), `nTets`, `edges` (2 per edge), `nEdges`, `tetEdges` (6 per tet, local pairs 01 02 03 12 13 23), `edgeIndex(a, b)`, and `tetSolid` (pmg PEC handling). Request: C2 `Mesh` (L3) gets an adapter `toHcurlMesh(mesh)` producing these, or C2 adds them as optional derived fields.
 4. **Temperature display units.** `units.mjs` (APA) has K, mK and K-based compounds but no degC (affine: needs an offset, not only a factor). If L2 / L5 want `degC` in the spec or display, `parseUnit` must return an offset too; that is a change of the `{dim, factor}` shape, so it goes through the coordinator.
 5. **Sweep API.** `@amp/core/sweep` is now config-free: `parametricStudy(sweep, {params})`, `pointValues`, `enumeratePoints`, `rejectSweptOverrides`, `runSweep(study, runPoint, {signal, stopOnError}, onPoint)`. The study block keys (`type: parametric`, `stages`, `outputs`, `sweep_targets`) and study selection by name belong to the spec (L2).
 
@@ -204,10 +207,25 @@ Totals: 35 `.mjs` modules, 10,720 lines incl. headers (`wc -l src/**/*.mjs`); te
 
 ## 8. Hand-off
 
-State 2026-11-06 15:35 PST: `@amp/core` complete for the L1 scope; gates 1-4 met (gate 3 against the atlas in-process for all five workloads; against logs for 3 of 4 logged workloads, the PCG + GMG log line is slower than APA's own current code, see 4.3).
+State 2026-11-06 15:35 PST (updated 16:01 after the audit follow-up, section 9): `@amp/core` complete for the L1 scope. Gates as set in the lane brief: (1) ported atlas tests pass (4.1), (2) `tsc --noEmit` clean with `.d.mts` declarations (progress 15:33, section 9), (3) benchmarks within 15 % (4.3), (4) module table (section 5); all met (gate 3 against the atlas in-process for all five workloads; against logs for 3 of 4 logged workloads, the PCG + GMG log line is slower than APA's own current code, see 4.3).
 
 - Import: `@amp/core/units`, `@amp/core/expr`, `@amp/core/params`, `@amp/core/sweep`, `@amp/core/la/<name>`, `@amp/core/fem/<name>`, or the namespaces of `@amp/core` (`index.mjs`). Inside the repo, relative imports of `packages/core/src/...` work without install.
-- Run: `cd packages/core; node --test test/*.test.mjs` (61 tests, ~7 s). Types: `tsc -p . --noEmit` (needs contract request 1). Bench: `nice -n 10 node --max-old-space-size=1536 bench/core-bench.mjs --eo <eo>/engine --apa <apa>/engine [--runs 7] [--only direct,arnoldi,mg,pmg]` (~25 s, log in `logs/`). Atlas fidelity: from the atlas engine dir, `AMP_EO_ATLAS=$PWD node --import <core>/test/atlas-redirect/register.mjs --test --test-concurrency=1 tests/*.test.mjs` (EO ~105 s; APA with `AMP_APA_ATLAS`, ~250 s).
+- Run: `cd packages/core; node --test test/*.test.mjs` (67 tests, ~7 s). Types: `pnpm --filter @amp/core check` (`tsc -p . --noEmit`; `test/types-smoke.ts` holds the wrong-call probes). Bench: `nice -n 10 node --max-old-space-size=1536 bench/core-bench.mjs --eo <eo>/engine --apa <apa>/engine [--runs 7] [--only direct,arnoldi,mg,pmg]` (~25 s, log in `logs/`). Atlas fidelity: from the atlas engine dir, `AMP_EO_ATLAS=$PWD node --import <core>/test/atlas-redirect/register.mjs --test --test-concurrency=1 tests/*.test.mjs` (EO ~105 s; APA with `AMP_APA_ATLAS`, ~250 s).
 - Regenerate the grid fixture: `node test/fixtures/gen-apa-grids.mjs --apa <apa>/engine`.
 - For L4: the WASM complex LDL^T stays opt-in (`setDefaultFactor('wasm')` or `makeFactor('wasm', sym)`); `fem/q1-grid.mjs` is the generic Q1 hex assembly used by the APA thermal path; the shift-invert driver around `blockArnoldi` is still in EO (`vector-mode.mjs` solveReal), see proposal 4; the bench Arnoldi function is a 30-line working example of it.
 - Open: contract requests 1-5; refactor proposals 1-8; fresh-context audit (coordinator).
+
+## 9. Audit corrections
+
+Audit `DevLog/audits/2026-11-06-L1-core-audit.md` (no blocking findings). Follow-up asked by the coordinator: S1, S2, S3, M3, M6 (S4 physics gaps go to L4; no new numerics added here). Done 2026-11-06 15:45-16:01 PST.
+
+| Finding | Correction | Evidence |
+|---|---|---|
+| S1 tri-fe micrometres | `fem/tri-fe.mjs`: `elementMass(space, geo, t, Me, lengthScale = 1)`, `elementLoad(..., lengthScale = 1)`, `assembleByTag(..., {lengthScale = 1})`; `lengthScale` = metres per mesh coordinate unit, default SI per C1 / C2; `UM = 1e-6` exported (APA behaviour), `UM2` kept. Port header and module doc updated. APA redirect maps `em2d/fe.mjs` to the shim `test/atlas-redirect/apa-em2d-fe-um.mjs` (same exports, `lengthScale = UM` default). `fem/tri.mjs` has no fixed scale (documented in its `.d.mts`) | core-coverage test 1: integral of 1 over the unit square = 1 m^2 to 1e-12 for P1 / P2 mass sum, load sum and `assembleByTag` mass, in metres (default) and in um with `lengthScale UM`. APA em2d-* / em3d-* via the shim: 39 / 39 + em3d 6 / 6 pass (`logs/core-redirect-apa-em-20261106T155815.log`, `logs/core-redirect-apa-em3d-20261106T155951.log`) |
+| S2 untyped declarations | `src/la/types.d.mts` (CsrPattern, SymbolicAnalysis, NumericFactor, LdltFactorResult, StencilOp, BlockStencilOp, Precond, TriMesh, TriGeometry, HcurlTetMesh, DiagComplexTensor). Hand-written, `any`-free: sparse, ldlt, ldlt-blocked / -wasm / -select, pcg, stencil, mg (buildMG / mgPrecond / MGHierarchy), krylov, gmres-real, arnoldi, fem/tri, fem/tri-fe, fem/space, fem/nedelec1; hcurl element / table / quadrature signatures (`tetMatricesP`, `triTraceMass`, `tetTables`, `triTables`, `compileBilinear`, `evalBilinear*`, `simplexMoment`, `TRI_QUAD`) and `GAUSS01` typed. Remaining `any`: basis-construction internals of hcurl, block / halfmg / dense / amg / ams / pmg / q1-grid / wasm internals (not on the downstream list) | `test/types-smoke.ts`: 13 `@ts-expect-error` probes incl. the audit's 4 (`new SparseCholesky('not a pattern')`, `gmres(1, 2, 3, 4)`, `buildSpace({ nonsense: true }, 7)`, `const z: string = buildSpace(...).nDof`) plus parseUnit(3), makeFactor with a SymbolicLDLT, pcg({}), buildMG with number[], wrong Arnoldi operator, factor(pattern), tetMatricesP order 3, bad expr scope kind, string lengthScale. With the directives removed, each of the 13 lines errors (TS2345 / TS2353 / TS2322); with them, `tsc -p . --noEmit` exit 0 (`logs/core-tsc-20261106T155603.log`, empty). The tightened types also caught a wrong call in the earlier smoke test (makeFactor given a SymbolicLDLT) |
+| S3 core-suite gaps | `test/helpers/tet-grid.mjs` (structured Kuhn tet box, vertex indices ascending, APA em3d edge numbering) and `test/core-coverage.test.mjs` (6 tests): tri-fe (S1), space (DOF counts order 1 = nEdges, order 2 = 2 nEdges + 2 nFaces, Euler V - E + F - T = 1, faceDofs / dofPoint), pmg (order-2 PEC box, 1,058 free DOFs, coarse 163: GMRES + p-MG 16 iterations, relres 9.5e-11, max relative difference to the direct complex LDL^T 2.8e-10), ams (order-1 level of the same box, nodal interpolation from the edge vectors: AMS-preconditioned GMRES 14 iterations vs 195 unpreconditioned at rtol 1e-8), wasm kernels (27-point apply = JS applyStencil to 1e-14, scalar and f64x2), index (34 namespaces, bindings identical to the module files) | core suite 67 / 67, 16 files, 7.2 s (`logs/core-test-20261106T155603.log`) |
+| M3 sweep | header and `.d.mts` state that the unknown-parameter check runs only when `params` is given (EO always checks); behaviour unchanged | `src/sweep.mjs` lines 8-10 |
+| M6 DevLog slips | Arnoldi range 825-1087 in 1.1; DevLog-013:354 and DevLog-014 line 172; line totals recounted; header lengths; contract requests 1-3 marked resolved / delivered; gates 1-4 named in section 8; M7 interpretation note in 4.3 | this file |
+
+Gates after the follow-up: core suite 67 / 67; EO redirect suite unchanged at 334 tests, 331 pass, 0 fail, 2 skipped, 1 todo (109.4 s, `logs/core-redirect-eo-20261106T155618.log`); tsc clean; all 13 probes are compile errors. No file in either atlas is newer than the new test file (find -newer), so nothing was written there. Not done (out of the asked scope): M1, M2, M4, M5, M8, M9; S4 belongs to L4 (proposals 4 and 5 in section 7 remain L1 candidates if the coordinator assigns them).
+

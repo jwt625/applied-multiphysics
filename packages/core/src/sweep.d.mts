@@ -5,6 +5,7 @@ export interface SweepAxis { param: string; values: number[] }
 export interface ParametricStudy { axes: SweepAxis[]; nPoints: number }
 export type SweepAxisInput = { param: string; values: number[] } | { param: string; range: { start: number; stop: number; n: number } };
 export function sweepAxis(entry: unknown, path: string): SweepAxis;
+/** params: the parameter names a sweep may act on; when null / omitted the unknown-parameter check is skipped (EO always checks). */
 export function parametricStudy(sweep: unknown[], options?: { params?: Iterable<string> | Record<string, unknown> | null; path?: string; maxPoints?: number }): ParametricStudy;
 export function rejectSweptOverrides(study: ParametricStudy, params?: Record<string, number> | null): void;
 export function pointValues(study: ParametricStudy, index: number): Record<string, number>;
