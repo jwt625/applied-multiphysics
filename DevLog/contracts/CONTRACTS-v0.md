@@ -200,3 +200,11 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - `reference_by_hash`: data not redistributed; referenced by URL + revision + hash (the hash is required).
   - `copy_text`: verbatim prose allowed (rare; licence must permit derivatives).
   Same licence means the same tags (e.g. Code_Aster GPL-3.0 test files: `copy_with_attribution` in both SM-21 and SM-61). Other tags in use must be mapped to these four or added with a definition.
+- 2026-11-06 16:27 PST, from L4 (DevLog-010 s.5):
+  - zod 4.6.7 and `@amp/materials` are approved as dependencies of `@amp/physics`.
+  - Readiness has no mesh, so mesh warnings go into `prepareRun` notes (accepted).
+  - `sample()` keeps the mesh argument (already canonical).
+  - Assigned to L2: expression BCs, T0 and time settings, physics-scoped BC types, material tensor overrides.
+  - Assigned to L3: nested `refineUniform` and a curved tet10 cylinder mesher.
+  - Assigned to L8: Richardson fallback on non-nested meshes.
+  - Deferred to after M2: the C2 facet-block change; `facets2` stays until then.
