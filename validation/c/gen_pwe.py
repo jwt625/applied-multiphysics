@@ -16,10 +16,11 @@ Run: cd validation && uv run python c/gen_pwe.py
 
 from __future__ import annotations
 
+import json
 import math
 
 import numpy as np
-from common_c import source_compare, target, write_expected
+from common_c import CACHE_DIR, source_compare, target, write_expected
 from scipy import linalg, special
 
 GEN = "validation/c/gen_pwe.py"
@@ -51,6 +52,17 @@ def path(corners, n_interp=4):
     return np.array(pts)
 
 
+def mpb_levels(lattice):
+    """Band-1 max / band-2 min from the MPB runs (JSON lines written by validation/c/mpb/mpb_gaps.py)."""
+    out = {}
+    for p in sorted(CACHE_DIR.joinpath("mpb-runs").glob(f"run_{lattice}_*.log")):
+        for line in p.read_text().splitlines():
+            if line.startswith("JSON "):
+                d = json.loads(line[5:])
+                out[d["resolution"]] = {"lo": d["band1_max"], "hi": d["band2_min"]}
+    return out
+
+
 def run(case, lattice, refs, nmaxes=(8, 12, 16, 20, 24)):
     if lattice == "square":
         a1, a2 = np.array([1.0, 0.0]), np.array([0.0, 1.0])
@@ -70,31 +82,46 @@ def run(case, lattice, refs, nmaxes=(8, 12, 16, 20, 24)):
         bb, npw = bands(b1, b2, kp, 0.2, 12.0, area, nm)
         rows.append({"nmax": nm, "n_plane_waves": npw, "lo": float(bb[:, 0].max()), "hi": float(bb[:, 1].min())})
     lo, hi = rows[-1]["lo"], rows[-1]["hi"]
-    floor_lo = abs(rows[-1]["lo"] - rows[-2]["lo"]) / lo
-    floor_hi = abs(rows[-1]["hi"] - rows[-2]["hi"]) / hi
-    tg = [
-        target(
-            "gap_lower",
-            lo,
-            "1 (c/a)",
-            {"method": "PWE TM, MPB k path", "levels": rows, "last_step_rel": floor_lo},
-            source_compare(lo, refs[0], 1.0, "MPB tutorial (resolution 32)"),
-        ),
-        target(
-            "gap_upper",
-            hi,
-            "1 (c/a)",
-            {"method": "PWE TM, MPB k path", "last_step_rel": floor_hi},
-            source_compare(hi, refs[1], 1.0, "MPB tutorial (resolution 32)"),
-        ),
-    ]
+    mpb = mpb_levels(lattice)
+    tg = []
+    for key, edge, ref_txt in (("lo", "lower", refs[0]), ("hi", "upper", refs[1])):
+        pw = [r[key] for r in rows]
+        steps = [abs(b - a) for a, b in zip(pw[:-1], pw[1:], strict=True)]
+        ratio = steps[-1] / steps[-2]
+        pwe_tail = steps[-1] * ratio / (1 - ratio) if ratio < 1 else float("nan")  # geometric-tail estimate
+        pwe_lim = pw[-1] + math.copysign(pwe_tail, pw[-1] - pw[-2])
+        if not mpb:
+            raise SystemExit("MPB runs missing: run validation/c/mpb/mpb_gaps.py first (see its README)")
+        res = sorted(mpb)
+        f = [mpb[r][key] for r in res]
+        d1, d2 = f[-2] - f[-3], f[-1] - f[-2]
+        p_obs = math.log(abs(d1 / d2)) / math.log(2)
+        f_ext = f[-1] + d2 / (2**p_obs - 1)
+        u_mpb = 1.25 * abs(d2) / (2**p_obs - 1)  # GCI, safety 1.25
+        diff = abs(f_ext - pwe_lim)
+        tg.append(target(
+            f"gap_{edge}", f_ext, "1 (c/a)",
+            {"method": "MPB (meep 1.34.0 conda env, read-only), tutorial set-up, resolutions " + ", ".join(map(str, res))
+                       + "; Richardson on the three finest with observed order",
+             "mpb_levels": [{"resolution": r, "value": mpb[r][key]} for r in res], "observed_order": p_obs,
+             "gci_U": u_mpb, "pwe_limit_est": pwe_lim, "pwe_finest": pw[-1], "pwe_tail_est": pwe_tail,
+             "mpb_vs_pwe_abs": diff, "mpb_vs_pwe_rel": diff / f_ext,
+             "agreement": "same limit" if diff <= max(3 * u_mpb, 3 * pwe_tail, 1e-5 * f_ext) else "differ"},
+            source_compare(f_ext, ref_txt, 1.0, "MPB tutorial printout (resolution 32; not reproducible with MPB 1.34.0)"),
+        ))
+        tg.append(target(f"pwe_gap_{edge}", pw[-1], "1 (c/a)",
+                         {"method": "PWE TM, MPB k path", "levels": rows, "last_step_rel": steps[-1] / pw[-1]}))
+        tg.append(target(f"mpb32_gap_{edge}", mpb[32][key], "1 (c/a)",
+                         {"method": "MPB 1.34.0 at the tutorial resolution 32, defaults"},
+                         source_compare(mpb[32][key], ref_txt, 1.0, "MPB tutorial printout")))
     write_expected(
         case,
         tg,
         GEN,
-        f"Plane-wave expansion, TM, {lattice} lattice of rods r 0.2a eps 12 in air; "
-        "independent check of the MPB gap edges (MPB is the cited reference).",
-        extra={"inputs": {"lattice": lattice, "r_over_a": 0.2, "eps_rod": 12.0, "k_path": "MPB tutorial"}},
+        f"TM band-gap edges, {lattice} lattice of rods r 0.2a eps 12 in air: MPB resolution study (Richardson) and an "
+        "independent plane-wave expansion.",
+        extra={"inputs": {"lattice": lattice, "r_over_a": 0.2, "eps_rod": 12.0, "k_path": "MPB tutorial"},
+               "mpb_runs": "cache/eval-c/mpb-runs/run_<lattice>_<res>.log (validation/c/mpb/mpb_gaps.py)"},
     )
     return tg
 
@@ -105,12 +132,6 @@ if __name__ == "__main__":
         ("WO-61", "triangular", ("0.275065617068082", "0.446289918847647")),
     ]:
         for t in run(c, lat, refs):
-            print(
-                c,
-                t["metric_id"],
-                round(t["value"], 6),
-                "vs MPB rel",
-                f"{t['source']['rel_diff']:.2e}",
-                "PWE last step",
-                f"{t['precision']['last_step_rel']:.1e}",
-            )
+            pr = t["precision"]
+            print(c, t["metric_id"], f"{t['value']:.9f}", pr.get("observed_order", ""), pr.get("gci_U", ""),
+                  pr.get("mpb_vs_pwe_rel", ""), pr.get("agreement", ""))

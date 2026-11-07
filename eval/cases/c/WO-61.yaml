@@ -21,36 +21,83 @@ materials:
   rod: {eps_r: 12.0, source: 'mpb doc/docs/Python_Tutorial.md L69, L181'}
 bcs: null
 initial: null
-study: {type: eigen, n: 8, shift: 'Gamma-M-K-Gamma, 4 interpolated points', resolution_source: MPB resolution 32 (tutorial)}
+study: {type: eigen, n: 8, shift: 'Gamma-M-K-Gamma, 4 interpolated points', resolution_source: 'MPB tutorial resolution 32;
+    gate from resolutions 64, 128, 256'}
 references:
 - quantity: gap lower edge (converged)
   metric_id: gap_lower
-  value: 0.27441945682736507
+  value: 0.27442033227152357
   unit: 1 (c/a)
-  tolerance: {rel: 0.001, after: richardson, note: PWE last-step change 2e-6; margin 500x}
+  tolerance: {rel: 0.0001, after: richardson, note: MPB Richardson GCI <= 1.3e-5 rel; MPB vs PWE limit <= 7.7e-6 rel; margin
+      about 8x}
   bounds: null
   basis: D
   form: solver_ref
-  gate: false
+  gate: true
   expected: {file: eval/expected/WO-61.json, metric_id: gap_lower}
-  provenance: {citation: plane-wave expansion (this lane), locator: 'validation/c/gen_pwe.py, MPB k path', accessed: null,
-    generator: validation/c/gen_pwe.py}
-  note: 'not gated: gen_pwe.py has not reproduced MPB''s printed edges at MPB''s own settings (resolution 32, subpixel averaging);
-    gate after that check (DevLog-008)'
+  provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson; agrees with the independent PWE limit (this lane)',
+    locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/c/gen_pwe.py}
 - quantity: gap upper edge (converged)
   metric_id: gap_upper
-  value: 0.44522020121595035
+  value: 0.4452180074121474
   unit: 1 (c/a)
-  tolerance: {rel: 0.001, after: richardson, note: PWE last-step change 6e-6}
+  tolerance: {rel: 0.0001, after: richardson, note: MPB Richardson GCI <= 1.3e-5 rel; MPB vs PWE limit <= 7.7e-6 rel; margin
+      about 8x}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/WO-61.json, metric_id: gap_upper}
+  provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson; agrees with the independent PWE limit (this lane)',
+    locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/c/gen_pwe.py}
+- quantity: PWE gap lower edge
+  metric_id: pwe_gap_lower
+  value: 0.27441945682736507
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001}
   bounds: null
   basis: D
   form: solver_ref
   gate: false
-  expected: {file: eval/expected/WO-61.json, metric_id: gap_upper}
-  provenance: {citation: plane-wave expansion (this lane), locator: 'validation/c/gen_pwe.py, MPB k path', accessed: null,
+  expected: {file: eval/expected/WO-61.json, metric_id: pwe_gap_lower}
+  provenance: {citation: plane-wave expansion (this lane), locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py,
+    accessed: null, generator: validation/c/gen_pwe.py}
+- quantity: PWE gap upper edge
+  metric_id: pwe_gap_upper
+  value: 0.44522020121595035
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  expected: {file: eval/expected/WO-61.json, metric_id: pwe_gap_upper}
+  provenance: {citation: plane-wave expansion (this lane), locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py,
+    accessed: null, generator: validation/c/gen_pwe.py}
+- quantity: MPB 1.34.0 resolution 32 lower edge
+  metric_id: mpb32_gap_lower
+  value: 0.2746902260167484
+  unit: 1 (c/a)
+  tolerance: {rel: 0.01}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  expected: {file: eval/expected/WO-61.json, metric_id: mpb32_gap_lower}
+  provenance: {citation: MPB at tutorial settings, locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null,
     generator: validation/c/gen_pwe.py}
-  note: 'not gated: gen_pwe.py has not reproduced MPB''s printed edges at MPB''s own settings (resolution 32, subpixel averaging);
-    gate after that check (DevLog-008)'
+- quantity: MPB 1.34.0 resolution 32 upper edge
+  metric_id: mpb32_gap_upper
+  value: 0.4453310810690973
+  unit: 1 (c/a)
+  tolerance: {rel: 0.01}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  expected: {file: eval/expected/WO-61.json, metric_id: mpb32_gap_upper}
+  provenance: {citation: MPB at tutorial settings, locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null,
+    generator: validation/c/gen_pwe.py}
 - quantity: gap lower edge
   metric_id: gap_lower_edge
   value: 0.275065617068082
@@ -63,7 +110,8 @@ references:
   gate: false
   provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L184, accessed: '2026-11-06'}
   extraction: text
-  note: MPB resolution 32; 2.4e-3 above the converged PWE value (gen_pwe.py)
+  note: MPB tutorial printout; MPB 1.34.0 at the same settings gives a different value (see mpb32_gap_*), so these digits
+    are not reproducible with the current MPB
 - quantity: gap upper edge
   metric_id: gap_upper_edge
   value: 0.446289918847647
@@ -76,7 +124,8 @@ references:
   gate: false
   provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L184, accessed: '2026-11-06'}
   extraction: text
-  note: MPB resolution 32; 2.4e-3 above the converged PWE value (gen_pwe.py)
+  note: MPB tutorial printout; MPB 1.34.0 at the same settings gives a different value (see mpb32_gap_*), so these digits
+    are not reproducible with the current MPB
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:

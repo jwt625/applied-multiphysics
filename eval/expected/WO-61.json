@@ -4,8 +4,8 @@
   "class": "c",
   "generator": "validation/c/gen_pwe.py",
   "command": "cd validation && uv run python c/gen_pwe.py",
-  "method": "Plane-wave expansion, TM, triangular lattice of rods r 0.2a eps 12 in air; independent check of the MPB gap edges (MPB is the cited reference).",
-  "generated_at": "2026-11-06T16:32:32-08:00",
+  "method": "TM band-gap edges, triangular lattice of rods r 0.2a eps 12 in air: MPB resolution study (Richardson) and an independent plane-wave expansion.",
+  "generated_at": "2026-11-06T19:05:05-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -20,6 +20,50 @@
   "targets": [
     {
       "metric_id": "gap_lower",
+      "value": 0.27442033227152357,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "MPB (meep 1.34.0 conda env, read-only), tutorial set-up, resolutions 16, 32, 64, 128, 256; Richardson on the three finest with observed order",
+        "mpb_levels": [
+          {
+            "resolution": 16,
+            "value": 0.2751869418408356
+          },
+          {
+            "resolution": 32,
+            "value": 0.2746902260167484
+          },
+          {
+            "resolution": 64,
+            "value": 0.2744814648074728
+          },
+          {
+            "resolution": 128,
+            "value": 0.27443353630288025
+          },
+          {
+            "resolution": 256,
+            "value": 0.2744231842134782
+          }
+        ],
+        "observed_order": 2.2109619456224685,
+        "gci_U": 3.5649274433274313e-06,
+        "pwe_limit_est": 0.27441904305087883,
+        "pwe_finest": 0.27441945682736507,
+        "pwe_tail_est": 4.1377648623317764e-07,
+        "mpb_vs_pwe_abs": 1.28922064474013e-06,
+        "mpb_vs_pwe_rel": 4.697977857794146e-06,
+        "agreement": "same limit"
+      },
+      "source": {
+        "source_value": "0.275065617068082",
+        "rel_diff": 0.002345930412664911,
+        "agreement": "disagree",
+        "note": "MPB tutorial printout (resolution 32; not reproducible with MPB 1.34.0)"
+      }
+    },
+    {
+      "metric_id": "pwe_gap_lower",
       "value": 0.27441945682736507,
       "unit": "1 (c/a)",
       "precision": {
@@ -57,27 +101,119 @@
           }
         ],
         "last_step_rel": 2.1238445285399323e-06
+      }
+    },
+    {
+      "metric_id": "mpb32_gap_lower",
+      "value": 0.2746902260167484,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "MPB 1.34.0 at the tutorial resolution 32, defaults"
       },
       "source": {
         "source_value": "0.275065617068082",
-        "rel_diff": 0.0023491130865586182,
+        "rel_diff": 0.0013647327329925534,
         "agreement": "disagree",
-        "note": "MPB tutorial (resolution 32)"
+        "note": "MPB tutorial printout"
       }
     },
     {
       "metric_id": "gap_upper",
+      "value": 0.4452180074121474,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "MPB (meep 1.34.0 conda env, read-only), tutorial set-up, resolutions 16, 32, 64, 128, 256; Richardson on the three finest with observed order",
+        "mpb_levels": [
+          {
+            "resolution": 16,
+            "value": 0.44543398551849284
+          },
+          {
+            "resolution": 32,
+            "value": 0.4453310810690973
+          },
+          {
+            "resolution": 64,
+            "value": 0.4452475787555791
+          },
+          {
+            "resolution": 128,
+            "value": 0.4452236331171916
+          },
+          {
+            "resolution": 256,
+            "value": 0.445219077656295
+          }
+        ],
+        "observed_order": 2.3940939676238937,
+        "gci_U": 1.3378051845047902e-06,
+        "pwe_limit_est": 0.44521827825806426,
+        "pwe_finest": 0.44522020121595035,
+        "pwe_tail_est": 1.9229578860837304e-06,
+        "mpb_vs_pwe_abs": 2.7084591686099557e-07,
+        "mpb_vs_pwe_rel": 6.083444792255853e-07,
+        "agreement": "same limit"
+      },
+      "source": {
+        "source_value": "0.446289918847647",
+        "rel_diff": 0.00240182757940706,
+        "agreement": "disagree",
+        "note": "MPB tutorial printout (resolution 32; not reproducible with MPB 1.34.0)"
+      }
+    },
+    {
+      "metric_id": "pwe_gap_upper",
       "value": 0.44522020121595035,
       "unit": "1 (c/a)",
       "precision": {
         "method": "PWE TM, MPB k path",
+        "levels": [
+          {
+            "nmax": 8,
+            "n_plane_waves": 197,
+            "lo": 0.2744422555135093,
+            "hi": 0.4453269465322595
+          },
+          {
+            "nmax": 12,
+            "n_plane_waves": 441,
+            "lo": 0.27442518257954723,
+            "hi": 0.4452490444262974
+          },
+          {
+            "nmax": 16,
+            "n_plane_waves": 797,
+            "lo": 0.2744214434121469,
+            "hi": 0.4452292640806689
+          },
+          {
+            "nmax": 20,
+            "n_plane_waves": 1257,
+            "lo": 0.274420039651627,
+            "hi": 0.4452228744819723
+          },
+          {
+            "nmax": 24,
+            "n_plane_waves": 1793,
+            "lo": 0.27441945682736507,
+            "hi": 0.44522020121595035
+          }
+        ],
         "last_step_rel": 6.004368208437714e-06
+      }
+    },
+    {
+      "metric_id": "mpb32_gap_upper",
+      "value": 0.4453310810690973,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "MPB 1.34.0 at the tutorial resolution 32, defaults"
       },
       "source": {
         "source_value": "0.446289918847647",
-        "rel_diff": 0.0023969119321779744,
+        "rel_diff": 0.0021484638976957036,
         "agreement": "disagree",
-        "note": "MPB tutorial (resolution 32)"
+        "note": "MPB tutorial printout"
       }
     }
   ],
@@ -86,5 +222,6 @@
     "r_over_a": 0.2,
     "eps_rod": 12.0,
     "k_path": "MPB tutorial"
-  }
+  },
+  "mpb_runs": "cache/eval-c/mpb-runs/run_<lattice>_<res>.log (validation/c/mpb/mpb_gaps.py)"
 }

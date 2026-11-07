@@ -256,3 +256,46 @@ All corrections live in `validation/c/build_cases.py::apply_audit()` (keyed by c
 
 - Why info: the frequency and Q_d targets were set `gate: false` after audit S1, because they duplicate class-a RF-21, which gates them. RF-01 therefore has no gated target until the impedance BC exists.
 - Case status from the harness: pending (0 fail, 0 error). validate_cases.py: 0 errors.
+
+## MPB gating (2026-11-06 19:00-19:06 PST; Wentao approved MPB via conda)
+
+Interpreter: `$MPB_PYTHON`: the python of a conda env with conda-forge pymeep 1.34.0 (Python 3.13.15, `from meep import mpb`). It is used read-only with `-I` and `nice -n 10`, run from `cache/eval-c/mpb-runs/`. Nothing was installed and no env was created. Script `validation/c/mpb/mpb_gaps.py` (+ README) uses the tutorial set-up: rods r 0.2, eps 12, num_bands 8, corners + `mp.interpolate(4, ...)`, MPB defaults (mesh_size 3, tolerance 1e-7), varying only resolution. Logs: `logs/eval-c-mpb-convergence-*.log`; raw JSON lines in `cache/eval-c/mpb-runs/run_<lattice>_<res>.log`.
+
+(1) Tutorial digits NOT reproduced. MPB 1.34.0 at resolution 32 with the tutorial settings gives:
+
+| Case | Edge | MPB 1.34.0, res 32 | Tutorial printout (L120 / L184) | Rel. diff |
+|---|---|---|---|---|
+| WO-04 | lower | 0.2809479558 | 0.282623311147724 | 5.9e-3 |
+| WO-04 | upper | 0.4171142494 | 0.419334798706834 | 5.3e-3 |
+| WO-61 | lower | 0.2746902260 | 0.275065617068082 | 1.4e-3 |
+| WO-61 | upper | 0.4453310811 | 0.446289918847647 | 2.2e-3 |
+
+- mesh_size 3, 5 and 7 give identical values. mesh_size 1 (no subpixel averaging) gives 0.28050 / 0.41680, which is not the printout either.
+- Most likely cause (unverified): the printout was made with an older MPB whose eps averaging differs, and the doc output was never regenerated. The tutorial's own later text (L320) quotes the same gap as 0.2812-0.4174, which also differs from L120.
+- The coordinator's check at resolution 16 (M point, 0.282209) is reproduced: band-1 maximum 0.2822092712 at resolution 16.
+
+(2) Resolution study (16, 32, 64, 128, 256). Resolution 256 took 23-29 s and peaked at 234 MB RSS, within the 10 min / 2 GB limits. Richardson uses the three finest levels with the observed order; U = GCI with safety factor 1.25.
+
+| Case | Edge | res 16 | 32 | 64 | 128 | 256 | p_obs | Extrapolated | U |
+|---|---|---|---|---|---|---|---|---|---|
+| WO-04 | lower | 0.2822093 | 0.2809480 | 0.2807284 | 0.2806765 | 0.2806667 | 2.40 | 0.280664392 | 2.9e-6 |
+| WO-04 | upper | 0.4167526 | 0.4171142 | 0.4171561 | 0.4171613 | 0.4171622 | 2.48 | 0.417162396 | 2.5e-7 |
+| WO-61 | lower | 0.2751869 | 0.2746902 | 0.2744815 | 0.2744335 | 0.2744232 | 2.21 | 0.274420332 | 3.6e-6 |
+| WO-61 | upper | 0.4454340 | 0.4453311 | 0.4452476 | 0.4452236 | 0.4452191 | 2.39 | 0.445218007 | 1.3e-6 |
+
+(3) Comparison with the independent plane-wave expansion (`gen_pwe.py`, 1793 plane waves plus a geometric-tail estimate):
+
+| Edge | Plane-wave limit vs MPB extrapolated (rel) | Verdict |
+|---|---|---|
+| WO-04 lower | 7.7e-6 | same limit |
+| WO-04 upper | 1.9e-6 | same limit |
+| WO-61 lower | 4.7e-6 | same limit |
+| WO-61 upper | 6.1e-7 | same limit |
+
+The two independent discretizations converge to the same limit within about 1e-5 relative.
+
+- Gate (WO-04, WO-61): `gap_lower`, `gap_upper` = the MPB Richardson values, rel 1e-4 after Richardson. The tolerance covers U <= 1.3e-5 rel and the MPB-vs-plane-wave difference <= 7.7e-6, with a margin of about 8x.
+- Informative (`gate: false`): the plane-wave values, MPB 1.34.0 at resolution 32, and the tutorial printouts.
+- One generator, `gen_pwe.py`, writes `eval/expected/WO-04.json` and `WO-61.json` from the plane-wave expansion plus the cached MPB runs.
+
+(4) Checks: validate_cases.py 36 cases / 112 references / 0 errors. L8 dry-run: 0 loader errors / 0 warnings, exit 0 (`logs/eval-20261106T190526.jsonl`).

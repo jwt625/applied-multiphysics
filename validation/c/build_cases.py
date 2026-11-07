@@ -2799,50 +2799,29 @@ def apply_audit(d: dict) -> dict:
         d["dataset"]["file"] = "Dataset.zip"
         d["dataset"]["file_bytes"] = 10029067577
         d["dataset"]["http_etag"] = "62f519b5-255c76d39 (HEAD 2026-11-06)"
-    if cid in ("WO-04", "WO-61"):  # S9
-        mpb = d["references"]
-        for r in mpb:
+    if cid in ("WO-04", "WO-61"):  # S9 + "MPB gating" (Wentao approved MPB via the read-only conda env)
+        tut = d["references"]  # the two tutorial printouts (resolution 32), informative
+        for r in tut:
             r["gate"] = False
-        diffs = {"WO-04": ("6.9e-3", "5.2e-3"), "WO-61": ("2.4e-3", "2.4e-3")}[cid]
-        mpb[0]["note"] = f"MPB resolution 32; {diffs[0]} above the converged PWE value (gen_pwe.py)"
-        mpb[1]["note"] = f"MPB resolution 32; {diffs[1]} above the converged PWE value (gen_pwe.py)"
+            r["note"] = ("MPB tutorial printout; MPB 1.34.0 at the same settings gives a different value (see "
+                         "mpb32_gap_*), so these digits are not reproducible with the current MPB")
+        gate_tol = {"rel": 1e-4, "after": "richardson", "note": "MPB Richardson GCI <= 1.3e-5 rel; MPB vs PWE limit "
+                    "<= 7.7e-6 rel; margin about 8x"}
+        mk = lambda q, mid, tol, cit, gate=True, note=None: ref(q, None, "1 (c/a)", tol, "D", "solver_ref", cit,
+                                                               "validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py",
+                                                               case=cid, mid=mid, gate=gate, note=note)
+        mcit = "MPB (meep 1.34.0) resolutions 16-256, Richardson; agrees with the independent PWE limit (this lane)"
         d["references"] = [
-            ref(
-                "gap lower edge (converged)",
-                None,
-                "1 (c/a)",
-                {"rel": 1e-3, "after": "richardson", "note": "PWE last-step change 2e-6; margin 500x"},
-                "D",
-                "solver_ref",
-                "plane-wave expansion (this lane)",
-                "validation/c/gen_pwe.py, MPB k path",
-                case=cid,
-                mid="gap_lower",
-            ),
-            ref(
-                "gap upper edge (converged)",
-                None,
-                "1 (c/a)",
-                {"rel": 1e-3, "after": "richardson", "note": "PWE last-step change 6e-6"},
-                "D",
-                "solver_ref",
-                "plane-wave expansion (this lane)",
-                "validation/c/gen_pwe.py, MPB k path",
-                case=cid,
-                mid="gap_upper",
-            ),
-        ] + mpb
-        d["study"]["resolution_source"] = "MPB resolution 32 (tutorial)"
-        # Coordinator rule (16:35): a self-built reference gates only after reproducing the external reference
-        # under its own settings. gen_pwe.py is a pure plane-wave expansion (no real-space grid, no subpixel
-        # smoothing); MPB's printed edges come from a 32 x 32 grid with anisotropic subpixel averaging, which
-        # gen_pwe.py does not implement, so it cannot reproduce them to MPB's printed digits. Not gated.
-        for r in d["references"]:
-            if r.get("expected"):
-                r["gate"] = False
-                r["note"] = (r.get("note", "") + "; " if r.get("note") else "") + (
-                    "not gated: gen_pwe.py has not reproduced MPB's printed edges at MPB's own settings "
-                    "(resolution 32, subpixel averaging); gate after that check (DevLog-008)")
+            mk("gap lower edge (converged)", "gap_lower", gate_tol, mcit),
+            mk("gap upper edge (converged)", "gap_upper", gate_tol, mcit),
+            mk("PWE gap lower edge", "pwe_gap_lower", {"rel": 1e-4}, "plane-wave expansion (this lane)", False),
+            mk("PWE gap upper edge", "pwe_gap_upper", {"rel": 1e-4}, "plane-wave expansion (this lane)", False),
+            mk("MPB 1.34.0 resolution 32 lower edge", "mpb32_gap_lower", {"rel": 1e-2}, "MPB at tutorial settings",
+               False),
+            mk("MPB 1.34.0 resolution 32 upper edge", "mpb32_gap_upper", {"rel": 1e-2}, "MPB at tutorial settings",
+               False),
+        ] + tut
+        d["study"]["resolution_source"] = "MPB tutorial resolution 32; gate from resolutions 64, 128, 256"
     if cid in ("WO-62", "WO-63", "WO-64"):  # S9
         _ungate(
             d,
