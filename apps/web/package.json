@@ -1,0 +1,40 @@
+{
+  "name": "@amp/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "description": "applied-multiphysics workbench and Play views: SvelteKit static site for Cloudflare Pages (DevLog-011)",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
+    "test": "node --max-old-space-size=1536 --test --test-concurrency=1 \"test/*.test.ts\"",
+    "shots": "node --max-old-space-size=1536 scripts/shots.ts"
+  },
+  "dependencies": {
+    "@amp/core": "link:../../packages/core",
+    "@amp/geom": "link:../../packages/geom",
+    "@amp/materials": "link:../../packages/materials",
+    "@amp/mesh": "link:../../packages/mesh",
+    "@amp/physics": "link:../../packages/physics",
+    "@amp/post": "link:../../packages/post",
+    "@amp/rt": "link:../../packages/rt",
+    "@amp/spec": "link:../../packages/spec",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "4.0.0",
+    "@sveltejs/kit": "3.0.0",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@types/node": "24.19.2",
+    "@types/three": "0.187.0",
+    "@webgpu/types": "0.1.74",
+    "playwright-core": "1.63.0",
+    "svelte": "5.57.1",
+    "svelte-check": "4.7.6",
+    "typescript": "5.9.3",
+    "vite": "8.3.2"
+  }
+}

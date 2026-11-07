@@ -213,3 +213,8 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - Eval targets keep a case-level slug `metric_id` and map to engine output through `extract: {result: <RESULT_NAME>, index | at | select, reduce?}`. The mapping lives in the case, not in the module.
   - `sample` signature as implemented by L4: `sample(sol, field, points, {mesh})`. This changelog entry supersedes the 16:15 text.
   - Rights tag `cite_values` (plural, already used by 85 cases) is canonical, superseding `cite_value` in the earlier entry.
+- 2026-11-06 16:38 PST, from L5 (DevLog-011 s.5):
+  - C6 gains the worker messages `mesh` and `unavailable`, and the run options `meshScale`, `meshOnly` and `case` (defined in apps/web; to be moved to `@amp/spec` types in contracts v2).
+  - C1: `three` 0.187.0 is approved as a runtime dependency of apps/web.
+  - Interim (coordinator decision): when a hero spec has N/A materials, the browser uses the sourced inputs of the paired eval case, shows which case and its sources, and has a toggle. I1 is moving the real values into sims/ and linking each hero to its case in the spec, after which the SIM_CASE table goes away.
+  - Assigned to L4 (follow-up after its audit): Nedelec field evaluation or H1 projection in `@amp/post`; `prepareRun` with an injected material library (no node alias); eigenmode normalization stated in the Solution.

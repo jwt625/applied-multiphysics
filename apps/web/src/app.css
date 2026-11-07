@@ -1,0 +1,75 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Dark by default, sharp corners, dense (DevLog-001 s.6). Tokens after the eo-modulator-atlas palette. */
+:root {
+	color-scheme: dark;
+	--bg: #0d0d0d;
+	--surface: #161615;
+	--surface-2: #1e1e1c;
+	--surface-3: #262624;
+	--hover: rgba(255, 255, 255, 0.06);
+	--ink: #f2f1ec;
+	--ink-2: #c3c2b7;
+	--ink-3: #898781;
+	--line: #34342f;
+	--border: rgba(255, 255, 255, 0.12);
+	--accent: #3987e5;
+	--accent-ink: #ffffff;
+	--good: #2fa84f;
+	--warn: #e0a526;
+	--crit: #d84a4a;
+	--na: #6f6d68;
+	--sel: rgba(57, 135, 229, 0.22);
+	--mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	--sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--row: 20px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Sharp corners: user-agent styles round some form controls (per element, no global override of components). */
+button, input, select, textarea, fieldset, legend, details, summary, dialog, progress, meter, pre, code, kbd, img, canvas { border-radius: 0; }
+
+html, body {
+	height: 100%;
+	margin: 0;
+	background: var(--bg);
+	color: var(--ink);
+	font: 12px/1.35 var(--sans);
+	overflow: hidden;
+}
+
+a { color: var(--accent); text-decoration: none; }
+
+button {
+	font: inherit;
+	color: var(--ink);
+	background: var(--surface-3);
+	border: 1px solid var(--border);
+	padding: 2px 8px;
+	height: 22px;
+	cursor: pointer;
+}
+button:hover:not(:disabled) { background: #30302d; }
+button:disabled { color: var(--ink-3); cursor: default; opacity: 0.6; }
+button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+input, select, textarea {
+	font: inherit;
+	color: var(--ink);
+	background: var(--bg);
+	border: 1px solid var(--border);
+	padding: 1px 4px;
+	height: 22px;
+	min-width: 0;
+}
+textarea { height: auto; font-family: var(--mono); }
+input:focus, select:focus, textarea:focus, button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+input[type='range'] { padding: 0; height: 16px; accent-color: var(--accent); background: transparent; border: 0; }
+input[type='checkbox'] { height: auto; accent-color: var(--accent); }
+
+.mono { font-family: var(--mono); }
+.dim { color: var(--ink-3); }
+.na { color: var(--na); }
+.warn { color: var(--warn); }
+.crit { color: var(--crit); }
+kbd { font: 10px var(--mono); border: 1px solid var(--border); padding: 0 3px; color: var(--ink-2); }

@@ -1,0 +1,20 @@
+apps/web (applied-multiphysics), GPL-3.0-or-later.
+
+Third-party data and ported code:
+
+- src/lib/gfx/colormaps.ts: colormap tables sampled from
+  - viridis, inferno (BIDS mpl-colormaps, Nathaniel Smith and Stefan van der Walt), CC0 1.0;
+  - cividis (Jamie R. Nunez, Christopher R. Anderton, Ryan S. Renslow, PLoS ONE 13(7): e0199239, 2018), as distributed
+    in matplotlib 3.11.2 under the matplotlib licence (BSD-style); a separate licence for the table was not verified;
+  - balance (cmocean, Copyright (c) 2015 Kristen M. Thyng), MIT licence:
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+    persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice
+    and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS
+    PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+- src/lib/gfx/renderer2d.ts: ported from eo-modulator-atlas app/src/lib/sim/renderer.ts at 0546007 (GPL-3.0-or-later).
+- src/lib/gfx/field-material.ts: pattern from advanced-packaging-atlas app/src/lib/sim/graphics/FieldLayer.ts at fe39985 (GPL-3.0-or-later).
+- src/lib/post/solid3d.ts: marching-tet case table from advanced-packaging-atlas app/src/lib/sim/post.ts at fe39985 (GPL-3.0-or-later).
+- src/service-worker/index.ts: pattern from eo-modulator-atlas app/src/service-worker/index.ts at 0546007 (GPL-3.0-or-later).
+- three (three.js), MIT licence, Copyright 2010-2026 three.js authors (bundled dependency).
