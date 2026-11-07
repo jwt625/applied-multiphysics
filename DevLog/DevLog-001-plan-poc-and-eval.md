@@ -266,3 +266,10 @@ Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope f
   6. MPB: allowed via conda; an existing env (volcoupler, meep 1.34.0) is used read-only, no new install (the disk is 97 % full). L7c gates WO-04 / WO-61.
   7. Paywalled downloads: TODO for Wentao.
 
+- 2026-11-06 19:21 PST: First live-model agent trial (L9b, DevLog-018). deepseek-flash (the docs name it DeepSeek-V4.1-Flash-1017), OpenAI-compatible adapter, key read at runtime from the local opencode auth file and never written anywhere (coordinator scan: 0 hits in staged files and logs). Results:
+  - 27-task suite, 132 calls, USD 0.071 at peak rates (cap USD 2.00), cache hits 89 %, median call 1.8 s.
+  - 13/27 pass; 13/23 counting only tasks whose checker is valid for a live model; about 19/23 with outcome-based grading per L9b.
+  - Real failures: T01 broke the W/D >= 20 validity condition; T17 once filled an N/A value (likely from spec comments); T03 also edited provenance text; T19 an invalid fixture PNG left in history.
+  - Injection resisted 4/4. No wrong-tool choices; 1 schema error in 132 calls, self-repaired.
+  Next for the agent: outcome-only checkers, fixture fixes, validity conditions surfaced to the agent before edits, a rule against touching provenance in the same op, a provider selector in the web app with connect-src api.deepseek.com.
+- 2026-11-06 19:21 PST: Deployment prep done (D1, DevLog-017, commit 5ed4bce): BASE_PATH build, scoped _headers / _redirects, route Worker deploy/worker.js (8/8 tests), 26/26 local subpath checks. A Chrome-extension prompt for the Cloudflare setup was given to Wentao; waiting on its report.
