@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { buildGeometry2D, domainAreas, type Feature, type Mesh } from '@amp/geom';
 import {
   mesh2d, meshBoxes, meshExtruded, meshRevolved, toHcurlMesh, meshHash, Sha256, triQuality, tetQuality,
+  refineUniform, meshCylinder, cylinderSideProjector, curvedQuality, boundaryMeasure,
 } from '../src/index.ts';
 
 const plate: Feature[] = [
@@ -239,4 +240,51 @@ test('audit S2/S4: warnings for near-degenerate input; the vertex budget fails f
   const t0 = performance.now();
   assert.throws(() => mesh2d(buildGeometry2D({ features: [{ id: 'r', type: 'rect', x: [0, 1], y: [0, 1] }] }), { hmax: 1e-4 }), /estimated from the size field exceed the budget/);
   assert.ok(performance.now() - t0 < 500);
+});
+
+test('refineUniform 2D: nested, tags kept, boundary nodes on the exact curve; area order 2 (tri3) and 4 (tri6)', () => {
+  const g = buildGeometry2D({ features: [{ id: 'disk', type: 'circle', c: [0, 0], r: 1 }] });
+  const exact = Math.PI;
+  for (const [order, want] of [[1, 2], [2, 4]] as const) {
+    let m = mesh2d(g, { hmax: 0.5, maxAngleDeg: 30, order });
+    const err: number[] = [];
+    for (let l = 0; l < 3; l++) {
+      check2d(m);
+      err.push(Math.abs(curvedQuality(m).area! - exact));
+      // every facet node (corners and mids) on the circle
+      const fv = order === 2 ? 3 : 2;
+      for (let f = 0; f < m.facets.boundary.length; f++)
+        for (let q = 0; q < fv; q++) { const v = m.facets.conn[fv * f + q]!; assert.ok(Math.abs(Math.hypot(m.nodes[2 * v]!, m.nodes[2 * v + 1]!) - 1) < 1e-14); }
+      assert.deepEqual([...new Set(m.facets.boundary)], [0]);
+      assert.equal(m.entities, g.entities);
+      if (l < 2) {
+        const r = refineUniform(m, { geometry: g });
+        assert.equal(r.cells.domain.length, 4 * m.cells.domain.length);
+        for (let v = 0; v < m.nodes.length; v++) assert.equal(r.nodes[v], m.nodes[v]); // old nodes kept (nested)
+        m = r;
+      }
+    }
+    const p1 = Math.log2(err[0]! / err[1]!), p2 = Math.log2(err[1]! / err[2]!);
+    assert.ok(Math.abs(p2 - want) < 0.3, `order ${order}: observed ${p1.toFixed(2)}, ${p2.toFixed(2)}`);
+  }
+});
+
+test('refineUniform 3D: tet4 and curved tet10 cylinder, conforming, volume / area orders 2 and 4', () => {
+  const c = { id: 'cav', radius: 0.0274, height: 0.0548, base: [0, 0, 0] as [number, number, number], axis: 'z' as const };
+  const V = Math.PI * c.radius ** 2 * c.height, S = 2 * Math.PI * c.radius * (c.radius + c.height);
+  for (const [order, want] of [[1, 2], [2, 4]] as const) {
+    let m = meshCylinder(c, { mesh2d: { hmax: c.radius / 2 }, dz: c.radius / 2, order });
+    assert.equal(m.cells.type, order === 2 ? 'tet10' : 'tet4');
+    const proj = cylinderSideProjector(m, c);
+    const ev: number[] = [], ea: number[] = [];
+    for (let l = 0; l < 3; l++) {
+      if (order === 1) check3d(m);
+      else assert.ok(curvedQuality(m).minJacobianRatioP2! > 0.5);
+      ev.push(Math.abs(curvedQuality(m).volume! - V));
+      ea.push(Math.abs(boundaryMeasure(m, m.entities.boundaries.map((_, i) => i)) - S));
+      assert.deepEqual(m.entities.boundaries.map((b) => b.id), ['bnd:cav.side', 'bnd:cav.bottom', 'bnd:cav.top'].filter((x) => m.entities.boundaries.some((b) => b.id === x)).sort((x, y) => m.entities.boundaries.findIndex((b) => b.id === x) - m.entities.boundaries.findIndex((b) => b.id === y)));
+      if (l < 2) m = refineUniform(m, { project: proj });
+    }
+    assert.ok(Math.abs(Math.log2(ev[1]! / ev[2]!) - want) < 0.2 && Math.abs(Math.log2(ea[1]! / ea[2]!) - want) < 0.2, `order ${order}: ${ev} ${ea}`);
+  }
 });

@@ -380,3 +380,46 @@ Verdicts after S5:
 - MMG: adopt with conditions as an optimiser whose gain is usual but not guaranteed (keep the better of the before and after meshes by min dihedral); hold for mobile because of memory.
 
 Not changed: the tet4 C2 orientation and the H(curl) adapter (audit s.4: correct). Hero hashes are unchanged by the corrections (they touch tags, lineage and checks, not node or connectivity bytes).
+
+## 8. Follow-up for L4 (DevLog-010 s.5 item 6; 2026-11-06 16:25-16:35 PST)
+
+| Request | Done | Where |
+|---|---|---|
+| (1) `refineUniform(mesh, {geometry?, project?})` | tri3, tri6, tet4, tet10 red refinement (4 / 8 children; octahedron cut along its shortest diagonal; children re-oriented positive) | `packages/mesh/src/refine.ts` |
+| (2) curved tet10 cylinder | `meshCylinder(spec, {order: 2})` = tet4 extrusion + `toP2` with side mid-edge nodes projected radially onto r = a (geometric midpoint: mean angle, mean height); `cylinderSideProjector`, `cylinderProjector` | `solid3d.ts`, `refine.ts` |
+| (3) M5 | chord-fallback split points now record the parameter of their projection (`curveProject` callback into cdt2d) | `cdt2d.mjs`, `mesh2d.ts` |
+
+`refineUniform` behaviour:
+- Nesting: every child is the parent's geometry map (affine P1, quadratic P2) applied to a reference sub-simplex.
+- Old nodes keep their indices and new nodes are appended, so `pointNode` stays valid.
+- `cells.domain`, `facets.boundary` and the entity table are copied unchanged.
+- New boundary nodes go to the exact curve:
+  - 2D: mesh2d now stores `facetCurve` (geometry edge index) and `facetParam` (t at both facet ends) on the mesh, and refinement splits them.
+  - 3D: through the projector.
+- Helpers: `curvedQuality` (area or volume by collapsed Gauss-Legendre 5^d on the P2 map, plus the minimum Jacobian ratio) and `boundaryMeasure` (facet length or area, P1 or P2).
+
+Convergence, RF-01 cavity a = 2.74 cm, d = 2a, exact V = pi a^2 d, S = 2 pi a (a + d) (`logs/l3-cyl-convergence-20261107T003052.jsonl`, `packages/mesh/bench/cylinder-convergence.ts`):
+
+| Series | h (mm) | Tets | V rel. error | order | S rel. error | order | min Jacobian ratio (P2) |
+|---|---|---|---|---|---|---|---|
+| nested tet4 | 13.70 | 1032 | -5.07e-3 | - | -2.54e-3 | - | (0 inverted) |
+| nested tet4 | 6.85 | 8256 | -1.27e-3 | 2.00 | -6.34e-4 | 2.00 | |
+| nested tet4 | 3.43 | 66048 | -3.17e-4 | 2.00 | -1.59e-4 | 2.00 | |
+| nested tet10 | 13.70 | 1032 | -1.93e-6 | - | -1.29e-6 | - | 0.979 |
+| nested tet10 | 6.85 | 8256 | -1.22e-7 | 3.99 | -8.08e-8 | 3.99 | 0.955 |
+| nested tet10 | 3.43 | 66048 | -7.65e-9 | 4.00 | -5.06e-9 | 4.00 | 0.977 |
+| fresh tet4 | 13.70 / 6.85 / 3.43 | 1032 / 6000 / 47040 | -5.07e-3 / -5.07e-3 / -1.66e-3 | - / 0.00 / 1.61 | -2.54e-3 / -2.54e-3 / -8.30e-4 | | |
+| fresh tet10 | 13.70 / 6.85 / 3.43 | 1032 / 6000 / 47040 | -1.93e-6 / -1.93e-6 / -2.68e-7 | - / 0.00 / 2.85 | -1.29e-6 / -1.29e-6 / -1.78e-7 | | 0.979 / 0.996 / 0.994 |
+
+- Fresh meshes at h = a/2 and a/4 have the same boundary, because the 10-degree turning-angle limit (36 segments), not hmax, sets the circle discretization there. For a clean h-sequence, use the nested series, or set `maxAngleDeg` small enough that hmax governs.
+- Nested sequences reach the asymptotic orders exactly: 2 (straight tet4) and 4 (curved tet10). Richardson on them is well posed.
+
+Tests (mesh 13/13; tsc clean in both packages):
+- 2D disk: tri3 and tri6 nested, 3 levels. Every facet node (corners and mids) stays on the circle (< 1e-14). Area order 2 / 4. The old nodes are unchanged.
+- 3D cylinder: tet4 conformity checked at every level, and tet10 Jacobian ratio > 0.5. Volume and area orders 2 / 4 within 0.2.
+
+Hero gate (`logs/l3-hero-gates-20261107T003236.jsonl`):
+- The gate now records a failing row instead of aborting.
+- H1-H3, H5, H6, H2b, H6t and H1f: hashes identical to before.
+- **H4 now fails before meshing**, and the cause is outside L3. `@amp/spec` param validation now reserves `t` (field symbol), and `sims/si-rib-waveguide.yaml` uses a param `t` (slab thickness). With `t` renamed in a scratch copy, the H4 mesh is unchanged: hash `44481ed4a384c571`, 46,971 tri6, no warnings.
+- The same cause fails 1 geom test, "every sims/*.yaml validates" (geom 36/37). The sims owner (L2) should rename `t`; L3 left the test and `sims/` as they are.

@@ -5,7 +5,7 @@
 // nodes on the exact curves; line2 / line3 facets carrying boundary entity indices; sha-256 hash (C2).
 
 import { orient2d } from 'robust-predicates';
-import { type Geometry2D, type Curve, type Mesh, point, curvature, finePieces, selectIndices } from '@amp/geom';
+import { type Geometry2D, type Curve, type Mesh, point, curvature, finePieces, project, selectIndices } from '@amp/geom';
 import { meshDomain, createSizeField } from './cdt2d.mjs';
 import { meshHash, tagHash } from './sha256.ts';
 import { triQuality } from './quality.ts';
@@ -257,6 +257,7 @@ export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
   const curvePoint = (k: number, t: number) => point(g.edges[k]!.curve, t);
   const raw = meshDomain({
     rect, verts: P.verts, segs: P.segs, classify, curvePoint, sizeAt,
+    curveProject: (k: number, x: number, y: number, t: number) => project(g.edges[k]!.curve, [x, y], t),
     minAngleBound: opts.radiusEdge ?? 1.35, minEdge: hmin, maxVertices,
   });
   const tMesh = performance.now();
@@ -359,6 +360,10 @@ function toMesh2D(g: Geometry2D, raw: ReturnType<typeof meshDomain>, order: 1 | 
     cells: { type: order === 2 ? 'tri6' : 'tri3', conn, domain: raw.triDomain },
     facets: { type: order === 2 ? 'line3' : 'line2', conn: fconn, boundary: fb },
     entities: g.entities, hash: meshHash(nodes, conn), pointNode,
+    // exact-curve reference per facet (geometry edge index, -1 straight; parameters at the facet's two end nodes),
+    // used by refineUniform to put new boundary nodes on the curve
+    facetCurve: Int32Array.from(raw.segs.map((s: { curve: number }) => s.curve)),
+    facetParam: Float64Array.from(raw.segs.flatMap((s: { ta: number; tb: number }) => [s.ta, s.tb])),
   };
   mesh.tagHash = tagHash(mesh.cells.domain, fconn, fb, [...g.entities.domains, ...g.entities.boundaries, ...(g.entities.points ?? [])].map((e) => e.id));
   if (order === 2) mesh.quality = { minJacobianRatioP2: minJac };

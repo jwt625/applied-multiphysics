@@ -8,6 +8,7 @@ export { triQuality, tetQuality, solidQuality, type QualitySummary } from './qua
 export { meshHash, tagHash, Sha256 } from './sha256.ts';
 export type { Mesh, CellType, EntityTable, EntityRef } from '@amp/geom';
 export { meshBoxes, type Box3, type BoxGridOptions } from './boxgrid.ts';
-export { meshExtruded, meshRevolved, meshCylinder, type LayerMesh, type ExtrudeOptions, type RevolveOptions, type CylinderSpec } from './solid3d.ts';
+export { meshExtruded, meshRevolved, meshCylinder, cylinderSideProjector, type LayerMesh, type ExtrudeOptions, type RevolveOptions, type CylinderSpec } from './solid3d.ts';
 export { toHcurlMesh, LOCAL_EDGES, type HcurlTetMesh } from './hcurl.ts';
 export { subdivideInterval, splitPrism, splitQuad } from './layered.mjs';
+export { refineUniform, toP2, cylinderProjector, curvedQuality, boundaryMeasure, simplexRule, type RefineOptions, type Projector } from './refine.ts';

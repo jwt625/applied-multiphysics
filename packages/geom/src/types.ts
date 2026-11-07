@@ -32,6 +32,9 @@ export interface Mesh extends MeshC2 {
   facets2?: { type: CellType; conn: Int32Array; boundary: Int32Array };
   /** entities.points[k] -> node index (-1 if the point is not a mesh node) */
   pointNode?: Int32Array;
+  /** 2D: geometry edge index of each facet's exact curve (-1 = straight) and its curve parameters (2 per facet) */
+  facetCurve?: Int32Array;
+  facetParam?: Float64Array;
   /** non-fatal quality / resolution warnings (audit S2); physics readiness should list them as reasons */
   warnings?: string[];
 }

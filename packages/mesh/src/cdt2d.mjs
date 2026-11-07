@@ -457,6 +457,7 @@ export function createSizeField(spec) {
  *   (-1 = straight) and parameters of a and b on that curve
  * @param {(x:number,y:number)=>number} spec.classify domain of a point (refinement-time only)
  * @param {(curve:number,t:number)=>[number,number]} [spec.curvePoint] exact curve evaluation for split projection
+ * @param {(curve:number,x:number,y:number,t:number)=>number} [spec.curveProject] parameter of the closest curve point (near t)
  * @param {(x:number,y:number,cls?:number|null)=>number} spec.sizeAt size field (createSizeField)
  * @param {number} [spec.minAngleBound] radius-edge ratio bound B (default 1.35, about 21.7 deg)
  * @param {number} spec.minEdge absolute floor for refinement
@@ -629,7 +630,8 @@ export function meshDomain(spec) {
     }
     if (!loc) {
       loc = T.locate(x, y, T.vtri[a] >= 0 ? T.vtri[a] : T.last);
-      if (curvePoint && s.curve >= 0) tm = NaN; // chord point: not on the curve
+      // chord point (projection refused): record the curve parameter of its projection (audit M5), else NaN
+      if (curvePoint && s.curve >= 0) tm = spec.curveProject ? spec.curveProject(s.curve, x, y, tm) : NaN;
     }
     if (loc.outside) return;
     const { cav, bnd } = T.cavity(x, y, loc.tri);

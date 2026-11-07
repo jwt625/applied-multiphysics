@@ -11,7 +11,7 @@ export interface PslgSeg { a: number; b: number; tag: number; left: number; righ
 export interface OutSeg { a: number; b: number; tag: number; curve: number; ta: number; tb: number }
 export function meshDomain(spec: {
   rect: Rect; verts: Float64Array; segs: PslgSeg[]; classify: (x: number, y: number) => number;
-  curvePoint?: (curve: number, t: number) => [number, number]; sizeAt: SizeAt; minAngleBound?: number; minEdge: number;
+  curvePoint?: (curve: number, t: number) => [number, number]; curveProject?: (curve: number, x: number, y: number, t: number) => number; sizeAt: SizeAt; minAngleBound?: number; minEdge: number;
   maxVertices?: number;
 }): {
   nodes: Float64Array; tri: Int32Array; triDomain: Int32Array; segs: OutSeg[]; nNodes: number; nTris: number;

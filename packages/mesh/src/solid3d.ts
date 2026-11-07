@@ -9,6 +9,7 @@ import { mesh2d, type MeshOptions2D } from './mesh2d.ts';
 import { subdivideInterval, splitPrism, splitQuad } from './layered.mjs';
 import { meshHash, tagHash } from './sha256.ts';
 import { tetQuality, solidQuality } from './quality.ts';
+import { toP2, cylinderProjector, type Projector } from './refine.ts';
 
 export interface LayerMesh extends Layer {
   /** cell size along z in this layer (m); default options.dz */
@@ -206,7 +207,7 @@ export interface CylinderSpec { id: string; radius: number; height: number; base
  * domain `dom:<id>`, boundaries `bnd:<id>.side`, `bnd:<id>.bottom` (at base), `bnd:<id>.top`. Axis x / y use the
  * cyclic frames (u, v, w) -> (y, z, x) / (z, x, y), which keep orientation.
  */
-export function meshCylinder(c: CylinderSpec, o: ExtrudeOptions = {}): Mesh {
+export function meshCylinder(c: CylinderSpec, o: ExtrudeOptions & { order?: 1 | 2 } = {}): Mesh {
   const g = buildGeometry2D({ features: [{ id: c.id, type: 'circle', c: [0, 0], r: c.radius }] });
   const m = meshExtruded(g, [{ id: 'L', z: [0, c.height] }], o);
   const rename: Record<string, string> = {
@@ -222,5 +223,13 @@ export function meshCylinder(c: CylinderSpec, o: ExtrudeOptions = {}): Mesh {
   m.nodes = out;
   m.hash = meshHash(out, m.cells.conn);
   m.tagHash = tagHash(m.cells.domain, m.facets.conn, m.facets.boundary, [...m.entities.domains, ...m.entities.boundaries].map((e) => e.id));
+  // order 2 (L4 follow-up): tet10, mid-edge nodes of edges on the side surface on the exact cylinder
+  if (o.order === 2) return toP2(m, { project: cylinderSideProjector(m, c) });
   return m;
+}
+
+/** Radial projector onto the side surface of a meshCylinder mesh (for toP2 / refineUniform). */
+export function cylinderSideProjector(m: Mesh, c: CylinderSpec): Projector {
+  const side = m.entities.boundaries.findIndex((b) => b.id === `bnd:${c.id}.side`);
+  return cylinderProjector([side], c.radius, c.base, c.axis);
 }

@@ -52,7 +52,12 @@ const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
 mkdirSync(new URL('logs/', root), { recursive: true });
 const log = new URL(`logs/l3-hero-gates-${stamp}.jsonl`, root);
 for (const h of rows) {
-  h.build();
+  try { h.build(); } catch (e) {
+    const msg = (e as Error).message;
+    appendFileSync(log, JSON.stringify({ hero: h.id, src: h.src, specValidation: h.valid, ts: new Date().toISOString(), error: msg }) + '\n');
+    console.log(`| ${h.id} | ${h.what} | ${h.valid} | FAILED: ${msg} |`);
+    continue;
+  }
   const ts: number[] = [];
   const hashes = new Set<string>();
   let M: Mesh | null = null;
