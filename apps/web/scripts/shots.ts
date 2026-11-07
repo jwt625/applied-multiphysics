@@ -11,6 +11,7 @@ import { extname, join, normalize } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { createOpLog } from '@amp/spec';
 import { prepareRun } from '@amp/physics';
+import { caseRef, verdict, type AccState } from '../src/lib/post/accuracy.ts';
 
 const out = process.argv[2] ?? 'shots';
 const port = Number(process.argv[3] ?? 47391);
@@ -93,7 +94,19 @@ async function nodeMeshHash(text: string, hFactor = 1): Promise<string | null> {
 	} catch (e) { return `error: ${(e as Error).message.slice(0, 120)}`; }
 }
 /** Wait for the full-accuracy sequence (DevLog-015) to end; returns its record (null when the view has none). */
-type Acc = { status: string; reason: string; doneAt: number; startedAt: number; levels: Array<{ h: number; dof: number; ms: number; values: number[]; meshHash: string }>; rich: Array<{ available: boolean; reason?: string; p_obs: number | null; f_ext: number | null; gci_fine: number | null; u_abs: number | null; rel_change_last: number | null }>; conv: { tol: unknown; caseId: string; order?: number } };
+type Acc = { status: string; reason: string; doneAt: number; startedAt: number; levels: Array<{ h: number; dof: number; ms: number; values: number[]; meshHash: string }>; conv: { tol: unknown; caseId: string; order?: number } };
+/** Mesh error per shown quantity (eigen: the first 4 solver modes, matched by frequency; post/accuracy.ts) and the case reference comparison. */
+function estimates(acc: Acc) {
+	const a = acc as unknown as AccState, fin = a.levels.at(-1);
+	if (!fin) return [];
+	const isEig = 'eigen' in a.def.quantity;
+	return fin.values.slice(0, isEig ? 4 : 1).map((val, i) => {
+		const ref = caseRef(a, isEig ? val : null);
+		const tol = ref?.tol ?? (isEig ? null : a.conv.tol);
+		const v = verdict(a, i, fin.h, tol);
+		return { i, value: val, kind: v.kind, meshErr: v.err, tol: v.limit, order: v.rich?.p_obs ?? null, reason: v.text || v.s.reason, ref: ref ? { metric: ref.metric, value: ref.value, unit: ref.unit } : null };
+	});
+}
 async function accDone(p: Page): Promise<Acc | null> {
 	await p.waitForFunction(() => { const a = (window as unknown as { __ampPlay: { session: { acc: { status: string } | null; accuracy: unknown } } }).__ampPlay.session; return !a.accuracy || (!!a.acc && a.acc.status !== 'running'); }, null, { timeout: 600000, polling: 250 });
 	return p.evaluate(() => { const a = (window as unknown as { __ampPlay: { session: { acc: unknown } } }).__ampPlay.session.acc; return a ? JSON.parse(JSON.stringify(a)) : null; });
@@ -224,7 +237,7 @@ for (const v of VIEWS) for (const sim of SIMS) {
 		const level1 = acc?.levels[0]?.meshHash ?? st.meshHash;
 		const nh = await nodeMeshHash(original);
 		(result.accuracy ??= {} as Record<string, unknown>);
-		(result.accuracy as Record<string, unknown>)[sim] = acc ? { status: acc.status, reason: acc.reason, loadToGatedMs: acc.doneAt || null, sequenceMs: acc.doneAt ? acc.doneAt - acc.startedAt : null, levels: acc.levels.map((l) => ({ h: l.h, dof: l.dof, ms: Math.round(l.ms), values: l.values.slice(0, 3) })), estimate: acc.rich.slice(0, 3), case: acc.conv } : null;
+		(result.accuracy as Record<string, unknown>)[sim] = acc ? { status: acc.status, reason: acc.reason, loadToGatedMs: acc.doneAt || null, sequenceMs: acc.doneAt ? acc.doneAt - acc.startedAt : null, levels: acc.levels.map((l) => ({ h: l.h, dof: l.dof, ms: Math.round(l.ms), values: l.values.slice(0, 3) })), estimate: estimates(acc), case: { ...acc.conv, refs: undefined } } : null;
 		(result.playStatus as Record<string, unknown>)[sim] = { ...st, meshHash: level1, nodeMeshHash: nh, hashMatch: level1 === nh, levelHashes, longTasksLoad: lt, longTasksDuringRefinement: ltAcc };
 		if (sim === 'kirsch-plate') {
 			// Pass 2 item 4: agent on the scripted mock provider (no network, no key): "make the hole 2x larger and rerun"

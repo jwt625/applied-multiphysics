@@ -218,6 +218,33 @@ export class Renderer2D {
 		gl.bindTexture(gl.TEXTURE_2D, this.lutTex);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		this.warm();
+	}
+
+	/**
+	 * One degenerate triangle per shader mode at creation (DevLog-015, audit S2): drivers that compile or JIT the
+	 * program at its first draw (SwiftShader) do it here, at load, not when the first or a refined result arrives.
+	 */
+	private warm() {
+		const gl = this.gl;
+		this.uploadLut('viridis', false);
+		this.uploadRegions(['#000000']);
+		this.uploadMask(new Uint8Array(1));
+		const buf = gl.createBuffer()!;
+		gl.useProgram(this.prog);
+		gl.bindVertexArray(this.vao);
+		gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(6), gl.STATIC_DRAW);
+		gl.enableVertexAttribArray(this.loc.aPos!);
+		gl.vertexAttribPointer(this.loc.aPos!, 2, gl.FLOAT, false, 0, 0);
+		for (const n of ['aBary', 'aVal', 'aReg']) gl.disableVertexAttribArray(this.loc[n]!);
+		const u = this.u;
+		gl.uniform2f(u.uScale!, 1, 1); gl.uniform2f(u.uOffset!, 0, 0); gl.uniform1f(u.uValSign!, 1); gl.uniform1f(u.uOpacity!, 1);
+		gl.uniform1f(u.uMin!, 0); gl.uniform1f(u.uMax!, 1); gl.uniform1i(u.uNLevels!, 0);
+		[[u.uLut, this.lutTex], [u.uRegions, this.regTex], [u.uMask, this.maskTex]].forEach(([loc, tex], k) => { gl.activeTexture(gl.TEXTURE0 + k); gl.bindTexture(gl.TEXTURE_2D, tex as WebGLTexture); gl.uniform1i(loc as WebGLUniformLocation, k); });
+		for (const mode of [0, 1, 2]) { gl.uniform1i(u.uMode!, mode); gl.drawArrays(gl.TRIANGLES, 0, 3); }
+		gl.bindVertexArray(null);
+		gl.deleteBuffer(buf);
 	}
 
 	isLost(): boolean {

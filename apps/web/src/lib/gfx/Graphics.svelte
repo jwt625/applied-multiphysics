@@ -18,8 +18,9 @@
 	import { perElement, type RefinedDisplay, type Space } from '../post/field2d';
 	import type { LatticeOut, RangeRule } from '../post/post.worker';
 	import { autoDeformScale, bbox3 } from '../post/solid3d';
-	import { revolveSurface, revolvedValues } from '../post/revolve';
+	import { revolvedValues, type RevolvedSurface } from '../post/revolve';
 	import { headlines } from '../post/headline';
+	import { friendlyIssues } from '../state/issues';
 	import type { Layer2D, ScaleMode } from './renderer2d';
 	import type { Drawable } from './viewer3d';
 	import { COLORMAPS, type ColormapName } from './colormaps';
@@ -109,6 +110,8 @@
 	/** the solution is drawn only on the mesh it was computed on */
 	const sol = $derived(s.solution && mesh && s.solution.meshHash === mesh.hash ? s.solution : null);
 	const stale = $derived(!!sol && s.staleSolution);
+	/** the model text does not validate (audit S1): its reasons, params in "name = value unit outside range" form */
+	const invalid = $derived(s.model.parsed && !s.model.parsed.ok ? friendlyIssues(s.model.parsed.issues, (s.model.data as { params?: Record<string, { unit?: string }> } | null)?.params) : []);
 	const coarse = $derived(!!sol && !stale && s.solutionCoarse);
 	const domains = $derived(mesh?.entities.domains ?? []);
 	const hiSet = $derived(new Set(highlight));
@@ -190,8 +193,9 @@
 	});
 	/** colour-range box: the region of interest unless the view frames the whole model */
 	const rangeBox = $derived(frameAll ? null : focus);
-	/** refined-lattice level, lowered on large meshes (nested accuracy levels) to keep the display near 1M sub-triangles */
-	const lv = $derived(m2 ? Math.max(1, Math.min(level, Math.floor(Math.sqrt(1.2e6 / Math.max(1, m2.nT))))) : level);
+	/** refined-lattice level, lowered on large meshes (nested accuracy levels) to keep the display near 3e5 sub-triangles */
+	// (audit S2: about 3e5 sub-triangles; a finer nested level needs fewer sub-triangles per element for the same look)
+	const lv = $derived(m2 ? Math.max(1, Math.min(level, Math.floor(Math.sqrt(3e5 / Math.max(1, m2.nT))))) : level);
 	const fkey = $derived(field && m2 ? `${m2.nT}:${sol?.run.startedAt}:${field.name}:${field.step ?? 0}:${comp}:${lv}:${rule}:${disp.a}:${rangeBox?.join(',')}` : '');
 	$effect(() => {
 		const f = field, m = m2, key = fkey;
@@ -238,7 +242,13 @@
 		if (!mirrored || !mirror) return [x0, y0, x1, y1];
 		return [mirror.planes.x ? -Math.max(Math.abs(x0), Math.abs(x1)) : x0, mirror.planes.y ? -Math.max(Math.abs(y0), Math.abs(y1)) : y0, mirror.planes.x ? Math.max(Math.abs(x0), Math.abs(x1)) : x1, mirror.planes.y ? Math.max(Math.abs(y0), Math.abs(y1)) : y1];
 	});
-	const frameBox = $derived(frameAll || !focus ? fullBox : focus);
+	// unmirrored views (mesh mode, or mirroring off) frame the region of interest within the computed model (audit S5)
+	const frameBox = $derived.by((): [number, number, number, number] | null => {
+		if (frameAll || !focus || !fullBox) return fullBox;
+		if (mirrored || !mirror) return focus;
+		const b: [number, number, number, number] = [Math.max(focus[0], fullBox[0]), Math.max(focus[1], fullBox[1]), Math.min(focus[2], fullBox[2]), Math.min(focus[3], fullBox[3])];
+		return b[2] > b[0] && b[3] > b[1] ? b : fullBox;
+	});
 	const frameKey = $derived(`${frameAll}:${focus?.map((v) => v.toPrecision(4)).join(',') ?? ''}:${mirrored}`);
 
 	const view2d = $derived.by(() => {
@@ -304,7 +314,14 @@
 	});
 
 	// ---------------------------------------------------------------- 3D
-	const revSurf = $derived(rev && mesh ? revolveSurface(mesh, 64, cutaway ? [0, 1.5 * Math.PI] : null) : null);
+	// surface of revolution, built in the post worker (audit S2); used only with the mesh it was built from
+	let revBuilt = $state.raw<{ mesh: unknown; cut: boolean; surf: RevolvedSurface } | null>(null);
+	$effect(() => {
+		const m = mesh, cut = cutaway;
+		if (!rev || !m) return;
+		void s.post.call<'revolve'>({ type: 'revolve', nPhi: 64, cut: cut ? [0, 1.5 * Math.PI] : null }).then((r) => { if (s.mesh === m) revBuilt = { mesh: m, cut, surf: r }; });
+	});
+	const revSurf = $derived(rev && revBuilt && revBuilt.mesh === mesh ? revBuilt.surf : null);
 	$effect(() => {
 		if (rev && !Canvas3D) void import('./Canvas3D.svelte').then((mod) => (Canvas3D = mod.default));
 		if (!is3d || !mesh || mesh.dim !== 3) { ext = null; return; }
@@ -501,7 +518,7 @@
 	const meshChanged = $derived(!!s.solution && !!mesh && s.solution.meshHash !== mesh.hash);
 </script>
 
-<div class="gfx" class:stale role="presentation" onpointerdown={firstTouch}>
+<div class="gfx" class:stale={stale || invalid.length > 0} role="presentation" onpointerdown={firstTouch}>
 	<!-- the stage excludes the colorbar strip: nothing is drawn under the colorbar -->
 	<div class="stage" class:bg3={is3d}>
 	{#if m2 && !rev}
@@ -574,7 +591,7 @@
 			{/if}
 		{/if}
 		{#if is3d && (!compact || rev)}
-			{#if rev}<button class:on={cutaway} data-tip="Cutaway: a quarter of the revolved body removed (phi 270 to 360 deg); the two meridional section planes show the field inside (exact nodal values of the (r, z) solution times the azimuthal factor)" onclick={() => (cutaway = !cutaway)}>Cutaway</button>{/if}
+			{#if rev}<button class:on={cutaway} data-tip="Cutaway: a quarter of the revolved body removed (phi 270 to 360 deg); the two meridional section planes show the field inside (the vertex-averaged P1 projection of the (r, z) Nedelec solution times the azimuthal factor)" onclick={() => (cutaway = !cutaway)}>Cutaway</button>{/if}
 			<button class:on={clipOn} data-tip="Section: cut away the half space beyond the plane" onclick={() => (clipOn = !clipOn)}>Section</button>
 			{#if clipOn}
 				<select bind:value={clipAxis}>{#each ['x', 'y', 'z'] as a, i}<option value={i}>{a}</option>{/each}</select>
@@ -597,10 +614,18 @@
 		{/if}
 	</div>
 
-	{#if stale}<div class="badge st" data-tip="This result was computed for an earlier version of the model; recompute for the current one">stale: earlier spec</div>
+	{#if invalid.length}<div class="badge st" data-tip="The model does not validate; the drawing is the last valid geometry{sol ? ' and result' : ''}">model invalid: earlier geometry</div>
+	{:else if stale}<div class="badge st" data-tip="This result was computed for an earlier version of the model; recompute for the current one">stale: earlier spec</div>
 	{:else if coarse}<div class="badge co" data-tip="Coarse preview while dragging (mesh sizes x2); the full-resolution run follows on release">coarse preview</div>{/if}
 
-	{#if mode === 'results' && !sol}
+	{#if invalid.length}
+		<div class="unav err">
+			<div class="crit">Model invalid</div>
+			{#each invalid.slice(0, 4) as r}<div>{r}</div>{/each}
+			{#if invalid.length > 4}<div class="dim">{invalid.length - 4} more</div>{/if}
+			<div class="dim">nothing is computed until the model validates (Undo restores the last valid state)</div>
+		</div>
+	{:else if mode === 'results' && !sol}
 		<div class="unav">
 			{#if running}
 				<div>computing{longRun ? ` ${fmtMs(now - s.runStart)}` : ''}...</div>
@@ -610,6 +635,9 @@
 				{#if s.caseInfo && !s.useCase && s.reasons.some((r) => /N\/A|no value/.test(r))}
 					<button onclick={() => { s.useCase = true; s.requestCompute(); }} data-tip={`Fill N/A material properties with the sourced inputs of eval case ${s.caseInfo.id}:\n${s.caseInfo.materials}`}>use eval case {s.caseInfo.id} values</button>
 				{/if}
+			{:else if s.status === 'error'}
+				<div class="crit">Run failed</div>
+				{#each s.error.split('\n').filter(Boolean).slice(0, 4) as r}<div>{r}</div>{/each}
 			{:else if meshChanged}
 				<div class="na">Results out of date</div><div class="dim">the geometry or mesh changed since the last solve: Compute</div>
 			{:else}
@@ -657,6 +685,8 @@
 	.badge.co { color: var(--ink-2); border-color: var(--border); }
 	.unav { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(13, 13, 13, 0.88); border: 1px solid var(--border); padding: 8px 12px; max-width: 70%; font-size: 11px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
 	.unav .na { font-size: 12px; }
+	.unav.err { border-color: var(--crit); }
+	.unav .crit { font-size: 12px; }
 	.foot { position: absolute; left: 6px; right: 90px; bottom: 4px; display: flex; gap: 12px; font-size: 11px; color: var(--ink-2); pointer-events: none; white-space: nowrap; overflow: hidden; }
 	.foot > span:not(.sp) { pointer-events: auto; background: rgba(13, 13, 13, 0.75); padding: 0 3px; }
 	.sp { flex: 1; }

@@ -19,6 +19,7 @@
 	import Tip from '../ui/Tip.svelte';
 	import { ACCURACY, BAND, FOCUS, HANDLES, MIRROR, presetsFor } from './heroes';
 	import HeroHead from './HeroHead.svelte';
+	import { friendlyIssues } from '../state/issues';
 	import { unitLabel } from '../gfx/units';
 	import { HOOKS } from '../shell/hooks';
 	import AgentPanel from '../agent/AgentPanel.svelte';
@@ -212,7 +213,7 @@
 		</header>
 		<div class="cv">
 			{#if s}<Graphics {s} bind:mode bind:step bind:playing {handles} {onhandle} {focus} compact revolve={specId !== simId} rangeDefault={ranges[simId] ?? 'full'} contoursDefault={simId !== 'helmholtz-coil'} fieldLinesDefault autoAnimate mirror={MIRROR[simId] ?? null} band={BAND[simId] ?? null} padTop={72} />{/if}
-			{#if s && mode === 'results'}<HeroHead {s} {step} />{/if}
+			{#if s && mode === 'results'}<HeroHead {s} {step} asModel={JSON.stringify(data?.params ?? null) === JSON.stringify(original?.params ?? null)} accNote={solver3d ? 'No mesh error estimate for the 3D Nedelec solve (no nested sequence); the axisymmetric solver has one' : ''} />{/if}
 		</div>
 		{#if s && agentMounted}<section class="agent" class:hidden={!agentOpen}><AgentPanel {s} nav={navHost} provider={mock} /></section>{/if}
 		<aside class:open={sheetOpen}>
@@ -237,7 +238,7 @@
 					{#each scalars as [k, q]}{@const e = q.unit === 'K' && degC ? { num: fmt(q.value - 273.15, 4), unit: 'degC' } : fmtEng(q.value, q.unit)}<div class="kv mono" data-tip={`${fmt(q.value, 6)} ${q.unit === '1' ? '' : q.unit} (SI)`}><span>{k}</span><span>{e.num} {unitLabel(e.unit)}</span></div>{/each}
 				</div>
 			{:else if !modes.length}
-				<div class="na">{s?.status === 'solving' ? 'computing...' : s?.status === 'unavailable' ? `unavailable: ${s.reasons[0] ?? ''}` : hasPhysics ? 'not computed' : 'unavailable: no @amp/physics module registered'}</div>
+				<div class="na" class:crit={s?.status === 'error'}>{s?.status === 'solving' ? 'computing...' : s?.status === 'error' ? (s.model.parsed && !s.model.parsed.ok ? `model invalid: ${friendlyIssues(s.model.parsed.issues, data?.params as never).join('; ')}` : `run failed: ${s.error.split('\n').filter(Boolean).slice(-1)[0] ?? ''}`) : s?.status === 'unavailable' ? `unavailable: ${s.reasons[0] ?? ''}` : hasPhysics ? 'not computed' : 'unavailable: no @amp/physics module registered'}</div>
 			{/if}
 			{#if s?.caseInfo}
 				<label class="case" data-tip={`Fill properties that are N/A in the model with the sourced inputs of eval case ${s.caseInfo.id}:\n${s.caseInfo.materials}`}><input type="checkbox" checked={s.useCase} onchange={(e) => { if (s) { s.useCase = (e.currentTarget as HTMLInputElement).checked; s.requestCompute(); } }} /> N/A inputs from eval case {s.caseInfo.id}</label>

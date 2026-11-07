@@ -35,6 +35,8 @@
 	let box = $state<HTMLDivElement>();
 	let presets = $state.raw<Array<[string, Record<string, number>, string]>>(def.presets);
 	let dirty = true;
+	/** the canvas stays invisible until it has its laid-out size: no layout shift from the 300 x 150 default (audit M1) */
+	let sized = $state(false);
 
 	const spec = $derived(views.find((v) => v.id === viewId) ?? null);
 	// colorbar ticks (interior nice values that do not crowd the end labels)
@@ -68,6 +70,7 @@
 		const dpr = Math.min(2, devicePixelRatio || 1);
 		canvas.width = Math.round(cw * dpr);
 		canvas.height = Math.round(ch * dpr);
+		sized = true;
 		dirty = true;
 	}
 
@@ -163,7 +166,7 @@
 		{#each RT_KERNELS as kid}<a class="btn" class:on={kid === id} href="/play/rt/{kid}" data-sveltekit-reload>{kid}</a>{/each}
 	</header>
 	<div class="cv" bind:this={box}>
-		<canvas bind:this={canvas} class:hide={!!unavailable && !k}
+		<canvas bind:this={canvas} class:hide={(!!unavailable && !k) || !sized} class:abs={!sized}
 			onpointerdown={(e) => { if (!k) return; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); drag = cell(e); paint(drag, drag); running = true; }}
 			onpointermove={(e) => { hoverAt(e); if (drag) { const c = cell(e); paint(drag, c); drag = c; } }}
 			onpointerup={() => (drag = null)}></canvas>
@@ -219,6 +222,7 @@
 	.cv { position: relative; min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; padding-right: 84px; background: #0d0d0d; overflow: hidden; }
 	canvas { display: block; touch-action: none; cursor: crosshair; }
 	.hide { visibility: hidden; }
+	.abs { position: absolute; }
 	.hint { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(13, 13, 13, 0.85); border: 1px solid var(--border); padding: 6px 10px; font-size: 12px; pointer-events: none; }
 	.unav { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; padding: 20px; text-align: center; font-size: 11px; overflow-wrap: anywhere; }
 	.cb { position: absolute; right: 0; top: 0; bottom: 0; width: 84px; padding: 10px 6px 26px 12px; border-left: 1px solid var(--line); display: flex; flex-direction: column; font-size: 10px; color: var(--ink-2); }

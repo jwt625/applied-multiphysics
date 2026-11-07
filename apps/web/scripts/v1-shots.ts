@@ -17,7 +17,7 @@ const ts = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
 const VIEWS = [{ w: 1440, h: 900, tag: '1440' }, { w: 390, h: 844, tag: '390' }].filter((v) => !(flags.has('--only-1440') && v.w !== 1440) && !(flags.has('--only-390') && v.w !== 390));
 await mkdir(out, { recursive: true });
 
-type S = { status?: string; fresh?: boolean; acc?: { status: string; doneAt: number; startedAt: number; levels: Array<{ h: number; dof: number; ms: number; values: number[]; cells: number }>; rich: Array<{ available: boolean; reason?: string; p_obs: number | null; f_ext: number | null; gci_fine: number | null; u_abs: number | null }>; reason: string; conv: unknown } | null };
+type S = { status?: string; fresh?: boolean; acc?: { status: string; doneAt: number; startedAt: number; levels: Array<{ h: number; dof: number; ms: number; values: number[]; cells: number }>; reason: string; conv: unknown } | null };
 const sess = (p: Page, hook: string) => p.evaluate((h) => { const s = (window as unknown as Record<string, { session?: S }>)[h]?.session; return s ? { status: s.status, fresh: s.fresh, acc: s.acc ? JSON.parse(JSON.stringify(s.acc)) : null } : null; }, hook);
 
 async function settle(p: Page, hook: string, acc: boolean) {
@@ -43,12 +43,15 @@ for (const view of list.split(',')) {
 			const hook = kind === 'play' ? '__ampPlay' : '__ampWorkbench';
 			await p.waitForFunction((h) => !!(window as unknown as Record<string, { session?: unknown }>)[h]?.session, hook, { timeout: 60000 });
 			await settle(p, hook, flags.has('--acc') && kind === 'play');
-			if (kind === 'wb') {
+			if (kind === 'wb' && !flags.has('--wb-initial')) {
 				await p.locator('.tb button', { hasText: 'Compute' }).click();
 				await p.waitForTimeout(300);
 				await settle(p, hook, false);
 				await p.evaluate(() => (window as unknown as { __ampWorkbench: { setMode(m: string): void } }).__ampWorkbench.setMode('results'));
 			}
+			// --patch=<json>: apply a spec patch through the op log (e.g. an out-of-range value), then wait for its outcome
+			const patch = [...flags].find((f) => f.startsWith('--patch='))?.slice(8);
+			if (patch) { await p.evaluate(([h, pt]) => (window as unknown as Record<string, { session: { model: { apply(x: unknown, r: string): Promise<unknown> } } }>)[h!]!.session.model.apply(JSON.parse(pt!), 'v1-shots patch'), [hook, patch]); await p.waitForTimeout(2500); }
 			const st = await sess(p, hook);
 			if (st?.acc) record[`${view}-${v.tag}`] = st.acc;
 		} else await p.waitForTimeout(3000);
@@ -58,7 +61,8 @@ for (const view of list.split(',')) {
 			await p.waitForTimeout(700);
 		}
 		await p.waitForTimeout(700);
-		const f = `${out}/V1-${kind}-${id}-${v.tag}-${ts}.png`;
+		const tag = [...flags].find((f) => f.startsWith('--tag='))?.slice(6);
+		const f = `${out}/V1-${kind}-${id}${tag ? `-${tag}` : ''}-${v.tag}-${ts}.png`;
 		await p.screenshot({ path: f });
 		console.log(f);
 		await ctx.close();

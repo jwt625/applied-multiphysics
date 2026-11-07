@@ -13,7 +13,7 @@ import { ModelState } from '../state/model.svelte';
 import { appLog } from '../state/log.svelte';
 import { fmtMs } from '../gfx/ticks';
 import { loadCaseFor, type CaseInfo } from '../cases';
-import { caseConvergence, estimate, levelValues, type AccState, type AccuracyDef, type LevelRecord } from '../post/accuracy';
+import { caseConvergence, levelValues, type AccState, type AccuracyDef, type LevelRecord } from '../post/accuracy';
 
 /** largest nested level the full-accuracy sequence solves in the browser (DOF) */
 export const ACC_DOF_CAP = 1_000_000;
@@ -244,10 +244,10 @@ export class Session {
 		const conv = caseConvergence(this.caseInfo?.id ?? 'N/A', this.caseInfo?.data ?? null, def.metric);
 		const results = ((this.model.data as { results?: unknown[] } | null)?.results ?? []);
 		const startedAt = performance.now();
-		const rec = async (h: number, sol: Solution, mesh: Mesh, ms: number): Promise<LevelRecord> => ({ h, dof: sol.stats.dof, ms, values: await levelValues(def, sol, mesh, params, results, this.post), meshHash: mesh.hash, cells: mesh.cells.domain.length });
+		const rec = async (h: number, sol: Solution, mesh: Mesh, ms: number): Promise<LevelRecord> => ({ h, dof: sol.stats.dof, ms, ...(await levelValues(def, sol, mesh, params, results, this.post)), meshHash: mesh.hash, cells: mesh.cells.domain.length });
 		const levels: LevelRecord[] = [await rec(1, sol0, mesh0, ms0)];
 		const hs = conv.hFactors.filter((h) => h < 1);
-		const put = (st: Partial<AccState>) => { if (tok === this.accToken) this.acc = { status: 'running', levels: [...levels], next: null, conv, def, rich: estimate(levels, conv), reason: '', doneAt: 0, startedAt, ...st }; };
+		const put = (st: Partial<AccState>) => { if (tok === this.accToken) this.acc = { status: 'running', levels: [...levels], next: null, conv, def, reason: '', doneAt: 0, startedAt, ...st }; };
 		if (conv.hFactors[0] !== 1) { put({ status: 'unavailable', reason: `${conv.hNote} does not start at 1` }); return; }
 		for (const h of hs) {
 			// browser cap: the predicted DOF of a nested level (dof(1) / h^dim); the rib's h = 0.5 level (1.3M DOF) ended in

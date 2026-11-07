@@ -24,7 +24,7 @@
 </script>
 
 <div class="cb" data-tip={tip}>
-	<div class="lab mono">{u || (note ? 'norm.' : '1')}{rule === 'robust' ? ' p1-99' : ''}</div>
+	<div class="lab mono">{u || (note ? 'norm.' : '')}{rule === 'robust' ? ' p1-99' : ''}</div>
 	<div class="bar v" style="background: {cssGradient(colormap)}">
 		{#each marks as m}<div class="lvl" style="bottom: {m}%"></div>{/each}
 		{#each ticks as t}<div class="tick" style="bottom: {pos(t)}%"><span class="mono">{fmt(t)}</span></div>{/each}

@@ -90,7 +90,7 @@ test('marching tets: isosurface of |x - c| on a hex box approximates a sphere; s
 // DevLog-015 (visual design pass): tet10 exterior split with outward smooth normals, flux-line gradients, accuracy verdicts
 import { meshCylinder } from '@amp/mesh';
 import { gradAt } from '../src/lib/post/flux2d.ts';
-import { verdict, type AccState } from '../src/lib/post/accuracy.ts';
+import { caseRef, series, verdict, type AccState } from '../src/lib/post/accuracy.ts';
 
 test('tet10 exterior: 4 triangles per face through the mid-edge nodes, curved area, outward unit normals', () => {
   const R = 0.5, H = 1;
@@ -136,11 +136,31 @@ test('flux lines: element gradient of a P2 field is exact for a quadratic on str
   assert.ok(err < 1e-9, `gradient err ${err}`);
 });
 
-test('accuracy verdict: no Richardson, no "within"; GCI against the case tolerance otherwise', () => {
-  const base = { status: 'done', levels: [], next: null, def: { metric: 'K_t', quantity: { headline: 'kt' }, label: 'kt' }, reason: '', doneAt: 1, startedAt: 0, conv: { hFactors: [1, 0.5, 0.25], hNote: '', order: 2, fs: 1.25, tol: { rel: 1e-3 }, caseId: 'X' } } as unknown as AccState;
-  const r = (available: boolean, gci: number | null) => ({ levels: 3, p_obs: 2, p_used: 2, f_fine: 1, f_ext: 1, r: 2, rel_change_last: 1e-4, gci_fine: gci, u_abs: gci, fs: 1.25, available, order_ratio: 1, band: 0.25 });
-  assert.equal(verdict({ ...base, rich: [r(false, 1e-6)] }, 0).kind, 'na');
-  assert.equal(verdict({ ...base, rich: [r(true, 1e-6)] }, 0).kind, 'within');
-  assert.equal(verdict({ ...base, rich: [r(true, 1e-2)] }, 0).kind, 'above');
-  assert.equal(verdict({ ...base, rich: [] }, 0).kind, 'na');
+test('accuracy verdict: no Richardson, no "within"; GCI against the tolerance otherwise', () => {
+  const conv = { hFactors: [1, 0.5, 0.25], hNote: '', order: 2, fs: 1.25, tol: { rel: 1e-3 }, caseId: 'X', refs: [] };
+  const mk = (vals: number[]) => ({ status: 'done', levels: vals.map((v, k) => ({ h: 2 ** -k, dof: 1, ms: 1, values: [v], unit: '1', meshHash: '', cells: 1 })), next: null, def: { metric: 'K_t', quantity: { headline: 'kt' }, label: 'kt' }, reason: '', doneAt: 1, startedAt: 0, conv }) as unknown as AccState;
+  // second-order sequence e = 0.04 h^2: Richardson available, GCI = 1.25 (0.0075 / 1.0025) / 3 = 3.1e-3 rel
+  assert.equal(verdict(mk([1.04, 1.01, 1.0025]), 0, 0.25, { rel: 1e-2 }).kind, 'within');
+  assert.equal(verdict(mk([1.04, 1.01, 1.0025]), 0, 0.25, { rel: 1e-3 }).kind, 'above');
+  assert.equal(verdict(mk([3.021234, 3.021354, 3.021308]), 0, 0.25, { rel: 1e-3 }).kind, 'na'); // oscillatory
+  assert.equal(verdict(mk([1.04]), 0, 1, { rel: 1e-3 }).kind, 'na');
+});
+
+test('accuracy (audit B1): eigen badge indexed by solver mode, modes matched by frequency, 0 Hz mode N/A', () => {
+  // box-acoustics levels as measured 2026-11-06 (AC-02): solver lists the constant 0 Hz mode first
+  const L = [[0, 171.5158, 214.4232, 274.8069], [0, 171.5011, 214.3783, 274.5532], [0, 171.5001, 214.3752, 274.5352]];
+  const a = { status: 'done', levels: L.map((v, k) => ({ h: 2 ** -k, dof: 1, ms: 1, values: v, unit: 'Hz', meshHash: '', cells: 1 })), next: null, def: { metric: 'f_mode1', quantity: { eigen: true }, label: 'f' }, reason: '', doneAt: 1, startedAt: 0, conv: { hFactors: [1, 0.5, 0.25], hNote: '', order: 4, fs: 1.25, tol: { rel: 1e-4 }, caseId: 'AC-02', refs: [{ metric: 'f_mode1', value: 171.5, unit: 'Hz', tol: { rel: 1e-4 } }, { metric: 'f_mode2', value: 214.375, unit: 'Hz', tol: { rel: 1e-4 } }] } } as unknown as AccState;
+  const f1 = verdict(a, 1, 0.25, { rel: 1e-4 });
+  assert.deepEqual(f1.s.values, [171.5158, 171.5011, 171.5001], 'mode 1 is 171.5 Hz on every level');
+  assert.equal(f1.kind, 'within');
+  // 5.39e-7 from the full-precision values (audit); 5.32e-7 from these 7-digit ones
+  assert.ok(Math.abs(f1.err! - 5.32e-7) < 0.01e-7, `f1 GCI ${f1.err}`);
+  assert.equal(caseRef(a, 171.5001)?.metric, 'f_mode1');
+  assert.equal(caseRef(a, 214.3752)?.metric, 'f_mode2');
+  const f0 = verdict(a, 0, 0.25, { rel: 1e-4 });
+  assert.equal(f0.kind, 'na');
+  assert.match(f0.s.reason, /0 Hz/);
+  // a coarser level that lists the modes in another order (or drops one) still matches by frequency
+  const b = { ...a, levels: [{ ...a.levels[0]!, values: [214.4232, 171.5158] }, a.levels[1]!, a.levels[2]!] } as AccState;
+  assert.deepEqual(series(b, 0.25, 1).values, [171.5158, 171.5011, 171.5001]);
 });

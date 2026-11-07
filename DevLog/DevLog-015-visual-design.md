@@ -144,3 +144,33 @@ Findings for other lanes (not changed here, read-only):
 3. Kirsch K_t (nodal max over the hole edge) oscillates over the nested levels (3.021234, 3.021354, 3.021308): the harness rule declares Richardson unavailable; the SM-01 probe form (sxx at (0, a)) may behave better.
 
 Open (not done): ground plane and screen-space outline pass in 3D (silhouettes are view-angle darkening plus feature edges); E/H arrows or Poynting particles for the cavity; isosurfaces by default for the box; LIC; the workbench's empty Messages pane; RT colormaps (owned by @amp/rt).
+
+## 8. Audit corrections (audit `DevLog/audits/2026-11-06-web-pass2-V1-audit.md`, coordinator order 2026-11-06 ~18:35 PST)
+
+| # | Disposition | Change | Evidence |
+|---|---|---|---|
+| B1 | fixed | The eigen badge now uses the solver's mode index of the displayed level (no filter). On every other level, the mode with the nearest frequency and the same m (axisymmetric solves) stands for it; a mode not found within 5 % is N/A. A 0 Hz mode (rigid body or constant field) is N/A. The tooltip lists the shown mode's own values per level. The tolerance is that of the case metric whose reference frequency is within 2 % of the shown mode (f_mode1, f_mode2, ...); a mode with no metric shows no tolerance. Code: `post/accuracy.ts` `series`, `caseRef`, `verdict` | box f_1 171.50007 Hz: mesh err 5.39e-7 vs tol 1e-4 (AC-02 f_mode1); f_2: 1.32e-6 (f_mode2); 0 Hz: N/A; cavity: 4 modes matched to f_TM010, f_TE111, f_TM011, f_TE211 (`logs/V1-shots-20261107T024535.json` `accuracy`). Test: box levels with a leading 0 Hz mode, plus a level with modes in another order |
+| S1 | fixed | An invalid model shows "Model invalid" with each issue in readable form on the canvas, e.g. "D = 15 mm outside range 1-10 mm" (`state/issues.ts`), with "nothing is computed until the model validates (Undo restores the last valid state)". The earlier geometry is dimmed under a "model invalid: earlier geometry" badge. The Play aside shows the same text. A run that fails with a valid model shows "Run failed" and the worker's message. Agent edits take the same path (the view reads the model's own validation) | `logs/V1-play-kirsch-plate-invalid-1440-20261107T024815.png` |
+| S2 | fixed for the level hand-over | Refined-lattice cap lowered from 1.2e6 to 3e5 sub-triangles (kirsch h 0.25: r 2; heat h 0.25: r 1). The surface of revolution is built in the post worker and transferred. Renderer2D warms its program with one degenerate draw per mode at creation, so a driver that compiles at first draw (SwiftShader) does it at load. CPU profiles (removed temporary script) showed no main-thread task after the first second; the remaining load tasks are WebGL context creation and first compile | long tasks during the sequence: 0 in all six; at load 1-2 tasks of 72-147 ms (`V1-shots-20261107T024535.json`) |
+| S3 | fixed | Two separate lines. "mesh err est. X (vs tol Y)": green only with Richardson available and X <= Y. "vs CASE ref: Z rel (tol Y)": green or amber against the same tolerance, shown only while the parameters equal the model's own ("N/A (parameters changed)" otherwise). The tooltip says the model may differ from the case's spec | helmholtz: "mesh err N/A, last change 6.4e-6" grey and "vs EM-04 ref: 1.1e-3 rel (tol 1e-3)" amber; heat: 1.7e-7 green and the reference within; box f_1: 5.4e-7 and 4.1e-7 green |
+| S5 | fixed | In unmirrored views (Mesh mode, Mirror off), the ROI is intersected with the computed model box. The view re-fits on a container resize (e.g. the agent column opens) unless the user has panned or zoomed. The workbench headline box moved to the bottom-left above the mesh line, so the toolbar can wrap freely | `logs/V1-wb-kirsch-plate-initial-1440-20261107T024813.png`, `V1-wb-kirsch-plate-1440-20261107T024721.png` (r 3 select visible) |
+| M1 | fixed | The RT canvas stays hidden and out of flow until it has its laid-out size (the 300 x 150 default canvas moved to 1040 x 650: the whole CLS) | CLS FDTD 0 and Gray-Scott 0 (were 0.134 / 0.124), layout-shift observer |
+| S4 | not touched (L4 owns em-axisym) | - | - |
+| m3, m4, m7, m8 | fixed | cutaway tooltip and `revolve.ts` header: "vertex-averaged P1 projection of the Nedelec solution"; 3D cavity: "mesh err N/A" with the reason; headline backing 0.9 opaque; the dimensionless colorbar header "1" removed | - |
+| m1, m2, m5 (Gray-Scott 1.3 s), m6, m9 | open | m9 is covered by S1 | - |
+
+Gates after the corrections (`logs/V1-shots-20261107T024535.json`; tests 10/10; production build `logs/V1-build-20261106T184900.log`, 0 hook references; CSP unchanged):
+
+| Gate | Result |
+|---|---|
+| `pnpm check` / `pnpm test` / `pnpm build` | 0 errors, 0 warnings / 10/10 / ok |
+| FCP medians | 36.4 / 37.4 / 34.6 ms (`/`, kirsch, LBM) |
+| Load to gated accuracy | kirsch 2.31 s, heat 2.14, helmholtz 2.35, cavity 2.63, box 4.08; rib N/A (cap) |
+| Drag previews median / max | kirsch 45 / 98 ms, heat 30 / 68, helmholtz 53 / 89, rib 392 / 634, cavity 30 / 106, box 17 / 24; 0 long tasks; handle drags 1 op |
+| Mesh hashes | browser = Node at every level in all six |
+| B1 W_m, op log, agent mock, phone switcher | pass (ratio 4, byte-identical, D 10 -> 20 mm and undo restores, 4/4) |
+| Errors | none |
+
+Screenshots: 24 `logs/V1-*` (timestamps 024721, 024813, 024815, 024820): one per view and size, plus `wb-kirsch-plate-initial` and `play-kirsch-plate-invalid`.
+
+- 2026-11-06 18:35-18:49 PST: audit read; B1/S3 rework of `post/accuracy.ts` and `HeroHead.svelte`, S1 invalid and failed states, S2 profile (CPU profile, CDP; temporary script removed) then fixes, S5 framing, M1, m3/m4/m7/m8; tests rewritten (10/10); gates; final screenshots; production build. Servers on 47613 / 47391 stopped. No git.

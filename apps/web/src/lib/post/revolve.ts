@@ -7,7 +7,8 @@
 // three facet nodes, or their P1 interpolant when the data covers corners only); smooth normals from the profile (crease 35 deg); an optional cutaway keeps phi in [phi0, phi1]
 // and closes the opening with the meridional section itself at phi0 and phi1 (the 2D mesh, tri6 split into 4
 // triangles through the mid-edge nodes), so the field inside the cavity is visible. Every vertex is a 2D mesh node:
-// the values drawn are exact nodal values of the 2D solution times the azimuthal factor.
+// the values drawn are the 2D nodal field (for E_rphiz: the vertex-averaged P1 projection of the Nedelec solution)
+// times the azimuthal factor.
 import type { Mesh } from '@amp/spec/types';
 
 export interface RevolvedSurface {

@@ -7,6 +7,7 @@ import type { Mesh } from '@amp/spec/types';
 import { Locator, evalElement, latticeValues, refinedDisplay, refinePattern, toMesh2D, type Field2D, type Mesh2D } from './field2d';
 import { bbox3, exterior, marchingTets, slice } from './solid3d';
 import { fluxLines } from './flux2d';
+import { revolveSurface, type RevolvedSurface } from './revolve';
 
 export type ToPost =
 	| { type: 'mesh'; mesh: Mesh }
@@ -17,6 +18,7 @@ export type ToPost =
 	| { type: 'evalAt'; req: number; field: Field2D; comp: number; points: number[] }
 	| { type: 'lattice'; req: number; field: Field2D; comp: number; r: number; a: number; b: number; psi: boolean; rule: RangeRule; focus: [number, number, number, number] | null }
 	| { type: 'flux'; req: number; field: Field2D; n: number }
+	| { type: 'revolve'; req: number; nPhi: number; cut: [number, number] | null }
 	| { type: 'iso'; req: number; nodal: Float64Array; levels: number[]; disp: Float64Array | null }
 	| { type: 'slice'; req: number; normal: [number, number, number]; d: number; nodal: Float64Array | null; disp: Float64Array | null };
 
@@ -29,6 +31,7 @@ export type FromPost =
 	| { type: 'display'; req: number; r: number; np: number; nT: number; pos: Float32Array; bary: Float32Array; reg: Float32Array; sub: Uint32Array; c0: [number, number]; ms: number }
 	| ({ type: 'lattice'; req: number } & LatticeOut)
 	| { type: 'evalAt'; req: number; values: Array<number | null> }
+	| ({ type: 'revolve'; req: number } & RevolvedSurface)
 	| { type: 'flux'; req: number; segs: Float64Array; arrows: Float64Array; nLines: number; ms: number }
 	| { type: 'probe'; req: number; x: number; y: number; hit: { t: number; domain: number; value: number | null } | null; ms: number }
 	| { type: 'exterior'; req: number; pos: Float32Array; node: Int32Array; pair: Int32Array; cell: Int32Array; nrm: Float32Array; edges: Int32Array; features: Int32Array; c0: [number, number, number]; ms: number }
@@ -71,6 +74,11 @@ ctx.onmessage = (ev: MessageEvent<ToPost>) => {
 				values.push(h ? evalElement(m2, m.field, h.t, h.L[0], h.L[1], h.L[2], m.comp) : null);
 			}
 			ctx.postMessage({ type: 'evalAt', req: m.req, values } satisfies FromPost);
+		} else if (m.type === 'revolve') {
+			// surface of revolution of an axisymmetric mesh, built here so the main thread only receives buffers (audit S2)
+			if (!mesh) throw new Error('no mesh');
+			const r = revolveSurface(mesh, m.nPhi, m.cut);
+			ctx.postMessage({ type: 'revolve', req: m.req, ...r } satisfies FromPost, [r.pos.buffer, r.nrm.buffer, r.node.buffer, r.pair.buffer, r.phi.buffer, r.rings.buffer]);
 		} else if (m.type === 'flux') {
 			if (!m2 || !mesh) throw new Error('no 2D mesh');
 			loc ??= new Locator(m2);

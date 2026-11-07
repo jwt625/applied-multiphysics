@@ -35,7 +35,7 @@
 
 <style>
 	.hl { display: flex; flex-direction: column; gap: 2px; }
-	.boxed { position: absolute; left: 6px; top: 36px; background: rgba(13, 13, 13, 0.85); border: 1px solid var(--line); padding: 4px 8px; }
+	.boxed { position: absolute; left: 6px; bottom: 26px; background: rgba(13, 13, 13, 0.85); border: 1px solid var(--line); padding: 4px 8px; }
 	.row { display: flex; align-items: baseline; gap: 6px; }
 	.k { color: var(--ink-2); font-size: 11px; min-width: 64px; }
 	.v { font-size: 13px; color: var(--ink); }
@@ -45,6 +45,6 @@
 	.dim .v { color: var(--ink-3); }
 	.m { font-size: 10px; border: 1px solid currentColor; padding: 0 3px; color: var(--ink-2); }
 	.na { font-size: 11px; color: var(--ink-3); }
-	/* phones: the graphics toolbar wraps; keep the box clear of it, above the colorbar strip (DevLog-015) */
-	@media (max-width: 760px) { .boxed { top: auto; bottom: 78px; } }
+	/* bottom-left above the mesh line: the graphics toolbar wraps at the top (audit S5); phones: above the colorbar strip */
+	@media (max-width: 760px) { .boxed { bottom: 78px; } }
 </style>

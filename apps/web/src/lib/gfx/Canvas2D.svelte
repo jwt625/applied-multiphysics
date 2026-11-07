@@ -70,6 +70,8 @@
 	let h = $state(1);
 	let view = $state<View2D>({ cx: 0, cy: 0, scale: 1 });
 	let fittedKey = -1;
+	/** the user panned or zoomed since the last fit: a container resize then keeps the view (else it re-fits) */
+	let userMoved = false;
 	let raf = 0;
 
 	// eased camera (DevLog-015): log-scale zoom and linear pan over EASE_MS; any pan or wheel stops it
@@ -88,6 +90,7 @@
 
 	function fit(ease = false) {
 		if (!bbox) return;
+		userMoved = false;
 		const [x0, y0, x1, y1] = bbox;
 		// desktop: colorbar on the right; phones (<= 760 px): horizontal colorbar at the bottom
 		const narrow = typeof window !== 'undefined' && window.innerWidth <= 760;
@@ -153,8 +156,11 @@
 		if (!r) failed = 'WebGL2 is not available in this browser';
 		const ro = new ResizeObserver(() => {
 			const b = host.getBoundingClientRect();
+			const changed = Math.abs(b.width - w) > 1 || Math.abs(b.height - h) > 1;
 			w = Math.max(1, b.width);
 			h = Math.max(1, b.height);
+			// e.g. the agent column opens: re-fit unless the user has moved the view (audit S5)
+			if (changed && fittedKey !== -1 && !userMoved) fit(false);
 		});
 		ro.observe(host);
 		const unreg = registerCapture(() => (r ? grabCanvas(canvas, () => r!.draw({ view, background, layers })) : null));
@@ -202,6 +208,7 @@
 	function down(e: PointerEvent) {
 		if (e.button !== 0) return;
 		cancelAnimationFrame(anim);
+		userMoved = true;
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 		drag = { kind: 'pan', x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy };
 	}
@@ -230,6 +237,7 @@
 	function wheel(e: WheelEvent) {
 		e.preventDefault();
 		cancelAnimationFrame(anim);
+		userMoved = true;
 		const b = host.getBoundingClientRect();
 		const px = e.clientX - b.left, py = e.clientY - b.top;
 		const before = toWorld(px, py);
