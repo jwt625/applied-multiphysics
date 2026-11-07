@@ -2833,6 +2833,16 @@ def apply_audit(d: dict) -> dict:
             ),
         ] + mpb
         d["study"]["resolution_source"] = "MPB resolution 32 (tutorial)"
+        # Coordinator rule (16:35): a self-built reference gates only after reproducing the external reference
+        # under its own settings. gen_pwe.py is a pure plane-wave expansion (no real-space grid, no subpixel
+        # smoothing); MPB's printed edges come from a 32 x 32 grid with anisotropic subpixel averaging, which
+        # gen_pwe.py does not implement, so it cannot reproduce them to MPB's printed digits. Not gated.
+        for r in d["references"]:
+            if r.get("expected"):
+                r["gate"] = False
+                r["note"] = (r.get("note", "") + "; " if r.get("note") else "") + (
+                    "not gated: gen_pwe.py has not reproduced MPB's printed edges at MPB's own settings "
+                    "(resolution 32, subpixel averaging); gate after that check (DevLog-008)")
     if cid in ("WO-62", "WO-63", "WO-64"):  # S9
         _ungate(
             d,

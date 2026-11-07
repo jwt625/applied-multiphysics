@@ -206,3 +206,13 @@ All corrections live in `validation/c/build_cases.py::apply_audit()` (keyed by c
 | m10 validator docstring | Fixed | COMSOL rule now reads "no mention anywhere" (as coded) |
 | m11 dead code | Fixed | removed `ref = -b0` in `gen_suites.py::em05` |
 | L8 loader warnings | Fixed | each target now has an explicit, unique `metric_id` (Meep/MPB informative ids prefixed `meep_`/`mpb_`) |
+
+### Follow-up 2026-11-06 16:34 PST: WO-04 / WO-61 un-gated (coordinator rule: self-built reference gates only after reproducing the external one under its own settings)
+
+- Disposition: `gate: false` on the PWE targets of WO-04 and WO-61, so both cases currently have no gate.
+- Reason: `gen_pwe.py` is a pure plane-wave expansion (Fourier-series eps, no real-space grid, no subpixel smoothing). MPB's printed edges (0.282623311 / 0.419334799 and 0.275065617 / 0.446289919) come from a 32 x 32 grid with MPB's anisotropic subpixel averaging. `gen_pwe.py` does not implement that discretization, so it cannot reproduce MPB to MPB's printed digits. The check was not attempted, because the method mismatch makes it fail by construction.
+- What is shown: PWE self-convergence over 197-1793 plane waves, last-step change <= 6e-6, converging to 0.280663 / 0.417165 and 0.274419 / 0.445220. MPB at resolution 32 sits 2.4e-3 to 6.9e-3 above these values. The MPB tutorial's own L320 range (0.2812-0.4174) is also below its L120 values, which is consistent with MPB converging downward, but this is not a proof.
+- To gate later, either:
+  - run MPB itself (conda only, not allowed here) at resolutions 32, 64 and 128 and show convergence to the PWE values; or
+  - add MPB's grid plus subpixel-averaging discretization to an independent solver, reproduce the resolution-32 digits, then refine.
+- Checks: validate_cases.py 0 errors; L8 dry-run 0 loader errors / 0 warnings, exit 0 (`logs/eval-20261106T163407.jsonl`).

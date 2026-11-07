@@ -31,10 +31,12 @@ references:
   bounds: null
   basis: D
   form: solver_ref
-  gate: true
+  gate: false
   expected: {file: eval/expected/WO-61.json, metric_id: gap_lower}
   provenance: {citation: plane-wave expansion (this lane), locator: 'validation/c/gen_pwe.py, MPB k path', accessed: null,
     generator: validation/c/gen_pwe.py}
+  note: 'not gated: gen_pwe.py has not reproduced MPB''s printed edges at MPB''s own settings (resolution 32, subpixel averaging);
+    gate after that check (DevLog-008)'
 - quantity: gap upper edge (converged)
   metric_id: gap_upper
   value: 0.44522020121595035
@@ -43,10 +45,12 @@ references:
   bounds: null
   basis: D
   form: solver_ref
-  gate: true
+  gate: false
   expected: {file: eval/expected/WO-61.json, metric_id: gap_upper}
   provenance: {citation: plane-wave expansion (this lane), locator: 'validation/c/gen_pwe.py, MPB k path', accessed: null,
     generator: validation/c/gen_pwe.py}
+  note: 'not gated: gen_pwe.py has not reproduced MPB''s printed edges at MPB''s own settings (resolution 32, subpixel averaging);
+    gate after that check (DevLog-008)'
 - quantity: gap lower edge
   metric_id: gap_lower_edge
   value: 0.275065617068082
