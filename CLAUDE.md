@@ -19,5 +19,5 @@ Browser-native, agent-native multiphysics simulation (GPL-3.0-or-later). Plan an
 - No COMSOL files, runs or COMSOL-generated values (DevLog-001 Q5).
 - Rights check per file before porting or citing; keep Apache-2.0 NOTICE files intact.
 - Machine etiquette: `nice -n 10` for heavy runs, Node `--max-old-space-size=1536`, Python BLAS threads <= 2, one heavy process per lane. Check a port is free before binding; use uncommon ports. Logs go to `logs/` with a timestamp in the filename.
-- Do not run git (the coordinator commits). Do not edit sibling repos (eo-modulator-atlas, advanced-packaging-atlas): read only.
+- Do not run git (the coordinator commits). Never write absolute local paths or session scratch paths into tracked files; write `<scratch>/...` or a repo-relative path. Do not edit sibling repos (eo-modulator-atlas, advanced-packaging-atlas): read only.
 - UI: dark by default, sharp corners, dense, minimal text with details in tooltips; plots show data only, in absolute units.
