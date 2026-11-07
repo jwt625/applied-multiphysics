@@ -10,6 +10,7 @@
 import { sha256Hex, canonicalJson, isValidActor, isAgentActor, isoNow } from '@amp/spec';
 import { parseMemoryFile, formatMemoryFile, MEMORY_NAME, type MemoryEntry, type MemoryType } from './frontmatter.ts';
 import { checkFileName, type MemoryBackend } from './backends.ts';
+import { containsSecret } from '../secrets.ts';
 
 export const MEMORY_LOG_SCHEMA = 'amp-memlog/0';
 export type MemoryOpKind = 'write' | 'delete' | 'import' | 'external' | 'revert' | 'undo';
@@ -48,10 +49,20 @@ export interface MemoryStoreOptions {
   forbidden?: () => readonly string[];
   /** Persist the op log to the backend (default true). */
   persistLog?: boolean;
+  /**
+   * Cross-tab mutual exclusion around every write (audit S8). Default: the Web Locks API when present
+   * (`navigator.locks.request`), else none (Node, tests). Inside the lock the store first adopts ops another tab
+   * appended to the log (merge-on-write), then writes the log, then the file.
+   */
+  lock?: <T>(fn: () => Promise<T>) => Promise<T>;
+  /** At open, compare the files with the log's final state and record differences as `external` ops (default true). */
+  reconcile?: boolean;
 }
 
-/** Patterns of credentials that never belong in memory files. */
-const SECRET_PATTERNS = [/sk-ant-[A-Za-z0-9_-]{8,}/];
+function defaultLock(label: string): (<T>(fn: () => Promise<T>) => Promise<T>) | undefined {
+  const locks = (globalThis as { navigator?: { locks?: { request<T>(name: string, fn: () => Promise<T>): Promise<T> } } }).navigator?.locks;
+  return locks ? (fn) => locks.request(`amp-memory:${label}`, fn) : undefined;
+}
 
 export class MemoryStore {
   readonly ops: MemoryOp[] = [];
@@ -81,13 +92,39 @@ export class MemoryStore {
           s.ops.push(op); s.track(op); prev = op.hash;
         }
         s.head = prev;
+        // the log is the record: files it mentions start from its final state, so a crash between the log write and
+        // the file write, or an edit made while the app was closed, shows up as an `external` op below
+        for (const op of s.ops) { if (op.after === null) s.files.delete(op.file); else s.files.set(op.file, op.after); }
       } catch (e) {
         s.problems.push(`${LOG_FILE}: ${(e as Error).message}; left unchanged, new log started`);
         s.ops.length = 0; s.effect.clear(); s.undoStack.length = 0; s.head = GENESIS;
         s.logFile = `memory-log-${s.clock().replace(/[^0-9]/g, '').slice(0, 14)}.jsonl`;
       }
     }
+    if (opts.reconcile ?? true) await s.refresh();
     return s;
+  }
+
+  private withLock<T>(fn: () => Promise<T>): Promise<T> {
+    const l = this.opts.lock ?? defaultLock(this.backend.label);
+    return l ? l(fn) : fn();
+  }
+
+  /** Adopt ops that another tab appended to the persisted log since we last wrote it (call inside the lock). */
+  private async syncFromBackend(): Promise<void> {
+    if (!(this.opts.persistLog ?? true)) return;
+    const raw = await this.backend.read(this.logFile);
+    if (!raw) return;
+    const lines = raw.split('\n').filter((l) => l.trim());
+    if (lines.length <= this.ops.length) return;
+    const theirs = lines.map((l) => JSON.parse(l) as MemoryOp);
+    for (let i = 0; i < this.ops.length; i++) if (theirs[i]!.hash !== this.ops[i]!.hash) throw new MemoryError('the memory log was changed elsewhere in an incompatible way; reload the memory store');
+    for (const op of theirs.slice(this.ops.length)) {
+      if (op.schema !== MEMORY_LOG_SCHEMA || op.prev !== this.head || op.seq !== this.ops.length + 1 || (await hashOp(op)) !== op.hash) throw new MemoryError(`memory log op ${op.seq} from elsewhere does not verify`);
+      this.ops.push(op); this.head = op.hash; this.track(op);
+      if (op.after === null) this.files.delete(op.file); else this.files.set(op.file, op.after);
+      for (const l of this.listeners) l(op);
+    }
   }
 
   private clock(): string { return (this.opts.clock ?? (() => isoNow()))(); }
@@ -137,15 +174,18 @@ export class MemoryStore {
   effectOf(seq: number): 'applied' | 'reverted' | null { return this.effect.get(seq) ?? null; }
 
   private checkSecrets(text: string): void {
-    for (const s of this.opts.forbidden?.() ?? []) if (s && text.includes(s)) throw new MemoryError('refused: the text contains a credential');
-    for (const p of SECRET_PATTERNS) if (p.test(text)) throw new MemoryError('refused: the text contains something shaped like an API key');
+    if (containsSecret(text, this.opts.forbidden?.() ?? [])) throw new MemoryError('refused: the text contains a credential or something shaped like an API key');
   }
 
-  private async commit(kind: MemoryOpKind, file: string, after: string | null, meta: MemoryMeta, target?: number): Promise<MemoryOp> {
+  private commit(kind: MemoryOpKind, file: string, after: string | null, meta: MemoryMeta, target?: number, guard?: () => void): Promise<MemoryOp> {
+    return this.withLock(() => this.commitLocked(kind, file, after, meta, target, guard));
+  }
+
+  private async commitLocked(kind: MemoryOpKind, file: string, after: string | null, meta: MemoryMeta, target?: number, guard?: () => void): Promise<MemoryOp> {
+    await this.syncFromBackend();
+    guard?.();
     const before = this.files.get(file) ?? null;
     if (after !== null) this.checkSecrets(after);
-    if (after !== null) await this.backend.write(file, after); else await this.backend.remove(file);
-    if (after !== null) this.files.set(file, after); else this.files.delete(file);
     const op: MemoryOp = {
       schema: MEMORY_LOG_SCHEMA, seq: this.ops.length + 1, ts: this.clock(), actor: meta.actor,
       ...(meta.reason !== undefined ? { reason: meta.reason } : {}),
@@ -153,7 +193,10 @@ export class MemoryStore {
     };
     op.hash = await hashOp(op);
     this.ops.push(op); this.head = op.hash; this.track(op);
+    if (after !== null) this.files.set(file, after); else this.files.delete(file);
+    // log first, then the file: a failure in between leaves a logged op whose file reconcile() reports at next open
     if (this.opts.persistLog ?? true) await this.backend.write(this.logFile, this.toJSONL());
+    if (after !== null) await this.backend.write(file, after); else await this.backend.remove(file);
     for (const l of this.listeners) l(op);
     return op;
   }
@@ -204,11 +247,22 @@ export class MemoryStore {
   revert(seq: number, meta: MemoryMeta): Promise<MemoryOp> {
     return this.serial(async () => {
       checkMeta(meta);
-      const w = this.why(seq);
-      if (w) throw new MemoryError(w);
-      const t = this.ops[seq - 1] as MemoryOp;
-      return this.commit('revert', t.file, t.before, meta, seq);
+      const t = this.ops[seq - 1];
+      if (!t) throw new MemoryError(`no memory op ${seq}`);
+      return this.commit('revert', t.file, t.before, meta, seq, () => { const w = this.why(seq); if (w) throw new MemoryError(w); });
     });
+  }
+
+  /** The op the next undo() would take back, or null. */
+  undoCandidate(): MemoryOp | null {
+    const seq = [...this.undoStack].reverse().find((s) => this.effect.get(s) === 'applied');
+    return seq === undefined ? null : (this.ops[seq - 1] ?? null);
+  }
+
+  /** Actor of the newest op that wrote a file (shown with recalled entries, audit M9). */
+  lastWriter(file: string): string | null {
+    for (let i = this.ops.length - 1; i >= 0; i--) if (this.ops[i]!.file === file) return this.ops[i]!.actor;
+    return null;
   }
 
   /** Undo the newest memory op still in effect. */
@@ -217,16 +271,15 @@ export class MemoryStore {
       checkMeta(meta);
       const seq = [...this.undoStack].reverse().find((s) => this.effect.get(s) === 'applied');
       if (seq === undefined) return null;
-      const w = this.why(seq);
-      if (w) throw new MemoryError(w);
       const t = this.ops[seq - 1] as MemoryOp;
-      return this.commit('undo', t.file, t.before, meta, seq);
+      return this.commit('undo', t.file, t.before, meta, seq, () => { const w = this.why(seq); if (w) throw new MemoryError(w); });
     });
   }
 
   /** Record edits made to the files outside the app (another editor, a synced folder) as user ops. */
   refresh(meta: MemoryMeta = { actor: 'user', reason: 'edited outside the app' }): Promise<MemoryOp[]> {
-    return this.serial(async () => {
+    return this.serial(() => this.withLock(async () => {
+      await this.syncFromBackend();
       const out: MemoryOp[] = [];
       const names = new Set([...(await this.backend.list()).filter((f) => f.endsWith('.md')), ...this.files.keys()]);
       for (const f of [...names].sort()) {
@@ -242,7 +295,7 @@ export class MemoryStore {
       }
       if (out.length && (this.opts.persistLog ?? true)) await this.backend.write(this.logFile, this.toJSONL());
       return out;
-    });
+    }));
   }
 
   toJSONL(): string { return this.ops.map((o) => canonicalJson(o)).join('\n') + (this.ops.length ? '\n' : ''); }

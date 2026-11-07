@@ -42,9 +42,16 @@ export interface ProviderResponse {
 
 export interface SendOptions { signal?: AbortSignal; onText?: (delta: string) => void }
 
+export interface Price { input: number; output: number; cacheRead: number | null }
+
 export interface ProviderAdapter {
   readonly id: string;
+  /** Model requested; the response's `model` is the one that served (may differ after a server-side fallback). */
   readonly model: string;
+  /** max_tokens of each request (the loop reserves its worst-case cost before a call). */
+  readonly maxTokens?: number;
+  /** USD per million tokens for a model id, or null when unknown (cost shown as N/A). */
+  price?(model: string): Price | null;
   send(req: ProviderRequest, opts?: SendOptions): Promise<ProviderResponse>;
 }
 

@@ -19,3 +19,5 @@ export * from './provider/types.ts';
 export * from './provider/anthropic.ts';
 export * from './provider/mock.ts';
 export * from './chat.ts';
+export * from './secrets.ts';
+export * from './provider/wire.ts';

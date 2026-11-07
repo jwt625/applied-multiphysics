@@ -36,7 +36,7 @@ test('memory ops: write, revert, undo are exact and logged; key refused', async 
   await m.undo({ actor: 'user' }); // undoes the revert: back to "second"
   assert.match(m.text('a.md') ?? '', /second/);
   assert.equal(m.effectOf(w2.seq), 'applied');
-  await assert.rejects(m.write({ name: 'k', description: 'd', type: 'note', body: 'sk-ant-api03-abcdefghijk' }, { actor: 'user' }), MemoryError);
+  await assert.rejects(m.write({ name: 'k', description: 'd', type: 'note', body: 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz' }, { actor: 'user' }), MemoryError);
   await assert.rejects(m.write({ name: 'k', description: 'd', type: 'note', body: 'x not-a-pattern-secret-123' }, { actor: 'user' }), MemoryError);
   assert.equal(m.text('k.md'), null);
   // log persisted and chained

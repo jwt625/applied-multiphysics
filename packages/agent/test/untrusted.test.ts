@@ -24,8 +24,9 @@ test('a nonce block cannot be closed from inside', () => {
 });
 
 test('format controls are escaped and long strings cut', () => {
-  assert.equal(sanitizeText('a‮b'), 'a\\u202eb');
-  assert.ok(sanitizeText('x'.repeat(3000)).length < 2100);
+  assert.equal(sanitizeText(`a${String.fromCharCode(0x202e)}b`), `a${String.fromCharCode(92)}u202eb`);
+  assert.equal(sanitizeText('x'.repeat(3000)).length, 3000); // no default cut (audit B2)
+  assert.ok(sanitizeText('x'.repeat(3000), 100).length < 200);
 });
 
 test('hostile key, value, reason and memory body stay inside blocks across a full turn', async () => {

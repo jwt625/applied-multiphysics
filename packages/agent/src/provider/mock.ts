@@ -3,31 +3,45 @@
 // function of the request (so a scripted turn can quote a tool result, as a real model would). Every request is
 // recorded (deep copy) so tests and eval checkers can inspect exactly what the model would have been sent.
 
+import { wireProblems } from './wire.ts';
 import { zeroUsage, type Block, type ProviderAdapter, type ProviderRequest, type ProviderResponse, type SendOptions, type StopReason, type Usage } from './types.ts';
 
-export interface ScriptTurn { content: Block[]; stopReason?: StopReason; usage?: Partial<Usage> }
-export type ScriptStep = ScriptTurn | ((req: ProviderRequest, call: number) => ScriptTurn);
+export interface ScriptTurn { content: Block[]; stopReason?: StopReason; usage?: Partial<Usage>; model?: string; stopDetails?: { category: string | null; explanation: string | null } }
+/** A scripted provider failure (thrown instead of a response), e.g. a ProviderError or an SDK-like error. */
+export interface ScriptThrow { throws: unknown }
+export type ScriptStep = ScriptTurn | ScriptThrow | ((req: ProviderRequest, call: number) => ScriptTurn | ScriptThrow);
 
 export class ScriptExhausted extends Error {}
 
 export class ScriptedProvider implements ProviderAdapter {
   readonly id = 'mock';
   readonly requests: ProviderRequest[] = [];
+  /** Wire problems of every request received (audit B1); a correct loop leaves this empty. */
+  readonly wireViolations: Array<{ call: number; problems: string[] }> = [];
   private i = 0;
   private steps: ScriptStep[];
   readonly model: string;
-  constructor(steps: ScriptStep[], model = 'mock-scripted') { this.steps = steps; this.model = model; }
+  private prices: Record<string, { input: number; output: number; cacheRead: number | null }>;
+  readonly maxTokens: number;
+  /** `prices` lets tests exercise the cost caps with a priced mock; the default mock is unpriced (cost N/A). */
+  constructor(steps: ScriptStep[], model = 'mock-scripted', o: { prices?: Record<string, { input: number; output: number; cacheRead: number | null }>; maxTokens?: number } = {}) {
+    this.steps = steps; this.model = model; this.prices = o.prices ?? {}; this.maxTokens = o.maxTokens ?? 16000;
+  }
+  price(m: string) { return this.prices[m] ?? null; }
   get remaining(): number { return this.steps.length - this.i; }
   async send(req: ProviderRequest, opts: SendOptions = {}): Promise<ProviderResponse> {
     if (opts.signal?.aborted) throw new Error('aborted');
     this.requests.push(structuredClone(req));
+    const w = wireProblems(req);
+    if (w.length) this.wireViolations.push({ call: this.requests.length, problems: w });
     const step = this.steps[this.i];
     if (!step) throw new ScriptExhausted(`script exhausted after ${this.i} turns`);
     const call = this.i++;
     const t = typeof step === 'function' ? step(req, call) : step;
+    if ('throws' in t) throw t.throws;
     for (const b of t.content) if (b.type === 'text') opts.onText?.(b.text);
     const stop = t.stopReason ?? (t.content.some((b) => b.type === 'tool_use') ? 'tool_use' : 'end_turn');
-    return { content: structuredClone(t.content), stopReason: stop, usage: { ...zeroUsage(), ...t.usage }, model: this.model };
+    return { content: structuredClone(t.content), stopReason: stop, ...(t.stopDetails ? { stopDetails: t.stopDetails } : {}), usage: { ...zeroUsage(), ...t.usage }, model: t.model ?? this.model };
   }
 }
 

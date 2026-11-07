@@ -44,7 +44,7 @@ function fakeSdk(script: AnthropicMessageLike[], fail?: unknown) {
   return { createClient, options, bodies };
 }
 
-const msg = (content: AnthropicMessageLike['content'], stop = 'tool_use'): AnthropicMessageLike => ({ model: 'claude-opus-5-5', content, stop_reason: stop, usage: { input_tokens: 1000, output_tokens: 100, cache_read_input_tokens: 900, cache_creation_input_tokens: 0 } });
+const msg = (content: Array<{ type: string; [k: string]: unknown }>, stop = 'tool_use'): AnthropicMessageLike => ({ model: 'claude-opus-5-5', content, stop_reason: stop, usage: { input_tokens: 1000, output_tokens: 100, cache_read_input_tokens: 900, cache_creation_input_tokens: 0 } });
 
 test('key store: memory by default, localStorage only after opt-in, cleared on opt-out', () => {
   const st = new MapStorage();

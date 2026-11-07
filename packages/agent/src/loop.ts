@@ -13,17 +13,35 @@ import { SYSTEM_PROMPT } from './prompt.ts';
 import { toolDefinitions } from './tools/defs.ts';
 import { toolText, untrustedBlock, structuredIssues } from './untrusted.ts';
 import { recall } from './memory/recall.ts';
-import { estimateCostUSD } from './provider/anthropic.ts';
 import { zeroUsage, type Block, type Message, type ProviderAdapter, type ToolResultBlock, type Usage } from './provider/types.ts';
-import type { AgentSession } from './session.ts';
+import type { AgentSession, ToolOutput } from './session.ts';
 import type { StudyOutcome } from './runner.ts';
 
-export interface Budget { maxModelCalls: number; maxToolCalls: number; maxRepairs: number; maxOutputTokens?: number; maxCostUSD?: number }
-export const DEFAULT_BUDGET: Budget = { maxModelCalls: 12, maxToolCalls: 40, maxRepairs: 2 };
+export interface Budget {
+  maxModelCalls: number; maxToolCalls: number; maxRepairs: number; maxOutputTokens?: number;
+  /** Per-turn cap in USD (estimate). Checked before every call against spent + the next call's worst case. */
+  maxCostUSD?: number;
+  /** Cap over all turns of this Agent in USD (estimate). */
+  maxSessionCostUSD?: number;
+}
+/**
+ * Defaults (DevLog-012 s.7.2). Cost caps: USD 1.00 per turn, USD 5.00 per session, estimates at the claude-api skill
+ * price table (cached 2026-10-06). With max_tokens 16,000 the output worst case of one claude-opus-5-5 call is
+ * 16,000 x 20 / 1e6 = USD 0.32, so a turn can always make at least two worst-case calls (plus input) before the cap,
+ * and the uncapped worst case the audit computed (12 calls x 64,000 tokens = USD 15.36 output) cannot happen.
+ * The user changes both in the panel.
+ */
+export const DEFAULT_BUDGET: Budget = { maxModelCalls: 12, maxToolCalls: 40, maxRepairs: 2, maxCostUSD: 1, maxSessionCostUSD: 5 };
 
-export type StopKind = 'end_turn' | 'refusal' | 'truncated' | 'budget_model_calls' | 'budget_tool_calls' | 'budget_tokens' | 'budget_cost' | 'aborted' | 'provider_error' | 'unresolved';
+export type StopKind = 'end_turn' | 'refusal' | 'truncated' | 'budget_model_calls' | 'budget_tool_calls' | 'budget_tokens' | 'budget_cost' | 'aborted' | 'provider_error' | 'unresolved' | 'blocked_secret' | 'unexpected_stop';
 
-export interface BudgetState { turn: number; modelCalls: number; toolCalls: number; repairs: number; usage: Usage; costUSD: number | null; budget: Budget }
+export interface BudgetState {
+  turn: number; modelCalls: number; toolCalls: number; repairs: number; usage: Usage;
+  /** Estimate, priced by the model that served each call; null (N/A) when any call's model has no price. */
+  costUSD: number | null;
+  sessionCostUSD: number | null;
+  budget: Budget;
+}
 
 export type AgentEvent =
   | { type: 'text'; delta: string }
@@ -51,6 +69,15 @@ export interface TurnResult {
 
 export interface AgentOptions { session: AgentSession; provider: ProviderAdapter; budget?: Partial<Budget>; onEvent?: (e: AgentEvent) => void; recallLimit?: number }
 
+const enc = new TextEncoder();
+/** Input tokens of a request, estimated as bytes / 4 (not a tokenizer count). */
+const estimateTokens = (x: unknown): number => Math.ceil(enc.encode(JSON.stringify(x)).length / 4);
+const costOf = (p: { input: number; output: number; cacheRead: number | null } | null, u: Usage): number | null => {
+  if (!p) return null;
+  if (u.cacheReadTokens > 0 && p.cacheRead === null) return null;
+  return (u.inputTokens * p.input + u.outputTokens * p.output + u.cacheReadTokens * (p.cacheRead ?? 0) + u.cacheWriteTokens * 1.25 * p.input) / 1e6;
+};
+
 const addUsage = (a: Usage, b: Usage): Usage => ({ inputTokens: a.inputTokens + b.inputTokens, outputTokens: a.outputTokens + b.outputTokens, cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens, cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens });
 
 export class Agent {
@@ -61,7 +88,11 @@ export class Agent {
   private onEvent: (e: AgentEvent) => void;
   private recallLimit: number;
   /** Prompt inspector: the memory entries included in each turn's context, and why. */
-  readonly included: Array<{ turn: number; memory: Array<{ name: string; why: string[] }> }> = [];
+  readonly included: Array<{ turn: number; memory: Array<{ name: string; why: string[]; writtenBy: string | null; truncated: boolean }> }> = [];
+  /** Spent over all turns (estimate); null once any call could not be priced. */
+  sessionCostUSD: number | null = 0;
+  /** Characters of recalled memory bodies put into one turn's context; longer entries are cut and flagged. */
+  static readonly RECALL_BUDGET_CHARS = 12_000;
 
   constructor(o: AgentOptions) {
     this.session = o.session; this.provider = o.provider;
@@ -90,18 +121,30 @@ export class Agent {
     };
     const { entries, invalid } = s.memory.entries();
     const picked = recall(entries, { query: userText, physicsTypes: s.physicsTypes() }, this.recallLimit);
-    this.included.push({ turn: s.turn, memory: picked.map((p) => ({ name: p.entry.name, why: p.why })) });
-    const memory = {
-      index: s.memory.index(),
-      recalled: picked.map((p) => ({ name: p.entry.name, type: p.entry.type, updated: p.entry.updated, body: p.entry.body })),
-      invalidFiles: invalid.map((i) => i.file),
-    };
+    let left = Agent.RECALL_BUDGET_CHARS;
+    const recalled = picked.map((p) => {
+      const b = p.entry.body;
+      const cut = b.length > left;
+      const body = cut ? b.slice(0, Math.max(0, left)) : b;
+      left -= body.length;
+      // never a silent cut (audit B2): flagged here, and a rewrite needs a full memory_read first
+      if (cut) s.partialMemory.add(p.entry.file); else s.partialMemory.delete(p.entry.file);
+      return { name: p.entry.name, type: p.entry.type, updated: p.entry.updated, writtenBy: s.memory.lastWriter(p.entry.file), body, ...(cut ? { bodyTruncated: true, bodyChars: b.length } : {}) };
+    });
+    this.included.push({ turn: s.turn, memory: picked.map((p, i) => ({ name: p.entry.name, why: p.why, writtenBy: recalled[i]!.writtenBy, truncated: 'bodyTruncated' in recalled[i]! })) });
+    const memory = { index: s.memory.index(), recalled, invalidFiles: invalid.map((i) => i.file) };
     return untrustedBlock({ spec: digest, memory }, 'context');
   }
 
   /** Run one user turn to completion (or a bound). */
   async runTurn(userText: string, opts: { signal?: AbortSignal; goal?: Goal } = {}): Promise<TurnResult> {
     const s = this.session;
+    // a credential pasted into the chat never goes to the model, the transcript or a spec (audit M1)
+    if (s.containsSecret(userText)) {
+      const message = 'the message contains a credential; redact it (redactSecrets) and send again';
+      this.onEvent({ type: 'stop', stop: 'blocked_secret', message });
+      return { stop: 'blocked_secret', text: '', specOps: [], memoryOps: [], toolCalls: [], repairs: 0, usage: zeroUsage(), costUSD: 0, problems: [], message };
+    }
     s.turn++;
     const turn = s.turn;
     const specBefore = s.log.ops.length;
@@ -110,46 +153,68 @@ export class Agent {
     this.messages.push({ role: 'user', content: [{ type: 'text', text: this.context(userText) }, { type: 'text', text: `User request:\n${userText}` }] });
 
     let usage = zeroUsage();
+    let spent: number | null = 0;
     let modelCalls = 0, toolCalls = 0, repairs = 0;
     const calls: TurnResult['toolCalls'] = [];
     let lastText = '';
     let problems: string[] = [];
     let lastFeedback = '';
     const tools = toolDefinitions();
-    const cost = () => estimateCostUSD(this.provider.model, usage);
-    const state = (): BudgetState => ({ turn, modelCalls, toolCalls, repairs, usage, costUSD: cost(), budget: this.budget });
+    const price = (m: string) => this.provider.price?.(m) ?? null;
+    const state = (): BudgetState => ({ turn, modelCalls, toolCalls, repairs, usage, costUSD: spent, sessionCostUSD: this.sessionCostUSD, budget: this.budget });
     const finish = (stop: StopKind, message?: string): TurnResult => {
       this.onEvent({ type: 'stop', stop, ...(message ? { message } : {}) });
       return {
         stop, text: lastText,
         specOps: s.log.ops.slice(specBefore).filter((o) => o.actor === s.actor).map((o) => o.seq),
         memoryOps: s.memory.ops.slice(memBefore).filter((o) => o.actor === s.actor).map((o) => o.seq),
-        toolCalls: calls, repairs, usage, costUSD: cost(), problems, ...(message ? { message } : {}),
+        toolCalls: calls, repairs, usage, costUSD: spent, problems, ...(message ? { message } : {}),
       };
     };
+    const textOf = (bs: Block[]) => bs.filter((b): b is Extract<Block, { type: 'text' }> => b.type === 'text').map((b) => b.text).join('');
 
     for (;;) {
       if (opts.signal?.aborted) return finish('aborted');
       if (modelCalls >= this.budget.maxModelCalls) return finish('budget_model_calls');
       if (this.budget.maxOutputTokens !== undefined && usage.outputTokens >= this.budget.maxOutputTokens) return finish('budget_tokens');
-      const c = cost();
-      if (this.budget.maxCostUSD !== undefined && c !== null && c >= this.budget.maxCostUSD) return finish('budget_cost');
+      const req = { system: SYSTEM_PROMPT, tools, messages: this.messages };
+      // reserve the worst case of the next call (input uncached at bytes/4, output at max_tokens) before making it
+      const p = price(this.provider.model);
+      if (p) {
+        const next = (estimateTokens(req) * p.input + (this.provider.maxTokens ?? 0) * p.output) / 1e6;
+        if (this.budget.maxCostUSD !== undefined && spent !== null && spent + next > this.budget.maxCostUSD) return finish('budget_cost', 'per-turn cost cap reached (estimate)');
+        if (this.budget.maxSessionCostUSD !== undefined && this.sessionCostUSD !== null && this.sessionCostUSD + next > this.budget.maxSessionCostUSD) return finish('budget_cost', 'session cost cap reached (estimate)');
+      }
       let resp;
       try {
-        resp = await this.provider.send({ system: SYSTEM_PROMPT, tools, messages: this.messages }, { ...(opts.signal ? { signal: opts.signal } : {}), onText: (d) => this.onEvent({ type: 'text', delta: d }) });
+        resp = await this.provider.send(req, { ...(opts.signal ? { signal: opts.signal } : {}), onText: (d) => this.onEvent({ type: 'text', delta: d }) });
       } catch (e) {
         return finish(opts.signal?.aborted ? 'aborted' : 'provider_error', (e as Error).message);
       }
       modelCalls++;
       usage = addUsage(usage, resp.usage);
+      // aborted while the call ran: nothing of this response runs or enters the history
+      if (opts.signal?.aborted) {
+        const c0 = costOf(price(resp.model), resp.usage);
+        spent = spent === null || c0 === null ? null : spent + c0;
+        this.sessionCostUSD = this.sessionCostUSD === null || c0 === null ? null : this.sessionCostUSD + c0;
+        return finish('aborted');
+      }
+      // priced by the model that served (a server-side fallback may differ); unknown -> N/A from here on
+      const c = costOf(price(resp.model), resp.usage);
+      spent = spent === null || c === null ? null : spent + c;
+      this.sessionCostUSD = this.sessionCostUSD === null || c === null ? null : this.sessionCostUSD + c;
       this.onEvent({ type: 'budget', state: state() });
-      this.messages.push({ role: 'assistant', content: resp.content, ...(resp.raw ? { raw: resp.raw } : {}) });
-      const text = resp.content.filter((b): b is Extract<Block, { type: 'text' }> => b.type === 'text').map((b) => b.text).join('');
-      if (text) lastText = text;
-      if (resp.stopReason === 'refusal') return finish('refusal', resp.stopDetails?.category ?? undefined);
-      if (resp.stopReason === 'pause_turn') continue;
       const uses = resp.content.filter((b): b is Extract<Block, { type: 'tool_use' }> => b.type === 'tool_use');
-      if (uses.length && resp.stopReason === 'max_tokens') { this.messages.pop(); return finish('truncated', 'tool input truncated at max_tokens; not executed'); }
+      const assistant: Message = { role: 'assistant', content: resp.content, ...(resp.raw ? { raw: resp.raw } : {}) };
+      // B1: a refused, cut or empty assistant message never enters the history (it would 400 every later request)
+      if (resp.stopReason === 'refusal') { lastText = ''; return finish('refusal', resp.stopDetails?.category ?? 'refused'); }
+      if (uses.length && resp.stopReason !== 'tool_use') return finish(resp.stopReason === 'max_tokens' ? 'truncated' : 'unexpected_stop', resp.stopReason === 'max_tokens' ? 'tool input cut at max_tokens; not executed' : `tool calls with stop reason ${resp.stopReason}; not executed`);
+      if (resp.stopReason === 'pause_turn') return finish('unexpected_stop', 'pause_turn (no server tools are declared)');
+      const text = textOf(resp.content);
+      if (resp.content.length && !(uses.length === 0 && !text && resp.content.every((b) => b.type === 'opaque'))) this.messages.push(assistant);
+      if (text) lastText = text;
+      if (resp.stopReason === 'max_tokens') return finish('truncated', 'answer cut at max_tokens');
 
       if (!uses.length) {
         problems = await this.check(turn, specBefore, runsBefore, opts.goal);
@@ -177,7 +242,10 @@ export class Agent {
         toolCalls++;
         const shown = s.containsSecret(u.input) ? '[refused: contains a secret]' : u.input;
         this.onEvent({ type: 'tool_call', name: u.name, input: shown });
-        const out = await s.execute(u.name, u.input, opts.signal);
+        // S5: whatever happens, this tool_use gets its tool_result
+        let out: ToolOutput;
+        try { out = await s.execute(u.name, u.input, opts.signal); }
+        catch { out = { content: [{ type: 'text', text: toolText({ ok: false, error: 'tool_threw' }) }], isError: true }; }
         calls.push({ name: u.name, input: shown, isError: out.isError });
         this.onEvent({ type: 'tool_result', name: u.name, isError: out.isError });
         results.push({ type: 'tool_result', tool_use_id: u.id, content: out.content, ...(out.isError ? { is_error: true } : {}) });

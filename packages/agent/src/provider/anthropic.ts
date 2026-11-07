@@ -14,14 +14,18 @@
 // redacted before they leave the adapter.
 
 import type { KeyStore } from '../keys.ts';
+import { wireProblems } from './wire.ts';
 import { ProviderError, type Block, type Message, type ProviderAdapter, type ProviderRequest, type ProviderResponse, type SendOptions, type StopReason } from './types.ts';
 
-/** Structural subset of an SDK Message used here. */
+/**
+ * Structural subset of an SDK BetaMessage used here. Content blocks are read through narrow casts, so SDK block types
+ * (which have no index signature) are assignable (audit S2: checked against @anthropic-ai/sdk 1.1.0 types).
+ */
 export interface AnthropicMessageLike {
   model: string;
-  content: Array<{ type: string; [k: string]: unknown }>;
+  content: ReadonlyArray<{ readonly type: string }>;
   stop_reason: string | null;
-  stop_details?: { category?: string | null; explanation?: string | null } | null;
+  stop_details?: { readonly category?: string | null; readonly explanation?: string | null } | null;
   usage: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null };
 }
 
@@ -30,9 +34,12 @@ export interface AnthropicStreamLike {
   finalMessage(): Promise<AnthropicMessageLike>;
 }
 
-/** Structural subset of the SDK client (`client.beta.messages.stream`). */
+/**
+ * Structural subset of the SDK client (`client.beta.messages.stream`). The body parameter is `never` so the SDK's
+ * typed params are assignable; the adapter builds the body itself (anthropicBody).
+ */
 export interface AnthropicClientLike {
-  beta: { messages: { stream(body: Record<string, unknown>, options?: { signal?: AbortSignal }): AnthropicStreamLike } };
+  beta: { messages: { stream(body: never, options?: { signal?: AbortSignal }): AnthropicStreamLike } };
 }
 
 export interface AnthropicClientOptions { apiKey: string; dangerouslyAllowBrowser: true }
@@ -44,6 +51,12 @@ export interface AnthropicAdapterOptions {
   createClient: (o: AnthropicClientOptions) => AnthropicClientLike;
   /** Classifies SDK errors without string matching: `(e) => e instanceof Anthropic.APIError`. */
   isApiError?: (e: unknown) => boolean;
+  /**
+   * Unparseable eagerly streamed tool input. SDK 1.1.0 rejects finalMessage() with a plain AnthropicError (no status)
+   * "Unable to parse tool parameter JSON ..." (audit S1, verified with the 1.1.0 tarball):
+   * `(e) => e instanceof Anthropic.AnthropicError && !(e instanceof Anthropic.APIError)`. Default: SyntaxError only.
+   */
+  isToolInputParseError?: (e: unknown) => boolean;
   model?: string;
   effort?: Effort;
   maxTokens?: number;
@@ -74,7 +87,8 @@ function toParam(m: Message): Record<string, unknown> {
 }
 
 function fromContent(content: AnthropicMessageLike['content']): Block[] {
-  return content.map((b): Block => {
+  return content.map((raw): Block => {
+    const b = raw as { type: string; text?: unknown; id?: unknown; name?: unknown; input?: unknown };
     if (b.type === 'text' && typeof b.text === 'string') return { type: 'text', text: b.text };
     if (b.type === 'tool_use') return { type: 'tool_use', id: String(b.id), name: String(b.name), input: b.input };
     return { type: 'opaque', provider: 'anthropic', kind: b.type, block: b };
@@ -89,6 +103,8 @@ export function anthropicBody(req: ProviderRequest, o: { model: string; effort: 
   return {
     model: o.model,
     max_tokens: req.maxTokens ?? o.maxTokens,
+    // two breakpoints: the frozen tools + system prefix, and (top level, automatic) the growing history (audit S3)
+    cache_control: { type: 'ephemeral' },
     system: [{ type: 'text', text: req.system, cache_control: { type: 'ephemeral' } }],
     tools,
     thinking: { type: 'adaptive' },
@@ -101,7 +117,9 @@ export function anthropicBody(req: ProviderRequest, o: { model: string; effort: 
 export function createAnthropicAdapter(opts: AnthropicAdapterOptions): ProviderAdapter {
   const model = opts.model ?? DEFAULT_MODEL;
   const effort = opts.effort ?? 'high';
-  const maxTokens = opts.maxTokens ?? 64000;
+  // 16,000 (the skill's non-streaming default) instead of 64,000: tool-calling turns are short, and it bounds the
+  // worst case of one call that the per-turn cost cap has to reserve (DevLog-012 s.7.2)
+  const maxTokens = opts.maxTokens ?? 16000;
   const fallbacks = opts.fallbacks ?? 'default';
   const jsonRetries = opts.jsonRetries ?? 2;
   const redact = (s: string) => opts.keys.redact(s);
@@ -114,34 +132,51 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): ProviderA
     if (status === 429) return new ProviderError('rate_limit', `rate limited (429): ${msg}`, status);
     if (status !== null && status >= 500) return new ProviderError('server', `server error (${status}): ${msg}`, status);
     if (status !== null && status >= 400) return new ProviderError('bad_request', `request rejected (${status}): ${msg}`, status);
-    return new ProviderError(opts.isApiError?.(e) ? 'other' : 'network', msg, status);
+    // an SDK API error without a status is a connection failure (APIConnectionError); anything else is internal
+    if (opts.isApiError?.(e) || e instanceof TypeError) return new ProviderError('network', `connection failed: ${msg}`, null);
+    return new ProviderError('other', msg, null);
   }
+  const isParseError = (e: unknown): boolean => {
+    const api = opts.isApiError ? opts.isApiError(e) : typeof (e as { status?: unknown })?.status === 'number';
+    if (api) return false;
+    return opts.isToolInputParseError ? opts.isToolInputParseError(e) : e instanceof SyntaxError;
+  };
 
   return {
     id: 'anthropic',
     model,
+    maxTokens,
+    price: (m: string) => PRICES_USD_PER_MTOK[m] ?? null,
     async send(req: ProviderRequest, so: SendOptions = {}): Promise<ProviderResponse> {
       const key = opts.keys.reveal();
       if (!key) throw new ProviderError('no_key', 'no API key set');
-      const client = opts.createClient({ apiKey: key, dangerouslyAllowBrowser: true });
-      const body = anthropicBody(req, { model, effort, maxTokens, fallbacks });
+      // a request the API would reject (and that would poison the history) is refused here, before any network call
+      const wire = wireProblems(req);
+      if (wire.length) throw new ProviderError('bad_request', `invalid request built locally (not sent): ${wire.slice(0, 3).join('; ')}`);
+      let client: AnthropicClientLike;
+      let body: Record<string, unknown>;
+      try {
+        client = opts.createClient({ apiKey: key, dangerouslyAllowBrowser: true });
+        body = anthropicBody(req, { model, effort, maxTokens, fallbacks });
+      } catch (e) { throw classify(e); }
       for (let attempt = 0; ; attempt++) {
         let msg: AnthropicMessageLike;
         try {
-          const stream = client.beta.messages.stream(body, so.signal ? { signal: so.signal } : undefined);
+          const stream = client.beta.messages.stream(body as never, so.signal ? { signal: so.signal } : undefined);
           if (so.onText) stream.on('text', so.onText);
           msg = await stream.finalMessage();
         } catch (e) {
           // Unparseable tool input (eager input streaming) is not an API error: re-issue the turn a bounded number of times.
-          const api = opts.isApiError ? opts.isApiError(e) : typeof (e as { status?: unknown })?.status === 'number';
-          if (!api && e instanceof SyntaxError && attempt < jsonRetries) continue;
-          if (!api && e instanceof SyntaxError) throw new ProviderError('invalid_tool_input', 'tool input was not parseable JSON after retries');
+          if (isParseError(e)) {
+            if (attempt < jsonRetries) continue;
+            throw new ProviderError('invalid_tool_input', `tool input was not parseable JSON after ${jsonRetries + 1} attempts`);
+          }
           throw classify(e);
         }
         const stop = (STOPS as readonly string[]).includes(msg.stop_reason ?? '') ? (msg.stop_reason as StopReason) : 'other';
         return {
           content: fromContent(msg.content),
-          raw: { provider: 'anthropic', content: msg.content },
+          raw: { provider: 'anthropic', content: [...msg.content] as unknown[] },
           stopReason: stop,
           ...(stop === 'refusal' && msg.stop_details ? { stopDetails: { category: msg.stop_details.category ?? null, explanation: msg.stop_details.explanation ?? null } } : {}),
           usage: {

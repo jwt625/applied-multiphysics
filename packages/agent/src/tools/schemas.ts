@@ -21,10 +21,18 @@ export const TOOL_INPUTS = {
     log: z.enum(['spec', 'memory']).optional().describe('default spec'),
     reason,
   }),
-  undo: z.strictObject({ log: z.enum(['spec', 'memory']).optional().describe('default spec'), reason }),
+  undo: z.strictObject({
+    log: z.enum(['spec', 'memory']).optional().describe('default spec'),
+    allow_other_actor: z.boolean().optional().describe('also undo when the newest op is not yours (only when the user asked)'),
+    reason,
+  }),
   redo: z.strictObject({ reason }),
   // ---- reads ----
-  get_spec: z.strictObject({ pointer: pointer.optional().describe('omit for the whole YAML text') }),
+  get_spec: z.strictObject({
+    pointer: pointer.optional().describe('omit for the YAML text'),
+    from_line: z.number().int().min(1).optional().describe('YAML page start (1-based); large specs come in pages'),
+    to_line: z.number().int().min(1).optional(),
+  }),
   schema_at: z.strictObject({
     pointer,
     type: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/).optional().describe('registered type of a new element (e.g. a bc type) when the pointer ends in "-"'),
@@ -76,10 +84,10 @@ export const EDIT_TOOLS: ReadonlySet<ToolName> = new Set(['apply_ops', 'revert_o
 export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   apply_ops: 'Edit the model spec with a JSON Patch. Applied at once and logged with your reason; the result lists validation issues and invalidated artifacts. Call schema_at first for unfamiliar nodes.',
   revert_op: 'Revert one earlier operation (spec or memory log) by appending its inverse.',
-  undo: 'Undo the newest undoable operation of the spec log (or memory log).',
+  undo: 'Undo the newest undoable operation of the spec (or memory) log when it is yours; for an older op of yours use revert_op.',
   redo: 'Redo the last undone spec operation.',
-  get_spec: 'Read the spec: whole YAML text, or the JSON value at a pointer.',
-  schema_at: 'JSON Schema of the value at a pointer (resolves registered types). Use before adding or changing nodes.',
+  get_spec: 'Read the spec: the YAML text (paged when large; the result says if it is complete), or the JSON value at a pointer.',
+  schema_at: 'JSON Schema of the value at a pointer (resolves registered types); large schemas come as a summary, narrow the pointer for detail. Use before adding or changing nodes.',
   list_entities: 'List ids: params, geometry features, materials, physics with conditions, studies, results, built geometry entities, registered types.',
   list_ops: 'Recent operations of the spec or memory log, newest first: seq, actor, kind, reason, effect (applied, undone, reverted), touched paths.',
   get_run_record: 'Run record of the latest run of a study (engine, spec hash, mesh hash, time, platform) and whether it is stale.',

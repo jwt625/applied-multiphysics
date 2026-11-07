@@ -18,11 +18,12 @@ import type { NavigationHost } from './nav.ts';
 import type { StudyRunner } from './runner.ts';
 import type { OpLog, Registry, BuiltGeometry } from '@amp/spec';
 import { isoNow } from '@amp/spec';
+import { containsSecret, redactSecrets } from './secrets.ts';
 
 export type ChatRow =
   | { kind: 'user'; ts: string; turn: number; text: string }
   | { kind: 'assistant'; ts: string; turn: number; text: string }
-  | { kind: 'tool'; ts: string; turn: number; tool: string; isError: boolean }
+  | { kind: 'tool'; ts: string; turn: number; tool: string; isError: boolean; summary: string }
   | { kind: 'repair'; ts: string; turn: number; problems: string[] }
   | { kind: 'stop'; ts: string; turn: number; stop: StopKind; message?: string };
 
@@ -36,7 +37,7 @@ export interface ChatState {
   hasKey: boolean;
   keyPersisted: boolean;
   /** Prompt inspector: memory entries included per turn, with the reasons recall gave. */
-  included: Array<{ turn: number; memory: Array<{ name: string; why: string[] }> }>;
+  included: Array<{ turn: number; memory: Array<{ name: string; why: string[]; writtenBy: string | null; truncated: boolean }> }>;
 }
 
 export interface ChatControllerOptions {
@@ -55,6 +56,7 @@ export class ChatController {
   private listeners = new Set<(s: ChatState) => void>();
   private ctl: AbortController | null = null;
   private clock: () => string;
+  private pendingSummary = '';
 
   constructor(o: ChatControllerOptions) {
     this.session = o.session; this.keys = o.keys;
@@ -77,7 +79,8 @@ export class ChatController {
   private onEvent(e: AgentEvent): void {
     const turn = this.session.turn;
     if (e.type === 'text') this.emit({ draft: this.st.draft + e.delta });
-    else if (e.type === 'tool_result') this.push({ kind: 'tool', ts: this.clock(), turn, tool: e.name, isError: e.isError });
+    else if (e.type === 'tool_call') this.pendingSummary = toolSummary(e.input);
+    else if (e.type === 'tool_result') { this.push({ kind: 'tool', ts: this.clock(), turn, tool: e.name, isError: e.isError, summary: this.pendingSummary }); this.pendingSummary = ''; }
     else if (e.type === 'repair') this.push({ kind: 'repair', ts: this.clock(), turn, problems: e.problems });
     else if (e.type === 'budget') {
       // a model call ended: its streamed text becomes an assistant row
@@ -86,11 +89,16 @@ export class ChatController {
     } else if (e.type === 'stop') this.push({ kind: 'stop', ts: this.clock(), turn, stop: e.stop, ...(e.message ? { message: e.message } : {}) });
   }
 
-  /** Send a user message and run the turn. Rejects while a turn is running. */
+  /** True when the text carries the key or a credential-shaped token (check before sending; offer redact()). */
+  hasSecret(text: string): boolean { return containsSecret(text, this.keys.forbidden()); }
+  redact(text: string): string { return redactSecrets(text, this.keys.forbidden()); }
+
+  /** Send a user message and run the turn. Rejects while a turn is running, and when the text holds a credential. */
   async send(text: string, opts: { goal?: Goal } = {}): Promise<TurnResult> {
     if (this.st.busy) throw new Error('a turn is already running');
     const t = text.trim();
     if (!t) throw new Error('empty message');
+    if (this.hasSecret(t)) throw new SecretInMessageError();
     this.ctl = new AbortController();
     this.push({ kind: 'user', ts: this.clock(), turn: this.session.turn + 1, text: t });
     this.emit({ busy: true, draft: '' });
@@ -117,6 +125,22 @@ export class ChatController {
   clearKey(): void { this.keys.clear(); this.emit({ hasKey: false, keyPersisted: false }); }
 }
 
+export class SecretInMessageError extends Error {
+  constructor() { super('the message contains a credential; it was not sent (use redact() and send again)'); }
+}
+
+/** Short summary of a tool call's arguments for the panel (pointer, study, mode, name, seq, counts). */
+export function toolSummary(input: unknown): string {
+  if (typeof input === 'string') return input.slice(0, 120);
+  if (!input || typeof input !== 'object') return '';
+  const o = input as Record<string, unknown>;
+  const parts: string[] = [];
+  for (const k of ['pointer', 'study', 'mode', 'name', 'seq', 'log', 'kind', 'view']) if (typeof o[k] === 'string' || typeof o[k] === 'number') parts.push(`${k}=${String(o[k])}`);
+  if (Array.isArray(o.ops)) parts.push(`${o.ops.length} op(s): ${o.ops.map((x) => (x as { path?: unknown }).path).filter((x) => typeof x === 'string').join(', ')}`);
+  if (Array.isArray(o.ids)) parts.push(`${o.ids.length} id(s)`);
+  return parts.join(' ').slice(0, 120);
+}
+
 export interface MountOptions {
   /** The workbench's operation log (same instance the UI edits through). */
   log: OpLog;
@@ -131,6 +155,8 @@ export interface MountOptions {
   /** Anthropic SDK client factory: `(o) => new Anthropic(o)`. Ignored when `provider` is given. */
   createClient?: (o: AnthropicClientOptions) => AnthropicClientLike;
   isApiError?: (e: unknown) => boolean;
+  /** `(e) => e instanceof Anthropic.AnthropicError && !(e instanceof Anthropic.APIError)` (SDK 1.1.0, audit S1). */
+  isToolInputParseError?: (e: unknown) => boolean;
   model?: string;
   effort?: Effort;
   /** Override the provider (tests, the scripted mock, a future provider). */
@@ -142,7 +168,8 @@ export interface MountOptions {
 /** Wire session, memory, key store and provider for the chat panel. */
 export async function mountAgent(o: MountOptions): Promise<ChatController> {
   const keys = new KeyStore(o.storage);
-  const memory = await MemoryStore.open(o.memoryBackend, { forbidden: () => keys.forbidden() });
+  // reconcile at mount: files changed while the app was closed (or by a crash between log and file) become `external` ops
+  const memory = await MemoryStore.open(o.memoryBackend, { forbidden: () => keys.forbidden(), reconcile: true });
   const session = new AgentSession({
     log: o.log, registry: o.registry, memory, nav: o.nav,
     ...(o.runner ? { runner: o.runner } : {}), ...(o.geometry ? { geometry: o.geometry } : {}), ...(o.sessionId ? { sessionId: o.sessionId } : {}),
@@ -151,7 +178,7 @@ export async function mountAgent(o: MountOptions): Promise<ChatController> {
   let provider = o.provider;
   if (!provider) {
     if (!o.createClient) throw new Error('mountAgent: pass createClient (Anthropic SDK factory) or provider');
-    provider = createAnthropicAdapter({ keys, createClient: o.createClient, ...(o.isApiError ? { isApiError: o.isApiError } : {}), ...(o.model ? { model: o.model } : {}), ...(o.effort ? { effort: o.effort } : {}) });
+    provider = createAnthropicAdapter({ keys, createClient: o.createClient, ...(o.isApiError ? { isApiError: o.isApiError } : {}), ...(o.isToolInputParseError ? { isToolInputParseError: o.isToolInputParseError } : {}), ...(o.model ? { model: o.model } : {}), ...(o.effort ? { effort: o.effort } : {}) });
   }
   return new ChatController({ session, provider, keys, ...(o.budget ? { budget: o.budget } : {}) });
 }

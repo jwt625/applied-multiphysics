@@ -14,6 +14,9 @@ import { toolText, structuredIssues, TrustBoundaryError } from './untrusted.ts';
 import { NavTrail, type NavigationHost } from './nav.ts';
 import { ResultsStore, type StudyRunner, type StudyOutcome } from './runner.ts';
 import { MemoryStore } from './memory/store.ts';
+import { containsSecret } from './secrets.ts';
+
+const enc = new TextEncoder();
 import type { ImageBlock, TextBlock } from './provider/types.ts';
 
 export interface ToolOutput { content: Array<TextBlock | ImageBlock>; isError: boolean }
@@ -43,10 +46,60 @@ export interface AgentSessionOptions {
   clock?: () => string;
   /** Secrets that must never enter the spec, the logs, memory or the trail (KeyStore.forbidden). */
   forbidden?: () => readonly string[];
+  /** Largest single read (default MAX_READ_BYTES); tests lower it to exercise paging. */
+  maxReadBytes?: number;
 }
 
-/** Credential-shaped tokens refused in any tool input (defense in depth: no tool exposes the key). */
-const SECRET_SHAPES = [/sk-ant-[A-Za-z0-9_-]{8,}/];
+/** Bounds on tool input before parsing (audit S5: a 2,000-deep value made zod throw RangeError). */
+const MAX_INPUT_DEPTH = 64;
+const MAX_INPUT_BYTES = 1_000_000;
+
+function depthOf(x: unknown): number {
+  let max = 0;
+  const stack: Array<[unknown, number]> = [[x, 0]];
+  while (stack.length) {
+    const [v, d] = stack.pop()!;
+    if (d > max) max = d;
+    if (d > MAX_INPUT_DEPTH) return d;
+    if (v && typeof v === 'object') for (const c of Object.values(v as Record<string, unknown>)) stack.push([c, d + 1]);
+  }
+  return max;
+}
+
+/** Largest read returned in one tool result (bytes); larger specs are paged, larger values refused with a hint. */
+export const MAX_READ_BYTES = 60_000;
+/** schema_at returns a compact summary for the root and for schemas above this size (audit S6). */
+export const MAX_SCHEMA_BYTES = 8_000;
+
+/** One-level summary of a JSON Schema: property names with short types, required keys, union variants. */
+export function summarizeSchema(s: unknown): unknown {
+  const short = (v: unknown): string => {
+    const o = (v ?? {}) as Record<string, unknown>;
+    if (typeof o.$ref === 'string') return `ref ${o.$ref.replace('#/$defs/', '')}`;
+    if (o.const !== undefined) return `const ${JSON.stringify(o.const)}`;
+    if (Array.isArray(o.enum)) return `enum ${o.enum.length}`;
+    const u = (o.oneOf ?? o.anyOf) as unknown[] | undefined;
+    if (Array.isArray(u)) return `union of ${u.length}`;
+    if (o.type === 'array') return `array of ${short(o.items)}`;
+    return typeof o.type === 'string' ? o.type : 'any';
+  };
+  const o = (s ?? {}) as Record<string, unknown>;
+  const u = (o.oneOf ?? o.anyOf) as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(u)) {
+    return { union: u.map((v) => {
+      const t = (v.properties as Record<string, Record<string, unknown>> | undefined)?.type;
+      return t?.const !== undefined ? { type: t.const } : short(v);
+    }) };
+  }
+  const props = o.properties as Record<string, unknown> | undefined;
+  return {
+    type: o.type ?? null,
+    ...(props ? { properties: Object.fromEntries(Object.entries(props).map(([k, v]) => [k, short(v)])) } : {}),
+    ...(Array.isArray(o.required) ? { required: o.required } : {}),
+    ...(o.type === 'array' ? { items: short(o.items) } : {}),
+    ...(o.additionalProperties && typeof o.additionalProperties === 'object' ? { values: short(o.additionalProperties) } : {}),
+  };
+}
 
 const ok = (trusted: Record<string, unknown>, untrusted?: { data: unknown; source: string }): ToolOutput => ({ content: [{ type: 'text', text: toolText({ ok: true, ...trusted }, untrusted) }], isError: false });
 const fail = (code: string, detail?: unknown, source = 'error'): ToolOutput => ({ content: [{ type: 'text', text: toolText({ ok: false, error: code }, detail === undefined ? undefined : { data: detail, source }) }], isError: true });
@@ -74,6 +127,7 @@ export class AgentSession {
   private geometry: () => BuiltGeometry | null;
   private clock: () => string;
   private forbidden: () => readonly string[];
+  private maxReadBytes: number;
 
   constructor(o: AgentSessionOptions) {
     this.id = o.sessionId ?? newSessionId();
@@ -83,6 +137,7 @@ export class AgentSession {
     this.geometry = o.geometry ?? (() => null);
     this.clock = o.clock ?? (() => isoNow());
     this.forbidden = o.forbidden ?? (() => []);
+    this.maxReadBytes = o.maxReadBytes ?? MAX_READ_BYTES;
     this.trail = new NavTrail(this.clock);
   }
 
@@ -128,26 +183,36 @@ export class AgentSession {
   }
 
   /** True when a value carries the key or a credential-shaped token. */
-  containsSecret(x: unknown): boolean {
-    const raw = typeof x === 'string' ? x : JSON.stringify(x ?? null);
-    return this.forbidden().some((k) => !!k && raw.includes(k)) || SECRET_SHAPES.some((p) => p.test(raw));
-  }
+  containsSecret(x: unknown): boolean { return containsSecret(x, this.forbidden()); }
 
-  /** Execute one tool call. Never throws for tool-level failures; they come back as error results. */
+  /** Memory files whose last view in the model context was cut (a rewrite needs a full memory_read first). */
+  readonly partialMemory = new Set<string>();
+  /** Set while only part of the spec YAML was read through get_spec pages (whole-spec replace refused). */
+  private specPartial = false;
+
+  /** Execute one tool call. Never throws: every failure, including an internal exception, is an error result. */
   async execute(name: string, input: unknown, signal?: AbortSignal): Promise<ToolOutput> {
     if (!Object.hasOwn(TOOL_INPUTS, name)) return fail('unknown_tool');
     const tn = name as ToolName;
-    // refused before validation, dispatch and the trail, so a secret in any argument is never stored anywhere
-    if (this.containsSecret(input)) return fail('refused_secret');
-    const parsed = TOOL_INPUTS[tn].safeParse(input);
-    if (!parsed.success) return fail('invalid_input', parsed.error.issues.map((i) => ({ path: i.path.map(String).join('.'), message: i.message })), 'input-validation');
+    let navArgs: Record<string, unknown> | null = null;
+    let navOk = false;
     try {
+      // bounds first (cheap, iterative), then the secret scan, so a secret in any argument is never stored anywhere
+      if (depthOf(input) > MAX_INPUT_DEPTH) return fail('input_too_deep');
+      if (JSON.stringify(input ?? null).length > MAX_INPUT_BYTES) return fail('input_too_large');
+      if (this.containsSecret(input)) return fail('refused_secret');
+      const parsed = TOOL_INPUTS[tn].safeParse(input);
+      if (!parsed.success) return fail('invalid_input', parsed.error.issues.map((i) => ({ path: i.path.map(String).join('.'), message: i.message })), 'input-validation');
+      if (NAV_TOOLS.has(tn)) navArgs = parsed.data as Record<string, unknown>;
       const out = await this.dispatch(tn, parsed.data as never, signal);
-      if (NAV_TOOLS.has(tn)) this.trail.record({ actor: this.actor, tool: tn, args: parsed.data as Record<string, unknown>, ok: !out.isError, turn: this.turn });
+      navOk = !out.isError;
       return out;
     } catch (e) {
       if (e instanceof TrustBoundaryError) return fail('internal_trust_boundary');
-      return fail('tool_failed', { message: (e as Error).message }, `${tn}-error`);
+      return fail('tool_failed', { message: e instanceof Error ? e.message : String(e) }, `${tn}-error`);
+    } finally {
+      // recorded even when the host threw (audit M3): the UI may have changed
+      if (navArgs) this.trail.record({ actor: this.actor, tool: tn, args: navArgs, ok: navOk, turn: this.turn });
     }
   }
 
@@ -160,6 +225,7 @@ export class AgentSession {
     switch (name) {
       case 'apply_ops': {
         const x = a as ToolInput<'apply_ops'>;
+        if (this.specPartial && x.ops.some((o) => o.path === '' || ('from' in o && o.from === ''))) return fail('read_full_spec_first');
         let op;
         try { op = await this.log.apply(x.ops as JsonPatchOp[], meta(x.reason)); }
         catch (e) { return fail('patch_failed', { message: (e as Error).message }, 'oplog-error'); }
@@ -180,7 +246,19 @@ export class AgentSession {
       case 'undo': {
         const x = a as ToolInput<'undo'>;
         try {
-          if (x.log === 'memory') { const op = await this.memory.undo(meta(x.reason)); if (!op) return fail('nothing_to_undo'); this.mark('memory', op.seq); return ok({ log: 'memory', seq: op.seq, target: op.target ?? null }); }
+          if (x.log === 'memory') {
+            const c = this.memory.undoCandidate();
+            if (!c) return fail('nothing_to_undo');
+            if (c.actor !== this.actor && !x.allow_other_actor) return fail('top_op_not_yours', { seq: c.seq, actor: c.actor, hint: 'use list_ops (log memory) and revert_op for your own op, or allow_other_actor when the user asked' }, 'memory-log');
+            const op = await this.memory.undo(meta(x.reason));
+            if (!op) return fail('nothing_to_undo');
+            this.mark('memory', op.seq);
+            return ok({ log: 'memory', seq: op.seq, target: op.target ?? null });
+          }
+          const top = this.log.undoTarget;
+          if (top === null) return fail('nothing_to_undo');
+          const topOp = this.log.ops[top - 1];
+          if (topOp && topOp.actor !== this.actor && !x.allow_other_actor) return fail('top_op_not_yours', { seq: top, actor: topOp.actor, reason: topOp.reason ?? null, hint: 'use list_ops and revert_op for your own op, or allow_other_actor when the user asked to undo this' }, 'oplog');
           const op = await this.log.undo(meta(x.reason));
           if (!op) return fail('nothing_to_undo');
           this.mark('spec', op.seq);
@@ -199,10 +277,30 @@ export class AgentSession {
       }
       case 'get_spec': {
         const x = a as ToolInput<'get_spec'>;
-        if (x.pointer === undefined || x.pointer === '') return ok({ format: 'yaml', head: this.log.ops.length }, { data: { yaml: this.log.text }, source: 'spec' });
+        if (x.pointer === undefined || x.pointer === '') {
+          const text = this.log.text;
+          const lines = text.split('\n');
+          const bytes = enc.encode(text).length;
+          if (bytes <= this.maxReadBytes && x.from_line === undefined && x.to_line === undefined) {
+            this.specPartial = false;
+            return ok({ format: 'yaml', complete: true, total_lines: lines.length, total_bytes: bytes }, { data: { yaml: text }, source: 'spec' });
+          }
+          // explicit pages of whole lines, never a silent cut (audit B2)
+          const from = Math.max(1, x.from_line ?? 1);
+          if (from > lines.length) return fail('line_out_of_range');
+          let to = Math.min(lines.length, x.to_line ?? lines.length);
+          let page = lines.slice(from - 1, to).join('\n');
+          while (to > from && enc.encode(page).length > this.maxReadBytes) { to = from + Math.floor((to - from) / 2); page = lines.slice(from - 1, to).join('\n'); }
+          const complete = from === 1 && to === lines.length;
+          this.specPartial = !complete;
+          return ok({ format: 'yaml', complete, from_line: from, to_line: to, total_lines: lines.length, total_bytes: bytes, next_from_line: to < lines.length ? to + 1 : null }, { data: { yaml: page }, source: 'spec' });
+        }
         let keys: PathKey[];
         try { keys = keysOf(this.log.data, x.pointer); } catch (e) { return fail('pointer_not_found', { message: (e as Error).message }, 'pointer'); }
-        return ok({ format: 'json' }, { data: { value: getAt(this.log.data, keys) ?? null }, source: 'spec' });
+        const value = getAt(this.log.data, keys) ?? null;
+        const vb = enc.encode(JSON.stringify(value)).length;
+        if (vb > this.maxReadBytes) return fail('value_too_large', { total_bytes: vb, hint: 'read a deeper pointer, or get_spec with from_line/to_line' }, 'spec');
+        return ok({ format: 'json', total_bytes: vb }, { data: { value }, source: 'spec' });
       }
       case 'schema_at': {
         const x = a as ToolInput<'schema_at'>;
@@ -228,7 +326,12 @@ export class AgentSession {
         }
         const r = schemaAt(this.registry, ptr, data);
         if (!r) return fail('no_schema');
-        return ok({}, { data: { schema: r.json }, source: 'schema' });
+        const bytes = enc.encode(JSON.stringify(r.json)).length;
+        if (ptr === '' || bytes > MAX_SCHEMA_BYTES) {
+          // compact summary instead of tens of kB (audit S6); a deeper pointer gives the full schema
+          return ok({ summary: true, total_bytes: bytes, hint: 'narrow the pointer for the full schema' }, { data: { schema: summarizeSchema(r.json) }, source: 'schema' });
+        }
+        return ok({ summary: false, total_bytes: bytes }, { data: { schema: r.json }, source: 'schema' });
       }
       case 'list_entities': {
         const x = a as ToolInput<'list_entities'>;
@@ -333,10 +436,12 @@ export class AgentSession {
         const x = a as ToolInput<'memory_read'>;
         const t = this.memory.text(`${x.name}.md`);
         if (t === null) return fail('no_memory_file');
+        this.partialMemory.delete(`${x.name}.md`);
         return ok({}, { data: { file: `${x.name}.md`, text: t }, source: 'memory' });
       }
       case 'memory_write': {
         const x = a as ToolInput<'memory_write'>;
+        if (this.partialMemory.has(`${x.name}.md`)) return fail('read_full_memory_first', { hint: 'memory_read this file before rewriting it; your context showed it cut' }, 'memory');
         try {
           const op = await this.memory.write({ name: x.name, type: x.type, description: x.description, appliesWhen: x.applies_when ?? [], body: x.body }, meta(x.reason));
           this.mark('memory', op.seq);

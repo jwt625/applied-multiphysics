@@ -101,7 +101,8 @@ test('run_study records a side effect and results; stale after an edit', async (
   const s = fx.session;
   const r = await s.execute('run_study', { study: 'std1', reason: 'r' });
   assert.equal(headJson(txt(r))?.runOk, true);
-  assert.equal(headJson(txt(r))?.gatesPassed, 1);
+  assert.equal(headJson(txt(r))?.gatesPassed, 0); // the FE runner pairs no eval case (eval/fixtures.ts header)
+  assert.ok(((blockJson(txt(r)) as { scalars: { mises_max: { value: number } } }).scalars.mises_max.value) > 0);
   assert.equal(s.sideEffects.length, 1);
   assert.equal(headJson(txt(await s.execute('get_run_record', {})))?.stale, false);
   await s.execute('apply_ops', { ops: [{ op: 'replace', path: '/params/sigma_inf/value', value: 2 }], reason: 'x' });
