@@ -13,8 +13,11 @@ export const PARAM_NAME = new RegExp(`^${NOT_FORBIDDEN}[A-Za-z_][A-Za-z0-9_]{0,6
 /** Entity kinds of C2: domains, boundaries (codimension 1), edges (3D), points. */
 export const ENTITY_KINDS = ['dom', 'bnd', 'edg', 'pnt'] as const;
 export type EntityKind = (typeof ENTITY_KINDS)[number];
-/** Persistent entity id: `<kind>:<feature id>(.<sub-entity>)*(#<k>)?`, e.g. `bnd:rect1.top`, `dom:plate#1`. */
-export const ENTITY_ID = /^(dom|bnd|edg|pnt):([A-Za-z_][A-Za-z0-9_-]{0,63})((?:\.[A-Za-z0-9_-]{1,64})*)(#\d{1,6})?$/;
+/**
+ * Persistent entity id: `<kind>:<feature id>(.<sub-entity>)*(#<k>)*`, e.g. `bnd:rect1.top`, `dom:plate#1`, and
+ * pieces of pieces `dom:a#1#2` (L3 splits a split piece again; L3 audit S1). At most 8 split levels.
+ */
+export const ENTITY_ID = /^(dom|bnd|edg|pnt):([A-Za-z_][A-Za-z0-9_-]{0,63})((?:\.[A-Za-z0-9_-]{1,64})*)((?:#\d{1,6}){0,8})$/;
 /** Reference to a materials/ file id. */
 export const MATERIAL_REF = /^materials\/[a-z0-9][a-z0-9._-]{0,127}$/;
 /** ISO 8601 calendar date. */
@@ -36,7 +39,8 @@ export function findForbiddenKey(x: unknown, at: Array<string | number> = []): A
   return null;
 }
 
-export interface EntityIdParts { kind: EntityKind; feature: string; sub: string[]; split: number | null }
+/** split: the `#k` piece numbers, outermost first (empty when the id names an unsplit entity). */
+export interface EntityIdParts { kind: EntityKind; feature: string; sub: string[]; split: number[] }
 
 export function parseEntityId(id: string): EntityIdParts | null {
   const m = ENTITY_ID.exec(id);
@@ -45,11 +49,14 @@ export function parseEntityId(id: string): EntityIdParts | null {
     kind: m[1] as EntityKind,
     feature: m[2] as string,
     sub: m[3] ? m[3].slice(1).split('.') : [],
-    split: m[4] ? Number(m[4].slice(1)) : null,
+    split: m[4] ? m[4].slice(1).split('#').map(Number) : [],
   };
 }
 
-/** Feature ids may not use the reserved split marker; actor ids follow C7. */
+/** True when `a` and `b` name the same entity or one is a split piece (at any depth) of the other. */
+export const entityOverlaps = (a: string, b: string): boolean => a === b || a.startsWith(`${b}#`) || b.startsWith(`${a}#`);
+
+/** Actor ids follow C7. */
 export const AGENT_ACTOR = /^agent:[A-Za-z0-9_.:-]{1,128}$/;
 export type Actor = 'user' | `agent:${string}`;
 export const isAgentActor = (a: string): boolean => a.startsWith('agent:');

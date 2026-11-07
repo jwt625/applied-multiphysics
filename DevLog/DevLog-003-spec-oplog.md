@@ -254,3 +254,28 @@ Parse + validate medians (ms, 50 runs after 5 warm-up): kirsch 0.771, heat 0.603
 1. **C5**: optional `RunRecord.oplogHead` (sha-256 hex of the op log head at run start).
 2. **C7**: `amp-oplog/1`; pointer tokens `@<id>` and `@<id>+`; extension op `absent`; field `coalesced`; ops of only `test`/`absent` are refused; revert rules (only ops in effect; undo records revertible, redo records not).
 3. **L4**: physical bounds in the provisional property and settings registrations are listed in 7.2 S4; keep or tighten them when superseding; set solver budgets (e.g. `nModes`) yourselves.
+
+## 8. Follow-up: split-piece ids and one canonical resolver (L3 audit S1, coordinator 2026-11-06 ~16:13 PST)
+
+Changes (2026-11-06 16:15 PST):
+- `ENTITY_ID` accepts repeated split suffixes `(#k){0,8}` (`dom:a#1#2`, `bnd:base.top#1#3`). `parseEntityId(...).split` is now `number[]`, outermost first, and empty for an unsplit id (was `number | null`; no other package used it).
+- `entityOverlaps(a, b)`: same id, or one is a split piece of the other at any depth. The material-overlap check uses it.
+- `@amp/spec` no longer expands selections. The old `resolveSelection` in `src/selection.ts` (one level deep, and with no consumers outside the package) is removed. `checkSelections(spec, geometry?)` takes `{table, resolve}`:
+  - without a geometry it returns one `severity: 'notice'` issue, "selection not checked: geometry not built";
+  - with one it reports `unknown_entity` for ids that the injected resolver cannot match.
+- Spec-side validation stays static: it checks the grammar, the allowed kinds per node, and that the feature named in each id exists in `geometry.features`.
+- Tests: grammar accepts and rejects (5 malformed forms), double-split selection accepted by the schema, overlap at depth 2, the notice without a geometry, and resolution through a test-only reference resolver. `pnpm test` 44/44, `pnpm check` clean (`logs/L2-test-20261106T161540.log`, `logs/L2-check-20261106T161540.log`).
+
+Proposal to L3 (name and signature, to be confirmed in DevLog-004). `@amp/geom` depends on `@amp/spec`, so `@amp/spec` cannot import the resolver. It declares the contract type instead, and callers inject the function:
+
+```ts
+// @amp/geom
+export function resolveEntityIds(table: EntityTable, kind: 'domains' | 'boundaries' | 'edges' | 'points', ids: readonly string[]): { indices: number[]; unknown: string[] };
+// rules: exact id; plus every entity whose id starts with `<id>#` (any depth); plus the transitive closure over `parent`.
+// Never throws on unknown ids; they go to `unknown`. The existing throwing resolveSelection can wrap it.
+// @amp/spec: type EntityResolver = typeof resolveEntityIds; checkSelections(spec, { table, resolve: resolveEntityIds })
+```
+
+Open for L3 and the coordinator:
+- The L3 grammar (DevLog-004 s.4.7) also emits `&` (fragment `a&b`) and `@` (layers `<d>@<layer>`). `ENTITY_ID` does not accept these characters yet, so a spec cannot select those entities. This follow-up was scoped to `#k` only; extending the grammar needs a C2 decision.
+- C2 should document the `#k#k` grammar and the piece numbering (L3 numbers pieces from 1).

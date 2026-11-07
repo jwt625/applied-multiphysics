@@ -185,3 +185,8 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - Spec quantities must be finite, with physical bounds (sizes > 0, absolute T >= 0 K, emissivity 0..1). L4 reviews the property bounds.
   - Keys `__proto__`, `constructor` and `prototype` are rejected everywhere.
 - 2026-11-06 16:15 PST, from the L8 audit (B5): the canonical signatures are L4's implementation, and L8 adapts to them. `@amp/post` `sample(solution, mesh, field, points, component?)`; `@amp/physics` exports `modules`, `registry` and `prepareRun` as defined in `packages/physics/src/index.ts` / `spec-adapter.ts`. The C4/C5 text is corrected in the contracts-v1 pass. Target lookup is by `metric_id` (slug grammar `[A-Za-z][A-Za-z0-9_.+-]*`, L7a), never by free-text `quantity`.
+- 2026-11-06 16:16 PST, C2 entity-ID grammar decision (L2/L3):
+  - Fragment overlap pieces use `&` (e.g. `dom:a&b`), and the spec grammar accepts it.
+  - Layers are dotted sub-entities `.L<k>` (e.g. `dom:stack.L3`), not `@`: `@` is reserved for operation-log array-element tokens.
+  - Split suffixes `#k` may repeat (up to 8 levels).
+  - The one canonical resolver is `resolveEntityIds(table, kind, ids) -> {indices, unknown}` from `@amp/geom`. It never throws, and matches the exact id, split pieces at any depth, and parent links. `@amp/spec` `checkSelections` takes it injected.

@@ -9,7 +9,8 @@ import { specJsonSchema, quantity, SpecSchema, schemaAt, type Spec } from '../sr
 import { createRegistry } from '../src/registry.ts';
 import { wave1Registry, WAVE1 } from '../src/provisional/wave1.ts';
 import { resolveQuantity, classifyString } from '../src/quantity.ts';
-import { checkSelections, resolveSelection } from '../src/selection.ts';
+import { checkSelections, type EntityResolver } from '../src/selection.ts';
+import { parseEntityId, entityOverlaps } from '../src/ids.ts';
 
 const SIMS = new URL('../../../sims/', import.meta.url);
 const HEROES = ['kirsch-plate', 'heat-plate-fin', 'helmholtz-coil', 'si-rib-waveguide', 'cylinder-cavity', 'box-acoustics'];
@@ -180,15 +181,56 @@ test('static types come from the same schema (generic form)', () => {
   assert.equal(validateSpec(s, reg).ok, true);
 });
 
-test('selections resolve against a built entity table (split parts, unknown ids)', () => {
-  const table = { domains: [{ id: 'dom:plate#0', parent: ['dom:plate'] }, { id: 'dom:plate#1', parent: ['dom:plate'] }], boundaries: [{ id: 'bnd:quarter.left' }, { id: 'bnd:quarter.right' }] };
-  assert.deepEqual(resolveSelection(['dom:plate'], table).indices, [0, 1]);
-  assert.deepEqual(resolveSelection(['dom:plate#1'], table).indices, [1]);
-  assert.deepEqual(resolveSelection(['bnd:quarter.top'], table).unknown, ['bnd:quarter.top']);
+/**
+ * Test-only reference of the canonical resolver rules (the real one is exported by @amp/geom): exact id, split
+ * pieces `id#k` at any depth, transitive closure over `parent`; unknown ids reported, never thrown.
+ */
+const refResolver: EntityResolver = (table, kind, ids) => {
+  const list = table[kind] ?? [];
+  const indices = new Set<number>();
+  const unknown: string[] = [];
+  for (const id of ids) {
+    const sel = new Set([id]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const e of list) if (!sel.has(e.id) && ([...sel].some((x) => e.id.startsWith(`${x}#`)) || e.parent?.some((p) => sel.has(p)))) { sel.add(e.id); grew = true; }
+    }
+    const hit = list.map((e, i) => (sel.has(e.id) ? i : -1)).filter((i) => i >= 0);
+    if (!hit.length) unknown.push(id);
+    hit.forEach((i) => indices.add(i));
+  }
+  return { indices: [...indices].sort((a, b) => a - b), unknown };
+};
+
+test('entity ids: repeated #k split suffixes (L3 audit S1); spec checks grammar, the injected resolver expands', () => {
+  assert.deepEqual(parseEntityId('dom:p#2#1'), { kind: 'dom', feature: 'p', sub: [], split: [2, 1] });
+  assert.deepEqual(parseEntityId('bnd:base.top#1#3')?.split, [1, 3]);
+  assert.deepEqual(parseEntityId('dom:plate')?.split, []);
+  for (const bad of ['dom:a#', 'dom:a##1', 'dom:a#1#', 'dom:a#x', `dom:a${'#1'.repeat(9)}`]) assert.equal(parseEntityId(bad), null, bad);
+  // the schema accepts double-split ids in selections
+  assert.deepEqual(codes(edit(KIRSCH, '{id: steel, ref: materials/structural-steel, select: ["dom:plate"]}', '{id: steel, ref: materials/structural-steel, select: ["dom:plate#2#1"]}')), []);
+  // material overlap at any split depth
+  assert.deepEqual(codes(edit(KIRSCH, '{id: steel, ref: materials/structural-steel, select: ["dom:plate"]}', '{id: steel, ref: materials/structural-steel, select: ["dom:plate"]}\n  - {id: alu, ref: materials/aluminum, select: ["dom:plate#2#1"]}').replace('missing:\n', 'missing:\n  - {path: materials.alu.ref, what: x}\n')), ['material_overlap materials.1.select.0']);
+  assert.equal(entityOverlaps('dom:p#2', 'dom:p#2#1'), true);
+  assert.equal(entityOverlaps('dom:p#2', 'dom:p#21'), false);
+});
+
+test('checkSelections: notice without geometry; with a built table, unknown ids through the canonical resolver', () => {
   const spec = parseSpecText(KIRSCH, reg).spec!;
-  const missing = checkSelections(spec, table).map((i) => i.dotted);
-  assert.ok(missing.includes('physics.0.bcs.1.select.0'));
-  assert.ok(!missing.includes('physics.0.bcs.0.select.0'));
+  const none = checkSelections(spec);
+  assert.equal(none.length, 1);
+  assert.equal(none[0]!.severity, 'notice');
+  assert.equal(none[0]!.message, 'selection not checked: geometry not built');
+  const table = {
+    domains: [{ id: 'dom:plate#1', parent: ['dom:plate'] }, { id: 'dom:plate#2#1', parent: ['dom:plate#2'] }, { id: 'dom:plate#2#2', parent: ['dom:plate#2'] }],
+    boundaries: [{ id: 'bnd:quarter.left' }, { id: 'bnd:quarter.right' }, { id: 'bnd:quarter.top#1#1' }, { id: 'bnd:hole.edge' }],
+  };
+  assert.deepEqual(refResolver(table, 'domains', ['dom:plate']).indices, [0, 1, 2], 'parent id selects pieces at every depth');
+  assert.deepEqual(refResolver(table, 'domains', ['dom:plate#2']).indices, [1, 2]);
+  assert.deepEqual(refResolver(table, 'domains', ['dom:plate#2#1']).indices, [1]);
+  const issues = checkSelections(spec, { table, resolve: refResolver }).map((i) => i.dotted);
+  assert.deepEqual(issues, ['physics.0.bcs.1.select.0'], 'only bnd:quarter.bottom is missing from the table');
 });
 
 test('audit S3: __proto__/constructor/prototype keys are rejected in YAML records, ids and dotted paths', () => {

@@ -1,49 +1,51 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Selections against a built geometry (C2 EntityTable). The spec validator checks only that the feature of each
-// entity id exists; once the geometry is built, these helpers resolve ids to entity indices and report ids that the
-// geometry does not have. A parent id selects all its split parts (`dom:a` -> `dom:a#0`, `dom:a#1`, ...).
+// Selections against a built geometry (C2 EntityTable). The spec validates the entity-id grammar and that the feature
+// of each id exists; it does not expand selections itself. Expansion (exact id, split pieces `id#k` at any depth,
+// transitive closure over `parent`) has one canonical implementation, exported by @amp/geom (L3 audit S1). @amp/geom
+// depends on @amp/spec, so the resolver is injected here rather than imported. Agreed name and signature: DevLog-003
+// section 8 (`resolveEntityIds` in @amp/geom).
 
 import { parseEntityId, type EntityKind } from './ids.ts';
-import type { EntityRef, EntityTable } from './types/mesh.ts';
+import type { EntityTable } from './types/mesh.ts';
 import type { Spec } from './schema.ts';
 import { issue, type SpecIssue } from './validate.ts';
 import type { PathKey } from './registry.ts';
 
-const TABLE: Record<EntityKind, keyof EntityTable> = { dom: 'domains', bnd: 'boundaries', edg: 'edges', pnt: 'points' };
+export type EntityListName = 'domains' | 'boundaries' | 'edges' | 'points';
+export const ENTITY_LIST: Record<EntityKind, EntityListName> = { dom: 'domains', bnd: 'boundaries', edg: 'edges', pnt: 'points' };
 
-/** Indices into the entity list of each id's kind; unknown ids are returned separately. */
-export function resolveSelection(ids: readonly string[], table: EntityTable): { kind: EntityKind | null; indices: number[]; unknown: string[] } {
-  const indices = new Set<number>();
-  const unknown: string[] = [];
-  let kind: EntityKind | null = null;
-  for (const id of ids) {
-    const p = parseEntityId(id);
-    if (!p) { unknown.push(id); continue; }
-    kind ??= p.kind;
-    const list = (table[TABLE[p.kind]] ?? []) as EntityRef[];
-    let hit = false;
-    list.forEach((e, i) => {
-      if (e.id === id || (p.split === null && e.id.startsWith(`${id}#`)) || e.parent?.includes(id)) { indices.add(i); hit = true; }
-    });
-    if (!hit) unknown.push(id);
-  }
-  return { kind, indices: [...indices].sort((a, b) => a - b), unknown };
+/** Canonical resolver contract (implemented by @amp/geom): indices into table[kind]; ids that match nothing in `unknown`. Never throws on unknown ids. */
+export type EntityResolver = (table: EntityTable, kind: EntityListName, ids: readonly string[]) => { indices: number[]; unknown: string[] };
+
+export interface BuiltGeometry { table: EntityTable; resolve: EntityResolver }
+
+/** Every selection of the spec as [path, ids]. */
+export function selectionsOf(spec: Spec): Array<{ path: PathKey[]; ids: string[] }> {
+  const out: Array<{ path: PathKey[]; ids: string[] }> = [];
+  spec.materials?.forEach((m, i) => out.push({ path: ['materials', i, 'select'], ids: m.select }));
+  spec.physics?.forEach((p, i) => {
+    out.push({ path: ['physics', i, 'select'], ids: p.select });
+    p.bcs?.forEach((b, j) => out.push({ path: ['physics', i, 'bcs', j, 'select'], ids: b.select }));
+  });
+  spec.mesh?.refine?.forEach((r, i) => out.push({ path: ['mesh', 'refine', i, 'select'], ids: r.select }));
+  spec.results?.forEach((r, i) => { if (r.select) out.push({ path: ['results', i, 'select'], ids: r.select }); });
+  return out;
 }
 
-/** Every selection in the spec checked against a built entity table. */
-export function checkSelections(spec: Spec, table: EntityTable): SpecIssue[] {
+/**
+ * Check every selection against a built geometry through the canonical resolver. Without a geometry, returns one
+ * notice "selection not checked: geometry not built" (severity 'notice', not an error).
+ */
+export function checkSelections(spec: Spec, geometry?: BuiltGeometry | null): SpecIssue[] {
+  if (!geometry) return [{ ...issue([], 'selection_unchecked', 'selection not checked: geometry not built'), severity: 'notice' }];
   const out: SpecIssue[] = [];
-  const check = (sel: readonly string[] | undefined, path: PathKey[]) => {
-    sel?.forEach((id, j) => {
-      if (resolveSelection([id], table).unknown.length) out.push(issue([...path, j], 'unknown_entity', `geometry has no entity '${id}'`));
+  for (const { path, ids } of selectionsOf(spec)) {
+    ids.forEach((id, j) => {
+      const p = parseEntityId(id);
+      if (!p) { out.push(issue([...path, j], 'invalid_format', `not an entity id: '${id}'`)); return; }
+      const r = geometry.resolve(geometry.table, ENTITY_LIST[p.kind], [id]);
+      if (r.unknown.length || !r.indices.length) out.push(issue([...path, j], 'unknown_entity', `geometry has no entity '${id}'`));
     });
-  };
-  spec.materials?.forEach((m, i) => check(m.select, ['materials', i, 'select']));
-  spec.physics?.forEach((p, i) => {
-    check(p.select, ['physics', i, 'select']);
-    p.bcs?.forEach((b, j) => check(b.select, ['physics', i, 'bcs', j, 'select']));
-  });
-  spec.mesh?.refine?.forEach((r, i) => check(r.select, ['mesh', 'refine', i, 'select']));
-  spec.results?.forEach((r, i) => check(r.select, ['results', i, 'select']));
+  }
   return out;
 }

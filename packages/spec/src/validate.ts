@@ -8,10 +8,12 @@ import { EXPRESSION_FUNCTIONS } from '@amp/core/expr';
 import { buildSpecSchema, withScope, type Spec } from './schema.ts';
 import { classifyString, resolveQuantity, QuantityError, NA } from './quantity.ts';
 import { units, expressionRefs, evaluateExpression, type ScopeValue } from './units.ts';
-import { parseEntityId, type EntityKind } from './ids.ts';
+import { parseEntityId, entityOverlaps, type EntityKind } from './ids.ts';
 import type { Registry, CheckContext, PathKey, SpaceDim, Registration } from './registry.ts';
 
 export interface SpecIssue {
+  /** 'notice': informational, does not make the spec invalid (absent = error). */
+  severity?: 'notice';
   path: PathKey[];
   dotted: string;
   pointer: string;
@@ -266,9 +268,9 @@ function crossCheck(spec: Spec, reg: Registry, scope: ReadonlyMap<string, ScopeV
     });
   };
 
-  // each domain gets at most one material; a parent id overlaps its split parts (`dom:a` vs `dom:a#1`)
+  // each domain gets at most one material; a parent id overlaps its split pieces at any depth (`dom:a` vs `dom:a#1#2`)
   const assigned: Array<{ d: string; m: string }> = [];
-  const overlaps = (a: string, b: string) => a === b || a.replace(/#\d+$/, '') === b || b.replace(/#\d+$/, '') === a;
+  const overlaps = entityOverlaps;
   spec.materials?.forEach((m, i) => {
     const path: PathKey[] = ['materials', i];
     addId(m.id, path);
