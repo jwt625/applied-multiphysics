@@ -14,7 +14,7 @@ export interface Tolerance {
   rel?: number;
   abs?: number;
   after?: 'richardson' | 'finest' | 'none';
-  norm?: 'l2' | 'max';
+  norm?: 'l2' | 'max' | 'rel_l2' | 'rel_max';
   rule?: Rule;
   note?: string;
 }
@@ -315,6 +315,9 @@ function semanticChecks(
     if (r.extract?.kind === 'field' && r.extract.evaluator_fields) {
       const n = r.extract.fields?.length ?? r.extract.components?.length ?? 1;
       if (r.extract.evaluator_fields.length !== n) at(`${p}/extract/evaluator_fields`, 'extract-field', `evaluator_fields has ${r.extract.evaluator_fields.length} names for ${n} engine components`);
+    }
+    if (r.extract?.kind === 'field' && ['', '1', '-', 'dimensionless'].includes((r.unit ?? '').trim()) && r.tolerance?.norm !== 'rel_l2' && r.tolerance?.norm !== 'rel_max') {
+      at(`${p}/tolerance`, 'field-relative', `field target with unit '1' is evaluated as the relative norm (||e|| / ||ref||); write norm: rel_l2 or rel_max to say so`, 'warning');
     }
     const checkTerms = (ex: Extract | undefined, path: string) => {
       if (!ex) return;

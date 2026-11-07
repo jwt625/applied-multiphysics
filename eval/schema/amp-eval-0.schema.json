@@ -876,9 +876,11 @@
         "norm": {
           "enum": [
             "l2",
-            "max"
+            "max",
+            "rel_l2",
+            "rel_max"
           ],
-          "description": "field targets: discrete relative L2 or max over sample points"
+          "description": "field targets. rel_l2 = ||e||_2 / ||ref||_2, rel_max = max|e| / max|ref| (dimensionless; rel or abs is the budget on it). l2 / max: relative when the target unit is '1', else rel -> relative norm, abs -> RMS / max |e| in the target unit"
         },
         "rule": {
           "anyOf": [

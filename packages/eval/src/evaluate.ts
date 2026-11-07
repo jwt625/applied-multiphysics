@@ -145,8 +145,10 @@ export function evaluateTarget(r: Reference, ref: number | number[] | undefined,
     const isRate = tol.rule?.type === 'rate';
     if (isRate && lv.length < 2) return pendingTarget(r, ref, `rule 'rate' needs >= 2 mesh levels, got ${lv.length}`);
     if (tol.rel === undefined && tol.abs === undefined && !isRate) return pendingTarget(r, ref, "field target needs rel, abs or a 'rate' rule", 'error');
-    const chk = tol.rel !== undefined || tol.abs !== undefined ? checkField(fe, tol) : null;
-    const key = (chk?.metric ?? (tol.norm === 'max' ? 'max_rel' : 'l2_rel')) as 'rms_abs' | 'max_abs' | 'max_rel' | 'l2_rel';
+    // unit '1' on a field target = relative norm (||e|| / ||ref||), whatever the field's own unit
+    const relative = ['', '1', '-', 'dimensionless'].includes(r.unit.trim());
+    const chk = tol.rel !== undefined || tol.abs !== undefined ? checkField(fe, tol, { relative }) : null;
+    const key = (chk?.metric ?? (tol.norm === 'max' || tol.norm === 'rel_max' ? 'max_rel' : 'l2_rel')) as 'rms_abs' | 'max_abs' | 'max_rel' | 'l2_rel';
     const errs = lv.map((l) => (isSamples(l.value) ? fieldError(l.value.values, rs)[key] : NaN));
     const rate = lv.length >= 2 ? convergenceRateFit(hs, errs) : undefined;
     const rr = isRate ? evalRule(tol.rule!, [], rate ? { rate: rate.rate } : {}) : undefined;

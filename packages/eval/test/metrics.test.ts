@@ -248,3 +248,20 @@ test('richardsonRule (shared with L4): band of the theoretical order, unavailabl
   assert.equal(none.available, true); assert.match(none.reason!, /not checked/);
 });
 
+test('SM-01 numbers: unit 1 field target with abs 1e-3 is the relative L2 (5.86e-4 passes); explicit rel_l2 / rel_max', () => {
+  // reference stresses ~1e8 Pa, error scaled to relative L2 5.86e-4 (RMS ~3.9e4 Pa, which must not meet abs 1e-3)
+  const refS = Array.from({ length: 126 }, (_, i) => 1e8 * (1 + 0.5 * Math.sin(i)));
+  const nr = Math.sqrt(refS.reduce((a, b) => a + b * b, 0));
+  const dir = refS.map((_, i) => Math.cos(3 * i));
+  const nd = Math.sqrt(dir.reduce((a, b) => a + b * b, 0));
+  const eng = refS.map((v, i) => v + (5.86e-4 * nr * dir[i]!) / nd);
+  const t = (tol: Reference['tolerance'], unit = '1') => evaluateTarget(ref(tol, { unit, extract: { kind: 'field', fields: ['sxx'], samples_key: 'k' } }), 0, { levels: [{ value: { values: eng } }] }, { refSamples: refS });
+  const a = t({ abs: 1e-3, norm: 'l2' });
+  assert.equal(a.status, 'pass'); assert.equal(a.field!.metric, 'l2_rel'); close(a.field!.measured, 5.86e-4, 1e-9);
+  assert.equal(t({ abs: 5e-4, norm: 'l2' }).status, 'fail');
+  assert.equal(t({ abs: 1e-3, norm: 'rel_l2' }, 'Pa').status, 'pass');
+  const pa = t({ abs: 1e-3, norm: 'l2' }, 'Pa');                  // dimensional unit: abs is the RMS in Pa
+  assert.equal(pa.status, 'fail'); assert.equal(pa.field!.metric, 'rms_abs');
+  assert.equal(t({ abs: 1e-2, norm: 'rel_max' }).field!.metric, 'max_rel');
+});
+

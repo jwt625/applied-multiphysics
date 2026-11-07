@@ -65,15 +65,28 @@ export function fieldError(a: ArrayLike<number>, b: ArrayLike<number>, offset = 
   };
 }
 
-export function checkField(err: FieldError, tol: ToleranceSpec & { norm?: 'l2' | 'max' }): { metric: string; measured: number; limit: number; pass: boolean } {
-  const norm = tol.norm ?? 'l2';
+/**
+ * Field budget. norm rel_l2 / rel_max, or l2 / max with `relative` (target unit '1'): the measured value is the
+ * relative norm (||e||_2 / ||ref||_2, max|e| / max|ref|) and the budget is abs ?? rel on it. Otherwise rel ->
+ * relative norm, abs -> RMS / max |e| in field units.
+ */
+export function checkField(err: FieldError, tol: ToleranceSpec & { norm?: 'l2' | 'max' | 'rel_l2' | 'rel_max' }, opts: { relative?: boolean } = {}): { metric: string; measured: number; limit: number; pass: boolean } {
+  const n = tol.norm ?? 'l2';
+  const kind = n === 'rel_l2' || n === 'l2' ? 'l2' : 'max';
+  const rel = n === 'rel_l2' || n === 'rel_max' || opts.relative === true;
+  if (rel) {
+    const limit = tol.abs ?? tol.rel;
+    if (limit === undefined) throw new Error('field tolerance needs rel or abs');
+    const measured = kind === 'l2' ? err.l2_rel : err.max_rel;
+    return { metric: kind === 'l2' ? 'l2_rel' : 'max_rel', measured, limit, pass: Number.isFinite(measured) && measured <= limit };
+  }
   if (tol.rel !== undefined) {
-    const measured = norm === 'l2' ? err.l2_rel : err.max_rel;
-    return { metric: `${norm}_rel`, measured, limit: tol.rel, pass: Number.isFinite(measured) && measured <= tol.rel };
+    const measured = kind === 'l2' ? err.l2_rel : err.max_rel;
+    return { metric: `${kind}_rel`, measured, limit: tol.rel, pass: Number.isFinite(measured) && measured <= tol.rel };
   }
   if (tol.abs !== undefined) {
-    const measured = norm === 'l2' ? err.rms_abs : err.max_abs;
-    return { metric: norm === 'l2' ? 'rms_abs' : 'max_abs', measured, limit: tol.abs, pass: Number.isFinite(measured) && measured <= tol.abs };
+    const measured = kind === 'l2' ? err.rms_abs : err.max_abs;
+    return { metric: kind === 'l2' ? 'rms_abs' : 'max_abs', measured, limit: tol.abs, pass: Number.isFinite(measured) && measured <= tol.abs };
   }
   throw new Error('field tolerance needs rel or abs');
 }

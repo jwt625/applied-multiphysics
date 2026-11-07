@@ -132,3 +132,10 @@ test('rule shorthand within_bounds normalizes to {type: range}; prose rule is an
   assert.equal(e.length, 1); assert.equal(e[0]!.path, '/references/0/tolerance/rule');
 });
 
+test('field target with unit 1 and a non-relative norm warns (evaluated as the relative norm)', () => {
+  const y = (norm: string) => caseYaml({ tol: `{abs: 1.0e-3, norm: ${norm}}`, refExtra: '\n    extract: {kind: field, field: sxx, evaluator: validation/a/fields.py, points: [[0, 1]]}' });
+  const w = parseCase(y('l2'), 'f', opts).issues;
+  assert.deepEqual(w.map((i) => [i.severity, i.keyword]), [['warning', 'field-relative']]);
+  assert.deepEqual(parseCase(y('rel_l2'), 'f', opts).issues, []);
+});
+
