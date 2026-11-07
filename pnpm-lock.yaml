@@ -23,6 +23,9 @@ importers:
       '@amp/geom':
         specifier: link:../../packages/geom
         version: link:../../packages/geom
+      '@amp/materials':
+        specifier: link:../../packages/materials
+        version: link:../../packages/materials
       '@amp/mesh':
         specifier: link:../../packages/mesh
         version: link:../../packages/mesh
@@ -57,6 +60,9 @@ importers:
       '@types/three':
         specifier: 0.187.0
         version: 0.187.0
+      '@webgpu/types':
+        specifier: 0.1.74
+        version: 0.1.74
       playwright-core:
         specifier: 1.63.0
         version: 1.63.0
@@ -72,6 +78,18 @@ importers:
       vite:
         specifier: 8.3.2
         version: 8.3.2(@types/node@24.19.2)(yaml@2.9.1)
+
+  packages/agent:
+    dependencies:
+      '@amp/spec':
+        specifier: workspace:*
+        version: link:../spec
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
   packages/core:
     devDependencies:
@@ -165,6 +183,9 @@ importers:
       '@amp/geom':
         specifier: link:../geom
         version: link:../geom
+      '@amp/materials':
+        specifier: link:../materials
+        version: link:../materials
       '@amp/mesh':
         specifier: link:../mesh
         version: link:../mesh
@@ -174,6 +195,9 @@ importers:
       '@amp/spec':
         specifier: link:../spec
         version: link:../spec
+      zod:
+        specifier: link:../spec/node_modules/zod
+        version: link:../spec/node_modules/zod
     devDependencies:
       '@types/node':
         specifier: 24.19.2

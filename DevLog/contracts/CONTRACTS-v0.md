@@ -218,3 +218,8 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - C1: `three` 0.187.0 is approved as a runtime dependency of apps/web.
   - Interim (coordinator decision): when a hero spec has N/A materials, the browser uses the sourced inputs of the paired eval case, shows which case and its sources, and has a toggle. I1 is moving the real values into sims/ and linking each hero to its case in the spec, after which the SIM_CASE table goes away.
   - Assigned to L4 (follow-up after its audit): Nedelec field evaluation or H1 projection in `@amp/post`; `prepareRun` with an injected material library (no node alias); eigenmode normalization stated in the Solution.
+- 2026-11-06 16:41 PST, from L9 (DevLog-012 s.5):
+  - Approved: zod 4.6.7, yaml 2.9.1 and `@amp/spec` (workspace) for `@amp/agent`.
+  - `@anthropic-ai/sdk` for apps/web is pinned exactly to 1.1.0 (published 2026-10-21; npm registry checked 16:41). Newer releases (1.6.0 of 2026-11-05) are too fresh under the two-week supply-chain rule. A newer pin needs a recorded reason (a feature the adapter requires) and a version at least two weeks old.
+  - Memory uses its own `amp-memlog/0` log (noted).
+  - Assigned to the next web pass: mount the chat panel per DevLog-012 s.6.1. Assigned to L4/L8: a Node `StudyRunner` over `@amp/physics` for the agent task suite. L2, optional: `renameId`, `applyText`.
