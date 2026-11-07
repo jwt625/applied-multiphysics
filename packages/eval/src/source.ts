@@ -20,11 +20,15 @@ export interface LevelTimingSummary {
 /** --speed: 1 warm-up + median of 5 at every mesh level (audit S5; protocol recorded). */
 export interface SpeedRecord {
   protocol: 'warmup1_median5_per_level';
+  timing: 'warm';                   // `levels` are warm medians (M2 audit S2); cold numbers are in the *_cold fields
+  mesh_cache_note?: string;
   levels: LevelTimingSummary[];
   budget_s?: number;               // native budget; the browser budget belongs to the browser runner (audit S6)
   budget_note?: string;
-  t_tol_ms?: number | null;        // time to reach every gated tolerance (cumulative over levels for richardson)
-  meets_budget?: boolean | null;   // null when pending (no native budget, or a gated target not passing)
+  t_tol_cold_ms?: number | null;   // cold end to end (first call per level, meshing included): the budget check uses this
+  t_tol_warm_ms?: number | null;   // warm medians, informative only
+  case_wall_cold_ms?: number;      // worker spawn to result, all levels (cold)
+  meets_budget?: boolean | null;   // cold T_tol vs budget_s.native; null when pending
 }
 
 export type CaseObservation =
@@ -35,7 +39,9 @@ export type CaseObservation =
       kind: 'observed';
       targets: Record<string, TargetObservation | { pending: string } | { error: string } | { timeout: string }>;
       run: RunRecord | Record<string, unknown>;
-      levelRuns?: Array<{ level: number; dof: number; meshHash: string; wall_ms: number; spec?: string }>;
+      levelRuns?: Array<{ level: number; timing?: 'cold'; dof: number; meshHash: string; wall_ms: number; prepare_ms?: number; run_ms?: number; spec?: string; informative?: boolean }>;
+      caseWallColdMs?: number;          // cold wall of the groups with a gated target (the timed gate)
+      informativeWallColdMs?: number;   // cold wall of informative-only groups (gate: false), reported apart
       dim?: number;
       speed?: SpeedRecord;
     };

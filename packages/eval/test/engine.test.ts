@@ -143,3 +143,46 @@ test('Follow-up 4: per-target expected_order overrides the case value; dtFactor 
   } finally { fx.cleanup(); }
 });
 
+test('M2 audit S1: h from hFactor, not from DOF and the case dimension label', async () => {
+  // mock DOF = 1/h^2 (a 2D mesh) but the case says dimension 1D; q - 1 = 0.1 h^2 (order 2)
+  const fx = makeRoot();
+  try {
+    fx.write('eval/cases/a/XX-01.yaml', caseYaml({ refExtra: '\n    expected_order: 2' }).replace('dimension: 2D', 'dimension: 1D'));
+    const { code, out } = await run(['--root', fx.root, '--no-log']);
+    const t = out.results[0]!.targets[0] as unknown as { status: string; order_ratio?: number; richardson_fallback?: string; richardson: { r: number } };
+    assert.equal(code, 0); assert.equal(t.status, 'pass'); assert.equal(t.richardson_fallback, undefined);
+    assert.ok(Math.abs(t.order_ratio! - 1) < 1e-9, String(t.order_ratio)); assert.equal(t.richardson.r, 2);
+  } finally { fx.cleanup(); }
+});
+
+test('L7a / Follow-up 5: per-target levels; informative-only groups run their levels only and are timed apart', async () => {
+  const phys = MOCK_PHYSICS.replace("scalars: { q: { value: 1 + 0.1 * h * h, unit: '1' } }", "scalars: { q: { value: (1 + 0.1 * h * h) * (ctx.spec.x_scale ?? 1), unit: '1' } }");
+  const fx = makeRoot({ physicsSrc: phys });
+  try {
+    const info = `
+  - quantity: q_info
+    metric_id: q
+    id: q_info
+    value: 3.003
+    unit: "1"
+    tolerance: {rel: 1.0e-2}
+    basis: D
+    form: closed_form
+    gate: false
+    levels: [0]
+    provenance: {citation: synthetic, locator: test, accessed: 2026-11-06}
+    spec: {schema: amp-spec/0, x_scale: 3, physics: [{id: p1, type: mock}]}`;
+    fx.write('eval/cases/a/XX-01.yaml', caseYaml({ refExtra: info }));
+    const { code, out } = await run(['--root', fx.root, '--no-log', '--speed']);
+    const r = out.results[0] as unknown as { targets: Array<{ target: string; status: string; value: number }>; levelRuns: Array<{ level: number; informative?: boolean }>; gate_wall_cold_ms: number; informative_wall_cold_ms: number; speed: { levels: unknown[] } };
+    assert.equal(code, 0);
+    assert.deepEqual(r.targets.map((t) => [t.target, t.status]), [['q', 'pass'], ['q_info', 'info']]);
+    assert.ok(Math.abs(r.targets[1]!.value - 3.003) < 1e-12, String(r.targets[1]!.value));   // coarsest only: 3 (1 + 0.1 * 0.1^2)
+    const inf = r.levelRuns.filter((l) => l.informative);
+    assert.deepEqual(inf.map((l) => l.level), [0]);
+    assert.equal(r.levelRuns.filter((l) => !l.informative).length, 3);
+    assert.ok(r.gate_wall_cold_ms > 0 && r.informative_wall_cold_ms > 0);
+    assert.equal(r.speed.levels.length, 3);   // warm repeats only for the gated group
+  } finally { fx.cleanup(); }
+});
+

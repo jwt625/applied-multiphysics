@@ -21,8 +21,10 @@ export interface CaseResult {
   targets: TargetResult[];
   run: Record<string, unknown> | null;
   issues: LoadIssue[];
-  speed?: SpeedRecord & { time_to_accuracy?: Record<string, TimeToAccuracy> };
-  levelRuns?: Array<{ level: number; dof: number; meshHash: string; wall_ms: number; spec?: string }>;
+  speed?: SpeedRecord & { time_to_accuracy_cold?: Record<string, TimeToAccuracy>; time_to_accuracy_warm?: Record<string, TimeToAccuracy> };
+  levelRuns?: Array<{ level: number; timing?: 'cold'; dof: number; meshHash: string; wall_ms: number; prepare_ms?: number; run_ms?: number; spec?: string; informative?: boolean }>;
+  gate_wall_cold_ms?: number;
+  informative_wall_cold_ms?: number;
 }
 
 export interface RunOptions extends ObserveOptions { dryRun?: boolean; exactField?: typeof evaluateExactField }
@@ -104,26 +106,37 @@ export async function runCase(lc: LoadedCase, source: Source, opts: RunOptions =
   })());
   const res: CaseResult = { ...base, targets, run: obs.run as Record<string, unknown>, status: caseStatus(targets, 0) };
   if (obs.levelRuns) res.levelRuns = obs.levelRuns;
+  if (obs.caseWallColdMs !== undefined) res.gate_wall_cold_ms = obs.caseWallColdMs;
+  if (obs.informativeWallColdMs !== undefined) res.informative_wall_cold_ms = obs.informativeWallColdMs;
   if (obs.speed) {
-    // S5: per-level medians (warm-up + median of 5) drive time-to-accuracy; S6: judged against the native budget only
-    const med = obs.speed.levels.map((l) => l.median_ms);
-    const tta: Record<string, TimeToAccuracy> = {};
-    let tTol: number | null = 0;
-    for (const t of targets) {
-      if (!t.levels || t.limit === undefined || t.levels.some((l) => l.err === undefined)) continue;
-      const x = timeToAccuracy(t.levels.map((l, i) => ({ level: i, dof: l.dof ?? NaN, wall_ms: med[i] ?? NaN, error: l.err! })), t.limit);
-      tta[t.target] = x;
-      if (!t.gated) continue;
-      const tt = !x.reached ? null : t.tol.after === 'richardson' ? med.reduce((a, b) => a + b, 0) : x.t_cum_ms;
-      tTol = tTol === null || tt === null ? null : Math.max(tTol, tt);
-    }
+    // M2 audit S2: cold (first call per level, meshing included) and warm (median of 5 repeats, mesh chain possibly
+    // cached) are kept apart; the budget is judged on cold end-to-end time, warm is informative
+    const warm = obs.speed.levels.map((l) => l.median_ms);
+    const tolTime = (med: Array<number | undefined>) => {
+      let tt: number | null = 0;
+      const per: Record<string, TimeToAccuracy> = {};
+      for (const t of targets) {
+        if (!t.levels || t.limit === undefined || t.levels.some((l) => l.err === undefined)) continue;
+        const x = timeToAccuracy(t.levels.map((l, i) => ({ level: i, dof: l.dof ?? NaN, wall_ms: med[i] ?? NaN, error: l.err! })), t.limit);
+        per[t.target] = x;
+        if (!t.gated) continue;
+        const v = !x.reached ? null : t.tol.after === 'richardson' ? med.reduce<number>((a, b) => a + (b ?? NaN), 0) : x.t_cum_ms;
+        tt = tt === null || v === null ? null : Math.max(tt, v);
+      }
+      return { tt, per };
+    };
+    const gatedRuns = (obs.levelRuns ?? []).filter((l) => !l.informative);
+    const cold = gatedRuns.filter((l) => !l.spec || l.spec === gatedRuns[0]?.spec).map((l) => l.wall_ms);
+    const c0 = tolTime(cold), w0 = tolTime(warm);
     const native = c.speed?.budget_s?.native ?? undefined;
     const allPass = targets.filter((t) => t.gated).every((t) => t.status === 'pass');
     res.speed = {
-      ...obs.speed, time_to_accuracy: tta, t_tol_ms: allPass ? tTol : null,
+      ...obs.speed, time_to_accuracy_cold: c0.per, time_to_accuracy_warm: w0.per,
+      t_tol_cold_ms: allPass ? c0.tt : null, t_tol_warm_ms: allPass ? w0.tt : null,
+      ...(obs.caseWallColdMs !== undefined ? { case_wall_cold_ms: obs.caseWallColdMs } : {}),
       ...(native !== undefined && native !== null ? { budget_s: native } : {}),
-      meets_budget: native === undefined || native === null || !allPass || tTol === null ? null : tTol / 1000 <= native,
-      ...(native === undefined || native === null ? { budget_note: 'pending: no budget_s.native (the browser budget is judged by the browser runner)' } : !allPass ? { budget_note: 'pending: a gated target does not pass' } : {}),
+      meets_budget: native === undefined || native === null || !allPass || c0.tt === null ? null : c0.tt / 1000 <= native,
+      ...(native === undefined || native === null ? { budget_note: 'pending: no budget_s.native (the browser budget is judged by the browser runner)' } : !allPass ? { budget_note: 'pending: a gated target does not pass' } : { budget_note: 'judged on cold end-to-end time' }),
     };
   }
   if (res.status !== 'pass') {

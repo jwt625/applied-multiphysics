@@ -14,7 +14,7 @@ import { importWorkspace } from './workspace.ts';
 import { timeRuns } from './speed.ts';
 import type { LevelTimingSummary } from './source.ts';
 
-interface Data { root: string; caseData: EvalCase; spec: Spec; physicsId: string; type: string; factors: number[]; speed: boolean; targets: WorkerTarget[]; timeoutMs: number }
+interface Data { root: string; caseData: EvalCase; spec: Spec; physicsId: string; type: string; factors: number[]; levelIdx: number[]; speed: boolean; targets: WorkerTarget[]; timeoutMs: number }
 
 async function main(d: Data): Promise<WorkerResult> {
   const { registry } = await loadDefaultRegistry(d.root);
@@ -32,21 +32,25 @@ async function main(d: Data): Promise<WorkerResult> {
   const once = async (level: number) => {
     const t0 = performance.now();
     const ctx = await callPrepare(registry.prepare!, { case: d.caseData, spec: d.spec, physicsId: d.physicsId, level, hFactor: d.factors[level]!, dtFactor: dtf[level]!, signal });
+    const t1 = performance.now();
     const sol: Solution = await mod.run(ctx);
-    return { ctx, sol, wall_ms: performance.now() - t0 };
+    const t2 = performance.now();
+    return { ctx, sol, wall_ms: t2 - t0, prepare_ms: t1 - t0, run_ms: t2 - t1 };
   };
   const levels: WorkerResult['levels'] = [];
   const per = new Map<string, LevelObservation[]>();
   const bad = new Map<string, { pending: string } | { error: string }>();
-  for (let i = 0; i < d.factors.length; i++) {
-    const { ctx, sol, wall_ms } = await once(i);
-    levels.push({ level: i, hFactor: d.factors[i]!, dtFactor: dtf[i]!, dof: sol.stats.dof, meshHash: sol.meshHash, run: sol.run, wall_ms, stages: sol.timing, ...(sol.stats.iterations !== undefined ? { iterations: sol.stats.iterations } : {}) });
+  for (const i of d.levelIdx) {
+    // cold: first call of this level in a fresh worker (JIT, geometry, meshing and refinement included)
+    const { ctx, sol, wall_ms, prepare_ms, run_ms } = await once(i);
+    levels.push({ level: i, timing: 'cold', prepare_ms, run_ms, hFactor: d.factors[i]!, dtFactor: dtf[i]!, dof: sol.stats.dof, meshHash: sol.meshHash, run: sol.run, wall_ms, stages: sol.timing, ...(sol.stats.iterations !== undefined ? { iterations: sol.stats.iterations } : {}) });
     for (const t of d.targets) {
       if (bad.has(t.tid)) continue;
+      if (t.ref.levels && !t.ref.levels.includes(i)) continue;   // per-target levels
       const ex = extractFromSolution(sol, t.ref, { mesh: ctx.mesh, ...(registry.sample ? { sample: registry.sample } : {}), ...(t.points ? { points: t.points } : {}) });
       if (!('value' in ex)) { bad.set(t.tid, ex); continue; }
       const arr = per.get(t.tid) ?? [];
-      arr.push({ value: ex.value, dof: sol.stats.dof, wall_ms, stages: sol.timing, meshHash: sol.meshHash, ...(sol.stats.iterations !== undefined ? { iterations: sol.stats.iterations } : {}) });
+      arr.push({ value: ex.value, h: d.factors[i]!, dof: sol.stats.dof, wall_ms, stages: sol.timing, meshHash: sol.meshHash, ...(sol.stats.iterations !== undefined ? { iterations: sol.stats.iterations } : {}) });
       per.set(t.tid, arr);
     }
   }
@@ -55,11 +59,11 @@ async function main(d: Data): Promise<WorkerResult> {
   let speed: WorkerResult['speed'];
   if (d.speed) {
     const lt: LevelTimingSummary[] = [];
-    for (let i = 0; i < d.factors.length; i++) {
+    for (const i of d.levelIdx) {
       const t = await timeRuns(async () => (await once(i)).sol, { warmup: 1, repeats: 5 });
       lt.push({ level: i, dof: t.last.stats.dof, warmup_ms: t.summary.warmup_ms, samples_ms: t.summary.samples_ms, median_ms: t.summary.median_ms, mad_ms: t.summary.mad_ms, stages_median_ms: t.summary.stages_median_ms, iterations: t.last.stats.iterations ?? null });
     }
-    speed = { protocol: 'warmup1_median5_per_level', levels: lt };
+    speed = { protocol: 'warmup1_median5_per_level', timing: 'warm', mesh_cache_note: 'warm repeats call prepareRun again in the same worker; @amp/physics may reuse its cached mesh chain, so warm medians can exclude meshing (solve-dominated)', levels: lt };
   }
   return { ok: true, targets, levels, ...(speed ? { speed } : {}) };
 }

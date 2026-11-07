@@ -41,7 +41,7 @@ export function toJsonl(meta: RunMeta, results: CaseResult[]): string {
     if (r.issues.length) lines.push({ kind: 'issues', ...common, issues: r.issues.map(formatIssue) });
     for (const t of r.targets) {
       const { target, value, ref, tol, pass, time_ms, dof, ...rest } = t;
-      lines.push({ kind: 'target', ...common, target, value, ref, tol, pass, time_ms, dof, run: r.run, ...rest });
+      lines.push({ kind: 'target', ...common, target, value, ref, tol, pass, time_ms, ...(time_ms !== null ? { time_protocol: 'cold: sum over levels of the first prepare + run call' } : {}), dof, run: r.run, ...rest });
     }
     if (r.speed) lines.push({ kind: 'speed', ...common, ...r.speed });
   }
@@ -145,12 +145,20 @@ export function toMarkdown(meta: RunMeta, results: CaseResult[], jsonlName: stri
   }
   const sp = results.filter((r) => r.speed);
   if (sp.length) {
-    L.push('## Speed (1 warm-up + median of 5 at every level)', '', '| case | level | dof | median ms | MAD ms | iterations | stages (median ms) |', '|---|---|---|---|---|---|---|');
+    L.push('## Speed: cold vs warm per level (never mixed)', '', 'cold = first call per level in a fresh worker (geometry, meshing, refinement, solve); warm = 1 warm-up + median of 5 repeats in the same worker (the mesh chain may be cached).', '');
+    L.push('| case | level | dof | cold prepare ms | cold solve ms | cold total ms | warm median ms | warm MAD ms |', '|---|---|---|---|---|---|---|---|');
     for (const r of sp) for (const x of r.speed!.levels) {
-      L.push(`| ${r.case} | ${x.level + 1} | ${num(x.dof)} | ${num(x.median_ms)} | ${num(x.mad_ms)} | ${num(x.iterations)} | ${Object.entries(x.stages_median_ms).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ')} |`);
+      const c = r.levelRuns?.find((l) => l.level === x.level && (!l.spec || l.spec === r.levelRuns![0]!.spec));
+      L.push(`| ${r.case} | ${x.level + 1} | ${num(x.dof)} | ${num(c?.prepare_ms)} | ${num(c?.run_ms)} | ${num(c?.wall_ms)} | ${num(x.median_ms)} | ${num(x.mad_ms)} |`);
     }
-    L.push('', '| case | T_tol ms | native budget s | meets budget | note |', '|---|---|---|---|---|');
-    for (const r of sp) { const x = r.speed!; L.push(`| ${r.case} | ${num(x.t_tol_ms)} | ${num(x.budget_s)} | ${x.meets_budget === null || x.meets_budget === undefined ? 'pending' : String(x.meets_budget)} | ${x.budget_note ?? ''} |`); }
+    L.push('', '| case | T_tol cold ms | T_tol warm ms | case wall cold ms | native budget s | meets budget (cold) | note |', '|---|---|---|---|---|---|---|');
+    for (const r of sp) { const x = r.speed!; L.push(`| ${r.case} | ${num(x.t_tol_cold_ms)} | ${num(x.t_tol_warm_ms)} | ${num(x.case_wall_cold_ms)} | ${num(x.budget_s)} | ${x.meets_budget === null || x.meets_budget === undefined ? 'pending' : String(x.meets_budget)} | ${x.budget_note ?? ''} |`); }
+    L.push('');
+  }
+  const cw = results.filter((r) => r.gate_wall_cold_ms !== undefined || r.informative_wall_cold_ms !== undefined);
+  if (cw.length) {
+    L.push('## Cold wall per case (worker spawn to result; gated groups vs informative-only groups, never summed)', '', '| case | gate cold ms | informative cold ms |', '|---|---|---|');
+    for (const r of cw) L.push(`| ${r.case} | ${num(r.gate_wall_cold_ms)} | ${num(r.informative_wall_cold_ms)} |`);
     L.push('');
   }
   const to = results.filter((r) => r.status === 'timeout');

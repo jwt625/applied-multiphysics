@@ -70,6 +70,7 @@ export interface Reference {
   provenance: { citation: string; locator: string; accessed: string | null; [k: string]: unknown };
   extract?: Extract;
   expected_order?: number;
+  levels?: number[];
   spec?: SpecRef;
   gate?: boolean;
   note?: string;
@@ -375,6 +376,13 @@ function semanticChecks(
     const h = (c.dataset as { hash?: unknown } | null | undefined)?.hash;
     if (typeof h !== 'string' || !h.length) at(c.dataset ? '/dataset' : '/rights/allowed', 'reference-by-hash', `rights tag reference_by_hash requires dataset.hash (sha256:<64 hex> or md5:<32 hex>)`);
   }
+  const nLevels = c.convergence?.h_factors?.length ?? Math.max(1, c.convergence?.levels_min ?? 1);
+  refs.forEach((r, i) => {
+    if (!r || !Array.isArray(r.levels)) return;
+    const bad = r.levels.filter((k) => typeof k === 'number' && k >= nLevels);
+    if (bad.length) at(`/references/${i}/levels`, 'levels-range', `levels ${bad.join(', ')} beyond the ${nLevels} level(s) of the convergence sequence`);
+    if (r.tolerance?.after === 'richardson' && r.levels.length < 3) at(`/references/${i}/levels`, 'levels-richardson', `after: richardson with ${r.levels.length} level(s): Richardson will be unavailable`, 'warning');
+  });
   if (c.convergence?.dt_with_h) {
     if (c.convergence.time_order === undefined) at('/convergence', 'dt-with-h', `dt_with_h needs time_order`);
     if (c.convergence.space_order === undefined && c.convergence.expected_order === undefined) at('/convergence', 'dt-with-h', `dt_with_h needs space_order or expected_order`);

@@ -111,20 +111,23 @@ test('usage errors exit 1; real process exit codes', () => {
   } finally { fx.cleanup(); }
 });
 
-test('--speed: warm-up + median of 5 at every level, T_tol against the native budget', async () => {
+test('--speed: cold and warm kept apart; T_tol cold judged against the native budget (M2 audit S2)', async () => {
   const fx = makeRoot();
   try {
     fx.write('eval/cases/a/XX-01.yaml', caseYaml({ tol: '{rel: 1.0e-3}', extra: 'speed: {budget_s: {native: 1.0}}\n' }));
     const { code, out } = await run(['--root', fx.root, '--no-log', '--speed']);
     assert.equal(code, 0);
-    type Sp = { protocol: string; levels: Array<{ samples_ms: number[]; warmup_ms: number[]; dof: number }>; meets_budget: boolean | null; t_tol_ms: number | null; time_to_accuracy: Record<string, { reached: boolean; level: number }> };
+    type Sp = { protocol: string; timing: string; levels: Array<{ samples_ms: number[]; warmup_ms: number[]; dof: number }>; meets_budget: boolean | null; t_tol_cold_ms: number | null; t_tol_warm_ms: number | null; case_wall_cold_ms: number; time_to_accuracy_cold: Record<string, { reached: boolean; level: number }> };
     const sp = (out.results[0] as unknown as { speed: Sp }).speed;
     assert.equal(sp.protocol, 'warmup1_median5_per_level');
     assert.equal(sp.levels.length, 3);
     for (const l of sp.levels) { assert.equal(l.samples_ms.length, 5); assert.equal(l.warmup_ms.length, 1); }
-    assert.equal(sp.levels[2]!.dof, 1600); assert.equal(sp.meets_budget, true); assert.ok(typeof sp.t_tol_ms === 'number');
+    assert.equal(sp.levels[2]!.dof, 1600); assert.equal(sp.meets_budget, true); assert.equal(sp.timing, 'warm');
+    assert.ok(typeof sp.t_tol_cold_ms === 'number' && typeof sp.t_tol_warm_ms === 'number' && sp.case_wall_cold_ms > 0);
+    const lr = (out.results[0] as unknown as { levelRuns: Array<{ timing: string; prepare_ms: number; run_ms: number; wall_ms: number }> }).levelRuns;
+    assert.ok(lr.every((l) => l.timing === 'cold' && Math.abs(l.prepare_ms + l.run_ms - l.wall_ms) < 1e-6));
     // q(h) - 1 = 0.1 h^2 with h = 0.1, 0.05, 0.025: 1e-3, 2.5e-4, 6.25e-5 vs budget 1e-3 -> level 0 already meets it
-    assert.equal(sp.time_to_accuracy.q!.reached, true); assert.equal(sp.time_to_accuracy.q!.level, 0);
+    assert.equal(sp.time_to_accuracy_cold.q!.reached, true); assert.equal(sp.time_to_accuracy_cold.q!.level, 0);
     // no native budget: the speed check is pending, not a pass
     fx.write('eval/cases/a/XX-01.yaml', caseYaml({ tol: '{rel: 1.0e-3}', extra: 'speed: {budget_s: {browser: 1.0}}\n' }));
     const b = await run(['--root', fx.root, '--no-log', '--speed']);

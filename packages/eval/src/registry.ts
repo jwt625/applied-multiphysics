@@ -316,7 +316,7 @@ export interface WorkerTarget { tid: string; ref: Reference; points?: number[][]
 export interface WorkerResult {
   ok: true;
   targets: Record<string, TargetObservation | { pending: string } | { error: string }>;
-  levels: Array<{ level: number; hFactor: number; dtFactor: number; dof: number; meshHash: string; run: unknown; wall_ms: number; stages: Record<string, number>; iterations?: number }>;
+  levels: Array<{ level: number; timing: 'cold'; prepare_ms: number; run_ms: number; hFactor: number; dtFactor: number; dof: number; meshHash: string; run: unknown; wall_ms: number; stages: Record<string, number>; iterations?: number }>;
   speed?: SpeedRecord;
 }
 
@@ -383,22 +383,24 @@ export class EngineSource implements Source {
     if (gs.length === 1) return this.observeGroup(lc, gs[0]!.spec, gs[0]!.refs, opts);
     // several specs: one worker run per spec; a group's pending / error / timeout applies to its targets only
     const targets: Record<string, TargetObservation | { pending: string } | { error: string } | { timeout: string }> = {};
-    const levelRuns: Array<{ level: number; dof: number; meshHash: string; wall_ms: number; spec?: string }> = [];
+    const levelRuns: Array<{ level: number; timing?: 'cold'; dof: number; meshHash: string; wall_ms: number; prepare_ms?: number; run_ms?: number; spec?: string; informative?: boolean }> = [];
     let run: Record<string, unknown> | null = null, speed: SpeedRecord | undefined, dim: number | undefined;
+    let gateWall = 0, infoWall = 0;
     for (const g of gs) {
       const o = await this.observeGroup(lc, g.spec, g.refs, opts);
       if (o.kind === 'observed') {
         Object.assign(targets, o.targets);
         for (const l of o.levelRuns ?? []) levelRuns.push({ ...l, spec: g.label });
+        gateWall += o.caseWallColdMs ?? 0; infoWall += o.informativeWallColdMs ?? 0;
         run ??= o.run as Record<string, unknown>;
-        if (!speed && o.speed) speed = { ...o.speed, budget_note: [o.speed.budget_note, `speed timed on ${g.label} (first spec group)`].filter(Boolean).join('; ') };
+        if (!speed && o.speed) speed = { ...o.speed, budget_note: [o.speed.budget_note, `warm repeats timed on ${g.label} (first gated spec group)`].filter(Boolean).join('; ') };
         dim ??= o.dim;
       } else {
         const v = o.kind === 'pending' ? { pending: `[${g.label}] ${o.reason}` } : o.kind === 'timeout' ? { timeout: `[${g.label}] ${o.reason}` } : { error: `[${g.label}] ${o.reason}` };
         for (const r of g.refs) targets[targetId(r)] = v;
       }
     }
-    return { kind: 'observed', targets, run: run ?? { engine: 'none', note: 'no spec group ran' }, levelRuns, ...(dim !== undefined ? { dim } : {}), ...(speed ? { speed } : {}) };
+    return { kind: 'observed', targets, run: run ?? { engine: 'none', note: 'no spec group ran' }, levelRuns, caseWallColdMs: gateWall, ...(infoWall ? { informativeWallColdMs: infoWall } : {}), ...(dim !== undefined ? { dim } : {}), ...(speed ? { speed } : {}) };
   }
 
   private async observeGroup(lc: LoadedCase, specRef: SpecRef, refs: Reference[], opts: ObserveOptions): Promise<CaseObservation> {
@@ -425,19 +427,27 @@ export class EngineSource implements Source {
       const pts = r.extract?.kind === 'field' ? (r.extract.points ?? samplePoints(lc.expected, r.extract.samples_key)) : undefined;
       targets.push({ tid: targetId(r), ref: r, ...(pts ? { points: pts } : {}) });
     }
-    const timeoutMs = caseTimeoutMs(c, factors.length, !!opts.speed, this.opts);
-    opts.log?.(`${c.id}: worker, ${factors.length} level(s), timeout ${(timeoutMs / 1000).toFixed(0)} s, heap cap ${this.opts.maxOldMb ?? 1536} MB`);
-    const res = await runWorker({ root: this.root, caseData: c, spec: s.spec, physicsId: s.physicsId, type: s.module.type, factors, speed: !!opts.speed, targets, timeoutMs }, timeoutMs, this.opts.maxOldMb ?? 1536);
+    // per-target levels: the group runs the union of its targets' levels (default all)
+    const levelIdx = [...new Set(refs.flatMap((r) => r.levels ?? factors.map((_, i) => i)))].filter((i) => i < factors.length).sort((a, b) => a - b);
+    // informative-only group (every target gate: false): never warm-timed, its cold time is reported apart
+    const informative = refs.every((r) => r.gate === false);
+    const speed = !!opts.speed && !informative;
+    const timeoutMs = caseTimeoutMs(c, levelIdx.length, speed, this.opts);
+    opts.log?.(`${c.id}: worker${informative ? ' (informative targets only)' : ''}, level(s) ${levelIdx.map((i) => i + 1).join(',')}, timeout ${(timeoutMs / 1000).toFixed(0)} s, heap cap ${this.opts.maxOldMb ?? 1536} MB`);
+    const res = await runWorker({ root: this.root, caseData: c, spec: s.spec, physicsId: s.physicsId, type: s.module.type, factors, levelIdx, speed, targets, timeoutMs }, timeoutMs, this.opts.maxOldMb ?? 1536);
     if (res.kind === 'timeout') { opts.log?.(`${c.id}: TIMEOUT after ${(timeoutMs / 1000).toFixed(1)} s, worker terminated`); return { kind: 'timeout', reason: `timeout after ${(timeoutMs / 1000).toFixed(1)} s (worker terminated)` }; }
     if (res.kind === 'error') { opts.log?.(`${c.id}: ${res.reason}`); return { kind: 'error', reason: res.reason }; }
     const w = res.result;
     // S4: run record of every level
     const rrProblems = w.levels.flatMap((l) => checkRunRecord(l.run, l.meshHash).map((p) => `level ${l.level + 1}: ${p}`));
     if (rrProblems.length) return { kind: 'error', reason: `run record invalid (A5/C5): ${rrProblems.slice(0, 4).join('; ')}` };
-    const dim = dimOf(c.dimension);
+    // S1 (M2 audit): the dimension of the solved model, not the case label (levels carry h = hFactor anyway)
+    const sdim = (s.spec as { geometry?: { dim?: unknown } }).geometry?.dim;
+    const dim = typeof sdim === 'number' ? sdim : dimOf(c.dimension);
     return {
       kind: 'observed', targets: { ...pre, ...w.targets }, run: w.levels[w.levels.length - 1]!.run as Record<string, unknown>,
-      levelRuns: w.levels.map((l) => ({ level: l.level, dof: l.dof, meshHash: l.meshHash, wall_ms: l.wall_ms })),
+      levelRuns: w.levels.map((l) => ({ level: l.level, timing: 'cold' as const, dof: l.dof, meshHash: l.meshHash, wall_ms: l.wall_ms, prepare_ms: l.prepare_ms, run_ms: l.run_ms, ...(informative ? { informative: true } : {}) })),
+      ...(informative ? { informativeWallColdMs: res.wall_ms } : { caseWallColdMs: res.wall_ms }),
       ...(dim !== undefined ? { dim } : {}), ...(w.speed ? { speed: w.speed } : {}),
     };
   }
@@ -452,14 +462,15 @@ function samplePoints(expected: unknown, key: string | undefined): number[][] | 
 }
 
 /** Run one case in a Worker. A hang, a busy loop or a never-settling promise ends as `timeout` or `error`. */
-export function runWorker(data: Record<string, unknown>, timeoutMs: number, maxOldMb: number): Promise<{ kind: 'result'; result: WorkerResult } | { kind: 'timeout' } | { kind: 'error'; reason: string }> {
+export function runWorker(data: Record<string, unknown>, timeoutMs: number, maxOldMb: number): Promise<{ kind: 'result'; result: WorkerResult; wall_ms: number } | { kind: 'timeout' } | { kind: 'error'; reason: string }> {
+  const t0 = performance.now();
   return new Promise((resolve) => {
     let done = false;
     const finish = (v: Parameters<typeof resolve>[0]) => { if (!done) { done = true; clearTimeout(timer); resolve(v); } };
     const w = new Worker(new URL('./engine-worker.ts', import.meta.url), { workerData: data, resourceLimits: { maxOldGenerationSizeMb: maxOldMb } });
     const timer = setTimeout(() => { void w.terminate(); finish({ kind: 'timeout' }); }, timeoutMs);
     w.on('message', (m: WorkerResult | { ok: false; error: string }) => {
-      finish(m.ok ? { kind: 'result', result: m } : { kind: 'error', reason: m.error });
+      finish(m.ok ? { kind: 'result', result: m, wall_ms: performance.now() - t0 } : { kind: 'error', reason: m.error });
       void w.terminate();
     });
     w.on('error', (e: Error & { code?: string }) => finish({ kind: 'error', reason: e.code === 'ERR_WORKER_OUT_OF_MEMORY' ? `out of memory (heap cap ${maxOldMb} MB)` : `worker error: ${e.message}` }));

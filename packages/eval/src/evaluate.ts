@@ -88,21 +88,23 @@ const finiteVal = (v: ObservedValue): boolean =>
 
 /**
  * Fallback when the shared rule declares Richardson unavailable (oscillatory or non-nested sequence, order outside
- * the band, flat or too few levels; L4 DevLog-010 s.5 item 3, I1 Follow-up 4): pass when the finest value is within
- * the budget and either |e_k| is non-increasing or every level is within the budget. Richardson is reported
- * unavailable with the reason.
+ * the band, flat or too few levels). Follow-up 5 (M2 audit S5): pass when the finest level is within the budget AND
+ * the level-to-level changes shrink, |f_k - f_(k-1)| < |f_(k-1) - f_(k-2)| for every k >= 2 (two zero changes count
+ * as shrinking: the levels agree exactly). This is self-convergence evidence; a non-monotone |error| against the
+ * reference is reported as a note only. Fewer than 3 levels give no such evidence and do not pass.
  */
-function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], why: string): { fine: ScalarCheck; monotone: boolean; allWithin: boolean; pass: boolean; reason: string } {
-  // Follow-up 4: pass when the finest level is within the budget AND (|error| non-increasing OR every level within
-  // the budget); a non-monotone error is a note, not a fail
+function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], why: string): { fine: ScalarCheck; shrinking: boolean; monotone: boolean; pass: boolean; reason: string } {
   const fine = checkScalar(vals[vals.length - 1]!, ref, tol);
+  const d = vals.slice(1).map((v, i) => Math.abs(v - vals[i]!));
+  let shrinking = vals.length >= 3;
+  for (let k = 1; k < d.length; k++) if (!(d[k]! < d[k - 1]! || (d[k] === 0 && d[k - 1] === 0))) shrinking = false;
   const e = vals.map((v) => Math.abs(v - ref));
   let monotone = true;
   for (let i = 1; i < e.length; i++) if (e[i]! > e[i - 1]! * (1 + 1e-12) + 1e-300) monotone = false;
-  const allWithin = vals.every((v) => checkScalar(v, ref, tol).pass);
-  const pass = fine.pass && (monotone || allWithin);
-  const reason = `richardson unavailable (${why}); fallback: finest value ${fine.pass ? 'within' : 'outside'} the budget, |error| ${monotone ? 'non-increasing' : `non-monotone (note)${allWithin ? ', every level within the budget' : ', not every level within the budget'}`} over ${vals.length} levels`;
-  return { fine, monotone, allWithin, pass, reason };
+  const pass = fine.pass && shrinking;
+  const changes = d.map((x) => x.toPrecision(3)).join(', ');
+  const reason = `richardson unavailable (${why}); fallback: finest value ${fine.pass ? 'within' : 'outside'} the budget, level-to-level changes ${vals.length < 3 ? 'not checkable (fewer than 3 levels)' : shrinking ? 'shrinking' : 'not shrinking'} (${changes})${monotone ? '' : '; note: |error| vs the reference is non-monotone'}`;
+  return { fine, shrinking, monotone, pass, reason };
 }
 
 /** One sequence through the shared rule: extrapolated value, verdict parts and reason. */

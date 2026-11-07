@@ -115,7 +115,7 @@ test('evaluateTarget: Richardson gate (audit S3): extrapolated and finest in bud
   // finest value + monotone error (Follow-up 3 item 4)
   const lo = h.map((x) => ({ value: 1 + 0.01 * x, h: x }));
   const o = evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lo }, { expectedOrder: 2 });
-  assert.equal(o.status, 'pass'); assert.equal(o.richardson_fallback, 'finest+monotone'); assert.match(o.reason!, /outside the band 0.25 of the theoretical order 2/);
+  assert.equal(o.status, 'pass'); assert.equal(o.richardson_fallback, 'finest+monotone'); assert.match(o.reason!, /outside the band 0.25 of the theoretical order 2/);   // changes 0.002, 0.001: shrinking
   close(o.value as number, 1.001, 1e-12);
   const loFar = h.map((x) => ({ value: 1 + 0.05 * x, h: x }));   // finest 1.005: outside a 1e-3 budget
   assert.equal(evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: loFar }, { expectedOrder: 2 }).status, 'fail');
@@ -127,15 +127,22 @@ test('evaluateTarget: Richardson gate (audit S3): extrapolated and finest in bud
   assert.equal(osc.status, 'fail'); assert.match(osc.reason!, /oscillatory.*fallback/);
   const fb = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-3, 1 - 2e-4, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) }, { expectedOrder: 2 });
   assert.equal(fb.status, 'pass'); assert.equal(fb.richardson_fallback, 'finest+monotone'); assert.match(fb.reason!, /richardson unavailable \(order not observed \(oscillatory\)\)/);
-  // Follow-up 4: non-monotone but every level within the budget -> pass with a note (SM-02, HT-04 pattern)
-  const nm = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-4, 1 - 2e-4, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) });
-  assert.equal(nm.status, 'pass'); assert.match(nm.reason!, /non-monotone \(note\), every level within the budget/);
-  // non-monotone and a level outside the budget -> fail
-  const nm2 = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-4, 1 - 2e-3, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) });
-  assert.equal(nm2.status, 'fail'); assert.match(nm2.reason!, /not every level within the budget/);
-  // SM-02 numbers: 92.6576 vs 92.7 MPa (-4.6e-4) at the finest, budget 1e-2, non-monotone sequence
-  const sm02 = evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 92.7, { levels: [92.31, 92.71, 92.6576].map((v, i) => ({ value: v, h: h[i]! })) }, { expectedOrder: 2 });
-  assert.equal(sm02.status, 'pass'); assert.equal(sm02.richardson_fallback, 'finest+monotone');
+  // Follow-up 5 (M2 audit S5): finest within the budget AND shrinking level-to-level changes; non-monotone error = note
+  // changes 1.5e-4 then 3.5e-4 (growing), finest 3e-4 within the budget -> fail
+  const nm = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-4, 1 - 5e-5, 1 + 3e-4].map((v, i) => ({ value: v, h: h[i]! })) });
+  assert.equal(nm.status, 'fail'); assert.match(nm.reason!, /not shrinking/);
+  // changes 3e-4 then 2.015e-4 (shrinking), error non-monotone -> pass with the note
+  const nm3 = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-4, 1 - 2e-4, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) });
+  assert.equal(nm3.status, 'pass'); assert.match(nm3.reason!, /note: \|error\| vs the reference is non-monotone/);
+  // SM-02 audit numbers: changes 8.6 kPa then 0.2 kPa, finest -4.6e-4 vs a 1e-2 budget -> pass, error non-monotone noted
+  const sm02 = evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 92.7e6, { levels: [92.6576e6 - 8.6e3 + 0.2e3, 92.6576e6 - 0.2e3, 92.6576e6].map((v, i) => ({ value: v, h: h[i]! })) }, { expectedOrder: 2 });
+  assert.equal(sm02.status, 'pass'); assert.match(sm02.reason!, /changes shrinking/);
+  // stagnating or growing changes inside a loose budget: fail (no convergence evidence)
+  const stag = evaluateTarget(ref({ rel: 1e-1, after: 'richardson' }), 1, { levels: [1.01, 1.02, 1.03].map((v, i) => ({ value: v, h: h[i]! })) }, { expectedOrder: 2 });
+  assert.equal(stag.status, 'fail'); assert.match(stag.reason!, /not shrinking/);
+  // HT-04 x = 0.0859 audit numbers: changes 4.6e-6 then 5.2e-7 degC, budget 0.099 degC -> pass
+  const ht04 = evaluateTarget(ref({ abs: 0.099, after: 'richardson' }), 98.85282526, { levels: [98.8528 + 4.6e-6 - 5.2e-7, 98.8528 - 5.2e-7, 98.8528].map((v, i) => ({ value: v, h: h[i]! })) }, { expectedOrder: 2 });
+  assert.equal(ht04.status, 'pass');
   const f = evaluateTarget(ref({ rel: 1e-3 }), 1, { levels: lv });
   assert.equal(f.status, 'fail'); close(f.diff!, 0.005);
   const info = evaluateTarget(ref({ rel: 1e-3 }, { gate: false }), 1, { levels: lv });

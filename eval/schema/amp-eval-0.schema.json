@@ -838,6 +838,16 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "description": "theoretical order for this target (overrides convergence.expected_order), e.g. 2 for P1 nodal values, 1 for P1 stresses"
+        },
+        "levels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "mesh levels (0-based indices into the convergence sequence, 0 = coarsest) this target is evaluated on; default all. A spec group runs only the union of its targets' levels"
         }
       },
       "additionalProperties": false
