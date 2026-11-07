@@ -14,6 +14,7 @@ import { TOOL_INPUTS, NAV_TOOLS, type ToolName, type ToolInput } from './tools/s
 import { toolText, structuredIssues, TrustBoundaryError } from './untrusted.ts';
 import { NavTrail, type NavigationHost } from './nav.ts';
 import { ResultsStore, type StudyRunner, type StudyOutcome } from './runner.ts';
+import type { ResultsHost, ResultsTableJson, DatasetValuesJson } from './results.ts';
 import { MemoryStore } from './memory/store.ts';
 import { containsSecret } from './secrets.ts';
 
@@ -22,7 +23,7 @@ import type { ImageBlock, TextBlock } from './provider/types.ts';
 
 export interface ToolOutput { content: Array<TextBlock | ImageBlock>; isError: boolean }
 
-export interface SideEffect { seq: number; ts: string; actor: string; kind: 'run'; study: string; ok: boolean; specHash: string; turn?: number }
+export interface SideEffect { seq: number; ts: string; actor: string; kind: 'run'; study: string; ok: boolean; specHash: string; turn?: number; /** spec op count when the run ended (ops after it: log.ops.slice(opSeq)) */ opSeq?: number }
 
 export interface TimelineRow {
   ts: string;
@@ -41,6 +42,8 @@ export interface AgentSessionOptions {
   memory: MemoryStore;
   nav: NavigationHost;
   runner?: StudyRunner;
+  /** Results values for evaluate / get_table (lane R3); absent: those tools report no_results_host. */
+  results?: ResultsHost;
   /** Built geometry (entity table + the canonical @amp/geom resolver), for list_entities and selection checks. */
   geometry?: () => BuiltGeometry | null;
   sessionId?: string;
@@ -125,6 +128,7 @@ export class AgentSession {
   readonly turnOps = new Map<number, { spec: number[]; memory: number[] }>();
   turn = 0;
   private runner: StudyRunner | undefined;
+  private resultsHost: ResultsHost | undefined;
   private geometry: () => BuiltGeometry | null;
   private clock: () => string;
   private forbidden: () => readonly string[];
@@ -135,6 +139,7 @@ export class AgentSession {
     this.actor = `agent:${this.id}`;
     this.log = o.log; this.registry = o.registry; this.memory = o.memory; this.nav = o.nav;
     this.runner = o.runner;
+    this.resultsHost = o.results;
     this.geometry = o.geometry ?? (() => null);
     this.clock = o.clock ?? (() => isoNow());
     this.forbidden = o.forbidden ?? (() => []);
@@ -393,8 +398,65 @@ export class AgentSession {
         finally { signal?.removeEventListener('abort', onAbort); }
         const at = this.clock();
         this.results.set(outcome, h, at);
-        this.sideEffects.push({ seq: this.sideEffects.length + 1, ts: at, actor: this.actor, kind: 'run', study: x.study, ok: outcome.ok, specHash: h, turn: this.turn });
+        this.sideEffects.push({ seq: this.sideEffects.length + 1, ts: at, actor: this.actor, kind: 'run', study: x.study, ok: outcome.ok, specHash: h, turn: this.turn, opSeq: this.log.ops.length });
         return { ...ok(await this.summaryTrusted(outcome, h), { data: this.summaryData(outcome), source: 'results' }), isError: !outcome.ok };
+      }
+      case 'evaluate': {
+        const x = a as ToolInput<'evaluate'>;
+        const host = this.resultsHost;
+        if (!host) return fail('no_results_host');
+        const nodes = resultNodes((this.log.data as { results?: unknown }).results);
+        try {
+          if (x.node !== undefined) {
+            if (x.data !== undefined || x.kind !== undefined || x.over || x.from || x.to || x.at) return fail('node_or_adhoc', { hint: 'give node (a results node) or the ad hoc fields (data, kind, ...), not both' }, 'input-validation');
+            const n = nodes.find((r) => r.id === x.node);
+            if (!n) return fail('unknown_results_node', { node: x.node, nodes: nodes.map((r) => `${r.id}:${r.type}`) }, 'spec');
+            if (n.section === 'datasets') {
+              const r = await host.dataset(x.node, x.expr ?? null, { ...(x.unit ? { unit: x.unit } : {}), ...(x.step !== undefined ? { step: x.step } : {}) });
+              if (r.value.error && !r.value.points.length) return fail('not_evaluated', { node: x.node, reason: r.value.error }, 'results');
+              return ok({ stale: r.stale, study: r.study, kind: 'dataset', n: r.value.n, valuesGiven: r.value.values !== null }, { data: datasetView(r.value, x.max_points ?? 50), source: 'results' });
+            }
+            if (n.section === 'plots') return fail('not_an_evaluation', { node: x.node, hint: 'a plot group or plot item; evaluate its dataset with its expr, or show_plot' }, 'spec');
+            if (x.expr !== undefined || x.unit !== undefined || x.max_points !== undefined) return fail('not_for_evaluation_nodes', { node: x.node, hint: 'expr, unit and max_points apply to datasets and ad hoc evaluations; an evaluation node uses its own expr and unit' }, 'input-validation');
+            const tid = n.section === 'evaluations' && n.parent ? n.parent : x.node;
+            const r = await host.table(tid);
+            const only = n.section === 'evaluations' && n.parent ? x.node : null;
+            const v = tableView(r.value, { item: only, step: x.step, from: 1, to: 50 });
+            if (x.step !== undefined && !v.total && r.value.rows.length) return fail('step_not_in_table', { node: x.node, step: x.step, steps: [...new Set(r.value.rows.map((q) => q.step))] }, 'results');
+            return ok({ stale: r.stale, study: r.study, kind: only ? 'item' : 'table', rows: v.total, shown: v.rows.length, notEvaluated: v.notEvaluated }, { data: v, source: 'results' });
+          }
+          if (!x.data || !x.kind) return fail('missing_target', { hint: 'give node, or data and kind (ad hoc)' }, 'input-validation');
+          if ((x.from === undefined) !== (x.to === undefined)) return fail('cut_line_needs_from_and_to');
+          if (!nodes.some((r) => r.section === 'datasets' && r.id === x.data)) return fail('unknown_dataset', { data: x.data, datasets: nodes.filter((r) => r.section === 'datasets').map((r) => `${r.id}:${r.type}`) }, 'spec');
+          const r = await host.adhoc({
+            data: x.data, kind: x.kind, ...(x.expr ? { expr: x.expr } : {}), ...(x.unit ? { unit: x.unit } : {}), ...(x.over ? { over: x.over } : {}), ...(x.method ? { method: x.method } : {}),
+            ...(x.from ? { from: x.from, to: x.to! } : {}), ...(x.n !== undefined ? { n: x.n } : {}), ...(x.at ? { points: x.at } : {}), ...(x.step !== undefined ? { steps: x.step } : {}),
+          });
+          const v = tableView(r.value, { item: '__adhoc', step: undefined, from: 1, to: 50 });
+          return ok({ stale: r.stale, study: r.study, kind: 'adhoc', rows: v.total, shown: v.rows.length, notEvaluated: v.notEvaluated, stored: false }, { data: v, source: 'results' });
+        } catch (e) { return fail('evaluate_failed', { message: (e as Error).message }, 'results-error'); }
+      }
+      case 'get_table': {
+        const x = a as ToolInput<'get_table'>;
+        const host = this.resultsHost;
+        if (!host) return fail('no_results_host');
+        const n = resultNodes((this.log.data as { results?: unknown }).results).find((r) => r.id === x.table);
+        if (!n || (n.section !== 'tables' && !(n.section === 'evaluations' && !n.parent))) return fail('unknown_table', { table: x.table }, 'spec');
+        try {
+          const r = await host.table(x.table);
+          const from = x.from_row ?? 1, to = x.to_row ?? from + 49;
+          if (to < from) return fail('row_range');
+          const v = tableView(r.value, { item: null, step: undefined, from, to: Math.min(to, from + 199) });
+          return ok({ stale: r.stale, study: r.study, total_rows: v.total, from_row: from, to_row: Math.min(to, v.total), next_from_row: Math.min(to, from + 199) < v.total ? Math.min(to, from + 199) + 1 : null, notEvaluated: v.notEvaluated }, { data: v, source: 'results' });
+        } catch (e) { return fail('table_failed', { message: (e as Error).message }, 'results-error'); }
+      }
+      case 'show_plot': {
+        const x = a as ToolInput<'show_plot'>;
+        const n = resultNodes((this.log.data as { results?: unknown }).results).find((r) => r.id === x.plot);
+        if (!n || n.section !== 'plots' || n.parent) return fail('unknown_plot', { plot: x.plot }, 'spec');
+        if (!this.nav.showPlot) return fail('show_plot_unavailable');
+        const r = await this.nav.showPlot(x.plot);
+        return r.ok ? ok({ plot: x.plot }) : fail('ui_refused', { message: r.message ?? '' }, 'ui');
       }
       case 'focus_node':
       case 'open_settings': {
@@ -474,4 +536,52 @@ export class AgentSession {
     if (!o.ok) return { study: o.study, stage: o.stage, message: o.message, readiness: o.readiness ?? null };
     return { study: o.study, scalars: o.solution.scalars, stats: o.solution.stats, timing_ms: o.solution.timing, readiness: o.readiness ?? null, gates: o.gates ?? [], steps: o.solution.steps ?? null };
   }
+}
+
+/** A table for the model: columns with units, rows as {column key: value}, per-cell errors and diagnostics. */
+function tableView(t: ResultsTableJson, o: { item: string | null; step: number | 'first' | 'last' | undefined; from: number; to: number }): { id: string; group: string; label: string; columns: Array<{ key: string; name: string; unit: string; type?: string; expr?: string; point?: number[]; about: string }>; rows: Array<Record<string, unknown>>; total: number; notEvaluated: number; errors: string[] } {
+  const keep = t.columns.map((c, i) => [c, i] as const).filter(([c]) => !o.item || c.kind !== 'item' || c.item === o.item);
+  let rows = t.rows;
+  if (o.step !== undefined && rows.length) {
+    const want = o.step === 'first' ? rows[0]!.step : o.step === 'last' ? rows[rows.length - 1]!.step : o.step;
+    rows = rows.filter((r) => r.step === want);
+  }
+  let notEvaluated = 0;
+  const out = rows.slice(o.from - 1, o.to).map((r) => {
+    const row: Record<string, unknown> = { step: r.step };
+    const errs: Record<string, string> = {}, diag: Record<string, unknown> = {};
+    for (const [c, i] of keep) {
+      row[c.key] = r.cells[i] ?? null;
+      const e = r.errors[i];
+      if (e) { errs[c.key] = e; if (c.kind === 'item') notEvaluated++; }
+      const m = r.meta[i];
+      if (m && c.kind === 'item') diag[c.key] = Object.fromEntries(Object.entries(m as Record<string, unknown>).filter(([k]) => ['method', 'n', 'nOutside', 'nNaN', 'coverage', 'at', 'continuous', 'measure', 'si', 'siUnit'].includes(k)));
+    }
+    if (Object.keys(errs).length) row.not_evaluated = errs;
+    if (Object.keys(diag).length) row.diagnostics = diag;
+    return row;
+  });
+  return {
+    id: t.id, group: t.group, label: t.label,
+    columns: keep.map(([c]) => ({ key: c.key, name: c.name, unit: c.unit || '1', ...(c.type ? { type: c.type } : {}), ...(c.expr ? { expr: c.expr } : {}), ...(c.point ? { point: c.point } : {}), about: c.tip })),
+    rows: out, total: rows.length, notEvaluated, errors: t.errors,
+  };
+}
+
+/** Dataset values for the model: at most `max` points (evenly spaced, ends included), plus min / max of the values. */
+function datasetView(d: DatasetValuesJson, max: number): Record<string, unknown> {
+  const n = d.n;
+  const idx: number[] = [];
+  if (n <= max) for (let i = 0; i < n; i++) idx.push(i);
+  else for (let k = 0; k < max; k++) idx.push(Math.round((k * (n - 1)) / (max - 1)));
+  const fin = d.values ? d.values.map((v, i) => [v, i] as const).filter(([v]) => Number.isFinite(v)) : [];
+  const ext = fin.length ? { min: fin.reduce((a, b) => (b[0] < a[0] ? b : a)), max: fin.reduce((a, b) => (b[0] > a[0] ? b : a)) } : null;
+  return {
+    id: d.id, type: d.type, n, unit: d.unit || '1', continuous: d.continuous, step: d.step, ...(d.stepValue !== null ? { stepValue: d.stepValue, stepUnit: d.stepUnit } : {}),
+    ...(d.length !== undefined ? { length_m: d.length } : {}), ...(d.covered !== undefined ? { covered_m: d.covered } : {}),
+    outside: d.outside.length, ...(d.error ? { error: d.error } : {}),
+    ...(ext ? { min: { value: ext.min[0], at: d.points[ext.min[1]], ...(d.s ? { s: d.s[ext.min[1]] } : {}) }, max: { value: ext.max[0], at: d.points[ext.max[1]], ...(d.s ? { s: d.s[ext.max[1]] } : {}) } } : {}),
+    shown: idx.length,
+    points: idx.map((i) => ({ i, x: d.points[i], ...(d.s ? { s: d.s[i] } : {}), ...(d.values ? { value: Number.isFinite(d.values[i]!) ? d.values[i] : null } : {}) })),
+  };
 }

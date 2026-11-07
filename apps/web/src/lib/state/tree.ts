@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Model Builder tree generated from the spec data (not a fixed tree): one node per spec block and per element of its
 // lists, labelled by id and type; issue counts from the validation issues under each node's JSON Pointer.
+// Results (DevLog-027): fixed folders with "+" menus (plot-ops.ts) and nodes flagged for the context actions.
 import type { SpecIssue } from '@amp/spec';
 
 export interface TreeNode {
@@ -8,12 +9,21 @@ export interface TreeNode {
 	label: string;
 	sub?: string;
 	pointer: string;
-	kind: 'params' | 'geometry' | 'feature' | 'materials' | 'material' | 'physics' | 'phys' | 'bc' | 'couplings' | 'coupling' | 'mesh' | 'meshsize' | 'refine' | 'studies' | 'study' | 'results' | 'result' | 'provenance' | 'assumptions' | 'missing' | 'model';
+	kind: 'params' | 'geometry' | 'feature' | 'materials' | 'material' | 'physics' | 'phys' | 'bc' | 'couplings' | 'coupling' | 'mesh' | 'meshsize' | 'refine' | 'studies' | 'study' | 'results' | 'rfolder' | 'result' | 'provenance' | 'assumptions' | 'missing' | 'model';
 	children: TreeNode[];
 	issues: number;
 	/** keys of the object shown as child nodes (not as form fields) */
 	childKeys?: string[];
+	/** results (DevLog-027): section of a folder, group or node; id of the node; its group's id (items); "+" menu; disabled */
+	section?: 'datasets' | 'evaluations' | 'tables' | 'plots';
+	rid?: string;
+	group?: string;
+	addable?: boolean;
+	off?: boolean;
 }
+
+/** Folder labels of the Results branch (DevLog-023 s.3.4). */
+export const RESULT_FOLDERS = [['datasets', 'Datasets'], ['evaluations', 'Evaluations'], ['tables', 'Tables'], ['plots', 'Plots']] as const;
 
 type O = Record<string, unknown>;
 const isObj = (x: unknown): x is O => !!x && typeof x === 'object' && !Array.isArray(x);
@@ -47,15 +57,24 @@ export function buildTree(data: unknown, issues: readonly SpecIssue[]): TreeNode
 		out.push(node('mesh', '/mesh', 'Mesh', s(m.mesher), ch, ['size', 'refine']));
 	}
 	if (Array.isArray(data.studies)) out.push(node('studies', '/studies', 'Studies', '', list('study', '/studies', arr(data.studies))));
-	// results (CONTRACTS C10): one node per dataset, evaluation group, table and plot group, items under their group
-	if (isObj(data.results)) {
-		const r = data.results;
-		const ch: TreeNode[] = [];
-		for (const sec of ['datasets', 'evaluations', 'tables', 'plots'] as const) {
+	// results (CONTRACTS C10, DevLog-027): folders Datasets / Evaluations / Tables / Plots (also when the block is absent),
+	// one node per dataset, evaluation group, table and plot group, items under their group; "+" on folders and groups
+	{
+		const r = isObj(data.results) ? data.results : {};
+		const folders: TreeNode[] = [];
+		for (const [sec, label] of RESULT_FOLDERS) {
 			const grouped = sec === 'evaluations' || sec === 'plots';
-			ch.push(...list('result', `/results/${sec}`, arr(r[sec]), (o, i) => (grouped ? list('result', `/results/${sec}/${i}/items`, arr(o.items)) : []), grouped ? ['items'] : undefined));
+			const items = arr(r[sec]);
+			const offOf = (o: O) => o.enabled === false;
+			const kids = items.map((o, i) => {
+				const ptr = `/results/${sec}/${i}`, gid = s(o.id);
+				const sub = sec === 'tables' ? `table of ${s(o.from)}` : sec === 'evaluations' ? 'group' : s(o.type);
+				const ch = grouped ? arr(o.items).map((it, j) => ({ ...node('result', `${ptr}/items/${j}`, s(it.id) || `#${j}`, s(it.type)), section: sec, rid: s(it.id), group: gid, off: offOf(o) || offOf(it) })) : [];
+				return { ...node('result', ptr, gid || `#${i}`, sub, ch, grouped ? ['items'] : undefined), section: sec, rid: gid, addable: grouped, off: offOf(o) };
+			});
+			folders.push({ ...node('rfolder', `/results/${sec}`, label, items.length ? String(items.length) : '', kids), section: sec, addable: true });
 		}
-		out.push(node('results', '/results', 'Results', '', ch, ['datasets', 'evaluations', 'tables', 'plots']));
+		out.push(node('results', '/results', 'Results', '', folders, ['datasets', 'evaluations', 'tables', 'plots']));
 	}
 	if (isObj(data.provenance)) out.push(node('provenance', '/provenance', 'Provenance', String(Object.keys((data.provenance.values as O) ?? {}).length)));
 	if (Array.isArray(data.assumptions)) out.push(node('assumptions', '/assumptions', 'Assumptions', String(data.assumptions.length)));

@@ -30,7 +30,11 @@ export interface Rule {
 }
 export interface ConstTerm { value: number; unit: string; source?: string }
 export interface Extract {
-  kind: 'scalar' | 'probe' | 'field' | 'eigen' | 'steps' | 'reduce' | 'expr';
+  kind: 'scalar' | 'probe' | 'field' | 'eigen' | 'steps' | 'reduce' | 'expr' | 'result';
+  /** result: evaluation item id in the spec's results (C10; DevLog-028) */
+  node?: string;
+  /** result: solution step (default: the item's steps, last of them) */
+  step?: number | 'first' | 'last';
   op?: 'max' | 'min' | 'mean' | 'absmax' | 'absmin';
   expr?: string;
   terms?: Record<string, Extract | ConstTerm>;
@@ -334,6 +338,7 @@ function semanticChecks(
       }
     };
     checkTerms(r.extract, `${p}/extract`);
+    if (r.extract?.kind === 'result' && !r.extract.node) at(`${p}/extract`, 'extract-result', `extract kind 'result' needs node (an evaluation item id of the spec's results)`);
     if (r.extract?.kind === 'probe' && (!r.extract.point || !(r.extract.field ?? r.extract.name))) {
       at(`${p}/extract`, 'extract-probe', `extract kind 'probe' needs field and point`);
     }

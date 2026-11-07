@@ -4,6 +4,9 @@
 	// hover probe in world coordinates, click pick (a press released within 4 px: probe table, DevLog-020), and
 	// draggable handles (SVG overlay) for direct manipulation. The canvas fills its container absolutely, so nothing in
 	// the page can shift or resize it except the container itself.
+	// Results (DevLog-027): a draw tool ('line': press-drag-release, 'point': click) reports world points instead of
+	// panning; overlays for coloured boundary lines (plot2d line item), arrows (arrow surface) and dataset guides (cut
+	// lines and cut points, dashed, labelled).
 	import { onMount, untrack } from 'svelte';
 	import { Renderer2D, type Layer2D, type View2D } from './renderer2d';
 	import { grabCanvas, registerCapture } from './capture';
@@ -38,8 +41,22 @@
 		padRight = 0,
 		padTop = 0,
 		flow = null,
-		frameKey = ''
+		frameKey = '',
+		draw = null,
+		ondraw,
+		colorLines = [],
+		arrows = null,
+		guides = []
 	}: {
+		/** draw tool: 'line' = press-drag-release reports both ends, 'point' = a click reports the point; no pan */
+		draw?: 'line' | 'point' | null;
+		ondraw?: (p0: { x: number; y: number }, p1: { x: number; y: number } | null) => void;
+		/** boundary segments x0 y0 x1 y1 (m) per colour */
+		colorLines?: Array<{ segs: Float64Array; color: string }>;
+		/** arrows x y vx vy (m) */
+		arrows?: Float64Array | null;
+		/** dataset guides: a cut line (seg) or cut point (pt), world m */
+		guides?: Array<{ id: string; seg?: [number, number, number, number]; pt?: [number, number]; label: string; tip: string; on?: boolean }>;
 		/** flux / stream lines: segments x0, y0, x1, y1 and direction marks x, y, dx, dy (m) */
 		flow?: { segs: Float64Array; arrows: Float64Array } | null;
 		/** extra px kept free at the top on phones (an overlay such as the Play headline) when fitting */
@@ -200,7 +217,21 @@
 		schedule();
 	});
 
-	let drag = $state.raw<{ kind: 'pan'; x: number; y: number; cx: number; cy: number; moved: boolean } | { kind: 'handle'; h: Handle } | null>(null);
+	let drag = $state.raw<{ kind: 'pan'; x: number; y: number; cx: number; cy: number; moved: boolean } | { kind: 'handle'; h: Handle } | { kind: 'draw'; p0: { x: number; y: number }; p1: { x: number; y: number } } | null>(null);
+	const colorPaths = $derived(colorLines.map((c) => ({ d: pathOf(c.segs), color: c.color })));
+	const arrowPath = $derived.by(() => {
+		const A = arrows;
+		if (!A || !A.length) return '';
+		let d = '';
+		for (let i = 0; i < A.length; i += 4) {
+			const a = toPx(A[i]!, A[i + 1]!), b = toPx(A[i]! + A[i + 2]!, A[i + 1]! + A[i + 3]!);
+			const dx = b.px - a.px, dy = b.py - a.py, L = Math.hypot(dx, dy);
+			if (L < 0.5) continue;
+			const ux = dx / L, uy = dy / L, hl = Math.min(6, 0.35 * L);
+			d += `M${a.px.toFixed(1)} ${a.py.toFixed(1)}L${b.px.toFixed(1)} ${b.py.toFixed(1)}M${(b.px - hl * ux - 0.5 * hl * uy).toFixed(1)} ${(b.py - hl * uy + 0.5 * hl * ux).toFixed(1)}L${b.px.toFixed(1)} ${b.py.toFixed(1)}L${(b.px - hl * ux + 0.5 * hl * uy).toFixed(1)} ${(b.py - hl * uy - 0.5 * hl * ux).toFixed(1)}`;
+		}
+		return d;
+	});
 	/** peak label placement inside the canvas: px, py of the point, text width estimate (11 px mono) */
 	function labelBox(px: number, py: number, text: string) {
 		const tw = 6.7 * text.length + 8, th = 17;
@@ -212,6 +243,11 @@
 	function down(e: PointerEvent) {
 		if (e.button !== 0) return;
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		if (draw) {
+			const b = host.getBoundingClientRect(), p = toWorld(e.clientX - b.left, e.clientY - b.top);
+			drag = { kind: 'draw', p0: p, p1: p };
+			return;
+		}
 		drag = { kind: 'pan', x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy, moved: false };
 	}
 	function handleDown(e: PointerEvent, hd: Handle) {
@@ -229,9 +265,18 @@
 			view = { ...view, cx: drag.cx - (e.clientX - drag.x) / view.scale, cy: drag.cy + (e.clientY - drag.y) / view.scale };
 		} else if (drag?.kind === 'handle') {
 			onhandle?.(drag.h.id, p.x, p.y, 'move');
+		} else if (drag?.kind === 'draw') {
+			drag = { ...drag, p1: p };
 		} else onhover?.(p);
 	}
 	function up(e: PointerEvent) {
+		if (drag?.kind === 'draw') {
+			const d = drag, a = toPx(d.p0.x, d.p0.y), b = toPx(d.p1.x, d.p1.y);
+			drag = null;
+			if (draw === 'point') ondraw?.(d.p0, null);
+			else if (Math.hypot(b.px - a.px, b.py - a.py) >= 6) ondraw?.(d.p0, d.p1);
+			return;
+		}
 		if (drag?.kind === 'handle') {
 			const b = host.getBoundingClientRect();
 			const p = toWorld(e.clientX - b.left, e.clientY - b.top);
@@ -255,20 +300,29 @@
 	}
 </script>
 
-<div class="host" bind:this={host} role="presentation" onpointerdown={down} onpointermove={move} onpointerup={up} onpointerleave={() => !drag && onhover?.(null)} onwheel={wheel}>
+<div class="host" class:drawing={!!draw} bind:this={host} role="presentation" onpointerdown={down} onpointermove={move} onpointerup={up} onpointerleave={() => !drag && onhover?.(null)} onwheel={wheel}>
 	<canvas bind:this={canvas}></canvas>
 	<svg class="ov" width={w} height={h}>
 		{#if flowPath}<path class="fl" d={flowPath} /><path class="fm" d={flowMarks} />{/if}
 		{#if linePath}<path class="ln" d={linePath} />{/if}
 		{#if hiPath}<path class="hl" d={hiPath} />{/if}
-		{#each handles as hd (hd.id)}
-			{@const p = toPx(hd.x, hd.y)}
-			{#if hd.ring !== undefined && hd.cx !== undefined && hd.cy !== undefined && drag?.kind === 'handle' && drag.h.id === hd.id}
-				{@const c = toPx(hd.cx, hd.cy)}
-				<circle class="ring" cx={c.px} cy={c.py} r={hd.ring * view.scale} />
+		{#each colorPaths as c, k (k)}<path class="cl" d={c.d} style:stroke={c.color} />{/each}
+		{#if arrowPath}<path class="ar" d={arrowPath} />{/if}
+		{#each guides as g (g.id)}
+			{#if g.seg}
+				{@const a = toPx(g.seg[0], g.seg[1])}
+				{@const b = toPx(g.seg[2], g.seg[3])}
+				<g class="gd" class:on={g.on} data-tip={g.tip}><line x1={a.px} y1={a.py} x2={b.px} y2={b.py} /><line class="hit" x1={a.px} y1={a.py} x2={b.px} y2={b.py} /><text x={b.px + 6} y={b.py - 4}>{g.label}</text></g>
+			{:else if g.pt}
+				{@const a = toPx(g.pt[0], g.pt[1])}
+				<g class="gd" class:on={g.on} data-tip={g.tip}><path d="M{a.px - 4} {a.py - 4}L{a.px + 4} {a.py + 4}M{a.px - 4} {a.py + 4}L{a.px + 4} {a.py - 4}" /><text x={a.px + 6} y={a.py - 4}>{g.label}</text></g>
 			{/if}
-			<rect class="hd" x={p.px - hs / 2} y={p.py - hs / 2} width={hs} height={hs} data-tip={hd.tip} role="slider" aria-valuenow={0} tabindex="-1" onpointerdown={(e) => handleDown(e, hd)} />
 		{/each}
+		{#if drag?.kind === 'draw'}
+			{@const a = toPx(drag.p0.x, drag.p0.y)}
+			{@const b = toPx(drag.p1.x, drag.p1.y)}
+			{#if draw === 'line'}<line class="rub" x1={a.px} y1={a.py} x2={b.px} y2={b.py} />{:else}<circle class="rub" cx={a.px} cy={a.py} r="4" />{/if}
+		{/if}
 		{#each markers as mk}
 			{@const p = toPx(mk.x, mk.y)}
 			{@const px = Math.round(p.px) + 0.5}
@@ -284,12 +338,22 @@
 				</g>
 			{/if}
 		{/each}
+		<!-- handles above the markers (a marker at a cut-line end must not hide the handle) -->
+		{#each handles as hd (hd.id)}
+			{@const p = toPx(hd.x, hd.y)}
+			{#if hd.ring !== undefined && hd.cx !== undefined && hd.cy !== undefined && drag?.kind === 'handle' && drag.h.id === hd.id}
+				{@const c = toPx(hd.cx, hd.cy)}
+				<circle class="ring" cx={c.px} cy={c.py} r={hd.ring * view.scale} />
+			{/if}
+			<rect class="hd" x={p.px - hs / 2} y={p.py - hs / 2} width={hs} height={hs} data-tip={hd.tip} role="slider" aria-valuenow={0} tabindex="-1" onpointerdown={(e) => handleDown(e, hd)} />
+		{/each}
 	</svg>
 	{#if failed}<div class="fail">{failed}</div>{/if}
 </div>
 
 <style>
 	.host { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: crosshair; }
+	.host.drawing { cursor: cell; }
 	canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 	.ov { position: absolute; inset: 0; pointer-events: none; }
 	.hd { fill: rgba(57, 135, 229, 0.25); stroke: #8ab8f0; stroke-width: 1.5; pointer-events: all; cursor: grab; }
@@ -307,6 +371,14 @@
 	.pr .mkx, .pr .mkr { stroke: #e0a526; }
 	.pr .mkb { stroke: rgba(224, 165, 38, 0.6); }
 	.pr text { fill: #f0c76a; }
+	.cl { fill: none; stroke-width: 3; stroke-linecap: round; }
+	.ar { fill: none; stroke: #f2f1ec; stroke-width: 1.1; opacity: 0.9; }
+	.gd { pointer-events: all; }
+	.gd line, .gd path { stroke: #e0a526; stroke-width: 1.2; stroke-dasharray: 5 3; fill: none; }
+	.gd line.hit { stroke: transparent; stroke-width: 9; stroke-dasharray: none; }
+	.gd.on line:not(.hit), .gd.on path { stroke-width: 2; stroke-dasharray: none; }
+	.gd text { fill: #f0c76a; font: 10px var(--mono); }
+	.rub { fill: none; stroke: #8ab8f0; stroke-width: 1.5; stroke-dasharray: 4 3; }
 	.ring { fill: none; stroke: #8ab8f0; stroke-width: 1; stroke-dasharray: 4 3; }
 	.fail { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
 </style>

@@ -1029,8 +1029,29 @@
             "eigen",
             "steps",
             "reduce",
-            "expr"
+            "expr",
+            "result"
           ]
+        },
+        "node": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$",
+          "description": "result: id of an evaluation item in the spec's results (C10), evaluated with @amp/post through the results adapter (DevLog-028); point items with several points take index"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "enum": [
+                "first",
+                "last"
+              ]
+            }
+          ],
+          "description": "result: solution step (default: the item's steps, last of them)"
         },
         "name": {
           "type": "string",

@@ -15,11 +15,15 @@
 
 	let { s, step = 0, asModel = true, accNote = '' }: { s: Session; step?: number; asModel?: boolean; accNote?: string } = $props();
 	let list = $state.raw<Headline[]>([]);
+	let hTok = 0;
 	$effect(() => {
-		const sol = s.solution, mesh = s.mesh, params = s.model.parsed?.params;
-		const results = ((s.model.data as { results?: unknown[] } | null)?.results ?? []) as Parameters<typeof headlines>[0];
+		// the displayed dataset (a sweep point has its own params and label); the full spec so the item's root study is honoured
+		const sol = s.solution, mesh = s.mesh, params = s.activeParams, data = s.model.data, label = s.activeLabel;
+		const results = (data as { results?: unknown } | null)?.results;
 		if (!sol || !mesh || !params || sol.meshHash !== mesh.hash) { list = []; return; }
-		void headlines(results, sol, mesh, params, s.post).then((h) => { if (s.solution === sol) list = h.filter((x) => x.value !== null); });
+		// latest request wins (requests resolve out of order in the worker, audit 8)
+		const my = ++hTok;
+		void headlines(results, sol, mesh, params, s.post, { spec: data, label }).then((h) => { if (my === hTok && s.solution === sol) list = h.filter((x) => x.value !== null); }).catch(() => { if (my === hTok && s.solution === sol) list = []; });
 	});
 	const eig = $derived(s.solution?.steps?.kind === 'eigen' ? s.solution.steps : null);
 	const modeScalars = $derived(s.solution?.scalars ?? {});

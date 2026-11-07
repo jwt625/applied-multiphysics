@@ -275,7 +275,10 @@ export class Agent {
       if (!r.outcome.ok) { out.push('run_failed'); this.details.push({ study, stage: r.outcome.stage, message: r.outcome.message }); continue; }
       const failed = (r.outcome.gates ?? []).filter((g) => g.pass === false);
       if (failed.length) { out.push('eval_gate_failed'); this.details.push({ study, failedGates: failed }); }
-      if (edited && r.specHash !== (await specHash(s.log.data))) { out.push('results_stale'); this.details.push({ study, note: 'the spec changed after this run' }); }
+      // stale only when an edit after the run invalidates more than plots (results-node edits keep the solution, C7 / C10)
+      const run = runs.filter((x) => x.study === study).at(-1);
+      const after = run?.opSeq !== undefined ? s.log.ops.slice(run.opSeq) : s.log.ops.slice(specBefore);
+      if (edited && r.specHash !== (await specHash(s.log.data)) && after.some((o) => o.invalidates.some((i) => i !== 'plots'))) { out.push('results_stale'); this.details.push({ study, note: 'the spec changed after this run' }); }
     }
     if (goal) {
       const g = goal.check(outcomes);

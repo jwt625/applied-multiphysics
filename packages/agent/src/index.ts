@@ -5,6 +5,7 @@
 export * from './untrusted.ts';
 export * from './nav.ts';
 export * from './runner.ts';
+export * from './results.ts';
 export * from './keys.ts';
 export * from './prompt.ts';
 export * from './session.ts';

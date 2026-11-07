@@ -8,7 +8,7 @@
 	import { scaleT, type ScaleMode } from './renderer2d';
 	import { unitLabel } from './units';
 
-	let { colormap, min, max, scale = 'linear', label, unit, note = '', rule = 'full', scoped = false, levels = [] }: { colormap: ColormapName; min: number; max: number; scale?: ScaleMode; label: string; unit: string; note?: string; rule?: 'full' | 'robust'; scoped?: boolean; levels?: number[] } = $props();
+	let { colormap, min, max, scale = 'linear', label, unit, note = '', rule = 'full', scoped = false, levels = [] }: { colormap: ColormapName; min: number; max: number; scale?: ScaleMode; label: string; unit: string; note?: string; rule?: 'full' | 'robust' | 'manual'; scoped?: boolean; levels?: number[] } = $props();
 
 	const pos = (v: number) => 100 * Math.min(1, Math.max(0, scaleT(v, scale, { min, max })));
 	// contour levels drawn on the canvas, marked inside the bar
@@ -20,11 +20,12 @@
 		return [min, ...inner, max];
 	});
 	const u = $derived(unitLabel(unit));
-	const tip = $derived(`${label}${u ? ` [${u}]` : ' (dimensionless)'}\nrange ${fmt(min)} to ${fmt(max)}${u ? ` ${u}` : ''}${scale === 'log' ? ', log scale' : ''}\nrule: ${rule === 'robust' ? 'area-weighted 1st-99th percentile (values outside saturate)' : 'full min to max'}${scoped ? ', over the view box' : ''}${levels.length ? `\ncontour lines at the ${levels.length} marks in the bar (step ${fmt(levels.length > 1 ? levels[1]! - levels[0]! : 0)}${u ? ` ${u}` : ''})` : ''}${note ? `\n${note}` : ''}`);
+	const tip = $derived(`${label}${u ? ` [${u}]` : ' (dimensionless)'}\nrange ${fmt(min)} to ${fmt(max)}${u ? ` ${u}` : ''}${scale === 'log' ? ', log scale' : ''}\nrule: ${rule === 'robust' ? 'area-weighted 1st-99th percentile (values outside saturate)' : rule === 'manual' ? 'manual min and max of the plot item (values outside saturate)' : 'full min to max'}${scoped ? ', over the view box' : ''}${levels.length ? `\ncontour lines at the ${levels.length} marks in the bar (step ${fmt(levels.length > 1 ? levels[1]! - levels[0]! : 0)}${u ? ` ${u}` : ''})` : ''}${note ? `\n${note}` : ''}`);
 </script>
 
 <div class="cb" data-tip={tip}>
-	<div class="lab mono">{u || (note ? 'norm.' : '')}{rule === 'robust' ? ' p1-99' : ''}</div>
+	<!-- 'norm.' only for normalized fields (eigenmodes); a dimensionless quantity shows 1 (DevLog-027) -->
+	<div class="lab mono">{u || (/^normalized/.test(note) ? 'norm.' : unit === '1' ? '1' : '')}{rule === 'robust' ? ' p1-99' : ''}</div>
 	<div class="bar v" style="background: {cssGradient(colormap)}">
 		{#each marks as m}<div class="lvl" style="bottom: {m}%"></div>{/each}
 		{#each ticks as t}<div class="tick" style="bottom: {pos(t)}%"><span class="mono">{fmt(t)}</span></div>{/each}

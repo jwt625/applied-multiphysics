@@ -136,6 +136,7 @@ export class Session {
 
 	private constructor(model: ModelState) {
 		this.model = model;
+		this.prevSpec = model.specHash;
 		this.unsub = model.onEdit((op) => this.onEdit(op));
 	}
 
@@ -152,13 +153,27 @@ export class Session {
 
 	/** The solution belongs to the current spec and to a full-resolution run. */
 	get fresh(): boolean {
-		return !!this.solution && this.solutionSpec === this.model.specHash && !this.solutionCoarse;
+		return !!this.solution && this.same(this.solutionSpec, this.model.specHash) && !this.solutionCoarse;
 	}
 	get staleSolution(): boolean {
-		return !!this.solution && this.solutionSpec !== this.model.specHash;
+		return !!this.solution && !this.same(this.solutionSpec, this.model.specHash);
 	}
 	get staleMesh(): boolean {
-		return !!this.mesh && this.meshSpec !== this.model.specHash && this.meshDependsOnEdit;
+		return !!this.mesh && !this.same(this.meshSpec, this.model.specHash) && this.meshDependsOnEdit;
+	}
+	/**
+	 * Spec hashes that differ only in `results` (ops that invalidate `plots` only, C7) name the same model for the mesh
+	 * and the solution (DevLog-027 s.1.1): each such op's `after` is an alias of the root of its `before`, so adding a
+	 * plot group or dragging a cut line keeps the solution fresh (not "stale"), also for a run in flight.
+	 */
+	private alias = new Map<string, string>();
+	private prevSpec = '';
+	private root(h: string): string {
+		for (let k = 0; k < 10000; k++) { const a = this.alias.get(h); if (a === undefined || a === h) return h; h = a; }
+		return h;
+	}
+	same(a: string, b: string): boolean {
+		return a === b || this.root(a) === this.root(b);
 	}
 	private meshSpec = $state('');
 	private meshDependsOnEdit = $state(false);
@@ -204,6 +219,9 @@ export class Session {
 
 	private onEdit(op: Operation) {
 		const inv = new Set(op.invalidates);
+		const before = this.prevSpec;
+		this.prevSpec = op.after;
+		if (op.invalidates.length && op.invalidates.every((a) => a === 'plots') && before) { const r = this.root(before); if (r !== op.after) this.alias.set(op.after, r); else this.alias.delete(op.after); }
 		const geo = inv.has('geometry') || inv.has('mesh');
 		if (geo) this.meshDependsOnEdit = true;
 		this.stopRefine();
@@ -249,7 +267,7 @@ export class Session {
 			this.solutionLevel = 1;
 			if (scale === 1) appLog.info(`${what}: solved in ${fmtMs(o.ms)}, ${o.solution.stats.dof} DOF, ${o.solution.stats.solver}`);
 			if (scale === 1 && what === 'compute') this.solvedSeq++;
-			if (scale === 1 && what === 'compute' && this.accuracy && !this.model.dragging && spec === this.model.specHash) void this.refine(spec, o.solution, o.ms);
+			if (scale === 1 && what === 'compute' && this.accuracy && !this.model.dragging && this.same(spec, this.model.specHash)) void this.refine(spec, o.solution, o.ms);
 		} else if (o.kind === 'meshed') this.status = this.solution ? 'solved' : 'meshed';
 		return o;
 	}
@@ -278,7 +296,7 @@ export class Session {
 		// computed on; a mesh-only build would be the order-1 preview mesh and orphan the solution). Otherwise the base
 		// model is meshed and the selector switches to "base model (spec values)"
 		const sw = this.sweep, pt = sw && this.active >= 0 ? this.pts[this.active] : null;
-		if (pt && sw && sw.spec === spec && pt.held && pt.mesh && meshScale === 1) {
+		if (pt && sw && this.same(sw.spec, spec) && pt.held && pt.mesh && meshScale === 1) {
 			this.showPoint(this.active);
 			appLog.info(`mesh: dataset ${pt.label} shown with its solve mesh (${pt.mesh.cells.domain.length} ${pt.mesh.cells.type} cells); select "base model" in the dataset list to mesh the spec values`);
 			return { kind: 'meshed', ms: 0 };
@@ -590,7 +608,7 @@ export class Session {
 			let lm: { mesh: Mesh; q: Float64Array; ms: MeshInfo['ms']; src: string } | null = null;
 			const t0 = performance.now();
 			const o = await this.accEngine.run(text, { meshScale: h, ...kase }, { mesh: (mesh, q, ms, src) => { lm = { mesh, q, ms, src }; } });
-			if (tok !== this.accToken || spec !== this.model.specHash) return;
+			if (tok !== this.accToken || !this.same(spec, this.model.specHash)) return;
 			if (o.kind !== 'result' || !lm) { put({ status: 'unavailable', reason: o.kind === 'error' ? `level h ${h}: ${o.message}` : o.kind === 'unavailable' ? `level h ${h}: ${o.reasons.join('; ')}` : `level h ${h}: ${o.kind}` }); return; }
 			const L = lm as { mesh: Mesh; q: Float64Array; ms: MeshInfo['ms']; src: string };
 			// show the finer real solution (same spec, nested mesh)

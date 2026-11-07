@@ -1,7 +1,8 @@
 <script lang="ts">
 	// SPDX-License-Identifier: GPL-3.0-or-later
-	// The model's headline numbers (its own `results` of type scalar and probe), evaluated on the current solution in the
-	// spec's unit (post/headline.ts). Stale or coarse values are marked; values that depend on eval-case inputs say so.
+	// The model's headline numbers (its max / min / point evaluation items, from the evaluation tables of the post worker;
+	// post/headline.ts) on the displayed dataset, in the spec's unit. Stale or coarse values are marked; values that depend
+	// on eval-case inputs say so.
 	import type { Session } from '../workbench/session.svelte';
 	import { headlines, type Headline } from '../post/headline';
 	import { fmt } from '../gfx/ticks';
@@ -9,11 +10,15 @@
 
 	let { s, big = false, boxed = false }: { s: Session; big?: boolean; boxed?: boolean } = $props();
 	let list = $state.raw<Headline[]>([]);
+	let hTok = 0;
 	$effect(() => {
-		const sol = s.solution, mesh = s.mesh, params = s.model.parsed?.params;
-		const results = ((s.model.data as { results?: unknown[] } | null)?.results ?? []) as Parameters<typeof headlines>[0];
+		// the displayed dataset (a sweep point has its own params and label); the full spec so the item's root study is honoured
+		const sol = s.solution, mesh = s.mesh, params = s.activeParams, data = s.model.data, label = s.activeLabel;
+		const results = (data as { results?: unknown } | null)?.results;
 		if (!sol || !mesh || !params || sol.meshHash !== mesh.hash) { list = []; return; }
-		void headlines(results, sol, mesh, params, s.post).then((h) => { if (s.solution === sol) list = h; });
+		// latest request wins (requests resolve out of order in the worker, audit 8)
+		const my = ++hTok;
+		void headlines(results, sol, mesh, params, s.post, { spec: data, label }).then((h) => { if (my === hTok && s.solution === sol) list = h; }).catch(() => { if (my === hTok && s.solution === sol) list = []; });
 	});
 	const mark = $derived(s.staleSolution ? 'stale' : s.solutionCoarse ? 'coarse' : '');
 	const caseNote = $derived(s.caseFilled.length && s.caseInfo ? `uses eval case ${s.caseInfo.id} inputs: ${s.caseFilled.join(', ')}` : '');

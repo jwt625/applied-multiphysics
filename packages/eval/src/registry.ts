@@ -132,11 +132,22 @@ export function convertUnit(value: number, from: string | undefined, to: string)
 }
 
 /** Read one target value from a Solution (C5) by metric_id (audit B3); probe / field through @amp/post `sample`. */
+/** Value of a results evaluation item (SI and its SI unit) on the level's solution: the web app's results adapter. */
+export type ResultEvaluator = (node: string, o: { step?: number | 'first' | 'last'; point?: number }) => { si: number; siUnit: string } | { error: string };
+
 export function extractFromSolution(
-  sol: Solution, r: Reference, o: { mesh?: unknown; sample?: SampleFn; points?: number[][] } = {},
+  sol: Solution, r: Reference, o: { mesh?: unknown; sample?: SampleFn; points?: number[][]; result?: ResultEvaluator } = {},
 ): { value: number | number[] | { values: number[] } } | { pending: string } | { error: string } {
   const ex = r.extract ?? { kind: 'scalar' as const };
   const conv = (v: number, from: string | undefined): number | { error: string } => { const c = convertUnit(v, from, r.unit); return 'error' in c ? c : c.value; };
+  if (ex.kind === 'result') {
+    if (!ex.node) return { error: "extract kind 'result' needs node" };
+    if (!o.result) return { pending: "extract kind 'result' needs the results adapter (apps/web/src/lib/results/adapter.ts, not loaded)" };
+    const v = o.result(ex.node, { ...(ex.step !== undefined ? { step: ex.step } : {}), ...(ex.index !== undefined ? { point: ex.index } : {}) });
+    if ('error' in v) return { error: `results node '${ex.node}': ${v.error}` };
+    const c = conv(v.si, v.siUnit);
+    return typeof c === 'number' ? { value: c } : c;
+  }
   if (ex.kind === 'scalar') {
     const name = ex.name ?? r.metric_id;
     if (!name) return { pending: 'no metric_id: targets are looked up by metric_id only' };

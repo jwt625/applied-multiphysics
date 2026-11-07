@@ -7,6 +7,9 @@
 	// minimum sizes and to the window, double-click / Enter resets; Compute switches the view to Results when its
 	// solution arrives; a tree selection switches the view mode (and highlights the node's entities); clicks in
 	// Results fill the Table tab; a sweep shows the dataset of the selected point everywhere.
+	// Results (DevLog-027): tree "+" menus and node actions are one op each (results/plot-ops.ts); selecting a plot group
+	// (or one of its items) shows it in the single graphics pane, a 1D group in the 1D view with an optional split
+	// (field above, graph below); a selected cut line shows its end handles; `showPlot(id)` is the agent host hook.
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { specJsonSchema } from '@amp/spec';
@@ -36,6 +39,10 @@
 	import Tip from '../ui/Tip.svelte';
 	import LibraryPicker from '../library/LibraryPicker.svelte';
 	import { CATALOG } from '../library/catalog';
+	import Plot1D from '../gfx/Plot1D.svelte';
+	import { addMenu, addPatch, cascadeRemovePatch, duplicatePatch, movePatch, nodeAt, togglePatch, type MenuEntry } from '../results/plot-ops';
+	import type { TreeAction } from './Tree.svelte';
+	import type { TreeNode } from '../state/tree';
 
 	// Library: EM problems solved through the acoustics module show the field as pressure in Pa (wrong quantity and unit),
 	// so they stay out of the picker until an EM module runs them (coordinator, DevLog-021). Still openable by ?sim=.
@@ -90,12 +97,32 @@
 	let roi = $state<[number, number, number, number] | null>(null);
 	$effect(() => { const p = s?.model.parsed?.params; if (!roi && p && FOCUS[simId]) roi = FOCUS[simId]!(p); });
 	let agentOpen = $state(false);
+	/** RESULT_NAMES of @amp/physics (field and scalar names per physics type) for the add-menu templates before a solve */
+	let resultNames = $state.raw<Record<string, { fields: string[]; scalars: string[] }> | undefined>(undefined);
+	/** plot groups shown (DevLog-027): a 2D group drawn by Graphics (null = quick view), a 1D group in the 1D view */
+	let plot2d = $state<string | null>(null);
+	let plot1d = $state<string | null>(null);
+	/** which view the single pane shows without the split */
+	let pane = $state<'2d' | '1d'>('2d');
+	let split = $state(false);
+	/** pointer of the selected cut-line dataset (its ends become handles) */
+	/** id of the selected cut-line dataset (resolved to its current pointer, so moves, undo and agent edits keep it) */
+	let editId = $state<string | null>(null);
+	const editLine = $derived.by(() => {
+		const ds = (s?.model.data as { results?: { datasets?: Array<{ id?: unknown; type?: unknown }> } } | null)?.results?.datasets ?? [];
+		const i = editId ? ds.findIndex((d) => d?.id === editId && d.type === 'cutline') : -1;
+		return i >= 0 ? `/results/datasets/${i}` : null;
+	});
+	/** timings for the gates: cut-line handle move to op, 1D re-plot compute */
+	let dragMs = $state(0);
+	let plotMs = $state(0);
+	let plotSeq = $state(0);
 	// the panel stays mounted once opened (closing hides it; the chat and its session survive)
 	let agentMounted = $state(false);
 	$effect(() => { if (agentOpen) agentMounted = true; });
 
 	// Navigation host for the agent (L9, @amp/agent NavigationHost): UI state only, every call in the navigation trail.
-	function navHost(actor: string): NavigationHost {
+	function navHost(actor: string): NavigationHost & { showPlot(id: string): NavResult } {
 		const rec = (tool: string, args: Record<string, unknown>, r: NavResult) => navTrail.record(actor, tool, args, r);
 		const sel = (pointer: string): NavResult => {
 			const p = s ? resolvePointer(s.model.data, pointer) : null;
@@ -112,7 +139,8 @@
 			})()),
 			highlightSelection: (ids) => rec('highlight_selection', { ids }, (() => { highlight = [...ids]; mode = 'geometry'; return { ok: true }; })()),
 			setCamera: (req: CameraRequest) => rec('set_camera', { ...req }, req.kind === 'fit' ? (fitKey++, { ok: true }) : { ok: false, message: `camera '${req.kind}' is not implemented in v0 (fit only)` }),
-			setViewMode: (m: ViewMode) => rec('set_view_mode', { mode: m }, ((mode = m), { ok: true })),
+				setViewMode: (m: ViewMode) => rec('set_view_mode', { mode: m }, ((mode = m), { ok: true })),
+				showPlot: (id: string) => rec('show_plot', { plot: id }, showPlot(id)),
 			screenshot: async (view) => {
 				const c = captureGraphics();
 				rec('screenshot', { view: view ?? 'graphics' }, c ? { ok: true } : { ok: false, message: 'graphics canvas not available' });
@@ -132,7 +160,8 @@
 			try {
 				const t0 = performance.now();
 				const [text, phys] = await Promise.all([loadSimText(simId), loadPhysics()]);
-				const { reg, source } = appRegistry(phys);
+					const { reg, source } = appRegistry(phys);
+					resultNames = phys?.RESULT_NAMES;
 				const sess = await Session.open(simId, text, reg);
 				sess.sweepEnabled = true;
 				if (!alive) return sess.dispose();
@@ -154,7 +183,12 @@
 			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && s) { e.preventDefault(); void (e.shiftKey ? s.model.redo() : s.model.undo()); }
 		};
 		window.addEventListener('keydown', key);
-		if (HOOKS) (window as unknown as { __ampWorkbench?: unknown }).__ampWorkbench = { get session() { return s; }, setTab: (t: BottomTab) => (bottomTab = t), setMode: (m: Mode) => (mode = m), get mode() { return mode; }, get sizes() { return { ...sizes }; }, get eff() { return { ...eff }; }, get probes() { return probes.rows; }, nav: navHost };
+			if (HOOKS) (window as unknown as { __ampWorkbench?: unknown }).__ampWorkbench = {
+				get session() { return s; }, setTab: (t: BottomTab) => (bottomTab = t), setMode: (m: Mode) => (mode = m), get mode() { return mode; }, get sizes() { return { ...sizes }; }, get eff() { return { ...eff }; }, get probes() { return probes.rows; }, nav: navHost,
+				// DevLog-027 gates: plot state, timings, the browser half of gate 7 (R1 fixture hash in a module worker)
+				get plots() { return { plot2d, plot1d, pane, split, editLine, dragMs, plotMs, plotSeq }; }, showPlot, setSplit: (v: boolean) => (split = v), select: (p: string) => treeSelect(p),
+				gate7: () => new Promise((res) => { const w = new Worker(new URL('../results/plot-gate7.worker.ts', import.meta.url), { type: 'module', name: 'amp-gate7' }); w.onmessage = (e) => { res(e.data); w.terminate(); }; w.onerror = (e) => { res({ ok: false, error: e.message }); w.terminate(); }; w.postMessage('run'); })
+			};
 		return () => { alive = false; window.removeEventListener('keydown', key); s?.dispose(); };
 	});
 
@@ -167,14 +201,91 @@
 	let seenSolved = 0;
 	$effect(() => { const n = s?.solvedSeq ?? 0; if (n > seenSolved) { seenSolved = n; mode = 'results'; } });
 
-	/** tree selection: settings of the node, and the view mode / highlight it implies (state/tree-view.ts) */
+	/** tree selection: settings of the node, and the view mode / highlight it implies (state/tree-view.ts); a plot group
+	 *  (or item) is shown in the graphics pane; a cut-line dataset gets its end handles */
 	function treeSelect(p: string) {
 		selected = p;
 		mobilePane = 'settings';
-		const v = viewFor(findNode(tree, p), s?.model.data ?? null, s?.mesh ?? null);
+		const n = findNode(tree, p);
+		const v = viewFor(n, s?.model.data ?? null, s?.mesh ?? null);
 		if (v.mode) mode = v.mode;
 		treeHi = v.ids;
+		const at = s ? nodeAt(s.model.data, p) : null;
+		editId = at?.sec === 'datasets' && at.node.type === 'cutline' ? String(at.node.id) : null;
+		if (n?.section === 'plots' && n.kind === 'result') {
+			const g = s ? nodeAt(s.model.data, p.replace(/\/items\/\d+$/, '')) : null;
+			if (g) show(String(g.node.id), String(g.node.type));
+		}
 	}
+	/** show a plot group: 2D drawn by Graphics (Results mode), 1D in the 1D view; 3D groups are drawn in stage R4 */
+	function show(id: string, type: string) {
+		if (type === 'plot1d') { plot1d = id; if (!split) pane = '1d'; }
+		else { plot2d = id; pane = '2d'; mode = 'results'; }
+	}
+	/** agent host hook (`show_plot`, lane R3): select the group in the tree and show it */
+	function showPlot(id: string): NavResult {
+		const r = (s?.model.data as { results?: { plots?: Array<{ id?: unknown; type?: unknown }> } } | null)?.results?.plots ?? [];
+		const i = r.findIndex((g) => g?.id === id);
+		if (i < 0) return { ok: false, message: `no plot group '${id}' (results.plots ids: ${r.map((g) => String(g?.id)).join(', ') || 'none'})` };
+		selected = `/results/plots/${i}`;
+		show(id, String(r[i]!.type));
+		mobilePane = 'graphics';
+		return r[i]!.type === 'plot3d' ? { ok: true, message: '3D plot groups are drawn from stage R4; the graphics pane shows a not-drawn badge' } : { ok: true };
+	}
+	const ctxOf = () => ({ data: s?.model.data ?? null, mesh: s?.mesh ?? null, sol: s?.solution && s.mesh && s.solution.meshHash === s.mesh.hash ? s.solution : null, names: resultNames });
+	function menuFor(n: TreeNode): MenuEntry[] {
+		if (!s || !n.section) return [];
+		return addMenu(ctxOf(), n.section, n.kind === 'result' ? n.rid : undefined);
+	}
+	async function addEntry(e: MenuEntry) {
+		if (!s) return;
+		try {
+			const a = addPatch(ctxOf(), e);
+			if (!a) return;
+			const op = await s.model.apply(a.patch, `add ${e.label} ${a.id}`);
+			if (!op) return;
+			treeSelect(a.pointer);
+			if (e.section === 'plots' && !e.group) show(a.id, e.type);
+		} catch (err) { appLog.error(`add ${e.label}: ${(err as Error).message}`); }
+	}
+	/** nodes a delete removes with the node (it and everything that reads it), for the menu label */
+	const deleteSet = (n: TreeNode): string[] => (s ? cascadeRemovePatch(s.model.data, n.pointer).removed : []);
+	async function treeAction(n: TreeNode, a: TreeAction) {
+		if (!s) return;
+		try { await treeAction0(n, a); } catch (err) { appLog.error(`${a} ${n.label}: ${(err as Error).message}`); }
+	}
+	async function treeAction0(n: TreeNode, a: TreeAction) {
+		if (!s) return;
+		const d = s.model.data;
+		if (a === 'delete') {
+			const c = cascadeRemovePatch(d, n.pointer);
+			const op = await s.model.apply(c.patch, `delete ${c.removed.join(', ')}`);
+			if (op && c.removed.length > 1) appLog.info(`deleted ${n.label} and the nodes that read it: ${c.removed.slice(1).join(', ')} (Undo restores them)`);
+			if (op) { if (plot2d && c.removed.includes(plot2d)) plot2d = null; if (plot1d && c.removed.includes(plot1d)) plot1d = null; selected = n.pointer.replace(/\/(items\/)?\d+$/, '') || '/results'; }
+		} else if (a === 'duplicate') {
+			const r = duplicatePatch(d, n.pointer);
+			if (r && (await s.model.apply(r.patch, `duplicate ${n.label} as ${r.id}`))) treeSelect(r.pointer);
+		} else if (a === 'toggle') await s.model.apply(togglePatch(d, n.pointer), `${n.off ? 'enable' : 'disable'} ${n.label}`);
+		else {
+			const r = movePatch(d, n.pointer, a === 'up' ? -1 : 1);
+			if (r && (await s.model.apply(r.patch, `move ${n.label} ${a}`))) selected = r.pointer;
+		}
+	}
+	/** a 1D group exists to show (selected or the first one) */
+	const g1 = $derived.by(() => {
+		const ps = ((s?.model.data as { results?: { plots?: Array<{ id?: unknown; type?: unknown }> } } | null)?.results?.plots ?? []);
+		return plot1d && ps.some((g) => g?.id === plot1d && g.type === 'plot1d') ? plot1d : null;
+	});
+	const show1d = $derived(!!g1 && (split || pane === '1d'));
+	const show2d = $derived(!show1d || split);
+	/** the shown 2D group still exists (a delete or undo can remove it) */
+	const g2id = $derived(plot2d && ((s?.model.data as { results?: { plots?: Array<{ id?: unknown }> } } | null)?.results?.plots ?? []).some((g) => g?.id === plot2d) ? plot2d : null);
+	const activePtr = $derived.by(() => {
+		const ps = ((s?.model.data as { results?: { plots?: Array<{ id?: unknown }> } } | null)?.results?.plots ?? []);
+		const id = show1d && !split ? g1 : g2id;
+		const i = ps.findIndex((g) => g?.id === id);
+		return i >= 0 ? `/results/plots/${i}` : '';
+	});
 	const hiShown = $derived(highlight.length ? highlight : treeHi);
 
 	/** session view for the headline numbers: the params of the displayed dataset (sweep point) */
@@ -235,7 +346,7 @@
 		<div class="main" bind:clientWidth={mainW}>
 			<section class="pane tree" class:mshow={mobilePane === 'tree'}>
 				<div class="ph">Model Builder</div>
-				<div class="pb">{#if s}<Tree nodes={tree} selected={node?.pointer ?? ''} onselect={treeSelect} unavailable={s.status === 'unavailable'} />{/if}</div>
+					<div class="pb">{#if s}<Tree nodes={tree} selected={node?.pointer ?? ''} onselect={treeSelect} unavailable={s.status === 'unavailable'} menu={menuFor} onadd={addEntry} onaction={treeAction} active={activePtr} deletes={deleteSet} />{/if}</div>
 			</section>
 			<PaneSplitter dir="col" label="Resize Model Builder" size={eff.tree} min={MIN.tree} max={maxOf('tree')} onsize={(px) => resize('tree', px)} onreset={() => reset('tree')} onend={save} />
 			<section class="pane settings" class:mshow={mobilePane === 'settings'}>
@@ -245,13 +356,35 @@
 				</div>
 				<div class="pb">
 					{#if s && walker}
-						{#if settingsTab === 'form'}<div class="scroll"><Settings {s} {node} {walker} /></div>{:else}<YamlTab m={s.model} />{/if}
+							{#if settingsTab === 'form'}<div class="scroll"><Settings {s} {node} {walker} menu={menuFor} onadd={addEntry} onaction={treeAction} onshow={(p) => { const g = nodeAt(s!.model.data, p); if (g) show(String(g.node.id), String(g.node.type)); }} shown={activePtr} /></div>{:else}<YamlTab m={s.model} />{/if}
 					{/if}
 				</div>
 			</section>
 			<PaneSplitter dir="col" label="Resize Settings" size={eff.settings} min={MIN.settings} max={maxOf('settings')} onsize={(px) => resize('settings', px)} onreset={() => reset('settings')} onend={save} />
 			<section class="pane graphics" class:mshow={mobilePane === 'graphics'}>
-				{#if s}<Graphics {s} bind:mode {fitKey} highlight={hiShown} focus={roi} mirror={MIRROR[simId] ?? null} {probes} onprobe={() => (bottomTab = 'table')} />{#if mode === 'results' && hv}<Headlines s={hv} boxed />{/if}{:else}<div class="loading dim">Loading model...</div>{/if}
+					{#if s}
+						<div class="gview" class:split={show1d && show2d}>
+							<div class="g2" class:hide={!show2d}>
+								<Graphics {s} bind:mode {fitKey} highlight={hiShown} focus={roi} mirror={MIRROR[simId] ?? null} {probes} onprobe={() => (bottomTab = 'table')}
+									plot={g2id} onplot={(id) => { plot2d = id; if (id) { const ps = (s?.model.data as { results?: { plots?: Array<{ id?: unknown }> } } | null)?.results?.plots ?? []; const i = ps.findIndex((g) => g?.id === id); if (i >= 0) selected = `/results/plots/${i}`; } }}
+									{editLine} tools oncreated={(r) => { selected = r.pointer; editId = r.dataset; if (r.group) { plot1d = r.group; split = true; } }} ondragms={(ms) => (dragMs = ms)} />
+								{#if mode === 'results' && hv}<Headlines s={hv} boxed />{/if}
+								{#if g1 && !show1d}<button class="g1btn" data-tip={`Show the 1D plot group ${g1}`} onclick={() => (pane = '1d')}>1D: {g1}</button>{/if}
+							</div>
+							{#if show1d && g1}
+								<div class="g1">
+									<div class="g1h">
+										<span class="mono" data-tip={`1D plot group ${g1}`}>{g1}</span>
+										<span class="gap"></span>
+										<button class:on={split} data-tip="Split: the field view above, this graph below" onclick={() => { split = !split; if (!split) pane = '1d'; }}>Split</button>
+										{#if !split}<button data-tip="Show the field view (2D)" onclick={() => (pane = '2d')}>Field</button>{/if}
+										<button data-tip="Close the 1D view" onclick={() => { pane = '2d'; split = false; }}>Close</button>
+									</div>
+									<div class="g1b"><Plot1D {s} group={g1} onms={(ms) => { plotMs = ms; plotSeq++; }} /></div>
+								</div>
+							{/if}
+						</div>
+					{:else}<div class="loading dim">Loading model...</div>{/if}
 			</section>
 			{#if agentOpen}<PaneSplitter dir="col" label="Resize Agent panel" sign={-1} size={eff.agent} min={MIN.agent} max={maxOf('agent')} onsize={(px) => resize('agent', px)} onreset={() => reset('agent')} onend={save} />{/if}
 			<section class="pane agent" class:hidden={!agentOpen}>
@@ -286,6 +419,17 @@
 	.pb { position: relative; min-height: 0; overflow: auto; }
 	.scroll { position: absolute; inset: 0; overflow: auto; }
 	.graphics { display: block; position: relative; }
+	.gview { position: absolute; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr); }
+	.gview.split { grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+	.g2, .g1 { position: relative; min-height: 0; overflow: hidden; }
+	.g2.hide { display: none; }
+	.g1 { display: grid; grid-template-rows: 22px minmax(0, 1fr); background: var(--bg); }
+	.gview.split .g1 { border-top: 1px solid var(--line); }
+	.g1h { display: flex; align-items: center; gap: 3px; padding: 0 4px; font-size: 11px; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+	.g1h button { height: 18px; font-size: 11px; padding: 0 6px; }
+	.g1h button.on { border-color: var(--accent); }
+	.g1b { position: relative; min-height: 0; }
+	.g1btn { position: absolute; right: 90px; bottom: 22px; height: 20px; font-size: 11px; }
 	.loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 	.bottom { position: relative; min-height: 0; }
 	@media (max-width: 760px) {

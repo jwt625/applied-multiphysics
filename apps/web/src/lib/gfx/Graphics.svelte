@@ -13,6 +13,12 @@
 	// Heavy per-element work (refined lattice, values, ranges, element quality) runs in the workers (audit S6).
 	// Workbench (DevLog-020): a click in Results adds a probe-table row (post/probe.ts) and marks the point; a sweep
 	// shows its dataset selector here; probes, markers, colorbar and headlines follow the selected dataset.
+	// Plot groups (DevLog-027): `plot` names a plot2d group to draw instead of the toolbar state (the quick view):
+	// surface (a field reference keeps the exact FE basis; an expression is evaluated at the mesh nodes by R3's
+	// ResultsClient and interpolated in the element basis), contour levels, line, max / min (method stated), point,
+	// arrow, mesh, deformation (displaced lattice and outline); height / streamline are listed as not drawn. Quick view:
+	// "Save as plot group" writes the toolbar state as one op. Draw tools create cut lines / cut points (one op each);
+	// the selected cut line shows end handles, dragged as one coalesced op without a re-mesh.
 	import { onMount, untrack } from 'svelte';
 	import type { FieldData } from '@amp/spec/types';
 	import type { Session } from '../workbench/session.svelte';
@@ -33,6 +39,12 @@
 	import { probe2d, probe3d, rayHit, type ProbeRow } from '../post/probe';
 	import type { ProbeTable } from '../state/probes.svelte';
 	import Colorbar from './Colorbar.svelte';
+	import { resolveQuantity, resultsOf, singleStep } from '@amp/spec';
+	import { scopeOf } from '../engine/spec-adapter';
+	import { resultsClient, runOf } from '../results/api';
+	import { enabledItems, fieldRef, overlay2d, plotGroup, type Overlay2D } from '../results/plot-data';
+	import { componentExpr, cutLineEndPatch, cutLinePatch, cutPointPatch, nodeAt, quickViewPatch, type PlotCtx } from '../results/plot-ops';
+	import { colormapLut } from './colormaps';
 
 	export type Mode = 'geometry' | 'mesh' | 'results';
 	let {
@@ -55,8 +67,26 @@
 		band = null,
 		padTop = 0,
 		probes = null,
-		onprobe
+		onprobe,
+		plot = null,
+		onplot,
+		editLine = null,
+		oncreated,
+		tools = false,
+		ondragms
 	}: {
+		/** id of a plot2d group to draw (null: the quick view, the toolbar state) */
+		plot?: string | null;
+		/** a plot group was saved from the quick view (its id), or the view returns to the quick view (null) */
+		onplot?: (id: string | null) => void;
+		/** JSON Pointer of a cut-line dataset whose ends are shown as handles (selected in the tree) */
+		editLine?: string | null;
+		/** a cut line / cut point dataset was drawn (and the 1D group created with a line) */
+		oncreated?: (r: { dataset: string; pointer: string; group: string | null }) => void;
+		/** workbench: draw tools and Save as plot group */
+		tools?: boolean;
+		/** time from a cut-line handle move to its op landing, ms */
+		ondragms?: (ms: number) => void;
 		/** probe table (workbench): clicks in Results add rows; null = no click probes (Play) */
 		probes?: ProbeTable | null;
 		onprobe?: (row: ProbeRow) => void;
@@ -78,16 +108,16 @@
 	/** camera: region of interest (focus) or the whole model */
 	let frameAll = $state(false);
 	let mirrorOn = $state(true);
-	let rule = $state<RangeRule>(untrack(() => rangeDefault));
-	let scaleUser = $state<ScaleMode>('linear');
-	let cmUser = $state<'auto' | ColormapName>('auto');
+	let ruleUser = $state<RangeRule>(untrack(() => rangeDefault));
+	let scalePick = $state<ScaleMode>('linear');
+	let cmPick = $state<'auto' | ColormapName>('auto');
 	let level = $state(3);
-	let contours = $state(untrack(() => contoursDefault));
+	let contoursUser = $state(untrack(() => contoursDefault));
 	/** raw element view (DevLog-019, lane W1): no per-pixel basis evaluation, DG0 flat per cell */
 	let rawField = $state(false);
 	let fieldLines = $state(untrack(() => fieldLinesDefault));
 	let fieldKey = $state('');
-	let comp = $state(-1);
+	let compUser = $state(-1);
 	let deformUser = $state<number | null>(null);
 	let deformOn = $state(true);
 	let clipOn = $state(false);
@@ -112,7 +142,74 @@
 	let lat = $state.raw<{ key: string; d: RefinedDisplay; out: LatticeOut } | null>(null);
 	let psi = $state.raw<{ key: string; d: RefinedDisplay; out: LatticeOut } | null>(null);
 
-	const wire = $derived(mode === 'mesh' || wireUser);
+	// ---------------------------------------------------------------- plot group (DevLog-027)
+	const grp = $derived(plotGroup(s.model.data, plot));
+	const g2 = $derived(grp?.type === 'plot2d' && grp.enabled !== false ? grp : null);
+	/** type of the group's dataset: only a solution dataset is drawn here (joins, mirrors, cut planes: stages R4 / R5) */
+	const gDsType = $derived(g2 ? (resultsOf(s.model.data).datasets.find((d) => d.id === g2.data)?.type ?? null) : null);
+	const gItems = $derived(enabledItems(g2));
+	/** the item that sets the colour field: the first surface, else the first contour */
+	const gBase = $derived(gItems.find((i) => i.type === 'surface') ?? gItems.find((i) => i.type === 'contour') ?? null);
+	const physIds = $derived(((s.model.data as { physics?: Array<{ id?: unknown }> } | null)?.physics ?? []).map((p) => String(p.id ?? '')));
+	const gRef = $derived(gBase && s.solution ? fieldRef(gBase.expr, s.solution.fields, physIds, !!s.mesh?.axisym) : null);
+	/** expression (not a field reference) of the base item, evaluated at the mesh nodes in the post worker (R3 adapter) */
+	let gNodal = $state.raw<{ key: string; meshHash: string; f: FieldData; unit: string; continuous: boolean } | null>(null);
+	let gErr = $state('');
+	let gOver = $state.raw<Overlay2D | null>(null);
+	const gStep = $derived(g2 && gBase ? singleStep(gBase.steps ?? g2.steps) : undefined);
+	/** the step every group request uses: the group's single step, else the toolbar step (none for a stationary solution) */
+	const reqStep = $derived(!s.solution?.steps ? undefined : gStep !== undefined ? gStep : step);
+	/** resolved params (results-only param edits keep the solution fresh, so they must key the cached values) */
+	const paramKey = $derived([...(s.activeParams ?? new Map())].map(([k, v]) => `${k}=${(v as { si?: number }).si}`).join(','));
+	const gKey = $derived(gBase && g2 && s.solution ? `${s.solution.run.startedAt}:${s.solution.meshHash}:${gBase.expr}:${gBase.unit ?? ''}:${String(reqStep)}:${g2.data ?? ''}:${paramKey}` : '');
+	let gTok = 0;
+	$effect(() => {
+		const b = gBase, g = g2, so = s.solution, me = s.mesh, data = s.model.data, key = gKey, st = reqStep;
+		if (!b || !g || gRef || gDsType !== 'solution' || !so || !me || so.meshHash !== me.hash) { gNodal = null; gErr = ''; return; }
+		if (gNodal?.key === key) return;
+		// the old values are dropped at once: an older expression, step or mesh is never drawn under the new label
+		gNodal = null;
+		const t = ++gTok;
+		void (async () => {
+			const run = await runOf(s);
+			if (!run || t !== gTok) return;
+			const nv = await resultsClient(s.post).nodalValues(data, String(b.expr), run, { ...(b.unit ? { unit: b.unit } : {}), ...(st !== undefined ? { step: st } : {}), ...(g.data ? { dataset: g.data } : {}) });
+			if (t !== gTok || s.solution !== so) return;
+			if (nv.error || !nv.values) { gNodal = null; gErr = `${b.id}: ${nv.error ?? 'no values'}`; return; }
+			gErr = '';
+			gNodal = { key, meshHash: nv.meshHash, unit: nv.unit, continuous: nv.continuous, f: { name: String(b.expr), unit: nv.unit, space: nv.space, components: 1, data: nv.values, step: nv.step } as FieldData };
+		})().catch((e: unknown) => { if (t === gTok) gErr = `${b.id}: ${e instanceof Error ? e.message : String(e)}`; });
+	});
+	const rangeOf = (it: typeof gBase) => (it && it.range && typeof it.range === 'object' ? (it.range as { rule?: string; min?: unknown; max?: unknown }) : null);
+	/** group settings that replace the toolbar state */
+	const gv = $derived.by(() => {
+		if (!g2) return null;
+		const b = gBase, r = rangeOf(b);
+		const cont = gItems.find((i) => i.type === 'contour' && (b?.type === 'contour' ? i === b : i.expr === b?.expr)) ?? null;
+		return {
+			comp: gRef ? gRef.comp : 0,
+			rule: (r?.rule === 'p1-99' ? 'robust' : 'full') as RangeRule,
+			manual: r?.rule === 'manual' ? { min: r.min, max: r.max } : null,
+			cm: (typeof b?.colormap === 'string' ? b.colormap : 'auto') as 'auto' | ColormapName,
+			log: b?.log === true,
+			contour: cont,
+			surface: b?.type === 'surface',
+			wire: gItems.some((i) => i.type === 'mesh'),
+			deform: gItems.find((i) => i.type === 'deformation') ?? null,
+			notes: [
+				...gItems.filter((i) => i.type === 'height').map((i) => `${i.id}: height is not drawn (the 2D renderer has no warp)`),
+				...gItems.filter((i) => i.type === 'streamline').map((i) => `${i.id}: streamlines are not drawn yet (no tracer for general vector fields; the heat-flux and field-line views are in the quick view)`),
+				...gItems.filter((i) => i.type === 'contour' && i !== cont).map((i) => `${i.id}: contour of ${i.expr} differs from the colour field ${b?.expr ?? ''}: not drawn (one colour field per group in R2)`),
+				...gItems.filter((i) => i.type === 'surface' && i !== b).map((i) => `${i.id}: a second surface is not drawn (the first one sets the colour field)`)
+			]
+		};
+	});
+	const comp = $derived(gv ? gv.comp : compUser);
+	const rule = $derived(gv ? gv.rule : ruleUser);
+	const cmUser = $derived(gv ? gv.cm : cmPick);
+	const scaleUser = $derived<ScaleMode>(gv ? (gv.log ? 'log' : 'linear') : scalePick);
+	const contours = $derived(gv ? !!gv.contour : contoursUser);
+	const wire = $derived(mode === 'mesh' || wireUser || !!gv?.wire);
 	const mesh = $derived(s.mesh);
 	const m2 = $derived(s.m2);
 	// results of an axisymmetric mode solver drawn in 3D: E_rphiz revolved with its azimuthal order m (display only)
@@ -153,6 +250,13 @@
 	const drawableSpace = (f: FieldData | null | undefined) => !!f && (f.space === 'H1P1' || f.space === 'H1P2' || f.space === 'DG0');
 	const field = $derived.by((): FieldData | null => {
 		if (!fieldList.length) return null;
+		if (g2) {
+			if (!gBase || gDsType !== 'solution') return null;
+			if (!gRef) return gNodal && gNodal.key === gKey && gNodal.meshHash === mesh?.hash ? gNodal.f : null;
+			const st = fieldList.filter((x) => x.f.name === gRef.name);
+			const k = gStep === 'last' ? st.length - 1 : typeof gStep === 'number' ? gStep : step;
+			return (st[Math.min(k, st.length - 1)] ?? st[0])?.f ?? null;
+		}
 		const name = fieldKey && names.includes(fieldKey) ? fieldKey
 			: (names.find((n) => exprIs(plotResult?.expr, n)) ?? names.find((n) => drawableSpace(fieldList.find((x) => x.f.name === n)?.f)) ?? names[0]!);
 		const steps = fieldList.filter((x) => x.f.name === name);
@@ -184,13 +288,34 @@
 			for (let i = 0; i < n; i++) mx = Math.max(mx, Math.abs(scalarAt(field, i, field.components > 1 ? comp : 0)));
 			return { a: mx > 0 ? 1 / mx : 1, b: 0, unit: '', note: `normalized eigenmode: max |${field.name}| = 1 (the amplitude of an eigenmode is arbitrary)${solNorm ? `. Solver normalization: ${solNorm}` : ''}` };
 		}
+		if (g2 && field && !gRef) return { a: 1, b: 0, unit: gNodal?.unit || '1', note: `${gBase?.expr} evaluated at the mesh nodes (results adapter, @amp/post) and interpolated in the element basis${gNodal && !gNodal.continuous ? '; the expression jumps across elements: each node takes its first cell' : ''}` };
+		if (g2 && field) return { ...displayScale(gBase?.unit ?? field.unit), note: '' };
 		const u = resultUnits(resultsSpec).find((r) => exprIs(r.expr, field?.name))?.unit ?? field?.unit;
 		return { ...displayScale(u), note: '' };
 	});
 	const lu = $derived(lengthUnit(m2 ? Math.max(m2.bbox[2] - m2.bbox[0], m2.bbox[3] - m2.bbox[1]) : mesh ? bbox3(mesh.nodes).diag : 1));
 
 	/** colour mapping from a value range: diverging when both signs carry >= 5 % of it */
+	/** manual colour range of the group's base item, in the display unit (null when not manual or unresolved) */
+	/** SI -> the unit of the drawn values (expression values arrive in the item's unit; field values are SI, scaled by disp) */
+	const valueScale = $derived(g2 && !gRef && gNodal ? displayScale(gNodal.unit || undefined) : disp);
+	const manualRange = $derived.by(() => {
+		const mr = gv?.manual;
+		if (!mr) return null;
+		try {
+			const sc = scopeOf(s.activeParams ?? new Map());
+			const lo = resolveQuantity(mr.min as never, sc), hi = resolveQuantity(mr.max as never, sc);
+			if (lo.na || hi.na) return null;
+			const c = valueScale;
+			return { min: c.a * lo.si + c.b, max: c.a * hi.si + c.b };
+		} catch { return null; }
+	});
 	function mapping(lo: number, hi: number) {
+		if (manualRange && manualRange.max > manualRange.min) {
+			const r = manualRange, both = r.min < 0 && r.max > 0;
+			const logOk = !both && r.min > 0 && r.max / r.min >= 100 && !/degC/.test(disp.unit);
+			return { range: { min: r.min, max: r.max }, both, logOk, scale: (logOk && scaleUser === 'log' ? 'log' : 'linear') as ScaleMode, cm: (cmUser !== 'auto' ? cmUser : both ? 'balance' : 'viridis') as ColormapName };
+		}
 		const m = Math.max(Math.abs(lo), Math.abs(hi));
 		if (!(hi - lo > 1e-6 * m && hi > lo)) { const d = m > 0 ? 0.01 * m : 1; lo -= d; hi += d; }
 		const both = lo < 0 && hi > 0 && Math.min(-lo, hi) / (hi - lo) >= 0.05;
@@ -213,7 +338,7 @@
 	/** refined-lattice level, lowered on large meshes (nested accuracy levels) to keep the display near 3e5 sub-triangles */
 	// (audit S2: about 3e5 sub-triangles; a finer nested level needs fewer sub-triangles per element for the same look)
 	const lv = $derived(m2 ? Math.max(1, Math.min(level, Math.floor(Math.sqrt(3e5 / Math.max(1, m2.nT))))) : level);
-	const fkey = $derived(field && m2 ? `${m2.nT}:${sol?.run.startedAt}:${field.name}:${field.step ?? 0}:${comp}:${lv}:${rule}:${disp.a}:${rangeBox?.join(',')}:${rawField}` : '');
+	const fkey = $derived(field && m2 ? `${m2.nT}:${sol?.run.startedAt}:${field.name}:${field.step ?? 0}:${comp}:${lv}:${rule}:${disp.a}:${rangeBox?.join(',')}:${rawField}:${gNodal?.key ?? ''}` : '');
 	$effect(() => {
 		const f = field, m = m2, key = fkey;
 		if (!f || !m || mode !== 'results' || !drawable) return;
@@ -223,6 +348,38 @@
 		void Promise.all([s.post.display(r), s.post.call<'lattice'>({ type: 'lattice', field: { space: f.space as Space, data: f.data, components: f.components }, comp: c, r, a, b, psi: false, rule: rl, focus: fc, smooth: !rawField })])
 			.then(([d, out]) => { if (s.m2 === m && fkey === key) lat = { key, d, out }; });
 	});
+	// deformation attribute (plot2d group): the displacement field (a vector field reference) at the lattice points and
+	// the mesh nodes, scaled; the display positions move, the per-pixel field evaluation (barycentric) does not change
+	const dfmRef = $derived.by(() => {
+		const e = typeof gv?.deform?.expr === 'string' ? gv.deform.expr.trim() : '';
+		const m = /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)$/.exec(e);
+		if (!m || !sol || !physIds.includes(m[1]!)) return null;
+		const fs = sol.fields.filter((f) => f.name === m[2] && f.components === 2 && (f.space === 'H1P1' || f.space === 'H1P2'));
+		// the displacement of the shown step
+		return fs.find((f) => (f.step ?? 0) === (field?.step ?? 0)) ?? fs[0] ?? null;
+	});
+	const dfmScale = $derived.by(() => {
+		const d = gv?.deform, f = dfmRef;
+		if (!d || !f || !mesh) return 0;
+		return typeof d.scale === 'number' && d.scale > 0 ? d.scale : autoDeformScale(bbox3(mesh.nodes).diag, f.data);
+	});
+	let dfmLat = $state.raw<{ key: string; ux: Float32Array; uy: Float32Array } | null>(null);
+	$effect(() => {
+		const f = dfmRef, m = m2, r = field?.space === 'DG0' && rawField ? 1 : lv;
+		if (!f || !m || mode !== 'results') { dfmLat = null; return; }
+		const key = `${sol?.run.startedAt}:${f.name}:${r}`;
+		if (dfmLat?.key === key) return;
+		const one = (c: number) => s.post.call<'lattice'>({ type: 'lattice', field: { space: f.space as Space, data: f.data, components: 2 }, comp: c, r, a: 1, b: 0, psi: false, rule: 'full', focus: null, smooth: false });
+		void Promise.all([one(0), one(1)]).then(([x, y]) => { if (s.m2 === m) dfmLat = { key, ux: x.values, uy: y.values }; });
+	});
+	/** a refined display moved by s u (same lattice order as the display positions) */
+	function deformed(d: RefinedDisplay): RefinedDisplay {
+		const L = dfmLat, sc = dfmScale;
+		if (!L || !sc || L.ux.length * 2 !== d.pos.length) return d;
+		const pos = new Float32Array(d.pos.length);
+		for (let i = 0; i < L.ux.length; i++) { pos[2 * i] = d.pos[2 * i]! + sc * L.ux[i]!; pos[2 * i + 1] = d.pos[2 * i + 1]! + sc * L.uy[i]!; }
+		return { ...d, pos };
+	}
 	// heat flux lines of a temperature field (post/flux2d.ts): traced along -grad T from the inflow boundary
 	const fluxField = $derived(sol && m2 && field && field.name === 'T' && field.components === 1 && (field.space === 'H1P1' || field.space === 'H1P2') ? field : null);
 	let flux = $state.raw<{ segs: Float64Array; arrows: Float64Array; n: number } | null>(null);
@@ -268,6 +425,19 @@
 	});
 	const frameKey = $derived(`${frameAll}:${focus?.map((v) => v.toPrecision(4)).join(',') ?? ''}:${mirrored}`);
 
+	/** contour levels of the group's contour item: {count} = about count nice levels, {values} = those values */
+	function contourLevels(r: { min: number; max: number }): number[] | null {
+		const lv0 = gv?.contour?.levels as { count?: number; values?: unknown[] } | undefined;
+		if (!lv0) return null;
+		if (typeof lv0.count === 'number') return niceTicks(r.min, r.max, lv0.count);
+		if (Array.isArray(lv0.values)) {
+			try {
+				const sc = scopeOf(s.activeParams ?? new Map());
+				return lv0.values.map((q) => { const v = resolveQuantity(q as never, sc); return v.na ? NaN : valueScale.a * v.si + valueScale.b; }).filter((v) => Number.isFinite(v));
+			} catch { return null; }
+		}
+		return null;
+	}
 	const view2d = $derived.by(() => {
 		type CB = { min: number; max: number; label: string; unit: string; cm: ColormapName; scale: ScaleMode; note: string; levels?: number[] };
 		const none = { layers: [] as Layer2D[], cb: null as CB | null, map: null as ReturnType<typeof mapping> | null, peak: null as LatticeOut['peak'], peakCell: false };
@@ -287,9 +457,12 @@
 		const cp = copies(parity);
 		if (cp?.some((c) => c.sign < 0)) { const m = Math.max(Math.abs(lo), Math.abs(hi)); lo = -m; hi = m; }
 		const mp = mapping(lo, hi);
-		const levels = contours && (field!.space !== 'DG0' || !rawField) && mp.scale !== 'log' ? niceTicks(mp.range.min, mp.range.max, 14) : [];
-		const layers: Layer2D[] = [{ kind: 'surface', disp: L.d, values: L.out.values, coef: L.out.coef, range: mp.range, scale: mp.scale, colormap: mp.cm, wire, mirror: cp }];
-		if (levels.length) layers.push({ kind: 'contour', disp: L.d, values: L.out.values, coef: L.out.coef, range: mp.range, scale: mp.scale, colormap: mp.cm, levels, uniform: '#0d0d0d', opacity: 0.5, mirror: cp });
+		const levels = contours && (field!.space !== 'DG0' || !rawField) && mp.scale !== 'log' ? (contourLevels(mp.range) ?? niceTicks(mp.range.min, mp.range.max, 14)) : [];
+		const D = dfmRef ? deformed(L.d) : L.d;
+		const layers: Layer2D[] = gv && !gv.surface ? [{ kind: 'region', disp: dfmRef ? deformed(d1) : d1, regionColors: domains.map(() => '#262624'), wire, mirror: cp } as Layer2D]
+			: [{ kind: 'surface', disp: D, values: L.out.values, coef: L.out.coef, range: mp.range, scale: mp.scale, colormap: mp.cm, wire, mirror: cp }];
+		const cColor = gv?.contour ? (gv.contour.color === 'colormap' || !gv.surface ? null : '#0d0d0d') : '#0d0d0d';
+		if (levels.length) layers.push({ kind: 'contour', disp: D, values: L.out.values, coef: L.out.coef, range: mp.range, scale: mp.scale, colormap: mp.cm, levels, uniform: cColor, opacity: cColor ? 0.5 : 1, mirror: cp });
 		const bp = band && bandOn && field!.name === band.field ? probePts.find((q) => q.id === band.probe) : undefined;
 		if (bp && mp.scale !== 'log') layers.push({ kind: 'contour', disp: L.d, values: L.out.values, coef: L.out.coef, range: mp.range, scale: mp.scale, colormap: mp.cm, levels: [Math.abs(bp.v) * (1 - band!.rel), Math.abs(bp.v) * (1 + band!.rel)], uniform: '#e0a526', opacity: 1, mirror: cp });
 		if (psi && fieldLines) {
@@ -297,7 +470,7 @@
 			const P = psi.out, n = 22, pl = Array.from({ length: n }, (_, i) => P.dataLo + ((i + 0.5) * (P.dataHi - P.dataLo)) / n);
 			layers.push({ kind: 'contour', disp: psi.d, values: P.values, coef: P.coef, range: { min: P.dataLo, max: P.dataHi }, colormap: mp.cm, levels: pl, uniform: '#f2f1ec', opacity: 0.8, mirror: copies([1, 1]) });
 		}
-		const label = field!.name + (field!.components > 1 ? (comp < 0 ? ' magnitude' : ` component ${comp}`) : '');
+		const label = g2 && gBase ? `${gBase.label ?? gBase.expr}` : field!.name + (field!.components > 1 ? (comp < 0 ? ' magnitude' : ` component ${comp}`) : '');
 		return { layers, map: mp, peak: L.out.peak, peakCell: !!L.out.peakCell, cb: { ...mp.range, label, unit: disp.unit, cm: mp.cm, scale: mp.scale, note: [disp.note, L.out.peakCell && L.out.coef ? `drawn smoothed: ${L.out.coef.note}; colorbar ends and peak marker are the exact per-cell values (Raw draws the cells)` : ''].filter(Boolean).join('. '), levels } };
 	});
 	// the spec's probe results mark their own points (e.g. T_E at E, B_center at the centre); otherwise the peak
@@ -320,15 +493,110 @@
 		tip: `probe #${r.n}: ${r.field} = ${r.value === null ? 'N/A (outside the mesh)' : `${fmt(r.value, 6)} ${unitLabel(r.unit)}`} at (${fmt(r.p[0] * r.lu.f, 5)}, ${fmt(r.p[1] * r.lu.f, 5)}) ${unitLabel(r.lu.unit)}${r.dataset ? `, ${r.dataset}` : ''}`
 	})));
 	const markers0 = $derived(mode !== 'results' || stale ? [] : probePts.length ? probePts : view2d.peak ? [{ x: view2d.peak.x, y: view2d.peak.y, label: eigen && !disp.unit ? `max |${field?.name}|` : `${fmt(view2d.peak.v)}${disp.unit ? ` ${unitLabel(disp.unit)}` : ''}`, tip: `largest |${field?.name}| ${rangeBox ? 'in the view box' : 'on the mesh'} (${view2d.peakCell ? 'cell value, at the cell centroid' : 'lattice point of the drawn field'})` }] : []);
-	const markers = $derived([...markers0, ...probeMarks]);
+	const markers = $derived([...(g2 ? (mode === 'results' && !stale ? (gOver?.markers ?? []) : []) : markers0), ...probeMarks]);
 	/** probe rows of the shown dataset and field in the 3D view (viewer frame: relative to the mesh centre; undeformed) */
 	const probeMarks3 = $derived(mode !== 'results' || !probes || !ext || rev ? [] : probes.rows.filter((r) => r.dim === 3 && r.key === s.datasetKey && r.field === fieldLabel).map((r) => ({
 		p: [r.p[0] - ext!.c0[0], r.p[1] - ext!.c0[1], r.p[2] - ext!.c0[2]] as [number, number, number], label: `#${r.n}`,
 		tip: `probe #${r.n}: ${r.field} = ${r.value === null ? 'N/A (outside the mesh)' : `${fmt(r.value, 6)} ${unitLabel(r.unit)}`} at (${r.p.map((x) => fmt(x * r.lu.f, 5)).join(', ')}) ${unitLabel(r.lu.unit)}${r.dataset ? `, ${r.dataset}` : ''}`
 	})));
+	// group overlays: max / min, points, boundary line colours, arrows (post worker through R3's ResultsClient)
+	let oTok = 0;
+	const overCm = $derived(view2d.map?.cm ?? 'viridis');
+	$effect(() => {
+		const g = g2, so = sol, data = s.model.data, cmn = overCm, st = typeof reqStep === 'number' ? (field?.step ?? reqStep) : reqStep, eig = eigen;
+		void paramKey;
+		if (!g || !so || mode !== 'results' || gDsType !== 'solution' || !gItems.some((i) => ['maxmin', 'point', 'line', 'arrow'].includes(i.type))) { gOver = null; return; }
+		const L = { unit: lu.unit, f: lu.f };
+		const t = ++oTok;
+		void (async () => {
+			const run = await runOf(s);
+			if (!run || t !== oTok) return;
+			const lut = colormapLut(cmn);
+			const o = await overlay2d(resultsClient(s.post), data, g, run, (x) => { const i = 4 * Math.max(0, Math.min(255, Math.round(255 * x))); return `rgb(${lut[i]}, ${lut[i + 1]}, ${lut[i + 2]})`; }, L, { ...(st !== undefined ? { step: st } : {}), eigen: eig });
+			if (t === oTok && s.solution === so) gOver = o;
+		})().catch((e: unknown) => { if (t === oTok) { gOver = null; gErr = `overlay: ${e instanceof Error ? e.message : String(e)}`; } });
+	});
+	/** cut lines and cut points of the model (dashed guides; the selected cut line solid, with end handles) */
+	const guides = $derived.by(() => {
+		if (!m2 || mode === 'mesh' || !tools) return [];
+		const r = resultsOf(s.model.data), sc = scopeOf(s.activeParams ?? new Map());
+		const vecSi = (v: unknown): number[] | null => {
+			try {
+				if (v && typeof v === 'object' && !Array.isArray(v) && Array.isArray((v as { value?: unknown }).value)) { const q = v as { value: number[]; unit: string }; return q.value.map((x) => { const r = resolveQuantity({ value: x, unit: q.unit }, sc); return r.na ? NaN : r.si; }); }
+				if (Array.isArray(v)) return v.map((x) => { const r = resolveQuantity(x as never, sc); return r.na ? NaN : r.si; });
+			} catch { /* unresolved */ }
+			return null;
+		};
+		const out: Array<{ id: string; seg?: [number, number, number, number]; pt?: [number, number]; label: string; tip: string; on?: boolean }> = [];
+		r.datasets.forEach((d, i) => {
+			if (d.enabled === false) return;
+			const ptr = `/results/datasets/${i}`;
+			if (d.type === 'cutline') {
+				const a = vecSi(d.from), b = vecSi(d.to);
+				if (a && b && a.length === 2 && b.length === 2) out.push({ id: d.id, seg: [a[0]!, a[1]!, b[0]!, b[1]!], label: d.id, tip: `cut line ${d.id}: (${fmt(a[0]! * lu.f, 4)}, ${fmt(a[1]! * lu.f, 4)}) to (${fmt(b[0]! * lu.f, 4)}, ${fmt(b[1]! * lu.f, 4)}) ${unitLabel(lu.unit)}${d.n ? `, ${d.n} points` : ', element-crossing points'}`, on: editLine === ptr });
+			} else if (d.type === 'cutpoint' && Array.isArray(d.points)) {
+				d.points.forEach((p, k) => { const a = vecSi(p); if (a && a.length === 2) out.push({ id: `${d.id}#${k}`, pt: [a[0]!, a[1]!], label: d.points!.length > 1 ? `${d.id}.${k + 1}` : d.id, tip: `cut point ${d.id}${d.points!.length > 1 ? ` #${k + 1}` : ''}: (${fmt(a[0]! * lu.f, 4)}, ${fmt(a[1]! * lu.f, 4)}) ${unitLabel(lu.unit)}`, on: editLine === ptr }); });
+			}
+		});
+		return out;
+	});
+	const lineHandles = $derived.by((): Handle[] => {
+		const at = editLine ? nodeAt(s.model.data, editLine) : null;
+		const gd = at?.node.type === 'cutline' ? guides.find((x) => x.id === at.node.id) : null;
+		if (!gd?.seg) return [];
+		return [{ id: 'cl:from', x: gd.seg[0], y: gd.seg[1], tip: `drag: ${gd.id} start (one operation per drag)` }, { id: 'cl:to', x: gd.seg[2], y: gd.seg[3], tip: `drag: ${gd.id} end (one operation per drag)` }];
+	});
+	const pctx = (): PlotCtx => ({ data: s.model.data, mesh: s.mesh, sol: s.solution });
+	let dragT = 0;
+	function handle(id: string, x: number, y: number, phase: 'move' | 'end') {
+		if (!id.startsWith('cl:')) { onhandle?.(id, x, y, phase); return; }
+		if (!editLine) return;
+		const patch = cutLineEndPatch(pctx(), editLine, id === 'cl:from' ? 'from' : 'to', [x, y]);
+		const t0 = performance.now();
+		dragT = t0;
+		if (patch.length) void s.model.dragStep(patch, `drag cut line ${id.slice(3)}`).then(() => { if (dragT === t0) ondragms?.(performance.now() - t0); });
+		if (phase === 'end') s.model.endDrag();
+	}
+	/** arrows at their (deformed, when the group deforms) node positions */
+	const arrowsShown = $derived.by(() => {
+		const A = gOver?.arrows, nd = gOver?.arrowNodes, U = dfmRef && dfmScale ? dfmRef.data : null;
+		if (!A || !U || !nd) return A ?? null;
+		const B = Float64Array.from(A);
+		for (let k = 0; k < nd.length; k++) { B[4 * k] = A[4 * k]! + dfmScale * U[2 * nd[k]!]!; B[4 * k + 1] = A[4 * k + 1]! + dfmScale * U[2 * nd[k]! + 1]!; }
+		return B;
+	});
+	let tool = $state<'none' | 'line' | 'point'>('none');
+	/** expression of the shown colour field (the line graph of a drawn cut line plots it) */
+	const shownExpr = $derived.by(() => {
+		if (g2) return typeof gBase?.expr === 'string' ? gBase.expr : null;
+		if (!field || eigen) return null;
+		const ph = physIds[0] ?? '';
+		return componentExpr(ph, field.name, field.components > 1 ? comp : -1, field.components, !!mesh?.axisym);
+	});
+	async function drawn(p0: { x: number; y: number }, p1: { x: number; y: number } | null) {
+		const t = tool;
+		tool = 'none';
+		const r = t === 'line' && p1 ? cutLinePatch(pctx(), [p0.x, p0.y], [p1.x, p1.y], shownExpr) : t === 'point' ? cutPointPatch(pctx(), [p0.x, p0.y]) : null;
+		if (!r) return;
+		const op = await s.model.apply(r.patch, t === 'line' ? `draw cut line ${r.id}` : `click cut point ${r.id}`);
+		if (op) oncreated?.({ dataset: r.id, pointer: r.pointer, group: (r as { group?: string | null }).group ?? null });
+	}
+	async function saveQuick() {
+		if (!field || g2) return;
+		const q = quickViewPatch(pctx(), {
+			field: field.name, comp, components: field.components, axisym: !!mesh?.axisym, step: field.step ?? step, nSteps,
+			unit: eigen ? '' : disp.unit, rule, log: scaleUser === 'log' && !!map?.logOk, colormap: cmUser, contours, levels: 14, wire: wireUser
+		});
+		if (!q) return;
+		const op = await s.model.apply(q.patch, `save quick view as plot group ${q.id}`);
+		if (op) onplot?.(q.id);
+	}
 	const boundaryLines = $derived.by(() => {
 		if (!mesh || mesh.dim !== 2 || mode === 'mesh') return null;
-		const f = mesh.facets, npf = f.type === 'line3' ? 3 : 2, n = f.conn.length / npf, N = mesh.nodes;
+		const f = mesh.facets, npf = f.type === 'line3' ? 3 : 2, n = f.conn.length / npf;
+		// deformed outline: x + s u at the nodes (the displacement field is nodal on this mesh)
+		const U = mode === 'results' && dfmRef && dfmScale && sol ? dfmRef.data : null;
+		const N = U ? mesh.nodes.map((v, i) => v + dfmScale * (i < U.length ? U[i]! : 0)) : mesh.nodes;
 		const cps = copies(null) ?? [{ sx: 1, sy: 1, sign: 1 }];
 		const tol = 1e-9 * (m2 ? Math.max(m2.bbox[2] - m2.bbox[0], m2.bbox[3] - m2.bbox[1]) : 1);
 		const seg: number[] = [];
@@ -586,7 +854,8 @@
 	<!-- the stage excludes the colorbar strip: nothing is drawn under the colorbar -->
 	<div class="stage" class:bg3={is3d}>
 	{#if m2 && !rev}
-		<Canvas2D layers={view2d.layers} bbox={frameBox} {frameKey} {padTop} fitKey={fitKey + fit} {handles} {onhandle} onhover={hover} onpick={probes ? pick2d : undefined} onframe={(ms) => (frameMs = ms)} lines={boundaryLines} {hiLines} {markers} flow={flux && !stale ? flux : null} />
+			<Canvas2D layers={view2d.layers} bbox={frameBox} {frameKey} {padTop} fitKey={fitKey + fit} handles={[...handles, ...lineHandles]} onhandle={handle} onhover={hover} onpick={probes ? pick2d : undefined} onframe={(ms) => (frameMs = ms)} lines={boundaryLines} {hiLines} {markers} flow={flux && !stale && !g2 ? flux : null}
+				draw={tool === 'none' ? null : tool} ondraw={drawn} colorLines={g2 && !stale ? (gOver?.lines ?? []) : []} arrows={g2 && !stale ? arrowsShown : null} {guides} />
 	{:else if is3d && Canvas3D && shown3d}
 		<Canvas3D surface={shown3d.surface} regionColors={shown3d.region ? regionColors : null} edges={shown3d.edges} edgeDisp={shown3d.ed} colormap={shown3d.map?.cm ?? 'viridis'} range={shown3d.range} logScale={shown3d.map?.scale === 'log'} wire={true}
 			showSurface={!(sliceOn || isoOn) || clipOn || mode !== 'results'} {deform} clip={clip3} {cuts} phase={eigen && playing && canAnimate ? phase : null} smooth={!rawField} animValue={eigen && (signedField || animAbs)} {animAbs} {half} fitKey={fitKey + fit} onframe={(ms) => (frameMs = ms)} onpick={probes ? pick3d : undefined} marks={probeMarks3} />
@@ -622,18 +891,30 @@
 		{#if !compact}
 			<button class:on={wire} data-tip="Wireframe (W)" onclick={() => (wireUser = !wireUser)} disabled={mode === 'mesh'}>Wire</button>
 			<button data-tip="Zoom extents (F)" onclick={() => fit++}>Fit</button>
-			{#if cb}
-				<select value={cmUser} data-tip="Colormap. auto: viridis, or the diverging balance map (symmetric about zero) when both signs carry at least 5 % of the range" onchange={(e) => (cmUser = (e.currentTarget as HTMLSelectElement).value as 'auto' | ColormapName)}>
+				{#if cb && !g2}
+					<select value={cmUser} data-tip="Colormap. auto: viridis, or the diverging balance map (symmetric about zero) when both signs carry at least 5 % of the range"onchange={(e) => (cmPick = (e.currentTarget as HTMLSelectElement).value as 'auto' | ColormapName)}>
 					<option value="auto">auto ({map?.cm ?? 'viridis'})</option>
 					{#each COLORMAPS as c}<option value={c}>{c}</option>{/each}
 				</select>
 			{/if}
 		{/if}
-		{#if mode === 'results' && sol && names.length}
-			{#if names.length > 1}<select value={field?.name} onchange={(e) => (fieldKey = (e.currentTarget as HTMLSelectElement).value)} data-tip="Field">{#each names as n}<option value={n}>{n}</option>{/each}</select>{/if}
+			{#if tools && m2 && !rev && (mode === 'results' || mode === 'geometry')}
+				<div class="modes">
+					<button class:on={tool === 'line'} data-tip="Cut line: press, drag and release on the canvas. Creates a Cut Line dataset{shownExpr ? ` and a 1D plot group with a line graph of ${shownExpr}` : ''} (one operation)" onclick={() => (tool = tool === 'line' ? 'none' : 'line')}>Cut line</button>
+					<button class:on={tool === 'point'} data-tip="Cut point: click on the canvas. Creates a Cut Point dataset (one operation)" onclick={() => (tool = tool === 'point' ? 'none' : 'point')}>Cut point</button>
+				</div>
+			{/if}
+			{#if tools && grp}
+				<span class="pg" data-tip={`Drawing plot group ${grp.id} (${grp.type}); its items set field, range, colormap and levels. Quick view returns to the toolbar state`}>{grp.id}</span>
+				<button data-tip="Back to the quick view (the toolbar state, not in the spec)" onclick={() => onplot?.(null)}>Quick view</button>
+			{:else if tools && mode === 'results' && sol && field && drawable}
+				<button data-tip="Save the quick view (field, component, step, range rule, colormap, log, contours, wireframe) as a 2D plot group in the spec (one operation)" onclick={saveQuick}>Save as plot group</button>
+			{/if}
+			{#if mode === 'results' && sol && names.length && !g2}
+				{#if names.length > 1}<select value={field?.name} onchange={(e) => (fieldKey = (e.currentTarget as HTMLSelectElement).value)} data-tip="Field">{#each names as n}<option value={n}>{n}</option>{/each}</select>{/if}
 			{#if drawable}
 				{#if field && field.components > 1}
-					<select bind:value={comp} data-tip="Component">
+						<select bind:value={compUser} data-tip="Component">
 						<option value={-1}>magnitude</option>
 						{#each Array.from({ length: field.components }, (_, i) => i) as i}<option value={i}>{field.name === 'E_rphiz' ? ['r', 'phi', 'z'][i] : i}</option>{/each}
 					</select>
@@ -643,14 +924,14 @@
 						{#each Array.from({ length: nSteps }, (_, i) => i) as i}<option value={i}>{sol.steps ? `${fmt(sol.steps.values[i] ?? i)} ${unitLabel(sol.steps.unit)}` : i}</option>{/each}
 					</select>
 				{/if}
-				<select bind:value={rule} data-tip="Colour range rule: full = min to max; robust = area-weighted 1st-99th percentile (values outside saturate). Over the view box when the view has one, else the whole mesh">
+				<select bind:value={ruleUser} data-tip="Colour range rule: full = min to max; robust = area-weighted 1st-99th percentile (values outside saturate). Over the view box when the view has one, else the whole mesh">
 					<option value="full">range: full</option>
 					<option value="robust">range: p1-99</option>
 				</select>
-				{#if map?.logOk}<button class:on={scaleUser === 'log'} data-tip="Logarithmic colour scale (the data span more than two decades)" onclick={() => (scaleUser = scaleUser === 'log' ? 'linear' : 'log')}>log</button>{/if}
+				{#if map?.logOk}<button class:on={scaleUser === 'log'} data-tip="Logarithmic colour scale (the data span more than two decades)"onclick={() => (scalePick = scalePick === 'log' ? 'linear' : 'log')}>log</button>{/if}
 				{#if canAnimate}<button class:on={playing} data-tip={eigen ? 'Animate the mode: Re(u e^(i phase)) (Space)' : 'Play the steps (Space)'} onclick={() => (playing = !playing)}>{playing ? 'Pause' : 'Animate'}</button>{/if}
 				{#if m2 && !rev}
-					{#if field?.space !== 'DG0' || !rawField}<button class:on={contours} data-tip="Contour lines at the colorbar ticks" onclick={() => (contours = !contours)}>Contours</button>{/if}
+					{#if field?.space !== 'DG0' || !rawField}<button class:on={contours} data-tip="Contour lines at the colorbar ticks" onclick={() => (contoursUser = !contoursUser)}>Contours</button>{/if}
 					<button class:on={rawField} data-tip={`Raw element field: per-cell values flat, nodal values linear between the lattice points. Off: the element basis is evaluated per pixel${field?.space === 'DG0' ? '; per-cell values recovered to the element corners (area-weighted mean within each domain)' : ''}. The probe always shows the exact FE value`} onclick={() => (rawField = !rawField)}>Raw</button>
 					{#if band && field?.name === band.field && probePts.some((q) => q.id === band.probe)}<button class="amb" class:on={bandOn} data-tip={band.tip} onclick={() => (bandOn = !bandOn)}>±{band.rel * 100} %</button>{/if}
 					{#if fluxField}<button class:on={fieldLines} data-tip={`Heat flux lines: tangent to q = -k grad T, traced from the boundary where heat enters, seeded at equal inflow so each line carries the same heat (line density follows |q|); arrows point downstream${flux ? `. ${flux.n} lines` : ''}`} onclick={() => (fieldLines = !fieldLines)}>Flux lines</button>{/if}
@@ -663,7 +944,11 @@
 				{/if}
 			{/if}
 		{/if}
-		{#if is3d && !rev && mode === 'results' && sol && drawable && mesh?.cells.type === 'tet10'}
+			{#if g2 && mode === 'results' && sol && drawable && m2 && !rev}
+				<button class:on={rawField} data-tip="Raw element field (off: the element basis evaluated per pixel). The probe always shows the exact value" onclick={() => (rawField = !rawField)}>Raw</button>
+				{#if !compact}<select bind:value={level} data-tip="Smoothing: refined lattice level r">{#each [1, 2, 3, 4, 6] as l}<option value={l}>r {l}</option>{/each}</select>{/if}
+			{/if}
+			{#if is3d && !rev && mode === 'results' && sol && drawable && mesh?.cells.type === 'tet10'}
 			<button class:on={rawField} data-tip="Raw: values linear between the 6 nodes of each exterior tet10 face (4 sub-triangles). Off: the face's P2 basis evaluated per pixel. The colour range is taken over the nodal values" onclick={() => (rawField = !rawField)}>Raw</button>
 		{/if}
 		{#if is3d && (!compact || rev)}
@@ -690,6 +975,23 @@
 		{/if}
 	</div>
 
+	{#if g2 && mode === 'results'}
+		{@const errs = [...(gErr ? [gErr] : []), ...(gOver?.errors ?? []).map((e) => `${e.id}: ${e.message}`)]}
+		{@const notes = [...(gv?.notes ?? []), ...(gv?.deform && !dfmRef ? [`${gv.deform.id}: deformation needs a 2-component nodal vector field reference (e.g. solid.u)`] : []), ...(gDsType !== 'solution' ? [`${g2.id}: dataset ${g2.data} is ${gDsType ?? 'not found'}; only solution datasets are drawn in R2 (cut plane, mirror, join, revolve: stages R4 / R5)`] : []), ...(!m2 ? [`${g2.id}: a 2D plot group is drawn on a 2D mesh only`] : [])]}
+		{@const info = [
+			...(gOver?.lineRange ? [`line ${gOver.lineRange.expr} on the boundaries: ${fmt(gOver.lineRange.min)} to ${fmt(gOver.lineRange.max)} ${unitLabel(gOver.lineRange.unit)} (own colour range)`] : []),
+			...(gOver?.arrowNote ? [gOver.arrowNote] : []),
+			...(dfmRef && dfmScale ? [`deformation: x + s ${gv?.deform?.expr}, s = ${fmt(dfmScale)}${gv?.deform?.scale === 'auto' ? ' (auto: 10 % of the bounding-box diagonal over max |u|)' : ''}; the probe, markers and guides use the undeformed positions`] : [])
+		]}
+		<!-- group notes as chips; the details are in the tooltips -->
+		<div class="gnotes">
+			{#if errs.length}<span class="crit" data-tip={errs.join('\n')}>{errs.length} not evaluated</span>{/if}
+			{#if notes.length}<span class="na" data-tip={notes.join('\n')}>{notes.length} not drawn</span>{/if}
+			{#if info.length}<span data-tip={info.join('\n')}>{dfmRef && dfmScale ? `deformed x${fmt(dfmScale)}` : 'info'}</span>{/if}
+		</div>
+	{/if}
+	{#if plot && grp && grp.type === 'plot2d' && grp.enabled === false && tools}<div class="badge co" data-tip="enabled: false: the group is not computed (Enable in the tree)">{grp.id}: disabled</div>{/if}
+	{#if plot && grp && grp.type !== 'plot2d' && tools}<div class="badge co" data-tip="3D plot groups are drawn in stage R4; 1D groups in the 1D pane">{grp.id}: {grp.type} not drawn here</div>{/if}
 	{#if invalid.length}<div class="badge st" data-tip="The model does not validate; the drawing is the last valid geometry{sol ? ' and result' : ''}">model invalid: earlier geometry</div>
 	{:else if stale}<div class="badge st" data-tip="This result was computed for an earlier version of the model; recompute for the current one">stale: earlier spec</div>
 	{:else if coarse}<div class="badge co" data-tip="Coarse preview while dragging (mesh sizes x2); the full-resolution run follows on release">coarse preview</div>{/if}
@@ -729,7 +1031,7 @@
 	{/if}
 
 	{#if cb}
-		<Colorbar colormap={cb.cm} min={cb.min} max={cb.max} scale={cb.scale} label={cb.label} unit={cb.unit} note={cb.note} rule={mode === 'results' ? rule : 'full'} scoped={mode === 'results' && !!rangeBox} levels={'levels' in cb ? (cb.levels ?? []) : []} />
+		<Colorbar colormap={cb.cm} min={cb.min} max={cb.max} scale={cb.scale} label={cb.label} unit={cb.unit} note={cb.note} rule={mode === 'results' ? (manualRange ? 'manual' : rule) : 'full'} scoped={mode === 'results' && !!rangeBox} levels={'levels' in cb ? ((cb.levels as number[] | undefined) ?? []) : []} />
 	{/if}
 
 	<div class="foot mono">
@@ -758,6 +1060,11 @@
 	.n { width: 56px; }
 	.ds { max-width: 260px; border-color: #e0a526; }
 	.foot > span.dst { color: #f0c76a; }
+	.pg { font: 11px var(--mono); color: var(--ink); background: rgba(57, 135, 229, 0.25); border: 1px solid var(--accent); padding: 0 5px; height: 22px; display: inline-flex; align-items: center; }
+	.gnotes { position: absolute; left: 6px; bottom: 22px; display: flex; gap: 3px; font-size: 11px; pointer-events: auto; }
+	.gnotes > span { background: rgba(13, 13, 13, 0.85); border: 1px solid var(--border); padding: 0 5px; white-space: nowrap; color: var(--ink-2); }
+	.gnotes > span.crit { border-color: var(--crit); color: var(--crit); }
+	@media (max-width: 760px) { .gnotes { bottom: 74px; } }
 	.amb.on { background: #6b4e12; border-color: #e0a526; color: #fff; }
 	.prog { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: rgba(57, 135, 229, 0.15); }
 	.prog span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); transition: width 0.2s; }

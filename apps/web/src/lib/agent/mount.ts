@@ -7,6 +7,7 @@
 import type { ChatController, NavigationHost, ProviderAdapter, StudyOutcome, StudyRunner } from '@amp/agent';
 import type { Session } from '../workbench/session.svelte';
 import { agentStore } from './store.svelte';
+import { agentResultsHost } from '../results/eval-host.ts';
 
 export const DEFAULT_CAPS = { maxCostUSD: 1, maxSessionCostUSD: 5 };
 
@@ -48,6 +49,8 @@ export async function mountPanel(s: Session, nav: (actor: string) => NavigationH
 		registry: s.model.reg,
 		nav: nav(`agent:${sessionId}`),
 		runner: studyRunner(s, A.summarizeSolution as never),
+		// evaluate / get_table read the displayed dataset through the post worker (lane R3, DevLog-028)
+		results: agentResultsHost(s),
 		memoryBackend: backend,
 		storage: window.localStorage,
 		budget: { ...DEFAULT_CAPS },

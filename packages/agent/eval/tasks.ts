@@ -14,6 +14,8 @@ import { ScriptedProvider, say, use, turn, lastToolResult, type ScriptStep } fro
 import { ProviderError, type ProviderAdapter, type ProviderRequest } from '../src/provider/types.ts';
 import { outsideBlocks, structuredIssues } from '../src/untrusted.ts';
 import { fixture, blockJson, headJson, simText, type Fixture } from './fixtures.ts';
+// direct @amp/post kernel calls for the results checkers (dev only; relative path: @amp/post is not a dependency of @amp/agent)
+import { cutLine, evalIntegral, evalPoint } from '../../post/src/index.ts';
 
 /** What checkers read from the provider: the requests the loop built (ScriptedProvider, or the live trial recorder). */
 export interface RecordedProvider extends ProviderAdapter { readonly requests: ProviderRequest[]; readonly wireViolations: Array<{ call: number; problems: string[] }>; readonly remaining: number }
@@ -627,6 +629,118 @@ export const TASKS: Task[] = [
       ...expect(provider.requests.length === 2, `${provider.requests.length} calls`),
       ...expect(turns[0]!.costUSD !== null && Math.abs(turns[0]!.costUSD - 0.28) < 1e-9, `cost ${turns[0]!.costUSD}`),
     ],
+  },
+
+  // ---- results (lane R3, DevLog-028; DevLog-023 s.3.6) -------------------------------------------------------------
+  {
+    id: 'T28-kirsch-cutline-x0', category: 'results: cut line + evaluate', sim: 'kirsch-exact',
+    checks: 'one agent op adds a cutline dataset from (0, a) to (0, L) on the solution dataset; evaluate on that node returns sigma_xx at r = a and the ad hoc line integral of sigma_xx, both bitwise equal to direct @amp/post kernel calls on the same solve (R1 call pattern), within the R1 gate-1 level-1 error of 3 s_inf and equal to the R1 gate-3 level-1 integral (logs/r1-post-gates-20261107T070753Z.json) on the same mesh; the answer quotes both; evaluate changed nothing else',
+    prompts: ['Run the model, add a cut line through the hole along x = 0 and report sigma_xx at r = a and the line integral of sigma_xx along it.'],
+    script: [
+      turn(use('run_study', { study: 'std1', reason: 'User asked for values from the solution' })),
+      turn(use('apply_ops', { ops: [{ op: 'add', path: '/results/datasets/-', value: { id: 'cl_x0', type: 'cutline', data: 'sol_std1', from: ['0 m', 'a'], to: ['0 m', 'L'] } }], reason: 'User: cut line along x = 0 from the hole edge (y = a) to the plate edge (y = L)' })),
+      turn(use('evaluate', { node: 'cl_x0', expr: 'solid.sxx', unit: 'MPa', max_points: 5 })),
+      turn(use('evaluate', { data: 'cl_x0', kind: 'integral', expr: 'solid.sxx', unit: 'N/m' })),
+      (req) => {
+        const pts = (blockJson(lastResult(req, 'evaluate')) as { rows?: Array<Record<string, number>> })?.rows ?? [];
+        let v = NaN;
+        for (const m of req.messages) for (const b of m.content) if (b.type === 'tool_result') { const j = blockJson(b.content[0]?.type === 'text' ? b.content[0].text : null) as { type?: string; points?: Array<{ value?: number }> } | null; if (j?.type === 'cutline') v = j.points?.[0]?.value ?? NaN; }
+        const I = pts[0]?.['__adhoc'];
+        return turn(say(`Cut line cl_x0 added (x = 0, y from a to L). sigma_xx at r = a: ${v.toPrecision(6)} MPa; line integral of sigma_xx along it: ${I?.toPrecision(7)} N/m.`));
+      },
+    ],
+    check: async ({ fx, turns }) => {
+      const d = data(fx);
+      const cl = (d.results?.datasets ?? []).find((x: { id?: string }) => x.id === 'cl_x0');
+      const ops = agentOps(fx);
+      const l = fx.runner.last.get('std1');
+      const fails: string[] = [
+        ...expect(ops.length === 1 && ops[0]!.patch.every((p) => p.path.startsWith('/results/')), `${ops.length} agent ops, or ops outside /results`),
+        ...expect(!!cl && cl.type === 'cutline' && cl.data === 'sol_std1', 'cutline cl_x0 on sol_std1 missing'),
+        ...expect(valid(fx), `spec invalid: ${validIssues(fx).join(', ')}`),
+        ...expect(!!l, 'no solve recorded'),
+      ];
+      if (!cl || !l) return fails;
+      const a = param(fx, 'a'), L = param(fx, 'L'), sInf = param(fx, 's_inf');
+      fails.push(...expect(si(fx, cl.from[0]) === 0 && si(fx, cl.from[1]) === a && si(fx, cl.to[0]) === 0 && si(fx, cl.to[1]) === L, 'cut line ends are not (0, a) -> (0, L)'));
+      const o = { params: l.params as never, physicsId: 'solid', mesh: l.mesh };
+      const line = cutLine(l.mesh, [0, a], [0, L], { mode: 'crossing' });
+      const v0 = evalPoint(l.solution, 'solid.sxx', line.points, o).values[0]! / 1e6;
+      const I0 = evalIntegral(l.solution, 'solid.sxx', line, o).value;
+      // the host (same path as the tools) against the direct kernel
+      const hv = (await fx.results.dataset('cl_x0', 'solid.sxx', { unit: 'MPa' })).value.values;
+      fails.push(...expect(hv?.[0] === v0, `host sigma_xx(0, a) ${hv?.[0]} != direct kernel ${v0}`));
+      const ht = (await fx.results.adhoc({ data: 'cl_x0', kind: 'integral', expr: 'solid.sxx', unit: 'N/m' })).value;
+      const hI = ht.rows[0]?.cells[ht.columns.findIndex((c) => c.key === '__adhoc')];
+      fails.push(...expect(hI === I0, `host integral ${hI} != direct kernel ${I0}`));
+      const calls = fx.results.calls.map((c) => `${c.method}:${c.id}`);
+      fails.push(...expect(calls.includes('dataset:cl_x0') && calls.includes('adhoc:cl_x0'), `host calls ${calls.join(', ')}`));
+      const text = turns[0]!.text;
+      fails.push(...expect(text.includes(`${v0.toPrecision(6)} MPa`), `answer does not quote sigma_xx(0, a) = ${v0.toPrecision(6)} MPa (direct kernel)`));
+      fails.push(...expect(text.includes(`${I0.toPrecision(7)} N/m`), `answer does not quote the integral ${I0.toPrecision(7)} N/m (direct kernel)`));
+      // R1 values of the same mesh (kirsch-exact level hFactor 1, logs/r1-post-gates-20261107T070753Z.json)
+      const R1 = { meshHash: 'f5e32eacf1ba1a3db6cc3a3460caa50ff34e3bd21e988218927677d879d89c43', gate1MaxErrPa: 1594862.4199746847, gate3ValueNm: 4974664.346323662 };
+      fails.push(...expect(l.mesh.hash === R1.meshHash, `mesh ${l.mesh.hash.slice(0, 16)} is not the R1 level-1 mesh`));
+      if (l.mesh.hash === R1.meshHash) {
+        fails.push(...expect(Math.abs(v0 * 1e6 - 3 * sInf) <= R1.gate1MaxErrPa, `|sigma_xx(0, a) - 3 s_inf| = ${Math.abs(v0 * 1e6 - 3 * sInf)} Pa above the R1 gate-1 level-1 max error`));
+        fails.push(...expect(I0 === R1.gate3ValueNm, `integral ${I0} != R1 gate-3 level-1 value ${R1.gate3ValueNm}`));
+      }
+      return fails;
+    },
+  },
+  {
+    id: 'T29-coax-V-plot-E-integral', category: 'results: plot group + evaluation group + show_plot', sim: 'coax-line',
+    checks: 'one agent op adds a radial cutline (a, 0) -> (b, 0), a plot1d group with a V(r) line graph and an evaluation group with the line integral of E_r = -d(es.V, r); show_plot draws the group (navigation trail, not the op log); get_table returns the integral, bitwise equal to a direct @amp/post call and to the R1 gate-5c level-1 value on the same mesh (1 V); evaluate on the cut line returns V(r) equal to direct kernel values; the answer quotes the integral',
+    prompts: ['Plot V(r) of the coax and give me the line integral of E from the inner to the outer conductor.'],
+    script: [
+      turn(use('run_study', { study: 'std1', reason: 'User asked for V(r) and the line integral of E' })),
+      turn(use('apply_ops', { ops: [
+        { op: 'add', path: '/results/datasets/-', value: { id: 'cl_r', type: 'cutline', data: 'sol_std1', from: ['a', '0 m'], to: ['b', '0 m'] } },
+        { op: 'add', path: '/results/plots/-', value: { id: 'pg_V', type: 'plot1d', items: [{ id: 'V_r', type: 'linegraph', data: 'cl_r', x: 'arc', expr: 'es.V', unit: 'V' }] } },
+        { op: 'add', path: '/results/evaluations', value: [{ id: 'ev_E', data: 'cl_r', items: [{ id: 'E_int', type: 'integral', expr: '-d(es.V, r)', unit: 'V' }] }] },
+      ], reason: 'User: radial cut line a -> b at phi = 0, a V(r) line graph, and the line integral of E_r = -dV/dr' })),
+      turn(use('show_plot', { plot: 'pg_V' })),
+      turn(use('get_table', { table: 'ev_E' })),
+      turn(use('evaluate', { node: 'cl_r', expr: 'es.V', unit: 'V', max_points: 3 })),
+      (req) => {
+        let I = NaN;
+        for (const m of req.messages) for (const b of m.content) if (b.type === 'tool_result') { const j = blockJson(b.content[0]?.type === 'text' ? b.content[0].text : null) as { group?: string; rows?: Array<Record<string, number>> } | null; if (j?.group === 'ev_E') I = j.rows?.[0]?.E_int ?? NaN; }
+        return turn(say(`V(r) is drawn (plot group pg_V). Line integral of E from r = a to r = b: ${I.toPrecision(12)} V.`));
+      },
+    ],
+    check: async ({ fx, turns }) => {
+      const d = data(fx);
+      const ops = agentOps(fx);
+      const l = fx.runner.last.get('std1');
+      const fails: string[] = [
+        ...expect(ops.length === 1 && ops[0]!.patch.every((p) => p.path.startsWith('/results/')), `${ops.length} agent ops, or ops outside /results`),
+        ...expect(valid(fx), `spec invalid: ${validIssues(fx).join(', ')}`),
+        ...expect((d.results?.plots ?? []).some((p: { id?: string; type?: string }) => p.id === 'pg_V' && p.type === 'plot1d'), 'plot1d pg_V missing'),
+        ...expect(fx.session.trail.entries.some((e) => e.tool === 'show_plot' && e.args.plot === 'pg_V' && e.ok), 'show_plot not in the navigation trail'),
+        ...expect(fx.nav.state.plot === 'pg_V' && fx.nav.state.mode === 'results', `nav host shows ${fx.nav.state.plot}`),
+        ...expect(!!l, 'no solve recorded'),
+      ];
+      if (!l) return fails;
+      const a = param(fx, 'a'), b = param(fx, 'b');
+      const o = { params: l.params as never, physicsId: 'es', mesh: l.mesh };
+      const line = cutLine(l.mesh, [a, 0], [b, 0], { mode: 'crossing' });
+      const I0 = evalIntegral(l.solution, '-d(es.V, r)', line, o).value;
+      const V0 = evalPoint(l.solution, 'es.V', line.points, o).values;
+      const calls = fx.results.calls.map((c) => `${c.method}:${c.id}`);
+      fails.push(...expect(calls.includes('table:ev_E') && calls.includes('dataset:cl_r'), `host calls ${calls.join(', ')}`));
+      fails.push(...expect(turns[0]!.text.includes(`${I0.toPrecision(12)} V`), `answer does not quote the integral ${I0.toPrecision(12)} V (direct kernel)`));
+      // V(r) from the host (same path as the tools) against the direct kernel values, every point
+      const hv = (await fx.results.dataset('cl_r', 'es.V', { unit: 'V' })).value.values ?? [];
+      fails.push(...expect(hv.length === V0.length && hv.every((v, i) => v === V0[i]), `host V(r) differs from the direct kernel (${hv.length} / ${V0.length} points)`));
+      const ht = (await fx.results.table('ev_E')).value;
+      const hI = ht.rows[0]?.cells[ht.columns.findIndex((c) => c.key === 'E_int')];
+      fails.push(...expect(hI === I0, `host integral ${hI} != direct kernel ${I0}`));
+      const R1 = { meshHash: 'b9cf1cfc1da0c6fdbba414b90b4d92d45d7b7035a0a5cfb6c43a256263f66b9c', gate5cValueV: 1 };
+      fails.push(...expect(l.mesh.hash === R1.meshHash, `mesh ${l.mesh.hash.slice(0, 16)} is not the R1 level-1 mesh`));
+      if (l.mesh.hash === R1.meshHash) fails.push(...expect(I0 === R1.gate5cValueV, `integral ${I0} != R1 gate-5c level-1 value ${R1.gate5cValueV}`));
+      fails.push(...expect(V0[0] !== undefined && Math.abs(V0[0] - 1) < 1e-12 && Math.abs(V0[V0.length - 1]! - 0) < 1e-12, `(R1 round-off floor 1e-12) direct V(a) = ${V0[0]}, V(b) = ${V0[V0.length - 1]} (Dirichlet 1 V / 0 V)`));
+      return fails;
+    },
   },
 ];
 

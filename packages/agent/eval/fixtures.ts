@@ -12,13 +12,15 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { createOpLog, parseYaml, type OpLog, type Registry } from '@amp/spec';
+import { createOpLog, parseYaml, resolveParams, type OpLog, type Registry } from '@amp/spec';
+import type { Mesh, Solution } from '@amp/spec/types';
 import { physicsRegistry, prepareRun, registry as physicsModules } from '@amp/physics';
 import { AgentSession } from '../src/session.ts';
 import { MemoryStore } from '../src/memory/store.ts';
 import { memoryBackend } from '../src/memory/backends.ts';
 import { RecordingNavHost } from '../src/nav.ts';
 import { summarizeSolution, type StudyRunner, type StudyOutcome } from '../src/runner.ts';
+import { NodeResultsHost } from './results-host.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const REPO = join(here, '..', '..', '..');
@@ -26,6 +28,8 @@ export const simText = (id: string): string => readFileSync(join(REPO, 'sims', `
 
 export class FeRunner implements StudyRunner {
   readonly calls: Array<{ studyId: string; specText: string; oplogHead: string; ms: number }> = [];
+  /** Latest solve per study (solution, its mesh, the params it was solved with, the spec text): the results host reads it. */
+  readonly last = new Map<string, { solution: Solution; mesh: Mesh; params: ReadonlyMap<string, { si: number; dim: readonly number[] }>; specText: string }>();
   async run(input: { specText: string; studyId: string; signal: AbortSignal; oplogHead: string }): Promise<StudyOutcome> {
     const t0 = performance.now();
     const study = input.studyId;
@@ -45,6 +49,7 @@ export class FeRunner implements StudyRunner {
     if (!rd.ready) return done({ ok: false, study, stage: 'readiness', message: rd.reasons.join('; '), readiness: rd });
     try {
       const sol = await mod.run(ctx);
+      this.last.set(study, { solution: sol as Solution, mesh: ctx.mesh as Mesh, params: resolveParams((parsed.data as { params?: unknown }).params).scope, specText: input.specText });
       return done({ ok: true, study, solution: summarizeSolution({ ...sol, run: { ...sol.run, oplogHead: input.oplogHead } }), readiness: rd, gates: [] });
     } catch (e) { return done({ ok: false, study, stage: 'solve', message: (e as Error).message.slice(0, 500), readiness: rd }); }
   }
@@ -58,6 +63,7 @@ export interface Fixture {
   backend: ReturnType<typeof memoryBackend>;
   nav: RecordingNavHost;
   runner: FeRunner;
+  results: NodeResultsHost;
   session: AgentSession;
 }
 
@@ -69,8 +75,9 @@ export async function fixture(sim: string, o: { text?: string; memory?: Record<s
   const memory = await MemoryStore.open(backend, { ...(o.forbidden ? { forbidden: o.forbidden } : {}) });
   const nav = new RecordingNavHost({ mediaType: 'image/png', base64: 'iVBORw0KGgo=', width: 1, height: 1 });
   const runner = new FeRunner();
-  const session = new AgentSession({ log, registry, memory, nav, runner, sessionId: o.sessionId ?? 'eval', ...(o.forbidden ? { forbidden: o.forbidden } : {}), ...(o.maxReadBytes ? { maxReadBytes: o.maxReadBytes } : {}) });
-  return { registry, text, log, memory, backend, nav, runner, session };
+  const results = new NodeResultsHost(log, runner);
+  const session = new AgentSession({ log, registry, memory, nav, runner, results, sessionId: o.sessionId ?? 'eval', ...(o.forbidden ? { forbidden: o.forbidden } : {}), ...(o.maxReadBytes ? { maxReadBytes: o.maxReadBytes } : {}) });
+  return { registry, text, log, memory, backend, nav, runner, results, session };
 }
 
 /** JSON inside the first untrusted block of a tool-result text (scripted turns read results like a model would). */

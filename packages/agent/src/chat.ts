@@ -17,6 +17,7 @@ import { createAnthropicAdapter, type AnthropicClientLike, type AnthropicClientO
 import type { ProviderAdapter } from './provider/types.ts';
 import type { NavigationHost } from './nav.ts';
 import type { StudyRunner } from './runner.ts';
+import type { ResultsHost } from './results.ts';
 import type { OpLog, Registry, BuiltGeometry } from '@amp/spec';
 import { isoNow } from '@amp/spec';
 import { containsSecret, redactSecrets } from './secrets.ts';
@@ -148,6 +149,8 @@ export interface MountOptions {
   registry: Registry;
   nav: NavigationHost;
   runner?: StudyRunner;
+  /** Results values (evaluate / get_table tools; lane R3): the workbench's post worker through the adapter. */
+  results?: ResultsHost;
   geometry?: () => BuiltGeometry | null;
   /** Memory backend: `await opfsBackend()` in the browser. */
   memoryBackend: MemoryBackend;
@@ -179,7 +182,7 @@ export async function mountAgent(o: MountOptions): Promise<ChatController> {
   const memory = await MemoryStore.open(o.memoryBackend, { forbidden: () => keys.forbidden(), reconcile: true });
   const session = new AgentSession({
     log: o.log, registry: o.registry, memory, nav: o.nav,
-    ...(o.runner ? { runner: o.runner } : {}), ...(o.geometry ? { geometry: o.geometry } : {}), ...(o.sessionId ? { sessionId: o.sessionId } : {}),
+    ...(o.runner ? { runner: o.runner } : {}), ...(o.results ? { results: o.results } : {}), ...(o.geometry ? { geometry: o.geometry } : {}), ...(o.sessionId ? { sessionId: o.sessionId } : {}),
     forbidden: () => keys.forbidden(),
   });
   let provider = o.provider;

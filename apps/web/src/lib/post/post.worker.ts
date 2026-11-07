@@ -2,12 +2,15 @@
 // Post worker (DevLog-011 s.1.5): holds the display mesh and the current field; answers exact hover probes (point
 // location + FE basis evaluation, not interpolation of drawn values) and computes 3D display arrays (exterior,
 // slices, isosurfaces). Only display arrays leave the worker.
+// Results messages (`results:*`, lane R3, DevLog-028; C6 results set): runs held here, evaluation groups / tables,
+// dataset values and nodal values through results/adapter.ts (@amp/post kernels), loaded on the first such message.
 /// <reference lib="webworker" />
 import type { Mesh } from '@amp/spec/types';
 import { Locator, evalCoef, evalElement, latticeValues, packCoef, refinedDisplay, refinePattern, smoothCoefficients, toMesh2D, type ElementCoef, type Field2D, type Mesh2D } from './field2d';
 import { bbox3, exterior, marchingTets, slice } from './solid3d';
 import { fluxLines } from './flux2d';
 import { revolveSurface, type RevolvedSurface } from './revolve';
+import type { ResultsFromWorker, ResultsToWorker } from '../results/api';
 
 export type ToPost =
 	| { type: 'mesh'; mesh: Mesh }
@@ -22,7 +25,8 @@ export type ToPost =
 	| { type: 'flux'; req: number; field: Field2D; n: number }
 	| { type: 'revolve'; req: number; nPhi: number; cut: [number, number] | null }
 	| { type: 'iso'; req: number; nodal: Float64Array; levels: number[]; disp: Float64Array | null }
-	| { type: 'slice'; req: number; normal: [number, number, number]; d: number; nodal: Float64Array | null; disp: Float64Array | null };
+	| { type: 'slice'; req: number; normal: [number, number, number]; d: number; nodal: Float64Array | null; disp: Float64Array | null }
+	| ResultsToWorker;
 
 /** Colour range rule (stated in the colorbar tooltip): full data range, or area-weighted 1st-99th percentile; both
  *  over the focus box when one is given (the region the view frames), else over the whole mesh. */
@@ -40,7 +44,8 @@ export type FromPost =
 	| { type: 'probe'; req: number; x: number; y: number; hit: { t: number; domain: number; value: number | null } | null; ms: number }
 	| { type: 'exterior'; req: number; pos: Float32Array; node: Int32Array; pair: Int32Array; cell: Int32Array; nrm: Float32Array; edges: Int32Array; features: Int32Array; c0: [number, number, number]; ms: number }
 	| { type: 'cut'; req: number; pos: Float32Array; val: Float32Array; disp: Float32Array | null; nTri: number; ms: number }
-	| { type: 'error'; req: number; message: string };
+	| { type: 'error'; req: number; message: string }
+	| ResultsFromWorker;
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 let mesh: Mesh | null = null;
@@ -48,9 +53,19 @@ let m2: Mesh2D | null = null;
 let loc: Locator | null = null;
 let field: (Field2D & { comp: number }) | null = null;
 
+let results: Promise<typeof import('../results/eval-worker')> | null = null;
+
 ctx.onmessage = (ev: MessageEvent<ToPost>) => {
 	const m = ev.data;
 	const t0 = performance.now();
+	if (m.type.startsWith('results:')) {
+		const rm = m as ResultsToWorker;
+		(results ??= import('../results/eval-worker'))
+			.then((mod) => mod.handleResults(rm))
+			.then(({ reply, transfer }) => ctx.postMessage(reply satisfies FromPost, transfer))
+			.catch((e: unknown) => ctx.postMessage({ type: 'error', req: rm.req, message: e instanceof Error ? e.message : String(e) } satisfies FromPost));
+		return;
+	}
 	try {
 		if (m.type === 'mesh') {
 			mesh = m.mesh;

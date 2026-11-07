@@ -5,11 +5,13 @@
 // enforces the wall-clock timeout (terminate) and the heap cap (resourceLimits).
 
 import { parentPort, workerData } from 'node:worker_threads';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { EvalCase } from './loader.ts';
 import type { LevelObservation, TargetObservation } from './evaluate.ts';
 import type { Solution } from './contract-shim.ts';
 import type { Spec } from './contract-shim.ts';
-import { callPrepare, dtFactorsFor, extractFromSolution, loadDefaultRegistry, setExpressionCompiler, setUnitsApi, specRuntime, type WorkerResult, type WorkerTarget } from './registry.ts';
+import { callPrepare, dtFactorsFor, extractFromSolution, loadDefaultRegistry, setExpressionCompiler, setUnitsApi, specRuntime, type ResultEvaluator, type WorkerResult, type WorkerTarget } from './registry.ts';
 import { importWorkspace } from './workspace.ts';
 import { timeRuns } from './speed.ts';
 import type { LevelTimingSummary } from './source.ts';
@@ -27,6 +29,24 @@ async function main(d: Data): Promise<WorkerResult> {
     const ce = await importWorkspace<{ compileExpression?: Parameters<typeof setExpressionCompiler>[0] }>('@amp/core/expr', d.root);
     setExpressionCompiler(ce.mod?.compileExpression ?? null);
   }
+  // extract kind 'result' (C8, DevLog-028): evaluation items of the spec's results through the web app's results adapter
+  // (@amp/post kernels), loaded by path (packages do not depend on apps/web)
+  type Adapter = { evalItemValue: (spec: unknown, id: string, run: unknown, o: unknown) => { si: number; siUnit: string } | { error: string } };
+  let adapter: Adapter | null = null;
+  let adapterReason = '';
+  if (d.targets.some((t) => t.ref.extract?.kind === 'result')) {
+    try { adapter = (await import(pathToFileURL(join(d.root, 'apps', 'web', 'src', 'lib', 'results', 'adapter.ts')).href)) as Adapter; }
+    catch (e) { adapterReason = (e as Error).message.split('\n')[0]!; }
+  }
+  const resultFor = (sol: Solution, ctx: { mesh: unknown; spec?: unknown; physicsId?: string }): ResultEvaluator | undefined => {
+    if (!adapter) return adapterReason ? () => ({ error: `results adapter not loaded: ${adapterReason}` }) : undefined;
+    const spec = (ctx.spec && typeof ctx.spec === 'object' && 'results' in ctx.spec ? ctx.spec : d.spec) as { params?: unknown; studies?: Array<{ id?: string; physics?: string[] }> };
+    const resolve = (sr.rt as unknown as { resolveParams?: (p: unknown) => { scope: unknown } } | null)?.resolveParams;
+    const study = (spec.studies ?? []).find((st) => st.physics?.includes(d.physicsId))?.id;
+    const run = { key: 'eval', solution: sol, mesh: ctx.mesh, params: resolve ? resolve(spec.params).scope : new Map(), studies: study ? [study] : [], label: '' };
+    const ad = adapter;
+    return (node, o) => ad.evalItemValue(spec, node, run, o);
+  };
   const signal = AbortSignal.timeout(d.timeoutMs);
   const dtf = dtFactorsFor(d.caseData, d.factors);
   const once = async (level: number) => {
@@ -47,7 +67,8 @@ async function main(d: Data): Promise<WorkerResult> {
     for (const t of d.targets) {
       if (bad.has(t.tid)) continue;
       if (t.ref.levels && !t.ref.levels.includes(i)) continue;   // per-target levels
-      const ex = extractFromSolution(sol, t.ref, { mesh: ctx.mesh, ...(registry.sample ? { sample: registry.sample } : {}), ...(t.points ? { points: t.points } : {}) });
+      const rf = t.ref.extract?.kind === 'result' ? resultFor(sol, ctx as { mesh: unknown; spec?: unknown }) : undefined;
+      const ex = extractFromSolution(sol, t.ref, { mesh: ctx.mesh, ...(registry.sample ? { sample: registry.sample } : {}), ...(t.points ? { points: t.points } : {}), ...(rf ? { result: rf } : {}) });
       if (!('value' in ex)) { bad.set(t.tid, ex); continue; }
       const arr = per.get(t.tid) ?? [];
       arr.push({ value: ex.value, h: d.factors[i]!, dof: sol.stats.dof, wall_ms, stages: sol.timing, meshHash: sol.meshHash, ...(sol.stats.iterations !== undefined ? { iterations: sol.stats.iterations } : {}) });

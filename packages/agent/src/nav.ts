@@ -22,6 +22,8 @@ export interface NavigationHost {
   setViewMode(mode: ViewMode): Promise<NavResult> | NavResult;
   /** Null when the view cannot be captured (e.g. headless). */
   screenshot(view?: 'graphics' | 'workbench'): Promise<Screenshot | null> | Screenshot | null;
+  /** Select and draw a plot group (results.plots id; lane R2 implements it in the workbench). Absent: show_plot is unavailable. */
+  showPlot?(id: string): Promise<NavResult> | NavResult;
 }
 
 export interface NavEntry {
@@ -53,8 +55,8 @@ export class NavTrail {
 /** A recording NavigationHost for Node, tests and the eval suite (no UI). */
 export class RecordingNavHost implements NavigationHost {
   readonly calls: Array<{ method: string; args: unknown[] }> = [];
-  state: { focused: string | null; settings: string | null; highlighted: string[]; camera: CameraRequest | null; mode: ViewMode } =
-    { focused: null, settings: null, highlighted: [], camera: null, mode: 'geometry' };
+  state: { focused: string | null; settings: string | null; highlighted: string[]; camera: CameraRequest | null; mode: ViewMode; plot: string | null } =
+    { focused: null, settings: null, highlighted: [], camera: null, mode: 'geometry', plot: null };
   private shot: Screenshot | null;
   constructor(shot: Screenshot | null = null) { this.shot = shot; }
   focusNode(pointer: string): NavResult { this.calls.push({ method: 'focusNode', args: [pointer] }); this.state.focused = pointer; return { ok: true }; }
@@ -63,4 +65,5 @@ export class RecordingNavHost implements NavigationHost {
   setCamera(req: CameraRequest): NavResult { this.calls.push({ method: 'setCamera', args: [req] }); this.state.camera = req; return { ok: true }; }
   setViewMode(mode: ViewMode): NavResult { this.calls.push({ method: 'setViewMode', args: [mode] }); this.state.mode = mode; return { ok: true }; }
   screenshot(view?: 'graphics' | 'workbench'): Screenshot | null { this.calls.push({ method: 'screenshot', args: [view] }); return this.shot; }
+  showPlot(id: string): NavResult { this.calls.push({ method: 'showPlot', args: [id] }); this.state.plot = id; this.state.mode = 'results'; return { ok: true }; }
 }
