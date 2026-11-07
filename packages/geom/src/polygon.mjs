@@ -1,4 +1,4 @@
-// Ported from eo-modulator-atlas/engine/src/geometry.mjs at 0546007 (GPL-3.0-or-later). Changes: buildPslg removed (replaced by the arrangement in arrangement.ts); unit-agnostic (SI metres in @amp); comments trimmed.
+// Ported from eo-modulator-atlas/engine/src/geometry.mjs at 0546007 (GPL-3.0-or-later). Changes: buildPslg removed (replaced by the arrangement in arrangement.ts); unit-agnostic (SI metres in @amp); comments trimmed; Math.hypot -> sqrt (engine-independent, DevLog-004 s.9).
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** @typedef {[number, number]} Pt */
 
@@ -64,7 +64,7 @@ export function distPointSegment(px, py, ax, ay, bx, by) {
   t = t < 0 ? 0 : t > 1 ? 1 : t;
   const qx = ax + t * dx - px,
     qy = ay + t * dy - py;
-  return Math.hypot(qx, qy);
+  return Math.sqrt(qx * qx + qy * qy);
 }
 
 /** Distance from point to polygon (0 if inside when filled=true). */

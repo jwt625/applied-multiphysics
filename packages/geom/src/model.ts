@@ -16,6 +16,7 @@
 
 import { type Curve, type Vec2, point, deriv, reverse } from './curves.ts';
 import { arrange, type Arrangement } from './arrangement.ts';
+import { hyp2 } from './detmath.ts';
 import type { EntityRef, EntityTable } from './types.ts';
 
 export interface DomainRec { id: string; parent?: string[]; anc?: string[] }
@@ -428,7 +429,7 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
       let best = -1, bd = tol;
       for (let v = 0; v < nV; v++) {
         if (!isEnd[v]) continue;
-        const d = Math.hypot(A.vx[v]! - p.p[0], A.vy[v]! - p.p[1]);
+        const d = hyp2(A.vx[v]! - p.p[0], A.vy[v]! - p.p[1]);
         if (d <= bd) { bd = d; best = v; }
       }
       if (best >= 0) { const l = named.get(best); if (l) l.push(p); else named.set(best, [p]); }
@@ -487,13 +488,13 @@ export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number } 
   const prims: Obj[] = [];
   for (const f of spec.features) if (!['union', 'intersection', 'difference', 'fragment'].includes(f.type)) prims.push(primitive(f));
   const bb0 = bboxOfObjs(prims);
-  const scale = Math.hypot(bb0[2] - bb0[0], bb0[3] - bb0[1]);
+  const scale = hyp2(bb0[2] - bb0[0], bb0[3] - bb0[1]);
   if (!(scale > 0)) fail('empty geometry');
   const tol = (opts.relTol ?? 1e-9) * scale;
   // no silent drop (audit S3): a primitive smaller than 10 x the merge tolerance cannot be represented
   prims.forEach((o) => {
     const b = bboxOfObjs([o]);
-    const ext = Math.hypot(b[2] - b[0], b[3] - b[1]);
+    const ext = hyp2(b[2] - b[0], b[3] - b[1]);
     if (ext < 10 * tol) fail(`${o.feature}: extent ${ext.toPrecision(3)} m is below 10 x the geometric tolerance (${tol.toPrecision(3)} m = ${opts.relTol ?? 1e-9} x model size ${scale.toPrecision(3)} m); scale the model or pass a smaller relTol`);
   });
   let pi = 0;
@@ -536,7 +537,7 @@ export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number } 
   for (const e of G.edges) {
     const a = [G.vertices[2 * e.v0]!, G.vertices[2 * e.v0 + 1]!], b = [G.vertices[2 * e.v1]!, G.vertices[2 * e.v1 + 1]!];
     const m = point(e.curve, 0.5);
-    len.set(e.boundary, (len.get(e.boundary) ?? 0) + Math.hypot(m[0] - a[0]!, m[1] - a[1]!) + Math.hypot(b[0]! - m[0], b[1]! - m[1]));
+    len.set(e.boundary, (len.get(e.boundary) ?? 0) + hyp2(m[0] - a[0]!, m[1] - a[1]!) + hyp2(b[0]! - m[0], b[1]! - m[1]));
   }
   for (const [b, L] of len)
     if (L < 1e3 * tol) G.warnings.push(`${G.entities.boundaries[b]!.id}: length ${L.toPrecision(3)} m is within 1000 x the geometric tolerance (${tol.toPrecision(3)} m); its shape is not reliable`);
@@ -564,10 +565,10 @@ function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: st
     const S = arr.subs[s]!, rec = obj.edges[subRec[s]!]!;
     for (const v of [S.v0, S.v1]) if (used[v]! < 0) used[v] = nv++;
     // orient as the record (chain direction)
-    const fwd = rec.curve.kind === 'line' ? Math.hypot(rec.curve.a[0] - arr.vx[S.v0]!, rec.curve.a[1] - arr.vy[S.v0]!) <= tol : true;
+    const fwd = rec.curve.kind === 'line' ? hyp2(rec.curve.a[0] - arr.vx[S.v0]!, rec.curve.a[1] - arr.vy[S.v0]!) <= tol : true;
     const sameDir = rec.curve.kind === 'line' ? fwd : (() => {
       const p = point(rec.curve, 0);
-      return Math.hypot(p[0] - arr.vx[S.v0]!, p[1] - arr.vy[S.v0]!) <= Math.hypot(p[0] - arr.vx[S.v1]!, p[1] - arr.vy[S.v1]!);
+      return hyp2(p[0] - arr.vx[S.v0]!, p[1] - arr.vy[S.v0]!) <= hyp2(p[0] - arr.vx[S.v1]!, p[1] - arr.vy[S.v1]!);
     })();
     edges.push({
       v0: used[sameDir ? S.v0 : S.v1]!, v1: used[sameDir ? S.v1 : S.v0]!, curve: rec.curve,
@@ -581,7 +582,7 @@ function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: st
   for (const p of obj.points) {
     let best = -1, bd = tol;
     for (let v = 0; v < nv; v++) {
-      const d = Math.hypot(vertices[2 * v]! - p.p[0], vertices[2 * v + 1]! - p.p[1]);
+      const d = hyp2(vertices[2 * v]! - p.p[0], vertices[2 * v + 1]! - p.p[1]);
       if (d <= bd) { bd = d; best = v; }
     }
     if (best < 0) continue;

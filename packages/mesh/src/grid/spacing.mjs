@@ -1,4 +1,5 @@
-// Ported from advanced-packaging-atlas/engine/src/grid/spacing.mjs at fe39985 (GPL-3.0-or-later). Changes: none (port header only).
+// Ported from advanced-packaging-atlas/engine/src/grid/spacing.mjs at fe39985 (GPL-3.0-or-later). Changes: Math.log / Math.exp
+// replaced by @amp/geom detmath.log / exp (engine-independent results, DevLog-004 s.9); nothing else.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // 1D node spacing for the rectilinear package grid (SPEC section 3, DevLog-012 lane L1).
 // In-plane: graded spacing between fixed breakpoints (every box face lies on a node). Size field
@@ -8,6 +9,8 @@
 // (closed form, no sampling). Breakpoints where the achieved neighbour ratio still exceeds g get their cap lowered
 // and the spacing is rebuilt (caps only decrease, so the loop terminates).
 // License: GPL-3.0-or-later.
+
+import { detmath } from '@amp/geom';
 
 /**
  * Sort and merge coordinates closer than tol (the first of a cluster is kept).
@@ -86,18 +89,18 @@ function intervalNodes(L, ca, cb, H, s) {
   }
   t1 = Math.min(Math.max(t1, 0), L);
   t2 = Math.min(Math.max(t2, t1), L);
-  const I1 = Math.log((ca + s * t1) / ca) / s;
+  const I1 = detmath.log((ca + s * t1) / ca) / s;
   const I2 = I1 + (t2 - t1) / H;
   const hb2 = cb + s * (L - t2);
-  const I3 = I2 + Math.log(hb2 / cb) / s;
+  const I3 = I2 + detmath.log(hb2 / cb) / s;
   const n = Math.max(1, Math.ceil(I3 - 1e-9));
   const out = [];
   for (let q = 1; q < n; q++) {
     const I = (q * I3) / n;
     let t;
-    if (I <= I1) t = (ca * Math.exp(s * I) - ca) / s;
+    if (I <= I1) t = (ca * detmath.exp(s * I) - ca) / s;
     else if (I <= I2) t = t1 + (I - I1) * H;
-    else t = L - (hb2 * Math.exp(-s * (I - I2)) - cb) / s;
+    else t = L - (hb2 * detmath.exp(-s * (I - I2)) - cb) / s;
     out.push(t);
   }
   return out;
@@ -116,7 +119,7 @@ export function gradedNodes(bps, H, g, { maxIter = 60 } = {}) {
   if (!(bps.length >= 2)) throw new Error('grid: need at least two breakpoints per axis');
   if (!(g > 1)) throw new Error(`grid: mesh.grading must be > 1 (got ${g})`);
   if (!(H > 0)) throw new Error(`grid: mesh.max_xy_mm must be > 0 (got ${H})`);
-  const s = Math.log(g);
+  const s = detmath.log(g);
   const m = bps.length - 1;
   const L = new Float64Array(m);
   for (let i = 0; i < m; i++) L[i] = bps[i + 1] - bps[i];

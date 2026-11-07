@@ -2,6 +2,8 @@
 // Exact parametric curve pieces for 2D geometry: line segment, circular arc, elliptical arc. Parameter t in [0, 1].
 // Curves stay exact through booleans; discretization happens only for topology (fine) and in the mesher (size field).
 
+import { sinCos, atan2 as detAtan2, hyp2 } from './detmath.ts';
+
 export type Vec2 = [number, number];
 
 export type Curve =
@@ -16,13 +18,13 @@ export function point(cv: Curve, t: number): Vec2 {
     case 'line':
       return [cv.a[0] + t * (cv.b[0] - cv.a[0]), cv.a[1] + t * (cv.b[1] - cv.a[1])];
     case 'arc': {
-      const th = cv.a0 + t * (cv.a1 - cv.a0);
-      return [cv.c[0] + cv.r * Math.cos(th), cv.c[1] + cv.r * Math.sin(th)];
+      const [sn, cs] = sinCos(cv.a0 + t * (cv.a1 - cv.a0));
+      return [cv.c[0] + cv.r * cs, cv.c[1] + cv.r * sn];
     }
     case 'earc': {
-      const th = cv.a0 + t * (cv.a1 - cv.a0);
-      const u = cv.rx * Math.cos(th), v = cv.ry * Math.sin(th);
-      const cr = Math.cos(cv.rot), sr = Math.sin(cv.rot);
+      const [sn, cs] = sinCos(cv.a0 + t * (cv.a1 - cv.a0));
+      const u = cv.rx * cs, v = cv.ry * sn;
+      const [sr, cr] = sinCos(cv.rot);
       return [cv.c[0] + cr * u - sr * v, cv.c[1] + sr * u + cr * v];
     }
   }
@@ -34,13 +36,13 @@ export function deriv(cv: Curve, t: number): Vec2 {
     case 'line':
       return [cv.b[0] - cv.a[0], cv.b[1] - cv.a[1]];
     case 'arc': {
-      const d = cv.a1 - cv.a0, th = cv.a0 + t * d;
-      return [-cv.r * Math.sin(th) * d, cv.r * Math.cos(th) * d];
+      const d = cv.a1 - cv.a0, [sn, cs] = sinCos(cv.a0 + t * d);
+      return [-cv.r * sn * d, cv.r * cs * d];
     }
     case 'earc': {
-      const d = cv.a1 - cv.a0, th = cv.a0 + t * d;
-      const u = -cv.rx * Math.sin(th) * d, v = cv.ry * Math.cos(th) * d;
-      const cr = Math.cos(cv.rot), sr = Math.sin(cv.rot);
+      const d = cv.a1 - cv.a0, [sn, cs] = sinCos(cv.a0 + t * d);
+      const u = -cv.rx * sn * d, v = cv.ry * cs * d;
+      const [sr, cr] = sinCos(cv.rot);
       return [cr * u - sr * v, sr * u + cr * v];
     }
   }
@@ -52,13 +54,13 @@ export function deriv2(cv: Curve, t: number): Vec2 {
     case 'line':
       return [0, 0];
     case 'arc': {
-      const d = cv.a1 - cv.a0, th = cv.a0 + t * d;
-      return [-cv.r * Math.cos(th) * d * d, -cv.r * Math.sin(th) * d * d];
+      const d = cv.a1 - cv.a0, [sn, cs] = sinCos(cv.a0 + t * d);
+      return [-cv.r * cs * d * d, -cv.r * sn * d * d];
     }
     case 'earc': {
-      const d = cv.a1 - cv.a0, th = cv.a0 + t * d;
-      const u = -cv.rx * Math.cos(th) * d * d, v = -cv.ry * Math.sin(th) * d * d;
-      const cr = Math.cos(cv.rot), sr = Math.sin(cv.rot);
+      const d = cv.a1 - cv.a0, [sn, cs] = sinCos(cv.a0 + t * d);
+      const u = -cv.rx * cs * d * d, v = -cv.ry * sn * d * d;
+      const [sr, cr] = sinCos(cv.rot);
       return [cr * u - sr * v, sr * u + cr * v];
     }
   }
@@ -67,7 +69,7 @@ export function deriv2(cv: Curve, t: number): Vec2 {
 /** Signed curvature at t for traversal in the +t direction (positive = turning left). */
 export function curvature(cv: Curve, t: number): number {
   const d1 = deriv(cv, t), d2 = deriv2(cv, t);
-  const n = Math.hypot(d1[0], d1[1]);
+  const n = hyp2(d1[0], d1[1]);
   return n > 0 ? (d1[0] * d2[1] - d1[1] * d2[0]) / (n * n * n) : 0;
 }
 
@@ -102,7 +104,7 @@ export function subCurve(cv: Curve, t0: number, t1: number): Curve {
 
 /** Arc length of [t0, t1] (Gauss-Legendre for ellipses, closed form otherwise). */
 export function arcLength(cv: Curve, t0 = 0, t1 = 1): number {
-  if (cv.kind === 'line') return Math.abs(t1 - t0) * Math.hypot(cv.b[0] - cv.a[0], cv.b[1] - cv.a[1]);
+  if (cv.kind === 'line') return Math.abs(t1 - t0) * hyp2(cv.b[0] - cv.a[0], cv.b[1] - cv.a[1]);
   if (cv.kind === 'arc') return Math.abs(t1 - t0) * Math.abs(cv.a1 - cv.a0) * cv.r;
   const n = 64;
   let s = 0;
@@ -110,7 +112,7 @@ export function arcLength(cv: Curve, t0 = 0, t1 = 1): number {
     const a = t0 + ((t1 - t0) * i) / n, b = t0 + ((t1 - t0) * (i + 1)) / n;
     for (const [x, w] of GL5) {
       const d = deriv(cv, 0.5 * (a + b) + 0.5 * (b - a) * x);
-      s += 0.5 * Math.abs(b - a) * w * Math.hypot(d[0], d[1]);
+      s += 0.5 * Math.abs(b - a) * w * hyp2(d[0], d[1]);
     }
   }
   return s;
@@ -131,7 +133,7 @@ export function project(cv: Curve, p: Vec2, guess: number): number {
     return l2 > 0 ? Math.min(1, Math.max(0, ((p[0] - cv.a[0]) * dx + (p[1] - cv.a[1]) * dy) / l2)) : 0;
   }
   if (cv.kind === 'arc') {
-    let th = Math.atan2(p[1] - cv.c[1], p[0] - cv.c[0]);
+    let th = detAtan2(p[1] - cv.c[1], p[0] - cv.c[0]);
     const d = cv.a1 - cv.a0;
     // bring th to the branch nearest the guess
     const thg = cv.a0 + guess * d;
@@ -162,7 +164,7 @@ export function refineIntersection(A: Curve, B: Curve, ta: number, tb: number, t
   for (let it = 0; it < 40; it++) {
     const pa = point(A, s), pb = point(B, u);
     const fx = pa[0] - pb[0], fy = pa[1] - pb[1];
-    if (Math.hypot(fx, fy) <= 1e-3 * tol) return [s, u];
+    if (hyp2(fx, fy) <= 1e-3 * tol) return [s, u];
     const da = deriv(A, s), db = deriv(B, u);
     // J = [da, -db]; solve J [ds, du] = -f
     const det = -da[0] * db[1] + db[0] * da[1];
@@ -174,7 +176,7 @@ export function refineIntersection(A: Curve, B: Curve, ta: number, tb: number, t
     if (s < -slack || s > 1 + slack || u < -slack || u > 1 + slack) return null;
   }
   const pa = point(A, s), pb = point(B, u);
-  return Math.hypot(pa[0] - pb[0], pa[1] - pb[1]) <= tol ? [s, u] : null;
+  return hyp2(pa[0] - pb[0], pa[1] - pb[1]) <= tol ? [s, u] : null;
 }
 
 /** Bounding box of the curve (sampled; arcs and ellipses use the fine pieces plus endpoints, padded by sagitta). */
@@ -190,7 +192,7 @@ export function curveBBox(cv: Curve): [number, number, number, number] {
   }
   if (cv.kind !== 'line') {
     const r = cv.kind === 'arc' ? cv.r : Math.max(cv.rx, cv.ry);
-    const pad = r * (1 - Math.cos(Math.PI / 180 / 2)) * 2;
+    const pad = r * (1 - sinCos(Math.PI / 360)[1]) * 2;
     x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
   }
   return [x0, y0, x1, y1];

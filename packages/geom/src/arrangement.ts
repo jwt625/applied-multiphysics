@@ -6,6 +6,7 @@
 
 import { orient2d } from 'robust-predicates';
 import { pointInPolygon } from './polygon.mjs';
+import { atan2 as detAtan2, hyp2 } from './detmath.ts';
 import {
   type Curve, type Vec2, point, deriv, curvature, finePieces, subCurve, project, refineIntersection, curveBBox,
 } from './curves.ts';
@@ -31,7 +32,7 @@ const sq = (x: number) => x * x;
  * curvature tie-break (audit 2026-11-06 B1). The plain difference is then a consistent sort key. */
 const ANG_TIE = 1e-10;
 export function dirAngle(x: number, y: number): number {
-  const a = Math.atan2(y + 0, x + 0);
+  const a = detAtan2(y + 0, x + 0);
   return a <= -Math.PI + ANG_TIE ? a + 2 * Math.PI : a;
 }
 
@@ -48,7 +49,7 @@ export function arrange(curves: Curve[], tol: number): Arrangement {
         const l = hash.get(`${ix + dx},${iy + dy}`);
         if (!l) continue;
         for (const v of l) {
-          const d = Math.hypot(VX[v]! - x, VY[v]! - y);
+          const d = hyp2(VX[v]! - x, VY[v]! - y);
           if (d <= bd) { bd = d; best = v; }
         }
       }
@@ -73,7 +74,7 @@ export function arrange(curves: Curve[], tol: number): Arrangement {
     for (let k = 0; k <= m; k++) {
       const t = k / m, p = point(cv, t);
       P[2 * k] = p[0]; P[2 * k + 1] = p[1]; T[k] = t;
-      if (k) L += Math.hypot(P[2 * k]! - P[2 * k - 2]!, P[2 * k + 1]! - P[2 * k - 1]!);
+      if (k) L += hyp2(P[2 * k]! - P[2 * k - 2]!, P[2 * k + 1]! - P[2 * k - 1]!);
     }
     fineP.push(P); fineT.push(T); len.push(L);
     const b = curveBBox(cv);
@@ -95,7 +96,7 @@ export function arrange(curves: Curve[], tol: number): Arrangement {
     const cv = curves[i]!;
     t = project(cv, [x, y], t);
     const q = point(cv, t);
-    if (Math.hypot(q[0] - x, q[1] - y) > tol) return;
+    if (hyp2(q[0] - x, q[1] - y) > tol) return;
     if (nearEnd(i, t)) return;
     splits[i]!.push({ t, v });
   };
@@ -173,7 +174,7 @@ export function arrange(curves: Curve[], tol: number): Arrangement {
         const m2 = point(S.curve, 0.5);
         const q1 = point(cv, 0.25), fwd = S.v0 === a.v;
         const q2 = point(S.curve, fwd ? 0.25 : 0.75);
-        if (Math.hypot(mid[0] - m2[0], mid[1] - m2[1]) <= 10 * tol && Math.hypot(q1[0] - q2[0], q1[1] - q2[1]) <= 10 * tol) {
+        if (hyp2(mid[0] - m2[0], mid[1] - m2[1]) <= 10 * tol && hyp2(q1[0] - q2[0], q1[1] - q2[1]) <= 10 * tol) {
           S.srcs.push({ rec: i, fwd, ta: a.t, tb: b.t });
           merged = true;
           break;

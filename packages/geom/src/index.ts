@@ -2,6 +2,7 @@
 // @amp/geom: 2D sketch + CSG with persistent entity IDs (C2), axisymmetric flag, layered extrude and revolve.
 
 export * from './curves.ts';
+export * as detmath from './detmath.ts';
 export * from './types.ts';
 export { arrange, type Arrangement, type ArrSub, type ArrFace } from './arrangement.ts';
 export {

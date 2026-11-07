@@ -11,7 +11,9 @@
 // stays valid.
 // Node orders (VTK): tri6 = corners, (01) (12) (20); tet10 = corners, (01) (12) (02) (03) (13) (23); line3 = a b mid.
 
-import { type Geometry2D, type Mesh, point } from '@amp/geom';
+import { type Geometry2D, type Mesh, point, detmath } from '@amp/geom';
+
+const { hyp2, hyp3 } = detmath;
 import { meshHash, tagHash } from './sha256.ts';
 import { triQuality, tetQuality } from './quality.ts';
 
@@ -136,7 +138,7 @@ export function refineUniform(m: Mesh, o: RefineOptions = {}): Mesh {
     // octahedron: shortest of the three diagonals; ring ordered A, B, A', B' over the two remaining opposite pairs
     const pairs = [[M(0, 1), M(2, 3)], [M(0, 2), M(1, 3)], [M(0, 3), M(1, 2)]] as const;
     let best = 0, bl = Infinity;
-    pairs.forEach(([p, q], k) => { const a = pos(e, p), b = pos(e, q); const l = Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!); if (l < bl) { bl = l; best = k; } });
+    pairs.forEach(([p, q], k) => { const a = pos(e, p), b = pos(e, q); const l = hyp3(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!); if (l < bl) { bl = l; best = k; } });
     const [p, q] = pairs[best]!, [A, A2] = pairs[(best + 1) % 3]!, [B, B2] = pairs[(best + 2) % 3]!;
     const ring = [A, B, A2, B2];
     for (let r = 0; r < 4; r++) ch.push([p, q, ring[r]!, ring[(r + 1) % 4]!]);
@@ -300,7 +302,7 @@ export function cylinderProjector(boundaries: number[], radius: number, base: [n
   return (b, p) => {
     if (!set.has(b)) return;
     const bu = base[u]!, bv = base[v]!;
-    const du = p[u]! - bu, dv = p[v]! - bv, r = Math.hypot(du, dv);
+    const du = p[u]! - bu, dv = p[v]! - bv, r = hyp2(du, dv);
     if (r > 0) { p[u] = bu + (du * radius) / r; p[v] = bv + (dv * radius) / r; }
   };
 }
@@ -366,7 +368,7 @@ export function boundaryMeasure(m: Mesh, boundaries: number[]): number {
         const dn = fp2 ? [4 * u - 3, 4 * u - 1, 4 - 8 * u] : [-1, 1];
         let gx = 0, gy = 0;
         dn.forEach((w, a) => { gx += w * X(f, a, 0); gy += w * X(f, a, 1); });
-        s += GW[q]! * 2 * 0.5 * Math.hypot(gx, gy);
+        s += GW[q]! * 2 * 0.5 * hyp2(gx, gy);
       }
       continue;
     }
@@ -378,7 +380,7 @@ export function boundaryMeasure(m: Mesh, boundaries: number[]): number {
         g.push([0, 1, 2].map((c) => { let x = 0; for (let a = 0; a < npe; a++) x += dN[a]! * X(f, a, c); return x; }));
       }
       const [a, b] = g as [number[], number[]];
-      s += w * Math.hypot(a[1]! * b[2]! - a[2]! * b[1]!, a[2]! * b[0]! - a[0]! * b[2]!, a[0]! * b[1]! - a[1]! * b[0]!);
+      s += w * hyp3(a[1]! * b[2]! - a[2]! * b[1]!, a[2]! * b[0]! - a[0]! * b[2]!, a[0]! * b[1]! - a[1]! * b[0]!);
     }
   }
   return s;

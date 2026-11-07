@@ -5,7 +5,8 @@
 // projected onto the curve when safe), refinement-time labels come from an adjacent subsegment or a classifier
 // callback, final labels come from a flood fill bounded by subsegments (no painter order, no point-in-polygon on the
 // final labels), size sources are segment sets with an optional "inside domain" zero-distance region, and exterior
-// triangles are frozen. buildPslg / extractMesh / meshQuality replaced (see mesh2d.ts, quality.ts).
+// triangles are frozen. buildPslg / extractMesh / meshQuality replaced (see mesh2d.ts, quality.ts). Math.hypot and
+// Math.pow / Math.log2 replaced by sqrt / exact power-of-two scaling so results are identical in every JS engine.
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Original rationale (EO): the available permissive npm packages either do unconstrained Delaunay only (delaunator,
@@ -16,6 +17,10 @@
 // driven by a radius-edge bound and a graded size field.
 
 import { orient2d, incircle } from 'robust-predicates';
+import { detmath } from '@amp/geom';
+
+// deterministic across engines (DevLog-004 s.9): sqrt-based lengths, exact power-of-two split distance
+const hyp = (x, y) => Math.sqrt(x * x + y * y);
 
 const orient = (ax, ay, bx, by, cx, cy) => -orient2d(ax, ay, bx, by, cx, cy); // >0 if ccw
 
@@ -328,7 +333,7 @@ class Triangulation {
       c2 = cx * cx + cy * cy;
     const ux = (cy * b2 - by * c2) / d,
       uy = (bx * c2 - cx * b2) / d;
-    return { x: ax + ux, y: ay + uy, r: Math.hypot(ux, uy) };
+    return { x: ax + ux, y: ay + uy, r: hyp(ux, uy) };
   }
 }
 
@@ -388,7 +393,7 @@ export function createSizeField(spec) {
   const GN = prune && nSrc > 2 ? 48 : 0;
   const gdx = (rect.x1 - rect.x0) / (GN || 1), gdy = (rect.y1 - rect.y0) / (GN || 1);
   const cells = new Array(GN * GN).fill(null);
-  const half = 0.5 * Math.hypot(gdx, gdy);
+  const half = 0.5 * hyp(gdx, gdy);
   const cellList = (ci, cj) => {
     const x0 = rect.x0 + ci * gdx, y0 = rect.y0 + cj * gdy, x1 = x0 + gdx, y1 = y0 + gdy;
     const cx = 0.5 * (x0 + x1), cy = 0.5 * (y0 + y1);
@@ -567,9 +572,9 @@ export function meshDomain(spec) {
     const cx = (T.px[a] + T.px[b] + T.px[c]) / 3, cy = (T.py[a] + T.py[b] + T.py[c]) / 3;
     const cls = triDomainNow(t, cx, cy);
     if (cls < 0) return; // frozen: exterior
-    const lab = Math.hypot(T.px[a] - T.px[b], T.py[a] - T.py[b]),
-      lbc = Math.hypot(T.px[b] - T.px[c], T.py[b] - T.py[c]),
-      lca = Math.hypot(T.px[c] - T.px[a], T.py[c] - T.py[a]);
+    const lab = hyp(T.px[a] - T.px[b], T.py[a] - T.py[b]),
+      lbc = hyp(T.px[b] - T.px[c], T.py[b] - T.py[c]),
+      lca = hyp(T.px[c] - T.px[a], T.py[c] - T.py[a]);
     const lmin = Math.min(lab, lbc, lca), lmax = Math.max(lab, lbc, lca);
     if (lmax < 2 * minEdge) return;
     const cc = T.circum(t);
@@ -604,14 +609,14 @@ export function meshDomain(spec) {
     const k = ekey(a, b);
     const s = seg.get(k);
     if (!s) return;
-    const len = Math.hypot(T.px[a] - T.px[b], T.py[a] - T.py[b]);
+    const len = hyp(T.px[a] - T.px[b], T.py[a] - T.py[b]);
     if (len < 2 * minEdge) return;
     // concentric-shell split (EO): power-of-two distance from a shared vertex
     let t = 0.5;
     const sharedA = vertDegree.get(a) > 2, sharedB = vertDegree.get(b) > 2;
     if (sharedA !== sharedB) {
       const dsh = len * 0.5;
-      const p2 = Math.pow(2, Math.round(Math.log2(dsh / minEdge))) * minEdge;
+      const p2 = detmath.ldexp(minEdge, detmath.roundLog2(dsh / minEdge)); // EO: Math.pow(2, Math.round(Math.log2(dsh / minEdge))) * minEdge
       const tt = Math.min(0.75, Math.max(0.25, p2 / len));
       t = sharedA ? tt : 1 - tt;
     }
@@ -622,7 +627,7 @@ export function meshDomain(spec) {
     let loc = null;
     if (curvePoint && s.curve >= 0) {
       const p = curvePoint(s.curve, tm);
-      const off = Math.hypot(p[0] - x, p[1] - y);
+      const off = hyp(p[0] - x, p[1] - y);
       if (off <= 0.25 * len && p[0] > rect.x0 && p[0] < rect.x1 && p[1] > rect.y0 && p[1] < rect.y1) {
         const l2 = T.locate(p[0], p[1], T.vtri[a] >= 0 ? T.vtri[a] : T.last);
         if (!l2.outside) { x = p[0]; y = p[1]; loc = l2; if (off > 0) nProjected++; }

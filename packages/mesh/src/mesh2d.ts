@@ -5,7 +5,9 @@
 // nodes on the exact curves; line2 / line3 facets carrying boundary entity indices; sha-256 hash (C2).
 
 import { orient2d } from 'robust-predicates';
-import { type Geometry2D, type Curve, type Mesh, point, curvature, finePieces, project, selectIndices } from '@amp/geom';
+import { type Geometry2D, type Curve, type Mesh, point, curvature, finePieces, project, selectIndices, detmath } from '@amp/geom';
+
+const hyp2 = detmath.hyp2;
 import { meshDomain, createSizeField } from './cdt2d.mjs';
 import { meshHash, tagHash } from './sha256.ts';
 import { triQuality } from './quality.ts';
@@ -98,7 +100,7 @@ function discretize(g: Geometry2D, sizeAt: (x: number, y: number) => number, max
     let prev = point(cv, 0);
     for (let i = 1; i <= ns; i++) {
       const tm = (i - 0.5) / ns, p = point(cv, i / ns), pm = point(cv, tm);
-      const ds = Math.hypot(p[0] - prev[0], p[1] - prev[1]);
+      const ds = hyp2(p[0] - prev[0], p[1] - prev[1]);
       const rho = Math.max(1 / sizeAt(pm[0], pm[1]), Math.abs(curvature(cv, tm)) / maxAngle) * mult[k]!;
       cum[i] = cum[i - 1]! + rho * ds;
       prev = p;
@@ -129,7 +131,7 @@ function crossingEdges(P: Pslg, edgeOfSeg: Int32Array): Set<number> {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, L = 0;
   for (const s of S) {
     for (const v of [s.a, s.b]) { x0 = Math.min(x0, V[2 * v]!); x1 = Math.max(x1, V[2 * v]!); y0 = Math.min(y0, V[2 * v + 1]!); y1 = Math.max(y1, V[2 * v + 1]!); }
-    L += Math.hypot(V[2 * s.a]! - V[2 * s.b]!, V[2 * s.a + 1]! - V[2 * s.b + 1]!);
+    L += hyp2(V[2 * s.a]! - V[2 * s.b]!, V[2 * s.a + 1]! - V[2 * s.b + 1]!);
   }
   const h = Math.max(L / n, 1e-300);
   const G = new Map<string, number[]>();
@@ -179,7 +181,7 @@ export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
   const t0 = performance.now();
   if (!g.entities.domains.length || !g.edges.length) throw new Error('mesh: the geometry has no domain to mesh');
   const [bx0, by0, bx1, by1] = g.bbox;
-  const diag = Math.hypot(bx1 - bx0, by1 - by0);
+  const diag = hyp2(bx1 - bx0, by1 - by0);
   const hmax = opts.hmax ?? diag / 20;
   const grade = opts.grade ?? 0.3;
   const maxAngle = ((opts.maxAngleDeg ?? 10) * Math.PI) / 180;
@@ -280,7 +282,7 @@ export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
     warnings.push(`minimum angle ${q.minAngleDeg!.toPrecision(3)} deg < ${warnAng} deg in ${nb} triangles: a feature (thin sliver, tangency, small hole) is below the resolvable size; refine it or simplify the geometry`);
   }
   const blen = new Float64Array(g.entities.boundaries.length);
-  for (const sgm of P.segs) blen[sgm.tag]! += Math.hypot(P.verts[2 * sgm.a]! - P.verts[2 * sgm.b]!, P.verts[2 * sgm.a + 1]! - P.verts[2 * sgm.b + 1]!);
+  for (const sgm of P.segs) blen[sgm.tag]! += hyp2(P.verts[2 * sgm.a]! - P.verts[2 * sgm.b]!, P.verts[2 * sgm.a + 1]! - P.verts[2 * sgm.b + 1]!);
   blen.forEach((L, b) => { if (L > 0 && L < 2 * hmin) warnings.push(`${g.entities.boundaries[b]!.id}: length ${L.toPrecision(3)} m is below the resolvable size 2 hmin = ${(2 * hmin).toPrecision(3)} m`); });
   if (warnings.length) m.warnings = warnings;
   const tEnd = performance.now();

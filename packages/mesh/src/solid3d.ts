@@ -4,7 +4,7 @@
 // entity tables of @amp/geom (extrudeLayered / revolve). Facet orientation: normal pointing out of the domain on the
 // left of the 2D boundary segment (extrude sides, revolve sides), +z on interfaces and tops, -z on bottoms.
 
-import { type Geometry2D, type Layer, type Mesh, buildGeometry2D, extrudeLayered, revolve } from '@amp/geom';
+import { type Geometry2D, type Layer, type Mesh, buildGeometry2D, extrudeLayered, revolve, detmath } from '@amp/geom';
 import { mesh2d, type MeshOptions2D } from './mesh2d.ts';
 import { subdivideInterval, splitPrism, splitQuad } from './layered.mjs';
 import { meshHash, tagHash } from './sha256.ts';
@@ -58,7 +58,7 @@ export function meshExtruded(g: Geometry2D, layers: LayerMesh[], o: ExtrudeOptio
   const t2d = performance.now();
   const cell = o.cell ?? 'tet4';
   const nD = g.entities.domains.length, nL = layers.length;
-  const dzDef = o.dz ?? o.mesh2d?.hmax ?? Math.hypot(g.bbox[2] - g.bbox[0], g.bbox[3] - g.bbox[1]) / 20;
+  const dzDef = o.dz ?? o.mesh2d?.hmax ?? detmath.hyp2(g.bbox[2] - g.bbox[0], g.bbox[3] - g.bbox[1]) / 20;
   const zs: number[] = [layers[0]!.z[0]];
   const layerStart: number[] = [];
   for (const L of layers) {
@@ -147,7 +147,7 @@ export function meshRevolved(g: Geometry2D, o: RevolveOptions): Mesh {
   const id = (v: number, s: number) => (onAxis[v] ? v : v + nV2 * (full ? s % nS : s));
   const N = new Float64Array(3 * nV2 * nPl);
   for (let s = 0; s < nPl; s++) {
-    const th = (angle * s) / nS, c = Math.cos(th), sn = Math.sin(th);
+    const [sn, c] = detmath.sinCos((angle * s) / nS);
     for (let v = 0; v < nV2; v++) {
       const r = onAxis[v] ? 0 : m2.nodes[2 * v]!;
       N.set([r * c, r * sn, m2.nodes[2 * v + 1]!], 3 * (v + nV2 * s));

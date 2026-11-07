@@ -20,7 +20,11 @@ export interface QualitySummary {
   hist: number[];
 }
 
+import { detmath } from '@amp/geom';
+
 const deg = 180 / Math.PI;
+/** acos via atan2 (deterministic across engines, DevLog-004 s.9) */
+const acos = (c: number) => detmath.atan2(Math.sqrt(Math.max(0, 1 - c * c)), c);
 
 export function triQuality(nodes: Float64Array, conn: Int32Array, nv = 3): QualitySummary {
   const n = conn.length / nv;
@@ -32,10 +36,10 @@ export function triQuality(nodes: Float64Array, conn: Int32Array, nv = 3): Quali
     const A = 0.5 * ((bx - ax) * (cy - ay) - (cx - ax) * (by - ay));
     meas += A;
     if (!(A > 0)) inv++;
-    const la2 = (bx - cx) ** 2 + (by - cy) ** 2, lb2 = (cx - ax) ** 2 + (cy - ay) ** 2, lc2 = (ax - bx) ** 2 + (ay - by) ** 2;
+    const la2 = (bx - cx) * (bx - cx) + (by - cy) * (by - cy), lb2 = (cx - ax) * (cx - ax) + (cy - ay) * (cy - ay), lc2 = (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
     const la = Math.sqrt(la2), lb = Math.sqrt(lb2), lc = Math.sqrt(lc2);
-    const angA = Math.acos(Math.max(-1, Math.min(1, (lb2 + lc2 - la2) / (2 * lb * lc)))) * deg;
-    const angB = Math.acos(Math.max(-1, Math.min(1, (la2 + lc2 - lb2) / (2 * la * lc)))) * deg;
+    const angA = acos(Math.max(-1, Math.min(1, (lb2 + lc2 - la2) / (2 * lb * lc)))) * deg;
+    const angB = acos(Math.max(-1, Math.min(1, (la2 + lc2 - lb2) / (2 * la * lc)))) * deg;
     const angC = 180 - angA - angB;
     amin = Math.min(amin, angA, angB, angC);
     amax = Math.max(amax, angA, angB, angC);
@@ -76,7 +80,7 @@ export function tetQuality(nodes: Float64Array, conn: Int32Array, nv = 4): Quali
       const e1x = P[3 * b!]! - P[3 * a!]!, e1y = P[3 * b! + 1]! - P[3 * a! + 1]!, e1z = P[3 * b! + 2]! - P[3 * a! + 2]!;
       const e2x = P[3 * c!]! - P[3 * a!]!, e2y = P[3 * c! + 1]! - P[3 * a! + 1]!, e2z = P[3 * c! + 2]! - P[3 * a! + 2]!;
       const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
-      const l = Math.hypot(nx, ny, nz);
+      const l = detmath.hyp3(nx, ny, nz);
       area[f] = 0.5 * l;
       S += 0.5 * l;
       nrm[3 * f] = nx / l; nrm[3 * f + 1] = ny / l; nrm[3 * f + 2] = nz / l;
@@ -85,7 +89,7 @@ export function tetQuality(nodes: Float64Array, conn: Int32Array, nv = 4): Quali
     for (let f = 0; f < 4; f++)
       for (let g = f + 1; g < 4; g++) {
         const c = nrm[3 * f]! * nrm[3 * g]! + nrm[3 * f + 1]! * nrm[3 * g + 1]! + nrm[3 * f + 2]! * nrm[3 * g + 2]!;
-        const d = (Math.PI - Math.acos(Math.max(-1, Math.min(1, c)))) * deg;
+        const d = (Math.PI - acos(Math.max(-1, Math.min(1, c)))) * deg;
         if (d < dmin) dmin = d;
         if (d > dmax) dmax = d;
       }
@@ -95,7 +99,7 @@ export function tetQuality(nodes: Float64Array, conn: Int32Array, nv = 4): Quali
     const cx = a2 * (vy * wz - vz * wy) + b2 * (wy * uz - wz * uy) + c2 * (uy * vz - uz * vy);
     const cy = a2 * (vz * wx - vx * wz) + b2 * (wz * ux - wx * uz) + c2 * (uz * vx - ux * vz);
     const cz = a2 * (vx * wy - vy * wx) + b2 * (wx * uy - wy * ux) + c2 * (ux * vy - uy * vx);
-    const R = Math.hypot(cx, cy, cz) / (12 * Math.abs(V));
+    const R = detmath.hyp3(cx, cy, cz) / (12 * Math.abs(V));
     const q = V > 0 ? (3 * r) / R : 0;
     qmin = Math.min(qmin, q);
     qsum += q;

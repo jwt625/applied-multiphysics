@@ -423,3 +423,82 @@ Hero gate (`logs/l3-hero-gates-20261107T003236.jsonl`):
 - H1-H3, H5, H6, H2b, H6t and H1f: hashes identical to before.
 - **H4 now fails before meshing**, and the cause is outside L3. `@amp/spec` param validation now reserves `t` (field symbol), and `sims/si-rib-waveguide.yaml` uses a param `t` (slab thickness). With `t` renamed in a scratch copy, the H4 mesh is unchanged: hash `44481ed4a384c571`, 46,971 tri6, no warnings.
 - The same cause fails 1 geom test, "every sims/*.yaml validates" (geom 36/37). The sims owner (L2) should rename `t`; L3 left the test and `sims/` as they are.
+
+## 9. Cross-platform determinism (L5 web audit S3; 2026-11-06 16:50-17:05 PST)
+
+Symptom (L5 audit, `DevLog/audits/2026-11-06-L5-web-audit.md` S3): the same `sims/kirsch-plate.yaml` meshed to 2632 cells in the browser and 2635 in Node, so sxx at the hole top differed by 0.15 %.
+
+Reproduction:
+- The same TypeScript sources, unbundled (types stripped by `node:module`, served to the page through Playwright request interception with an import map), were run in Node v23.7.0 and in headless Chromium.
+- Node gave 2635 cells, hash `81aad861`. Headless shell 1234 and Chrome 156.0.8078.80 both gave 2632 cells, hash `072091b7`, which is L5's browser hash.
+- The geometry vertices were bit-identical; the facet count differed (197 vs 200). So the bundle was not the cause, and the difference starts in the curve discretization.
+
+Cause:
+- ECMAScript leaves the transcendental `Math` functions implementation-approximated.
+- On 20,000 shared inputs, Node and Chrome 156 differ in the last ulp for:
+
+| Function | Inputs that differ |
+|---|---|
+| sin | 287 |
+| cos | 265 |
+| tan | 275 |
+| atan2 | 3946 |
+| log | 717 |
+| log2 | 26 |
+| exp | 1022 |
+| pow | 1899 |
+| acos | 264 |
+| cbrt | 1762 |
+| `10 ** k` (k < 0) | 11344 |
+
+- `10 ** -4` is 9.999999999999999e-05 in Node and 1e-4 in Chrome.
+- `sqrt`, `hypot` and IEEE `+ - * /` agree.
+- The hole's arcs are evaluated with `Math.cos`/`Math.sin` and projected with `Math.atan2`. A one-ulp difference in a boundary node changes later Delaunay and encroachment decisions, so the refinement diverges.
+
+Fix: `@amp/geom/src/detmath.ts`, exported as `detmath`:
+- Functions: `sinCos` / `sin` / `cos` (Cody-Waite reduction with fdlibm kernels), `atan` / `atan2` (3 argument halvings plus a series), `log` / `exp` (exact binary scaling plus series), `ldexp`, `frexp`, `roundLog2`, `hyp2` / `hyp3`.
+- They use only IEEE `+ - * /` and `sqrt`, in a fixed order.
+- Accuracy against `Math` on 2e5 samples: sin/cos 1.1e-16 absolute, atan2 8.9e-16 absolute, log 2.7e-16 relative, exp 2.1e-16 relative, roundLog2 exact.
+
+Replaced at every call site that feeds geometry or meshes:
+- `curves.ts`: point, deriv, deriv2, project, bbox pad.
+- `arrangement.ts`: dirAngle, lengths.
+- `model.ts`: lengths.
+- `mesh2d.ts`.
+- `cdt2d.mjs`: `Math.hypot` becomes sqrt; `Math.pow(2, round(log2(.)))` becomes `ldexp(roundLog2)`.
+- `refine.ts`.
+- `solid3d.ts`: revolve sectors.
+- `quality.ts`: acos via atan2; `** 2` becomes products.
+- `grid/spacing.mjs` (APA port): `Math.log`/`Math.exp`; the port header was updated.
+- `polygon.mjs` (EO port): hypot; header updated.
+
+Result:
+- Node and Chromium now give identical meshes: kirsch 2647 cells, hash `f3b9575e9a84bc81` in Node, headless shell 1234 and Chrome 156.
+- Test `packages/mesh/test/xplat.test.ts` (+ `xplat-entry.ts`) meshes, in Node and in headless Chromium, and compares hash and tagHash:
+  - kirsch, heat, helmholtz and rib from `sims/` (tri6), each also after `refineUniform`;
+  - the tet10 cylinder and its refinement;
+  - a graded two-box hex grid (exercises spacing log/exp);
+  - a revolved torus.
+- The test is 1/1 and takes 3.5-3.7 s.
+- **Check that the test bites:** with `Math.cos`/`sin` restored in `point()`, it fails; with the fix, it passes.
+- Browser: `$AMP_BROWSER`, else the cached Playwright headless shell 1234, else system Chrome; skipped with a reason when none exists.
+- `playwright-core` 1.65.0 (the packages/rt pin) is a devDependency of @amp/mesh; installed by a root `pnpm install`.
+- Tests: geom 37/37, mesh 14/14, tsc clean.
+
+Hero hashes change once (`logs/l3-hero-gates-20261107T010313.jsonl`). All rows: valid, ids present, hashes stable over 5 runs.
+
+| Row | Cells | Hash |
+|---|---|---|
+| H1 | 2647 | `f3b9575e9a84bc81` |
+| H2 | 7573 | `454090a72f681933` |
+| H3 | 7426 | `f2bad9a306519178` |
+| H4 | 47037 | `6b1bc947c55531ac` |
+| H5 | 2628 | `b3e98a9845ab1bdd` |
+| H6 | 1232 | `c93d3ae0aab451f4` (unchanged) |
+
+The H5 drop from 6528 tets is not from this fix: `sims/cylinder-cavity.yaml` was edited at 16:44 (hmax a/4 -> a/3) by its owner. The other rows move by a few cells: the new boundary nodes differ by ulps from the old Node values, which were equally valid.
+
+Notes for other lanes:
+- **L5**: rebuild the worker bundle and show the mesh hash; browser and Node hashes must now match for every hero.
+- **L2**: spec expression evaluation that calls sin, cos, exp, `^` and similar (unit factors are fine) has the same cross-engine problem. Use `@amp/geom` `detmath`, or a copy, so params resolve to the same bits everywhere.
+- **L4**: solver numerics that use `Math.*` transcendentals (e.g. analytic BCs) can differ by ulps across engines. That does not change meshes.
