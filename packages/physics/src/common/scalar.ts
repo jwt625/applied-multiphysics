@@ -20,6 +20,8 @@ export interface CellCoef {
   m?: Float64Array;
   /** volume source per cell */
   f?: Float64Array;
+  /** volume source as a function of the physical point (used instead of f when given; cell index for masks) */
+  fFn?: (x: Float64Array, cell: number) => number;
   /** cells taking part (default all) */
   mask?: Uint8Array;
   /** extra weight: 'r' multiplies by the radius (axisym), 'invr' by 1/r */
@@ -58,7 +60,8 @@ export function assembleCells(mesh: Mesh, c: CellCoef, rule?: ReturnType<typeof 
   const t = shapeTable(type, r);
   const K = c.k ? new Float64Array(pat.nnz) : undefined;
   const M = c.m ? new Float64Array(pat.nnz) : undefined;
-  const F = c.f ? new Float64Array(nn) : undefined;
+  const F = c.f || c.fFn ? new Float64Array(nn) : undefined;
+  const P = new Float64Array(dim);
   const active = new Uint8Array(nn);
   const X = new Float64Array(k * dim), G = new Float64Array(k * dim);
   const Ke = new Float64Array(k * k), Me = new Float64Array(k * k), Fe = new Float64Array(k);
@@ -73,8 +76,10 @@ export function assembleCells(mesh: Mesh, c: CellCoef, rule?: ReturnType<typeof 
       let w = det * r.wts[q]!;
       if (axi) { let rr = 0; for (let a = 0; a < k; a++) rr += t.N[q * k + a]! * X[dim * a]!; w *= rr; }
       const Nq = t.N.subarray(q * k, q * k + k);
+      let fq = fe;
+      if (c.fFn) { P.fill(0); for (let a = 0; a < k; a++) for (let d = 0; d < dim; d++) P[d]! += Nq[a]! * X[dim * a + d]!; fq = c.fFn(P, e); }
       for (let a = 0; a < k; a++) {
-        if (F) Fe[a]! += fe * Nq[a]! * w;
+        if (F) Fe[a]! += fq * Nq[a]! * w;
         for (let b = a; b < k; b++) {
           if (K) { let s = 0; for (let d = 0; d < dim; d++) s += G[dim * a + d]! * G[dim * b + d]!; Ke[k * a + b]! += ke * s * w; }
           if (M) Me[k * a + b]! += me * Nq[a]! * Nq[b]! * w;

@@ -223,3 +223,8 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - `@anthropic-ai/sdk` for apps/web is pinned exactly to 1.1.0 (published 2026-10-21; npm registry checked 16:41). Newer releases (1.6.0 of 2026-11-05) are too fresh under the two-week supply-chain rule. A newer pin needs a recorded reason (a feature the adapter requires) and a version at least two weeks old.
   - Memory uses its own `amp-memlog/0` log (noted).
   - Assigned to the next web pass: mount the chat panel per DevLog-012 s.6.1. Assigned to L4/L8: a Node `StudyRunner` over `@amp/physics` for the agent task suite. L2, optional: `renameId`, `applyText`.
+- 2026-11-06 17:07 PST, from L4 (DevLog-010 s.7.5):
+  - C5 Solution gains the optional fields `notes` (mesh warnings, readiness) and `normalization` (eigenmodes).
+  - The harness runs readiness after prepareRun (L8).
+  - Eval cases may set `convergence.h_factors` (e.g. [1, 0.5, 0.25]) and per-target expected orders (I1 for classes a and b).
+  - `@amp/physics` no longer depends on `@amp/post` (accepted).

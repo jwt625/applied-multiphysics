@@ -21,7 +21,7 @@ import { tetRule } from '../common/quad.ts';
 import { shapeTable } from '../common/lagrange.ts';
 import { restrict, type Csr } from '../common/scalar.ts';
 import { shiftInvertEigen, csrMatVec, dotVec } from '../common/eigen.ts';
-import { StageTimer, makeSolution, checkAbort } from '../common/solution.ts';
+import { StageTimer, makeSolution, checkAbort, attachMesh } from '../common/solution.ts';
 import { cellProps, optionalCellProp, bcSelections, bcTypes, eigenStudy, physicsNode } from './ctx.ts';
 
 /** Speed of light in vacuum, exact by the SI definition of the metre (CODATA 2018). */
@@ -262,6 +262,66 @@ export function centroidFields(hm: HcurlMesh, order: 1 | 2, tetDofs: Int32Array,
 }
 
 /**
+ * H1 projection of an ND field for drawing and point probes (L5 request 5; audit S3): E evaluated in every tet at its
+ * geometry nodes (4 corners, plus the 6 edge nodes on tet10 meshes; covariant Piola with the local J, curved or
+ * affine) and averaged over the tets sharing the node. Tangential E is continuous, so the average is exact for it;
+ * the normal component is averaged across material interfaces (a drawing projection, not a solution).
+ * Returns 3 components per mesh node (H1P1 on tet4, H1P2 on tet10 node numbering).
+ */
+export function nodalFields(hm: HcurlMesh, order: 1 | 2, tetDofs: Int32Array, x: Float64Array, useCurved: boolean, mask?: Uint8Array): Float64Array {
+  const B = ndBasis(order, 4) as unknown[][];
+  const nb = B.length, nT = hm.nTets, nN = hm.nNodes;
+  const gRef = Float64Array.from([-1, -1, -1, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
+  const REF = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.5, 0, 0], [0.5, 0.5, 0], [0, 0.5, 0], [0, 0, 0.5], [0.5, 0, 0.5], [0, 0.5, 0.5]];
+  const np = hm.geo10 ? 10 : 4;
+  // reference basis values and tet10 shape derivatives at the reference nodes
+  const Nref = new Float64Array(np * nb * 3), o3 = new Float64Array(3);
+  const dN10 = new Float64Array(np * 30), n10 = new Float64Array(10), d10 = new Float64Array(30);
+  for (let q = 0; q < np; q++) {
+    const [a, b, c] = REF[q] as [number, number, number];
+    const l = [1 - a - b - c, a, b, c];
+    for (let i = 0; i < nb; i++) { evalVector(B[i], l, gRef, 3, o3); Nref.set(o3, 3 * (q * nb + i)); }
+    shapeOf10(REF[q]!, n10, d10); dN10.set(d10, 30 * q);
+  }
+  const acc = new Float64Array(3 * nN), cnt = new Float64Array(nN);
+  for (let t = 0; t < nT; t++) {
+    if (mask && !mask[t]) continue;
+    const curved = useCurved && !!hm.geo10 && hm.curved[t] === 1;
+    for (let q = 0; q < np; q++) {
+      const J = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+      if (curved) {
+        for (let a = 0; a < 10; a++) { const n = hm.geo10![10 * t + a]!; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) J[3 * r + c]! += hm.nodes[3 * n + r]! * dN10[30 * q + 3 * a + c]!; }
+      } else {
+        const v0 = hm.tets[4 * t]!;
+        for (let c = 0; c < 3; c++) { const v = hm.tets[4 * t + 1 + c]!; for (let r = 0; r < 3; r++) J[3 * r + c] = hm.nodes[3 * v + r]! - hm.nodes[3 * v0 + r]!; }
+      }
+      const [a, b, c, d, e, f, g, h, k] = J as [number, number, number, number, number, number, number, number, number];
+      const A = e * k - f * h, Bc = -(d * k - f * g), Cc = d * h - e * g, det = a * A + b * Bc + c * Cc;
+      const inv = [A / det, -(b * k - c * h) / det, (b * f - c * e) / det, Bc / det, (a * k - c * g) / det, -(a * f - c * d) / det, Cc / det, -(a * h - b * g) / det, (a * e - b * d) / det];
+      let r0 = 0, r1 = 0, r2 = 0;
+      for (let i = 0; i < nb; i++) {
+        const xi = x[tetDofs[nb * t + i]!]!;
+        if (xi === 0) continue;
+        const o = 3 * (q * nb + i), n0 = Nref[o]!, n1 = Nref[o + 1]!, n2 = Nref[o + 2]!;
+        r0 += xi * (inv[0]! * n0 + inv[3]! * n1 + inv[6]! * n2);
+        r1 += xi * (inv[1]! * n0 + inv[4]! * n1 + inv[7]! * n2);
+        r2 += xi * (inv[2]! * n0 + inv[5]! * n1 + inv[8]! * n2);
+      }
+      const node = q < 4 ? hm.tets[4 * t + q]! : hm.geo10![10 * t + q]!;
+      acc[3 * node]! += r0; acc[3 * node + 1]! += r1; acc[3 * node + 2]! += r2; cnt[node]!++;
+    }
+  }
+  for (let n = 0; n < nN; n++) if (cnt[n]) for (let d = 0; d < 3; d++) acc[3 * n + d]! /= cnt[n]!;
+  return acc;
+}
+
+function shapeOf10(p: number[], N: Float64Array, dN: Float64Array): void {
+  const L = [1 - p[0]! - p[1]! - p[2]!, p[0]!, p[1]!, p[2]!], G = [[-1, -1, -1], [1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  for (let i = 0; i < 4; i++) { N[i] = L[i]! * (2 * L[i]! - 1); for (let d = 0; d < 3; d++) dN[3 * i + d] = (4 * L[i]! - 1) * G[i]![d]!; }
+  [[0, 1], [1, 2], [0, 2], [0, 3], [1, 3], [2, 3]].forEach(([a, b], e) => { N[4 + e] = 4 * L[a!]! * L[b!]!; for (let d = 0; d < 3; d++) dN[3 * (4 + e) + d] = 4 * (G[a!]![d]! * L[b!]! + L[a!]! * G[b!]![d]!); });
+}
+
+/**
  * Field character about the z axis through (cx, cy): energy fraction of E_z, and the azimuthal order m in 0..mMax with
  * the largest binned Fourier energy (cells binned in (r, z), cylindrical components transformed per cell).
  */
@@ -440,6 +500,7 @@ export async function solveCavity(p: CavityProblem): Promise<Solution & { detail
     const full = new Float64Array(nDof);
     for (let r = 0; r < nf; r++) full[R.inv[r]!] = x[r]!;
     fields.push({ name: 'E', unit: 'V/m', space: order === 1 ? 'NED1' : 'NED2', components: 3, data: full, step: k });
+    fields.push({ name: 'E_nodal', unit: 'V/m', space: hm.geo10 ? 'H1P2' : 'H1P1', components: 3, data: nodalFields(hm, order, space.tetDofs, full, useCurved, p.mask), step: k });
     if (p.characterize ?? true) {
       const cf = centroidFields(hm, order, space.tetDofs, full, useCurved);
       const ch = fieldCharacter(cf.E, cf.C, cf.W, p.axis?.[0] ?? 0, p.axis?.[1] ?? 0);
@@ -461,6 +522,7 @@ export async function solveCavity(p: CavityProblem): Promise<Solution & { detail
     stats: { dof: nf, nnz: R.pat.nnz, iterations: eig.stats.opApplications, residual: Math.max(0, ...keep.map((i) => eig.residual[i]!)), solver: `shift-invert block Arnoldi, ${eig.stats.factor} (supernodal), gradient projection ${doProject ? 'on' : 'off'}` },
     timer,
   });
+  attachMesh(sol, mesh);
   return Object.assign(sol, {
     detail: {
       divResidual: Float64Array.from(divRes), eigResidual: Float64Array.from(keep, (i) => eig.residual[i]!), nNull: nH,
@@ -492,13 +554,15 @@ export const emwModule: PhysicsModule = {
     const mu = optionalCellProp(ctx, 'mu_r', mask);
     for (let c = 0; c < mu.length; c++) if (mask[c] && !Number.isFinite(mu[c]!)) throw new Error('material without mu_r: emw needs mu_r on every domain (no default)');
     const td = optionalCellProp(ctx, 'tan_delta', mask);
-    for (let c = 0; c < td.length; c++) if (!Number.isFinite(td[c]!)) td[c] = 0;
+    // no tan_delta on a domain: Q_d is not computed (no hidden lossless default; audit M2)
+    const lossy = Array.from(td).some((v, c) => mask[c] && Number.isFinite(v));
+    if (lossy) for (let c = 0; c < td.length; c++) if (mask[c] && !Number.isFinite(td[c]!)) throw new Error('emw: tan_delta is given on some domains but not on all; state it on every domain (no default)');
     const { nModes, shiftHz } = eigenStudy(ctx);
     const types = bcTypes(ctx.spec, ctx.physicsId);
     if (types.some((t) => t !== 'pec' && t !== 'pmc')) throw new Error('emw eigen: only pec / pmc boundaries');
     const order = ((physicsNode(ctx.spec, ctx.physicsId).settings as { order?: number } | undefined)?.order ?? 2) as 1 | 2;
     return solveCavity({
-      mesh: ctx.mesh, order, epsR: values.eps_r!, muR: mu, tanDelta: td, mask, pec: bcSelections(ctx.spec, ctx.physicsId, 'pec'),
+      mesh: ctx.mesh, order, epsR: values.eps_r!, muR: mu, ...(lossy ? { tanDelta: td } : {}), mask, pec: bcSelections(ctx.spec, ctx.physicsId, 'pec'),
       nModes, shiftHz, spec: ctx.spec, signal: ctx.signal, progress: ctx.progress,
     });
   },

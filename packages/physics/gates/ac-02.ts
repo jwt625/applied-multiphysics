@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { parseYaml } from '@amp/spec';
 import { boxMesh } from '../src/common/mesh.ts';
 import { solveAcousticModes } from '../src/acoustics/index.ts';
-import { richardson } from '../../eval/src/metrics.ts';
+import { evaluate, caseTarget, type Level } from './common.ts';
+import { stamp as utcStamp } from './modes-common.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const arg = (k: string, d: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1]! : d; };
@@ -22,9 +23,7 @@ const [Lx, Ly, Lz] = kase.geometry.spec.box_m as [number, number, number];
 const c = kase.materials.air.c;
 const refs = exp.targets.filter((t) => /^f_mode\d+$/.test(t.metric_id));
 const tolRel = 1e-4;
-const pad = (x: number) => String(x).padStart(2, '0');
-const now = new Date();
-const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}T${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+const stamp = utcStamp();
 mkdirSync(join(ROOT, 'logs'), { recursive: true });
 const logPath = join(ROOT, `logs/l4-ac02-${stamp}.jsonl`);
 const lines: string[] = [];
@@ -48,21 +47,22 @@ for (const cell of cells) {
   }
   console.log('target    ref (Hz)     ' + rows.map((r) => `s=${r.s} err`.padEnd(10)).join(' ') + ' f_ext (Hz)    err_ext    p_obs  pass');
   let pass = true;
-  refs.forEach((t, i) => {
-    const vals = rows.map((r) => r.f[i]!);
-    const rich = richardson(vals, rows.map((r) => 0.2 / r.s));
-    const fx = rich.f_ext ?? vals[vals.length - 1]!;
-    const err = (fx - t.value) / t.value;
-    const ok = Math.abs(err) <= tolRel;
+  // shared harness rule (gates/common.ts): theoretical eigenvalue order 2p = 4 (P2), 2 (Q1)
+  const lv: Level[] = rows.map((r, k) => ({ level: k, h: 0.2 / r.s, dof: r.dof, wall_ms: r.wall, stages: r.timing, values: Object.fromEntries(refs.map((t, i) => [t.metric_id, r.f[i]!])) }));
+  const res = evaluate(lv, refs.map((t) => caseTarget('a', 'AC-02', t.metric_id, { order: cell === 'hex8' ? 2 : 4 })));
+  res.forEach((r, i) => {
+    const t = refs[i]!, vals = rows.map((x) => x.f[i]!);
+    const ok = r.status === 'pass';
     pass &&= ok;
-    console.log(`${t.metric_id.padEnd(9)} ${t.value.toFixed(6).padEnd(12)} ${vals.map((v) => ((v - t.value) / t.value).toExponential(2).padEnd(10)).join(' ')} ${fx.toFixed(6).padEnd(13)} ${err.toExponential(2).padEnd(10)} ${rich.p_obs?.toFixed(2) ?? 'n/a'}  ${ok ? 'PASS' : 'FAIL'}`);
-    lines.push(JSON.stringify({ kind: 'target', case: 'AC-02', cell, target: t.metric_id, ref: t.value, values: vals, richardson: rich, value: fx, err_rel: err, tol_rel: tolRel, pass: ok }));
+    console.log(`${t.metric_id.padEnd(9)} ${t.value.toFixed(6).padEnd(12)} ${vals.map((v) => ((v - t.value) / t.value).toExponential(2).padEnd(10)).join(' ')} ${(r.value ?? NaN).toFixed(6).padEnd(13)} ${r.err !== null ? (r.err / t.value).toExponential(2).padEnd(10) : '-'.padEnd(10)} ${r.p_obs?.toFixed(2) ?? 'n/a'}  ${r.status.toUpperCase()} [${r.basis}]${r.reason ? ` ${r.reason}` : ''}`);
+    lines.push(JSON.stringify({ kind: 'target', case: 'AC-02', cell, target: t.metric_id, ref: t.value, values: vals, result: r, tol_rel: tolRel }));
   });
   const total = rows.reduce((s, r) => s + r.wall, 0);
-  console.log(`${cell}: total wall over levels ${total.toFixed(0)} ms; <5 s: ${total < 5000 ? 'yes' : 'no'}; ${pass ? 'PASS' : 'FAIL'}${cell === 'tet10' ? ' (gated)' : ' (informative)'}`);
+  console.log(`${cell}: total wall over levels ${total.toFixed(0)} ms; <5 s at the gate accuracy: ${pass ? (total < 5000 ? 'yes' : 'no') : 'n/a (not passed)'}; ${pass ? 'PASS' : 'FAIL'}${cell === 'tet10' ? ' (gated)' : ' (informative)'}`);
   if (cell === 'tet10') gatePass = pass;
   summary[cell] = { levels, total_wall_ms: total, under_5s: total < 5000, pass };
 }
 lines.push(JSON.stringify({ kind: 'summary', case: 'AC-02', ...summary, pass: gatePass, ts: new Date().toISOString() }));
 writeFileSync(logPath, lines.join('\n') + '\n');
 console.log(`gate ${gatePass ? 'PASS' : 'FAIL'}; log ${logPath}`);
+process.exitCode = gatePass ? 0 : 2;

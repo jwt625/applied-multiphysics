@@ -30,7 +30,7 @@
 | `src/modes/` | `em-modes`: EO vector mode solver ported (Nedelec + Lagrange part) on `@amp/core` |
 | `src/em3d/` | `emw` eigen: 3D Nedelec order 1-2, shift-invert Arnoldi, gradient null-space handling, dielectric Q |
 | `src/acoustics/` | `acoustics` eigen: 3D Helmholtz (tet P1/P2, hex Q1) |
-| `src/spec-adapter.ts` | spec -> geometry (L3 `buildGeometry2D`) -> mesh (L3 `mesh2d` / `meshBoxes` / local 3D fixtures) -> RunContext; `prepareRun` for L8 |
+| `src/prepare.ts` (planned as `spec-adapter.ts`; renamed, audit M10) | spec -> geometry (L3 `buildGeometry2D`) -> mesh (L3 `mesh2d` / `meshBoxes` / local 3D fixtures) -> RunContext; `prepareRun` for L8 |
 | `src/registrations.ts` | registry entries that supersede L2's provisional wave-1 ones where L4 needs settings (`registry.register(r, {replace: true})`) |
 | `src/index.ts` | `modules`, `registry`, `prepareRun` (L8 hook, DevLog-009 contract request 2) |
 | `gates/` | gate scripts per hero: convergence over >= 3 levels, error vs reference, per-stage wall time, < 5 s check |
@@ -138,12 +138,12 @@ Machine: Apple M4 Pro, 12 cores, Node v23.7.0, nice 10, heap cap 1536 MB, 8 othe
 | H4 | WO-01 slab TE0 / TM0 (F1) | 4 levels, 277-25,951 | | 4.8e-10 / 1.3e-9 rel (p 3.76 / 4.19) | rel 1e-6 | pass | 39 / 28 ms |
 | H4 | WO-02 Hadley rib n_eff, t = 0..0.7 um (F1; femwell sources fetched 2026-11-06) | 3 scales, 43k-210k | | Richardson abs err <= 7.8e-7 for all 8 | abs 3e-6 | pass | single level s = 0.5 about 2 s; 3-level sequence 7.0-7.6 s per t |
 | H4 | WO-02 metal box, 4 eps pairs (F1) | 4 levels, 3.6k-229k | | <= 1.3e-7 abs (8/1: p 0.66, soft) | abs 1e-6 (F1's choice before the run) | pass | 2.4-3.2 s sequence |
-| H5 | RF-21 TM010 / TE111 / TM011 / TE211 (F2; ND2 curved tet10) | N = 4, 5, 6: 13,192-46,068 | | 3.0e-7 / -3.7e-8 / -1.6e-7 / -8.0e-7 rel (p 4.1-4.8) | rel 1e-5 | pass | levels 2-4 for the 3 hero modes: 2.2 s total |
+| H5 | RF-21 TM010 / TE111 / TM011 / TE211 (F2; ND2 curved tet10) | N = 4, 5, 6: 13,192-46,068 | | 3.0e-7 / -3.7e-8 / -1.6e-7 / -8.0e-7 rel (p 4.1-4.8) | rel 1e-5 | superseded by Follow-up 2 (s.7.2): under the shared rule only TM010 and TM011 pass | 20 s (CORRECTED 17:05 PST, audit B1: the earlier "2.2 s for the 3 hero modes" used N = 2..4 with p_obs 5.48, outside the band of the theoretical order 4) |
 | H5 | RF-21 TM110 / TE011 (F2) | same | | -2.4e-5 (p 1.97) / -1.0e-5 (p 3.54) | rel 1e-5 | FAIL (pre-asymptotic order; with p = 4 assumed: 4.8e-7 / 3.6e-6, not gated) | 22 s for N = 3..6 |
 | H5 | RF-21 Q_d (perturbation) | | 2500.000000 | 0 | rel 1e-3 | pass | |
 | H6 | AC-02 10 box modes (F2; tet10 P2) | 693 / 4,641 / 14,725 | | worst -7.2e-6 rel (f_mode8, p 3.66-3.87); finest alone within 6.6e-5 | rel 1e-4 | pass | 1.33 s / 1.7 s; hex8 Q1 also passes (p 2.00, 1.5 s) |
 
-<5 s check (Node, at the case accuracy): H1 yes (0.07 s), H2 yes (< 0.07 s), H3 yes (0.15 s for EM-04; EM-03 0.7 s), H4 WO-01 yes, WO-02 rib yes on one level (about 2 s) but no for the 3-level Richardson sequence (7 s), H5 yes for the three hero modes (2.2 s), no for all six modes at 1e-5 (22 s, two modes fail), H6 yes (1.7 s).
+<5 s check (Node, at the case accuracy): H1 yes (0.07 s), H2 yes (< 0.07 s), H3 yes (0.15 s for EM-04; EM-03 0.7 s), H4 WO-01 yes, WO-02 rib yes on one level (about 2 s) but no for the 3-level Richardson sequence (7 s), H5 NO (corrected 17:05 PST, audit B1: the 2.2 s figure rested on p_obs 5.48 > 4; see s.7.2: no H5 sequence meets 1e-5 under the shared rule, the best (rings N = 4-6) passes TM010 / TM011 in 20 s), H6 yes (1.7 s).
 
 Palace RF-01 table vs exact Bessel values (F2): deltas -1.10e-5 (TM010), 5.1e-6 (TE111), -7.4e-6 (TM011), -8.8e-6 (TE211), 2.3e-5 (TM110), 8.9e-6 (TE011): consistent with L7a's finding (4-decimal Bessel zeros in Palace's analytic table).
 
@@ -208,9 +208,96 @@ node gates/prepare-smoke.ts; node gates/harness-demo.ts   # spec path and harnes
 ```
 
 Open:
-- H5: RF-21 TM110 (-2.4e-5, p 1.97) and TE011 (-1.0e-5) miss rel 1e-5 after Richardson on N = 4-6 (pre-asymptotic order); all six modes at 1e-5 need N >= 6 (15 s level). Options: AMS-preconditioned iterative shift-invert (core AMS-GMRES: 14 iterations vs 195), more levels, or a 2D-axisym per-m solver. The three hero modes pass in 2.2 s.
+- H5: RF-21 TM110 (-2.4e-5, p 1.97) and TE011 (-1.0e-5) miss rel 1e-5 after Richardson on N = 4-6 (pre-asymptotic order); all six modes at 1e-5 need N >= 6 (15 s level). Options: AMS-preconditioned iterative shift-invert (core AMS-GMRES: 14 iterations vs 195), more levels, or a 2D-axisym per-m solver. (Corrected 17:05 PST: the earlier claim that the three hero modes pass in 2.2 s is withdrawn, audit B1; s.7.2.)
 - H4: WO-02 Richardson sequence 7 s per thickness (single level 2 s meets abs 3e-6 at s = 0.5); no WO-02 case file (L7b/L7c).
 - Harness: cases pending until contract requests 2 and 3.
 - 3D elasticity and 3D heat are tested on structured tet/hex fixtures only (no 3D hero gate in wave 1); magnetostatics is axisymmetric only; electrostatics has no space charge.
 - Stress recovery is nodal averaging (point stresses oscillate at 1e-4 on CDT levels); a patch recovery would give Richardson-able point stresses.
 - Fresh-context audit (coordinator).
+
+## 7. Follow-up 2 (2026-11-06 16:39-17:05 PST; coordinator items 1-7 from I1 and L5, fresh-context audit DevLog/audits/2026-11-06-L4-physics-audit.md)
+
+### 7.1 Dispositions
+
+| Item | Disposition | Where |
+|---|---|---|
+| I1-1 geometry registrations | done: `physicsRegistry()` = `registerPhysics(registerGeomFeatures(wave1Registry()))`; SM-02 ellipse validates | `src/registrations.ts` |
+| I1-2 time study `{start, stop, dt, method, output?}` | done: start/stop/dt/output bound; method bdf1, bdf2, crank-nicolson (linear; radiation needs bdf1/bdf2); generalized-alpha is a readiness reason; output times must lie on the dt grid | `src/heat/index.ts` |
+| I1-3 `{expr, unit}` fields (x, y, z, r, t) | done: `common/field.ts compileField` (@amp/core expr, spec resolveField for dimension checks; affine units per spec rules). Heat: T, q, T_ext, T_amb, Q (x, t), h (space only), T0 (space); elastic traction vector and pressure (space); electrostatic potential (space). Time-dependent loads are re-assembled per step | `src/common/field.ts`, heat, elastic, electrostatics |
+| I1-4 nested levels | done: prepareRun with hFactor = 2^-k returns the k-times `refineUniform`-refined hFactor = 1 mesh (2D: exact curves via the Geometry2D; cylinder: `meshCylinder(..., {order: 2})` + `cylinderSideProjector`; single box with order 2: tet10 Kuhn box + refineUniform); other hFactors re-mesh (noted). H5 retried: s.7.2 | `src/prepare.ts` |
+| I1-5 acoustics order | done: acoustics `settings.order` (1 or 2, default 2) registered; prepareRun builds tet10 P2 boxes (box-acoustics sim: f_1 171.500 Hz, f_2 214.376 Hz at 11,339 DOF) | registrations, prepare |
+| L5-5 / S3 Nedelec evaluation | done as an H1 projection: emw Solutions carry `E_nodal` (H1P2 on tet10, 3 components; covariant Piola at every geometry node, averaged; tangential E exact, normal component averaged at interfaces) next to the NED coefficients; post `evaluateField` points to it. em-modes fields are DG0 (post evaluates them). Test: TM010 E_z(r)/E_z(0) vs J0(x01 r / a) within 2e-2 at r = a/4, a/2, 3a/4 on a coarse curved mesh, E_r < 2e-2 E_z(0) | `src/em3d/index.ts nodalFields`; test/followup2 |
+| L5-6 injected library | done: `prepareRun({..., library})` (the @amp/materials Library shape); without it Node loads the default library through a non-static import, browsers get a note | `src/prepare.ts` |
+| L5-7 normalization | done: `Solution.normalization` (optional, additive) set by the module wrapper: emw M-orthonormal (int eps_r E.E dV = 1 V^2 m), acoustics M-orthonormal (int p^2 / (rho c^2) dV = 1), em-modes max abs E = 1 V/m | `src/index.ts` |
+| B1 H5 claim | corrected in s.4.1 and s.6 (17:05 PST). Results on nested curved tet10 in s.7.2 | this file |
+| S1 exit codes | done: every gate sets 0 / 1 / 2 (`ExitCode` in gates/common.ts; ac-02, rf-01, modes-*); `run-all.ts` runs under nice and exits with the worst code | gates |
+| S2 one Richardson rule | done: all gates call `@amp/eval` `evaluateTarget` (gates/common.ts `evaluate`, `verdictRows`) with a stated theoretical order per target (P2 point values 3, P2 gradients / stresses / B 2, energies and eigenvalues 4, BDF2 transients 2) and the 0.25 band; out-of-band or oscillatory sequences are reported "richardson unavailable" and gated on finest + non-increasing error | gates/common.ts |
+| S4 readiness | done: wrapper readiness adds `specReadiness`: N/A override values, needed properties absent without a materials/ ref, N/A BC settings, missing T0 for a time study, missing nModes. prepareRun writes eval-case fills into the returned spec, so readiness on `ctx.spec` passes and `run` re-checks it | `src/common/ctx.ts`, `src/index.ts` |
+| S5 timing | done: prepareRun records validate, geometry_mesh, materials (ms); the wrapper merges them into `Solution.timing`. End-to-end prepare + run per sim (Node, s.7.3) | prepare, index |
+| S6 acoustic density | done: K = int (1/rho) grad p . grad q, M = int p q / (rho c^2); several fluids need rho everywhere (error otherwise); one fluid without rho uses 1 (cancels). Test: two fluids in series vs the interface relation (k1/rho1) sin(k1 L1) cos(k2 L2) + (k2/rho2) sin(k2 L2) cos(k1 L1) = 0, first two modes within 2e-4, and the spectrum without the density contrast differs by > 1e-2 | `src/acoustics/index.ts`; test/followup2 |
+| S7 mesh warnings | done: `Solution.notes` (optional, additive) = prepareRun notes + mesh warnings, set by the wrapper; readers: L8 / L5 (contract request 9) | `src/index.ts` |
+| M1 | fixed: with terminals and potentials both present, an extra solve gives `V_applied` | electrostatics |
+| M2 | fixed: no tan_delta -> no Q_d (no hidden 0); tan_delta on some domains only -> error | em3d binding |
+| M3 | Q_d reported as INFO in rf-01 (homogeneous fill: tautological) | gates/rf-01.ts |
+| M4 | fixed: axis nodes within 1e-12 of the bounding-box size; nodal B uses the same tolerance (an O(n^2) slip in the first version of this fix stalled the EM gate for minutes; caught and fixed before any result) | magnetostatics |
+| M5 | `evaluateField(..., {snap})` / `sample(..., {snap})`: points just outside curved cells (reference tolerance, e.g. 1e-3) are accepted | post |
+| M6 | fixed: EM-02, EM-03 (eval/cases/c), WO-02 and WO-41 (eval/cases/b) inputs and references are read from the case and expected files; no reference literal left in gates/em.ts and gates/modes-wo02.ts (the Palace RF table in rf-01 stays as an informative delta) | gates |
+| M7 | acknowledged; levels are now nested and fixed per gate | - |
+| M8 | fixed: ac-02 and rf-01 logs use the UTC stamp `...Z` | gates |
+| M9 | fixed: `@amp/physics` no longer depends on `@amp/post` (local `attachMesh` in common/solution.ts; post reads `solution.mesh`); post -> physics/common only | package.json |
+| M10 | fixed (s.1.1) | this file |
+| M11 | ungated targets print INFO; RF rows state their levels (s.7.2) | gates |
+| M12 | fixed (nice in run-all) | gates/run-all.ts |
+
+### 7.2 Gate results under the shared rule (Node; logs `logs/l4-heat-20261107T005216Z.jsonl`, `l4-elastic-20261107T005243Z.jsonl`, `l4-em-20261107T010123Z.jsonl`, `l4-ac02-20261107T010158Z.jsonl`, `l4-rf01-20261107T010240Z.jsonl` (nested), `l4-rf01-20261107T010254Z.jsonl` (rings), `l4-modes-wo01-20261107T010402Z.jsonl`, `l4-modes-wo02-20261107T010407Z.jsonl`)
+
+| Case | Levels | Basis | Result | Wall of the verdict levels |
+|---|---|---|---|---|
+| HT-01..04 | as before (structured, ratio 2) | richardson (p 2.05-2.69 within the band of 3 / 2); HT-03 finest | 7/7 pass (unchanged numbers) | 1-54 ms |
+| SM-01 (nested CDT) | 1,604-99,296 DOF | richardson: K_t p 2.01 (value 3.0000012, rel 4.1e-7), syy p 1.92 (4.5e-5), u_x p 3.36 (-1.9e-9), u_y p 3.44 (-5.5e-9); stress L2 rates 1.90 / 1.94 / 1.97 | 5/5 pass | 1.58 s |
+| SM-02 (nested) | 1,888-115,008 | richardson p 1.96: 92.6591 MPa (-4.4e-4 vs 92.7) | pass | 1.53 s |
+| EM-04 (nested) | 11,343-183,033 | B_center, Bz_probe: p_obs 3.95 / 3.74 outside the band of 2 (superconvergent nodal averages on nested meshes) -> finest + monotone: -3.1e-6, -3.2e-6; Br_probe finest abs 4.3e-12 T; uniformity INFO (case gate false); truncation 30 R vs 100 R -5.036e-5 vs image -5.036e-5 | pass | 1.91 s |
+| EM-03 (nested, c) | 16,050-258,189 | richardson p 3.88-3.96: M_ab vs filament 6.2e-4 (tol 5e-3), L_aa 5.1e-4 (3e-2), L_bb 4.0e-6 (3e-2); M_ab vs Palace formula INFO 4.4e-3 | pass | 2.79 s |
+| EM-01 (nested) | 548-39,104 | richardson p 3.95: C', L', Z0 rel 1.3e-9 (was 6.9e-6 on non-nested levels) | pass | 0.41 s |
+| EM-02 (nested, c; case tol 1e-4) | 7,409-117,650 | richardson p 3.93-3.94: 4.0e-6 / 1.4e-5 / -2.6e-5 | pass | 0.89 s |
+| WO-01 | as before | richardson p 3.76 / 4.19: 4.8e-10 / 1.3e-9 | pass | < 0.2 s |
+| WO-02 rib (b; case tol abs 5e-6) | 3 scales | 4 of 8 richardson (p 3.64-4.41), 4 of 8 finest + monotone (p 2.25-2.62); max abs err 7.2e-7 | 8/8 pass | 7-7.6 s per thickness (3-level verdict); single level s = 0.5 about 2 s |
+| WO-41 metal box (b; case tol abs 1e-7) | N = 8..64 | p_obs 0.66-1.82 (dielectric corner) -> finest + monotone: 1.65e-7, 8.1e-8, 2.5e-7, 1.9e-6 | 1/4 pass, 3 FAIL | 2.4-3.2 s |
+| AC-02 (tet10, s = 1, 2, 3) | 693-14,725 | richardson p 3.66-3.87 (band of 4): worst -7.2e-6 | 10/10 pass | 1.75 s |
+| RF-21 nested curved tet10 (meshCylinder order 2 + refineUniform, base hmax a/1.5) | 3,662 / 32,804 DOF (the next nested level is about 2.9e5 DOF, over the 1.5 GB heap cap) | 2 levels: the rule reports "too few levels" and gates the finest: TM010 -1.7e-5, TE111 4.8e-5, TM011 -1.3e-5, TM110 -1.0e-4, TE211 5.9e-5, TE011 2.2e-4. Error ratio between the two levels 16.5 for TM010 (p = 4.05 against the exact value, informative) | 0/6 pass | 5.3 s |
+| RF-21 ring disk N = 4, 5, 6 (non-nested, self-similar) | 13,192-46,068 | richardson within band for TM010 (p 4.77, 3.0e-7) and TM011 (4.25, -1.6e-7) -> pass; TE111, TE211, TE011: extrapolation within 1e-5 but the finest level outside the budget (rule: both required) -> FAIL; TM110 p 1.97 out of band -> finest 1.7e-5 FAIL | 2/6 pass | 20.0 s |
+
+H5 statement (replaces the earlier one): with the shared rule no H5 level sequence meets rel 1e-5 for all six modes; TM010 and TM011 pass on N = 4-6 in 20 s (Node, finest level 13.4 s). The < 5 s target is not met for H5. Options unchanged (AMS-preconditioned iterative shift-invert to reach a third nested level; 2D-axisym per-m solver).
+
+### 7.3 End-to-end prepareRun + run per hero sim (Node, `gates/prepare-smoke.ts`, case values for N/A inputs; stages in ms)
+
+| Sim | DOF | End to end | validate / geometry_mesh / assemble / factor / solve / post |
+|---|---|---|---|
+| heat-plate-fin | 15,339 | 216 ms | 15 / 49 / 22 / 72 / 5 / 1 |
+| kirsch-plate | 10,810 | 176 ms | 4 / 20 / 25 / 67 / 2 / 48 |
+| helmholtz-coil | 14,645 | 162 ms | 3 / 39 / 28 / 72 / 4 / 9 |
+| box-acoustics (tet10 P2) | 11,339 | 926 ms | 2 / 8 / 216 / 315 / 381 / 1 |
+| cylinder-cavity (ND2 curved) | 14,882 | 2,585 ms | 3 / 204 / 113 / 612 / 1,540 / 111 |
+| si-rib-waveguide | 328,754 | 3,851 ms | 5 / 109 / model 767 / 167 / 1,200 / 1,490 / 106 |
+
+These are the sims' own mesh sizes, not the gate accuracies; browser times are not measured (L5).
+
+### 7.4 Tests and checks
+
+physics 39/39 (new: test/followup2.test.ts 6: compileField, field Dirichlet in time with crank-nicolson, readiness reasons, prepareRun nested levels + timing merge + field BC, two-fluid acoustics, TM010 nodal E), post 4/4; `tsc -p packages/physics` and `-p packages/post` clean.
+
+### 7.5 Contract requests (new)
+
+9. **C5 (coordinator), additive optional fields**: `Solution.notes?: string[]` (prepareRun notes, mesh warnings) and `Solution.normalization?: string` (eigenvector scaling). Readers: L8 stores notes per level; L5 shows them in Messages (audit S7).
+10. **L8**: call `readiness(ctx.spec, ctx.physicsId)` after `prepareRun` (prepareRun fills N/A inputs from the case into `ctx.spec`); readiness on the raw sims/ spec reports their N/A values (audit S4).
+11. **L7a/L7c**: set `convergence.h_factors: [1, 0.5, 0.25]` (or [1, 0.5, 0.25, 0.125]) so the harness levels are nested (prepareRun nests only for powers of 1/2), and `convergence.expected_order` per target (values used by the L4 gates: s.7.1 S2).
+12. **C1**: `@amp/physics` no longer depends on `@amp/post`; `@amp/post` depends on `@amp/physics` (common/mesh, common/lagrange) and `@amp/spec`.
+
+### 7.6 Note for I1 (2026-11-06 17:05 PST)
+
+- `prepareRun` nested levels are wired: pass `hFactor` = 1, 0.5, 0.25 (powers of 1/2) and the meshes are nested refinements (2D CDT with exact curves; cylinder via `meshCylinder(c, {order: 2})` + projector; single box with acoustics/emw order 2 -> tet10). Any other hFactor re-meshes (notes say so). Ask L7a/L7c for `h_factors: [1, 0.5, 0.25]` (request 11).
+- SM-02: `physicsRegistry()` now includes the geometry features (ellipse). L4's own nested SM-02 gate: 92.6591 MPa, p 1.96, pass.
+- RF-21: nested curved tet10 is available, but the third nested level (about 2.9e5 ND2 DOF) does not fit the heap cap; under the shared rule the best result is TM010 / TM011 pass (rings N = 4-6, 20 s). H5 is not < 5 s at 1e-5.
+- AC-02: box-acoustics now meshes as tet10 P2 by default (`physics.settings.order`, 1 or 2); the sim at its own hmax gives f_1 171.500, f_2 214.376 Hz in 0.93 s end to end.
+- Time study: `{start, stop, dt, method, output?}` bound (bdf1, bdf2, crank-nicolson). `{expr, unit}` fields work for heat T, q, h (space), T_ext, T_amb, Q, T0, elastic traction / pressure, electrostatic V.
+- Solutions now carry `notes` and `normalization`; readiness reports N/A inputs (call it on `ctx.spec` after prepareRun).

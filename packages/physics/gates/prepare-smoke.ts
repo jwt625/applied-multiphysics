@@ -16,7 +16,7 @@ for (const [sim, cs] of pairs) {
     const m = registry[(ctx.spec.physics![0] as any).type]!;
     const rd = m.readiness(ctx.spec, ctx.physicsId);
     let out = `ready ${rd.ready} ${rd.reasons.join(';')}`;
-    try { const s = await m.run(ctx); out += ` | run ok dof ${s.stats.dof} scalars ${Object.entries(s.scalars).slice(0, 4).map(([k, v]) => `${k}=${v.value.toPrecision(6)}`).join(' ')}`; } catch (e) { out += ` | run error: ${(e as Error).message.slice(0, 200)}`; }
+    try { const r0 = performance.now(); const s = await m.run(ctx); const r1 = performance.now(); out += ` | end-to-end prepare + run ${(t1 - t0 + r1 - r0).toFixed(0)} ms, stages ${JSON.stringify(Object.fromEntries(Object.entries(s.timing).map(([k, v]) => [k, Math.round(v)])))} | run ok dof ${s.stats.dof} scalars ${Object.entries(s.scalars).slice(0, 4).map(([k, v]) => `${k}=${v.value.toPrecision(6)}`).join(' ')}`; } catch (e) { out += ` | run error: ${(e as Error).message.slice(0, 200)}`; }
     console.log(`${sim}: mesh ${ctx.mesh.cells.type} ${ctx.mesh.cells.conn.length} prep ${(t1 - t0).toFixed(0)} ms; mats ${JSON.stringify(ctx.materials)}; ${out}\n   notes: ${ctx.notes.join(' | ').slice(0, 400)}`);
   } catch (e) { console.log(`${sim}: prepare error: ${(e as Error).message.slice(0, 300)}`); }
 }

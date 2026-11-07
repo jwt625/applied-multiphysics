@@ -65,6 +65,12 @@ export async function makeSolution(p: SolutionParts): Promise<Solution> {
 
 export const scalar = (value: number, unit: string) => ({ value, unit });
 
+/** Attach the mesh to an in-process Solution as a non-enumerable `mesh` (read by @amp/post meshOf / sample). */
+export function attachMesh<S extends Solution>(sol: S, mesh: Mesh): S {
+  Object.defineProperty(sol, 'mesh', { value: mesh, enumerable: false, configurable: true, writable: true });
+  return sol;
+}
+
 /** Throw if the run was cancelled (C4 signal). */
 export function checkAbort(signal?: AbortSignal): void {
   if (signal?.aborted) throw new Error('run cancelled');

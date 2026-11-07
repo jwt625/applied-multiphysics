@@ -11,8 +11,9 @@ import { NPC, facetNodes, facetsOn, nCells, nNodes } from '../common/mesh.ts';
 import { cellPattern, restrict, SpdSolver, facetTable, cellOrder, type Csr } from '../common/scalar.ts';
 import { defaultRule, gatherX, physGrad, shapeTable, facetJac, shape, REF_DIM } from '../common/lagrange.ts';
 import { makeSolution, StageTimer, scalar } from '../common/solution.ts';
-import { attachMesh } from '@amp/post';
-import { bcsOf, cellProps, physicsNode, q as qty, qVec, optionalCellProp } from '../common/ctx.ts';
+import { attachMesh } from '../common/solution.ts';
+import { bcsOf, cellProps, physicsNode, optionalCellProp } from '../common/ctx.ts';
+import { compileField, spaceOf, evalField } from '../common/field.ts';
 
 export type Model = 'plane-stress' | 'plane-strain' | '3d';
 export type VecFn = (x: Float64Array, n: Float64Array) => number[];
@@ -21,7 +22,7 @@ export type ElasticBc =
   | { type: 'roller'; select: string[] }
   | { type: 'displacement'; select: string[]; component: number; value: number }
   | { type: 'traction'; select: string[]; t: number[] | VecFn }
-  | { type: 'pressure'; select: string[]; p: number };   // traction = -p n (p > 0 pushes inward)
+  | { type: 'pressure'; select: string[]; p: number | ((x: Float64Array) => number) };   // traction = -p n (p > 0 pushes inward)
 
 export interface ElasticProblem {
   mesh: Mesh; model: Model;
@@ -178,7 +179,8 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
           for (let a = 0; a < kf; a++) for (let d = 0; d < dim; d++) P[d]! += tf.N[q * kf + a]! * Xf[dim * a + d]!;
           let dot = 0; for (let d = 0; d < dim; d++) dot += nrm[d]! * (P[d]! - cen[d]!);
           if (dot < 0) for (let d = 0; d < dim; d++) nrm[d] = -nrm[d]!;
-          const tv = b.type === 'pressure' ? Array.from(nrm, (v) => -b.p * v) : typeof b.t === 'function' ? b.t(P, nrm) : b.t;
+          const pv = b.type === 'pressure' ? (typeof b.p === 'number' ? b.p : b.p(P)) : 0;
+          const tv = b.type === 'pressure' ? Array.from(nrm, (v) => -pv * v) : typeof b.t === 'function' ? b.t(P, nrm) : b.t;
           for (let a = 0; a < kf; a++) { const v = m.facets.conn[kf * f + a]!, Na = tf.N[q * kf + a]!; for (let d = 0; d < dim; d++) F[dim * v + d]! += tv[d]! * Na * w; }
         }
       }
@@ -358,6 +360,7 @@ export function elasticProblemFromContext(ctx: RunContext): ElasticProblem {
   const model = ph.settings?.model ?? (m.dim === 3 ? '3d' : undefined);
   if (!model) throw new Error('elastic: settings.model (plane-stress | plane-strain) required in 2D');
   const { mask, values } = cellProps(ctx, ['E', 'nu']);
+  const sp = spaceOf(m);
   const bcs: ElasticBc[] = [];
   for (const b of bcsOf(spec, ctx.physicsId)) {
     const s = b.settings ?? {};
@@ -365,8 +368,17 @@ export function elasticProblemFromContext(ctx: RunContext): ElasticProblem {
       case 'fixed': bcs.push({ type: 'fixed', select: b.select }); break;
       case 'roller': bcs.push({ type: 'roller', select: b.select }); break;
       case 'free': break;
-      case 'boundary-load': bcs.push({ type: 'traction', select: b.select, t: qVec(spec, s.traction, `${b.id}.traction`) }); break;
-      case 'pressure': bcs.push({ type: 'pressure', select: b.select, p: qty(spec, s.p, `${b.id}.p`) }); break;
+      case 'boundary-load': {
+        // vector of field components ({value: [..], unit} or a list of field settings), static: t = 0
+        const tr = s.traction as unknown;
+        const comps = Array.isArray(tr) ? tr : tr && typeof tr === 'object' && Array.isArray((tr as { value: unknown[] }).value)
+          ? (tr as { value: number[]; unit: string }).value.map((v) => ({ value: v, unit: (tr as { unit: string }).unit })) : null;
+        if (!comps) throw new Error(`${b.id}.traction: expected a vector`);
+        const fs = comps.map((c, i) => compileField(spec, c, sp, `${b.id}.traction[${i}]`, 'space'));
+        bcs.push({ type: 'traction', select: b.select, t: fs.every((v) => typeof v === 'number') ? (fs as number[]) : (x) => fs.map((f) => evalField(f, x)) });
+        break;
+      }
+      case 'pressure': { const pf = compileField(spec, s.p, sp, `${b.id}.p`, 'space'); bcs.push({ type: 'pressure', select: b.select, p: typeof pf === 'number' ? pf : (x) => pf(x, 0) }); break; }
       default: throw new Error(`elastic: unsupported condition '${b.type}'`);
     }
   }

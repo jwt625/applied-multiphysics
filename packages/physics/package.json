@@ -19,7 +19,6 @@
     "@amp/spec": "link:../spec",
     "@amp/geom": "link:../geom",
     "@amp/mesh": "link:../mesh",
-    "@amp/post": "link:../post",
     "zod": "link:../spec/node_modules/zod",
     "@amp/materials": "link:../materials"
   },

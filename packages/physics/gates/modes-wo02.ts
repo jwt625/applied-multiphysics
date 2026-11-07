@@ -21,22 +21,22 @@ import { buildGeometry2D } from '@amp/geom';
 import { mesh2d } from '@amp/mesh';
 import { solveModes } from '../src/modes/index.ts';
 import { rectTriMesh } from '../src/common/mesh.ts';
-import { GateLog, extrapolate, hFromDof, stagesOf, waitForLoad, type LevelRow } from './modes-common.ts';
+import { GateLog, hFromDof, stagesOf, waitForLoad, readCase, type LevelRow } from './modes-common.ts';
+import { verdictRows } from './common.ts';
 
 const UM = 1e-6;
+// inputs and references from the eval cases (audit M6): eval/cases/b/WO-02.yaml (rib) and WO-41.yaml (metal box)
+const C02 = readCase('b', 'WO-02'), C41 = readCase('b', 'WO-41');
+const r02 = C02.references.find((r: any) => r.metric_id === 'neff_fund_vs_t_slab');
+const r41 = C41.references.find((r: any) => r.metric_id === 'n_eff');
 export const RIB = {
-  lambda: 1.15 * UM, nCore: 3.44, nBox: 3.40, nClad: 1,
-  t: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
-  ref: [3.412022, 3.412126, 3.412279, 3.412492, 3.412774, 3.413132, 3.413571, 3.414100],
-  tolAbs: 3e-6,
+  lambda: Number(C02.study.wavelength_um) * UM, nCore: Number(C02.materials.core.n), nBox: Number(C02.materials.substrate.n), nClad: Number(C02.materials.cover.n),
+  t: r02.at.slab_thickness_um as number[], ref: r02.value as number[], tolAbs: Number(r02.tolerance.abs),
 };
 export const BOX = {
-  lambda: 1.5, cases: [
-    { eps: [2.25, 1], pec: ['left', 'right'], ref: 1.27627404 },
-    { eps: [8, 1], pec: ['left', 'right'], ref: 2.65679692 },
-    { eps: [1, 2.25], pec: ['left', 'top'], ref: 1.387926425 },
-    { eps: [1, 8], pec: ['left', 'top'], ref: 2.761465320 },
-  ], tolAbs: 1e-6,
+  lambda: Number(C41.study.wavelength),
+  cases: (C41.materials.core_clad.variants as Array<{ id: string; eps_core: number; eps_clad: number; metallic_edges: string[] }>).map((v, i) => ({ eps: [v.eps_core, v.eps_clad], pec: v.metallic_edges, ref: (r41.value as number[])[i]! })),
+  tolAbs: Number(r41.tolerance.abs),
 };
 
 /** Boundary ids whose facets all lie on x = x0 (within tol). */
@@ -121,15 +121,17 @@ export async function runWO02(opts: { rib?: boolean; box?: boolean; tList?: numb
         rows.push({ level: N, dof: r.solution.stats.dof, h: hFromDof(r.solution.stats.dof, 2), value: v, err: v - c.ref, stages: stagesOf(r.solution), wall_ms: wall });
         log.write({ kind: 'level', target: `box${ci}`, ...rows.at(-1)! });
       }
-      const rich = extrapolate(rows.slice(-3));
-      const err = rich.f_ext !== null ? rich.f_ext - c.ref : NaN;
-      const pass = Math.abs(err) <= BOX.tolAbs;
+      // shared rule; theoretical order 4 for the regular part (the dielectric corner lowers the observed order)
+      const v = verdictRows(rows, { ref: c.ref, unit: '1', abs: BOX.tolAbs, after: 'richardson', order: 4 });
+      const rich = { f_ext: v.value, p_obs: v.p_obs };
+      const err = v.err ?? NaN;
+      const pass = v.status === 'pass';
       const rec = { kind: 'target', target: `box${ci}`, eps: c.eps, ref: c.ref, f_ext: rich.f_ext, p_obs: rich.p_obs, err_ext: err, tolAbs: BOX.tolAbs, pass, wall_ms_levels: rows.map((x) => x.wall_ms) };
       log.write(rec);
       res.box.push({ rows, ...rec });
       say(`WO-02 box eps ${c.eps.join('/')} PEC ${c.pec.join('+')}: ref ${c.ref}`);
       for (const x of rows) say(`  N ${x.level}  dof ${x.dof}  n_eff ${x.value.toFixed(9)}  err ${x.err.toExponential(2)}  wall ${x.wall_ms.toFixed(0)} ms`);
-      say(`  Richardson: f_ext ${rich.f_ext?.toFixed(9)}  p_obs ${rich.p_obs?.toFixed(2)}  err ${err.toExponential(2)}  tol ${BOX.tolAbs}  ${pass ? 'PASS' : 'FAIL'}`);
+      say(`  [${v.basis}] value ${rich.f_ext?.toFixed(9)}  p_obs ${rich.p_obs?.toFixed(2)}  err ${err.toExponential(2)}  tol ${BOX.tolAbs}  ${v.status.toUpperCase()}${v.reason ? ` (${v.reason})` : ''}`);
     }
   }
   if (opts.rib !== false) {
@@ -143,10 +145,11 @@ export async function runWO02(opts: { rib?: boolean; box?: boolean; tList?: numb
         rows.push({ level: s, dof: r.top.dof, h: hFromDof(r.top.dof, 2), value: r.top.neff, err: r.top.neff - ref, stages: r.top.stages, wall_ms: r.wall_ms });
         log.write({ kind: 'level', target: `rib_t${t}`, ...rows.at(-1)!, plane: r.top.plane, teFraction: r.top.te, other: r.both.find((b: any) => b !== r.top) });
       }
-      const rich = extrapolate(rows.slice(-3));
-      const err = rich.f_ext !== null ? rich.f_ext - ref : NaN;
+      const v = verdictRows(rows, { ref, unit: '1', abs: RIB.tolAbs, after: 'richardson', order: 4 });
+      const rich = { f_ext: v.value, p_obs: v.p_obs };
+      const err = v.err ?? NaN;
       const finestErr = rows.at(-1)!.err;
-      const pass = Math.abs(err) <= RIB.tolAbs;
+      const pass = v.status === 'pass';
       const raw = rows.find((x) => Math.abs(x.err) <= RIB.tolAbs);
       const rec = { kind: 'target', target: `rib_t${t}`, ref, f_ext: rich.f_ext, p_obs: rich.p_obs, err_ext: err, err_finest: finestErr, tolAbs: RIB.tolAbs, pass,
         first_level_within_tol: raw ? { level: raw.level, wall_ms: raw.wall_ms } : null, wall_ms_levels: rows.map((x) => x.wall_ms) };
@@ -154,7 +157,7 @@ export async function runWO02(opts: { rib?: boolean; box?: boolean; tList?: numb
       res.rib.push({ rows, ...rec });
       say(`WO-02 rib t = ${t} um: ref ${ref}`);
       for (const x of rows) say(`  s ${x.level.toFixed(3)}  dof ${x.dof}  n_eff ${x.value.toFixed(7)}  err ${x.err.toExponential(2)}  wall ${x.wall_ms.toFixed(0)} ms (mesh + 2 symmetry solves)  ${JSON.stringify(x.stages)}`);
-      say(`  Richardson: f_ext ${rich.f_ext?.toFixed(7)}  p_obs ${rich.p_obs?.toFixed(2)}  err ${err.toExponential(2)}  tol ${RIB.tolAbs}  ${pass ? 'PASS' : 'FAIL'}`);
+      say(`  [${v.basis}] value ${rich.f_ext?.toFixed(7)}  p_obs ${rich.p_obs?.toFixed(2)}  err ${err.toExponential(2)}  tol ${RIB.tolAbs}  ${v.status.toUpperCase()}${v.reason ? ` (${v.reason})` : ''}`);
     }
   }
   say(`log ${log.path}`);

@@ -5,7 +5,7 @@ import type { Mesh, Solution } from '@amp/spec/types';
 import { evaluateField } from './evaluate.ts';
 import { fieldOf, meshOf } from './store.ts';
 
-export interface SampleOptions { mesh?: Mesh; component?: number | 'norm'; step?: number }
+export interface SampleOptions { mesh?: Mesh; component?: number | 'norm'; step?: number; /** reference-coordinate tolerance for points on curved walls (e.g. 1e-3) */ snap?: number }
 
 /**
  * L8 hook (CONTRACTS-v0 changelog; DevLog-009 request 4): values of `field` at points ([[x, y(, z)], ...] or flat),
@@ -16,7 +16,7 @@ export function sample(sol: Solution, field: string, points: ArrayLike<number> |
   const f = fieldOf(sol, field, o.step);
   const flat = Array.isArray(points) && Array.isArray(points[0]) ? Float64Array.from((points as number[][]).flat()) : (points as ArrayLike<number>);
   if (flat.length % mesh.dim) throw new Error(`sample: ${flat.length} coordinates is not a multiple of dim ${mesh.dim}`);
-  const { values } = evaluateField(mesh, f, flat);
+  const { values } = evaluateField(mesh, f, flat, o.snap ? { snap: o.snap } : {});
   const nc = f.components, np = flat.length / mesh.dim, out = new Float64Array(np);
   for (let i = 0; i < np; i++) {
     if (o.component === 'norm') { let s = 0; for (let j = 0; j < nc; j++) s += values[i * nc + j]! ** 2; out[i] = Math.sqrt(s); }

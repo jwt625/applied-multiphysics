@@ -13,7 +13,8 @@
 
 import { solveModes } from '../src/modes/index.ts';
 import { slabMesh } from '../src/modes/fixtures.ts';
-import { GateLog, readCase, readExpected, extrapolate, hFromDof, stagesOf, waitForLoad, type LevelRow } from './modes-common.ts';
+import { GateLog, readCase, readExpected, hFromDof, stagesOf, waitForLoad, type LevelRow } from './modes-common.ts';
+import { verdictRows } from './common.ts';
 
 const UM = 1e-6;
 
@@ -48,10 +49,12 @@ export async function runWO01(opts: { levels?: number[]; quiet?: boolean } = {})
       rows.push(row);
       log.write({ kind: 'level', target: `neff_${pol}`, ...row, teFraction: m.teFraction, residual: m.residual });
     }
-    const rich = extrapolate(rows.slice(-3));
     const r = ref[`neff_${pol}`]!;
-    const errExt = rich.f_ext !== null ? Math.abs(rich.f_ext - r) / r : NaN;
-    const pass = errExt <= tolRel;
+    // shared harness rule (gates/common.ts): ND2 / P2 eigenvalue, theoretical order 4
+    const v = verdictRows(rows, { ref: r, unit: '1', rel: tolRel, after: 'richardson', order: 4 });
+    const rich = { f_ext: v.value, p_obs: v.p_obs, gci_fine: null };
+    const errExt = v.err !== null ? Math.abs(v.err) / r : NaN;
+    const pass = v.status === 'pass';
     const raw = rows.find((x) => Math.abs(x.err) <= tolRel);
     const richMs = rows.slice(-3).reduce((s, x) => s + x.wall_ms, 0);
     const rec = { kind: 'target', case: 'WO-01', target: `neff_${pol}`, ref: r, tolRel, f_ext: rich.f_ext, p_obs: rich.p_obs, gci_fine: rich.gci_fine, err_ext_rel: errExt, pass,
@@ -62,7 +65,7 @@ export async function runWO01(opts: { levels?: number[]; quiet?: boolean } = {})
     if (!opts.quiet) {
       console.log(`WO-01 ${pol}: ref ${r}`);
       for (const x of rows) console.log(`  level ${x.level}  dof ${x.dof}  n_eff ${x.value.toFixed(10)}  rel err ${x.err.toExponential(2)}  wall ${x.wall_ms.toFixed(0)} ms  ${JSON.stringify(x.stages)}`);
-      console.log(`  Richardson (3 finest): f_ext ${rich.f_ext?.toFixed(10)}  p_obs ${rich.p_obs?.toFixed(2)}  rel err ${errExt.toExponential(2)}  tol ${tolRel}  ${pass ? 'PASS' : 'FAIL'}  first raw level within tol: ${raw ? `${raw.level} (${raw.wall_ms.toFixed(0)} ms)` : 'none'}`);
+      console.log(`  [${v.basis}] value ${rich.f_ext?.toFixed(10)}  p_obs ${rich.p_obs?.toFixed(2)}  rel err ${errExt.toExponential(2)}  tol ${tolRel}  ${v.status.toUpperCase()}${v.reason ? ` (${v.reason})` : ''}  first raw level within tol: ${raw ? `${raw.level} (${raw.wall_ms.toFixed(0)} ms)` : 'none'}`);
     }
   }
   if (!opts.quiet) console.log(`log ${log.path}`);

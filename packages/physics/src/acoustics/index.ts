@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // `acoustics` eigenfrequencies: pressure acoustics in a closed domain,
-//   -div(grad p) = (omega / c)^2 p,  sound-hard walls: dp/dn = 0 (natural),  'pressure' boundaries: p = 0,
-// as K p = omega^2 M p with K = int grad p . grad q, M = int p q / c^2 (common/scalar.ts; Lagrange P1/P2 on
+//   -div((1/rho) grad p) = omega^2 p / (rho c^2),  sound-hard walls: dp/dn = 0 (natural),  'pressure' boundaries: p = 0,
+// as K p = omega^2 M p with K = int (1/rho) grad p . grad q, M = int p q / (rho c^2) per cell, so p and (1/rho) dp/dn
+// are continuous across fluid interfaces (audit S6). A single fluid without a density uses rho = 1 (it cancels in the
+// eigenvalues; it scales the normalisation only). (common/scalar.ts; Lagrange P1/P2 on
 // triangles and tets, Q1 on hexes; axisymmetric meridional meshes use the weight r, i.e. azimuthal order 0 only).
 // Shift-invert at sigma = (2 pi shift)^2, or below the spectrum when no positive shift is given (Cholesky); an
 // all-rigid room has the constant-pressure mode at omega = 0, which is kept and reported as f = 0.
@@ -10,13 +12,15 @@ import type { Mesh, PhysicsModule, RunContext, Solution, FieldData } from '@amp/
 import { assembleCells, restrict } from '../common/scalar.ts';
 import { facetsOn, facetNodes, nNodes } from '../common/mesh.ts';
 import { shiftInvertEigen } from '../common/eigen.ts';
-import { StageTimer, makeSolution } from '../common/solution.ts';
-import { cellProps, bcSelections, bcTypes, eigenStudy, physicsNode } from '../em3d/ctx.ts';
+import { StageTimer, makeSolution, attachMesh } from '../common/solution.ts';
+import { cellProps, bcSelections, bcTypes, eigenStudy, physicsNode, optionalCellProp, q } from '../common/ctx.ts';
 
 export interface AcousticProblem {
   mesh: Mesh;
   /** speed of sound per cell (m/s); cells with mask 0 are not assembled */
   c: Float64Array;
+  /** density per cell (kg/m^3); required when the fluid is not uniform */
+  rho?: Float64Array;
   mask?: Uint8Array;
   /** p = 0 boundaries (entity ids) */
   pressureZero?: string[];
@@ -32,7 +36,12 @@ export async function solveAcousticModes(p: AcousticProblem): Promise<Solution &
   timer.start('assemble');
   const nc = p.c.length;
   const m = new Float64Array(nc), k = new Float64Array(nc);
-  for (let e = 0; e < nc; e++) { if (p.mask && !p.mask[e]) continue; k[e] = 1; m[e] = 1 / (p.c[e]! * p.c[e]!); }
+  for (let e = 0; e < nc; e++) {
+    if (p.mask && !p.mask[e]) continue;
+    const rho = p.rho ? p.rho[e]! : 1;
+    if (!(rho > 0)) throw new Error(`acoustics: density missing or not positive on cell ${e}`);
+    k[e] = 1 / rho; m[e] = 1 / (rho * p.c[e]! * p.c[e]!);
+  }
   const A = assembleCells(mesh, { k, m, ...(p.mask ? { mask: p.mask } : {}), weight: mesh.axisym ? 'r' : 'none' });
   const free = Uint8Array.from(A.active);
   if (p.pressureZero?.length) for (const n of facetNodes(mesh, facetsOn(mesh, p.pressureZero))) free[n] = 0;
@@ -74,6 +83,7 @@ export async function solveAcousticModes(p: AcousticProblem): Promise<Solution &
     stats: { dof: R.pat.n, nnz: R.pat.nnz, iterations: eig.stats.opApplications, residual: Math.max(0, ...eig.residual), solver: `shift-invert block Arnoldi, ${eig.stats.factor} (supernodal)` },
     timer,
   });
+  attachMesh(sol, mesh);
   return Object.assign(sol, { detail: { eigResidual: eig.residual, stats: { ...eig.stats, sigma } } });
 }
 
@@ -101,10 +111,20 @@ export const acousticsModule: PhysicsModule = {
   },
   async run(ctx: RunContext) {
     const { mask, values } = cellProps(ctx, ['c']);
+    const rho = optionalCellProp(ctx, 'rho', mask);
+    const matsUsed = new Set((ctx.spec.materials ?? []).filter((mt) => Object.keys(ctx.materials[mt.id] ?? {}).length).map((mt) => mt.id));
+    const hasRho = Array.from(rho).some((v, c) => mask[c] && Number.isFinite(v));
+    const allRho = Array.from(rho).every((v, c) => !mask[c] || Number.isFinite(v));
+    if (hasRho && !allRho) throw new Error('acoustics: rho is given on some domains but not on all');
+    let cMin = Infinity, cMax = -Infinity;
+    for (let e = 0; e < mask.length; e++) if (mask[e]) { cMin = Math.min(cMin, values.c![e]!); cMax = Math.max(cMax, values.c![e]!); }
+    if (!hasRho && (matsUsed.size > 1 || cMin !== cMax)) throw new Error('acoustics: several fluids need rho on every domain (interface condition (1/rho) dp/dn)');
+    for (const b of ((physicsNode(ctx.spec, ctx.physicsId).bcs ?? []) as Array<{ id: string; type: string; settings?: { p?: unknown } }>))
+      if (b.type === 'pressure' && b.settings?.p !== undefined && q(ctx.spec, b.settings.p, `${b.id}.p`) !== 0) throw new Error(`acoustics eigen: pressure boundary ${b.id} must be p = 0`);
     const { nModes, shiftHz } = eigenStudy(ctx);
     if (bcTypes(ctx.spec, ctx.physicsId).some((t) => t !== 'sound-hard' && t !== 'pressure')) throw new Error('acoustics eigen: only sound-hard / pressure (p = 0) boundaries');
     return solveAcousticModes({
-      mesh: ctx.mesh, c: values.c!, mask, pressureZero: bcSelections(ctx.spec, ctx.physicsId, 'pressure'),
+      mesh: ctx.mesh, c: values.c!, ...(hasRho ? { rho } : {}), mask, pressureZero: bcSelections(ctx.spec, ctx.physicsId, 'pressure'),
       nModes, shiftHz, spec: ctx.spec, signal: ctx.signal,
     });
   },

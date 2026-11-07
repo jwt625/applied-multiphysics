@@ -4,12 +4,13 @@
 // Usage: nice -n 10 node --max-old-space-size=1536 gates/elastic.ts [SM-01 SM-02]
 
 import { buildGeometry2D } from '@amp/geom';
-import { mesh2d } from '@amp/mesh';
-import { sample } from '@amp/post';
+import { mesh2d, refineUniform } from '@amp/mesh';
+import { sample } from '../../post/src/index.ts';
 import type { Mesh } from '@amp/spec/types';
 import { solveElastic, stressErrorL2, type ElasticProblem } from '../src/elastic/index.ts';
 import { nCells } from '../src/common/mesh.ts';
-import { readCase, expectedValue, GateLog, waitForLoad, evaluate, printTable, timeToAccuracy, type Level, type Target } from './common.ts';
+import { readCase, caseTarget, GateLog, waitForLoad, evaluate, printTable, speedLine, ExitCode, type Level, type Target } from './common.ts';
+const exit = new ExitCode();
 
 const only = process.argv.slice(2);
 const want = (id: string) => !only.length || only.includes(id);
@@ -26,11 +27,11 @@ export function kirsch(S: number, a: number, x: number, y: number): number[] {
   return [srr * c * c + stt * s * s - 2 * srt * s * c, srr * s * s + stt * c * c + 2 * srt * s * c, (srr - stt) * s * c + srt * (c * c - s * s)];
 }
 
-function plateMesh(L: number, a: number, f: number, hmaxFrac: number): Mesh {
-  const g = buildGeometry2D({ features: [
-    { id: 'q', type: 'rect', x: [0, L], y: [0, L] }, { id: 'h', type: 'circle', c: [0, 0], r: a },
-    { id: 'p', type: 'difference', target: 'q', tools: ['h'] }] });
-  return mesh2d(g, { hmax: L * hmaxFrac * f, grade: 0.3 * f, refine: [{ select: ['bnd:h.edge'], h: (a / 6) * f, grade: 0.3 * f }], order: 2 });
+/** Nested level sequence: the base CDT mesh and k uniform refinements (new boundary nodes on the exact curves). */
+function nested(g: ReturnType<typeof buildGeometry2D>, base: Mesh, nLevels: number): Array<{ m: Mesh; ms: number }> {
+  const out = [{ m: base, ms: 0 }];
+  for (let k = 1; k < nLevels; k++) { const t0 = performance.now(); out.push({ m: refineUniform(out[k - 1]!.m, { geometry: g }), ms: performance.now() - t0 }); }
+  return out;
 }
 
 await waitForLoad();
@@ -40,14 +41,19 @@ if (want('SM-01')) {
   const L = c.geometry.spec.quarter_domain_m[0][1] as number, a = c.geometry.spec.hole_radius_m as number;
   const { E, nu } = c.materials.plate as { E: number; nu: number };
   const S = c.bcs[3].params.s_inf as number;
-  const ids = ['K_t', 'syy_hole_side', 'ux_at_L_0', 'uy_at_0_L'];
-  const targets: Target[] = ids.map((id, j) => ({ id, ref: expectedValue('SM-01', id).value, unit: expectedValue('SM-01', id).unit, rel: c.references[j].tolerance.rel }));
+  // theoretical orders (P2): point displacements 3; nodal-averaged stresses 2
+  const targets: Target[] = [caseTarget('a', 'SM-01', 'K_t', { order: 2 }), caseTarget('a', 'SM-01', 'syy_hole_side', { order: 2 }),
+    caseTarget('a', 'SM-01', 'ux_at_L_0', { order: 3 }), caseTarget('a', 'SM-01', 'uy_at_0_L', { order: 3 })];
   const levels: Level[] = [];
   const l2: Array<{ h: number; err: number }> = [];
+  const tg0 = performance.now();
+  const g1 = buildGeometry2D({ features: [
+    { id: 'q', type: 'rect', x: [0, L], y: [0, L] }, { id: 'h', type: 'circle', c: [0, 0], r: a },
+    { id: 'p', type: 'difference', target: 'q', tools: ['h'] }] });
+  const seq = nested(g1, mesh2d(g1, { hmax: L * 0.2, refine: [{ select: ['bnd:h.edge'], h: a / 6 }], order: 2 }), 4);
+  seq[0]!.ms = performance.now() - tg0;
   for (const [i, f] of [1, 0.5, 0.25, 0.125].entries()) {
-    const t0 = performance.now();
-    const m = plateMesh(L, a, f, 0.2);
-    const tm = performance.now() - t0;
+    const m = seq[i]!.m, tm = seq[i]!.ms;
     const nc = nCells(m);
     const p: ElasticProblem = {
       mesh: m, model: 'plane-stress', E: new Float64Array(nc).fill(E), nu: new Float64Array(nc).fill(nu),
@@ -70,15 +76,15 @@ if (want('SM-01')) {
     levels.push({ level: i, h: f, dof: s.stats.dof, wall_ms: wall, stages: { mesh: +tm.toFixed(1), ...Object.fromEntries(Object.entries(s.timing).map(([k, v]) => [k, +v.toFixed(1)])) }, values });
   }
   const res = evaluate(levels, targets);
-  printTable('SM-01 (exact Kirsch traction, quarter plate L = 10 a)', levels, res, log);
+  printTable('SM-01 (exact Kirsch traction, quarter plate L = 10 a; nested levels)', levels, res, log);
+  exit.add(res);
   const rates = l2.slice(1).map((r, i) => Math.log(l2[i]!.err / r.err) / Math.log(l2[i]!.h / r.h));
   const fitRate = rates[rates.length - 1]!;
   const rateMin = c.references[4].tolerance.rule.min as number;
   console.log(`  stress rel L2 error: ${l2.map((r) => r.err.toExponential(3)).join(', ')}; rates ${rates.map((r) => r.toFixed(2)).join(', ')}; ${fitRate >= rateMin ? 'PASS' : 'FAIL'} rate >= ${rateMin}`);
-  const tta = timeToAccuracy(levels, targets);
-  console.log(`  time to accuracy: ${tta.level === null ? 'not reached' : `L${tta.level} ${tta.wall_ms!.toFixed(1)} ms`}; all levels ${levels.reduce((s, l) => s + l.wall_ms, 0).toFixed(1)} ms`);
+  speedLine('SM-01', levels, targets, res, log);
   log.write({ kind: 'field', id: 'SM-01', l2, rates, pass: fitRate >= rateMin });
-  log.write({ kind: 'speed', id: 'SM-01', tta });
+  if (!(fitRate >= rateMin) && exit.code === 0) exit.code = 2;
 
   // K_t(W/D) under uniform remote tension (finite plate, R3 SM-01 condition W/D >= 20): converges to 3
   console.log('  K_t(W/D), uniform traction on x = W/2, top free:');
@@ -106,18 +112,19 @@ if (want('SM-02')) {
   const { E, nu } = c.materials.steel as { E: number; nu: number };
   const P = c.bcs[2].value as number;
   const D = c.geometry.spec.points_m.D as [number, number];
-  const targets: Target[] = [{ id: 'sigma_yy_D', ref: c.references[0].value, unit: 'Pa', rel: c.references[0].tolerance.rel }];
+  const targets: Target[] = [caseTarget('a', 'SM-02', 'sigma_yy_D', { order: 2 })];
   const levels: Level[] = [];
-  for (const [i, f] of [1, 0.5, 0.25, 0.125].entries()) {
-    const t0 = performance.now();
-    const g = buildGeometry2D({ features: [
+  const tg0 = performance.now();
+  const g = buildGeometry2D({ features: [
       { id: 'box', type: 'rect', x: [0, go.semi_x], y: [0, go.semi_y] },
       { id: 'outer', type: 'ellipse', c: [0, 0], rx: go.semi_x, ry: go.semi_y },
       { id: 'inner', type: 'ellipse', c: [0, 0], rx: gi.semi_x, ry: gi.semi_y },
       { id: 'q', type: 'intersection', inputs: ['box', 'outer'] },
       { id: 'm', type: 'difference', target: 'q', tools: ['inner'] }] });
-    const m = mesh2d(g, { hmax: 0.4 * f, grade: 0.3 * f, refine: [{ select: ['bnd:inner.edge'], h: 0.1 * f, grade: 0.3 * f }], order: 2 });
-    const tm = performance.now() - t0;
+  const seq = nested(g, mesh2d(g, { hmax: 0.4, refine: [{ select: ['bnd:inner.edge'], h: 0.1 }], order: 2 }), 4);
+  seq[0]!.ms = performance.now() - tg0;
+  for (const [i, f] of [1, 0.5, 0.25, 0.125].entries()) {
+    const m = seq[i]!.m, tm = seq[i]!.ms;
     const ents = m.entities.boundaries.map((b) => b.id);
     const pick = (pre: string) => ents.filter((x) => x.startsWith(pre));
     const nc = nCells(m);
@@ -129,9 +136,9 @@ if (want('SM-02')) {
     levels.push({ level: i, h: f, dof: s.stats.dof, wall_ms: wall, stages: { mesh: +tm.toFixed(1), ...Object.fromEntries(Object.entries(s.timing).map(([k, v]) => [k, +v.toFixed(1)])) }, values: { sigma_yy_D: sample(s, 'syy', D)[0]! } });
   }
   const res = evaluate(levels, targets);
-  printTable('SM-02 NAFEMS LE1', levels, res, log);
-  const tta = timeToAccuracy(levels, targets);
-  console.log(`  time to accuracy: ${tta.level === null ? 'not reached' : `L${tta.level} ${tta.wall_ms!.toFixed(1)} ms`}`);
-  log.write({ kind: 'speed', id: 'SM-02', tta });
+  printTable('SM-02 NAFEMS LE1 (nested levels)', levels, res, log);
+  speedLine('SM-02', levels, targets, res, log);
+  exit.add(res);
 }
 console.log(`\nlog: ${log.path}`);
+exit.set();

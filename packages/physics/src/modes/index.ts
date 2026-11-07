@@ -17,7 +17,7 @@ import type { FieldData, Mesh, PhysicsModule, RunContext, Solution, Spec, StudyN
 import { resolveParams, resolveQuantity } from '@amp/spec';
 import { buildVectorModel, solveVectorModes } from './vector-mode.mjs';
 import { NPC, nCells, nNodes, selectEntities } from '../common/mesh.ts';
-import { StageTimer, checkAbort, makeSolution, scalar } from '../common/solution.ts';
+import { StageTimer, checkAbort, makeSolution, scalar, attachMesh } from '../common/solution.ts';
 
 const UM = 1e6; // metres -> um
 
@@ -152,6 +152,7 @@ export async function solveModes(p: ModesProblem, meta: { spec?: unknown; physic
     },
     timer,
   });
+  attachMesh(solution, p.mesh);
   p.progress?.('done', 1);
   return { solution, result: res, model };
 }

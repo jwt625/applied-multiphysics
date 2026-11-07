@@ -10,8 +10,9 @@ import type { Mesh, PhysicsModule, RunContext, Solution, Spec } from '@amp/spec/
 import { facetNodes, facetsOn, nCells, nNodes, cellMask } from '../common/mesh.ts';
 import { assembleCells, matVec, restrict, SpdSolver, cellOrder } from '../common/scalar.ts';
 import { makeSolution, StageTimer, scalar } from '../common/solution.ts';
-import { attachMesh } from '@amp/post';
-import { bcsOf, cellProps, physicsNode, q as qty } from '../common/ctx.ts';
+import { attachMesh } from '../common/solution.ts';
+import { bcsOf, cellProps, physicsNode } from '../common/ctx.ts';
+import { compileField, spaceOf } from '../common/field.ts';
 
 /** Vacuum permittivity, F/m (CODATA 2018). */
 export const EPS0 = 8.8541878128e-12;
@@ -26,7 +27,7 @@ export interface ElectrostaticsProblem {
   terminals: Array<{ id: string; select: string[] }>;
   ground?: string[];
   /** fixed potentials (in addition to terminals / ground) */
-  potentials?: Array<{ select: string[]; V: number }>;
+  potentials?: Array<{ select: string[]; V: number | ((x: ArrayLike<number>) => number) }>;
   /** also compute the vacuum capacitance (2D TEM lines: L', Z0) */
   vacuum?: boolean;
   solver?: 'cholesky' | 'amg-pcg';
@@ -56,7 +57,7 @@ export async function solveElectrostatics(p: ElectrostaticsProblem): Promise<Sol
   const solveFor = (K: Float64Array, Sv: SpdSolver, term: number): Float64Array => {
     const uc = new Float64Array(n);
     if (term >= 0) for (const v of termNodes[term]!) uc[v] = 1;
-    else for (const x of pots) for (const v of x.nodes) uc[v] = x.V;
+    else for (const x of pots) for (const v of x.nodes) uc[v] = typeof x.V === 'number' ? x.V : x.V(m.nodes.subarray(m.dim * v, m.dim * v + m.dim));
     const b = new Float64Array(R.pat.n);
     for (let i = 0; i < n; i++) {
       if (!free[i]) continue;
@@ -69,7 +70,8 @@ export async function solveElectrostatics(p: ElectrostaticsProblem): Promise<Sol
     for (let i = 0; i < n; i++) if (free[i]) u[i] = x[R.map[i]!]!;
     return u;
   };
-  const Vs = Array.from({ length: Math.max(nt, pots.length ? 1 : 0) }, (_, i) => solveFor(A.K!, S, i < nt ? i : -1));
+  // terminal solves (other terminals, ground and potential boundaries at 0), then the applied-potential case (audit M1)
+  const Vs = Array.from({ length: nt + (pots.length ? 1 : 0) }, (_, i) => solveFor(A.K!, S, i < nt ? i : -1));
   const capMatrix = (K: Float64Array, V: Float64Array[]) => {
     const C = new Float64Array(nt * nt), KV = new Float64Array(n);
     for (let j = 0; j < nt; j++) {
@@ -100,7 +102,7 @@ export async function solveElectrostatics(p: ElectrostaticsProblem): Promise<Sol
     }
   }
   const space: 'H1P1' | 'H1P2' = cellOrder(m) === 2 ? 'H1P2' : 'H1P1';
-  const fields: Solution['fields'] = Vs.map((V, i) => ({ name: 'V', unit: 'V', space, components: 1 as const, data: V, step: i }));
+  const fields: Solution['fields'] = Vs.map((V, i) => ({ name: i < nt ? 'V' : 'V_applied', unit: 'V', space, components: 1 as const, data: V, ...(i < nt ? { step: i } : {}) }));
   const sol = await makeSolution({
     mesh: m, ...(p.spec !== undefined ? { spec: p.spec } : { problemDigest: { physics: 'electrostatics', terminals: p.terminals.map((t) => t.id), n } }),
     fields, ...(nt > 1 ? { steps: { kind: 'param' as const, values: Float64Array.from({ length: nt }, (_, i) => i), unit: '1' } } : {}),
@@ -113,12 +115,12 @@ export async function solveElectrostatics(p: ElectrostaticsProblem): Promise<Sol
 export function electrostaticsProblemFromContext(ctx: RunContext): ElectrostaticsProblem {
   const spec = ctx.spec as Spec;
   const { mask, values } = cellProps(ctx, ['eps_r']);
-  const terminals: ElectrostaticsProblem['terminals'] = [], ground: string[] = [], potentials: Array<{ select: string[]; V: number }> = [];
+  const terminals: ElectrostaticsProblem['terminals'] = [], ground: string[] = [], potentials: NonNullable<ElectrostaticsProblem['potentials']> = [];
   let rho = false;
   for (const b of bcsOf(spec, ctx.physicsId)) {
     if (b.type === 'terminal') terminals.push({ id: b.id, select: b.select });
     else if (b.type === 'ground') ground.push(...b.select);
-    else if (b.type === 'potential') potentials.push({ select: b.select, V: qty(spec, (b.settings ?? {}).V, `${b.id}.V`) });
+    else if (b.type === 'potential') { const f = compileField(spec, (b.settings ?? {}).V, spaceOf(ctx.mesh), `${b.id}.V`, 'space'); potentials.push({ select: b.select, V: typeof f === 'number' ? f : (x) => f(x, 0) }); }
     else if (b.type === 'zero-charge') continue;
     else if (b.type === 'space-charge') rho = true;
     else throw new Error(`electrostatics: unsupported condition '${b.type}'`);

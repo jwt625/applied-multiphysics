@@ -10,7 +10,7 @@ import { solveElectrostatics, EPS0 } from '../src/electrostatics/index.ts';
 import { solveMagnetostatics } from '../src/magnetostatics/index.ts';
 import { physicsRegistry, prepareRun, modules } from '../src/index.ts';
 import { validateSpec } from '@amp/spec';
-import { sample } from '@amp/post';
+import { sample } from '../../post/src/index.ts';
 
 const fill = (n: number, v: number) => new Float64Array(n).fill(v);
 const maxErr = (m: { nodes: Float64Array; dim: number }, u: Float64Array, f: (x: number[]) => number) => {

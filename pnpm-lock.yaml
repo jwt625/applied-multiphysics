@@ -90,6 +90,10 @@ importers:
       zod:
         specifier: 4.6.7
         version: 4.6.7
+    devDependencies:
+      '@amp/physics':
+        specifier: link:../physics
+        version: link:../physics
 
   packages/core:
     devDependencies:
@@ -171,6 +175,9 @@ importers:
       manifold-3d:
         specifier: 3.5.4
         version: 3.5.4(@gltf-transform/core@4.5.1)(@gltf-transform/extensions@4.5.1)(@gltf-transform/functions@4.5.1(@types/node@24.19.2))(esbuild-wasm@0.27.7)
+      playwright-core:
+        specifier: 1.65.0
+        version: 1.65.0
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -189,9 +196,6 @@ importers:
       '@amp/mesh':
         specifier: link:../mesh
         version: link:../mesh
-      '@amp/post':
-        specifier: link:../post
-        version: link:../post
       '@amp/spec':
         specifier: link:../spec
         version: link:../spec

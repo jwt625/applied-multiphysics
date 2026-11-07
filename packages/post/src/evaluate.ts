@@ -59,7 +59,7 @@ export class Locator {
   }
 
   /** Reference coordinates of p in cell c (Newton), or null if p is outside c. */
-  inCell(c: number, p: ArrayLike<number>, out: Float64Array): boolean {
+  inCell(c: number, p: ArrayLike<number>, out: Float64Array, tol = this.tol): boolean {
     const m = this.mesh, dim = this.dim, k = this.k, type = m.cells.type;
     const rd = REF_DIM[type]!;
     const N = new Float64Array(k), dN = new Float64Array(k * rd);
@@ -84,7 +84,7 @@ export class Locator {
       if (step < 1e-13) break;
       if (!Number.isFinite(step) || step > 10) return false;
     }
-    const t = this.tol;
+    const t = tol;
     if (simplex) {
       let s = 0;
       for (let d = 0; d < rd; d++) { if (out[d]! < -t) return false; s += out[d]!; }
@@ -94,7 +94,9 @@ export class Locator {
     return true;
   }
 
-  locate(p: ArrayLike<number>): Located | null {
+  /** `snap` (reference-coordinate tolerance, e.g. 1e-3): also accept points just outside the isoparametric cells, as
+   *  for probes on curved walls (audit M5); the reference point is used as found (the map extrapolates slightly). */
+  locate(p: ArrayLike<number>, snap = 0): Located | null {
     const dim = this.dim, idx = [0, 0, 0];
     for (let d = 0; d < dim; d++) {
       const v = p[d]!;
@@ -108,6 +110,10 @@ export class Locator {
       let inside = true;
       for (let d = 0; d < dim; d++) if (p[d]! < this.boxes[2 * dim * c + d]! || p[d]! > this.boxes[2 * dim * c + dim + d]!) { inside = false; break; }
       if (inside && this.inCell(c, p, ref)) return { cell: c, ref: ref.slice() };
+    }
+    if (snap > 0) for (let q = this.bucketPtr[b]!; q < this.bucketPtr[b + 1]!; q++) {
+      const c = this.bucketCells[q]!;
+      if (this.inCell(c, p, ref, snap)) return { cell: c, ref: ref.slice() };
     }
     return null;
   }
@@ -138,7 +144,7 @@ export function locatorFor(mesh: Mesh): Locator {
  * (point-major: value of component j at point i is out[i * components + j]); NaN outside the mesh.
  * `grad`: also return the gradient (components x dim per point) for H1 fields.
  */
-export function evaluateField(mesh: Mesh, field: FieldData, points: ArrayLike<number>, o: { grad?: boolean } = {}): { values: Float64Array; grad?: Float64Array } {
+export function evaluateField(mesh: Mesh, field: FieldData, points: ArrayLike<number>, o: { grad?: boolean; snap?: number } = {}): { values: Float64Array; grad?: Float64Array } {
   const dim = mesh.dim, np = points.length / dim, nc = field.components;
   const L = locatorFor(mesh);
   const values = new Float64Array(np * nc).fill(NaN);
@@ -150,10 +156,10 @@ export function evaluateField(mesh: Mesh, field: FieldData, points: ArrayLike<nu
   const isH1 = field.space === 'H1P1' || field.space === 'H1P2';
   if (isH1 && field.data.length !== nNodes * nc) throw new Error(`evaluateField: '${field.name}' has ${field.data.length} values, mesh has ${nNodes} nodes x ${nc} components`);
   if (field.space === 'DG0' && field.data.length !== nCells(mesh) * nc) throw new Error(`evaluateField: DG0 '${field.name}' length mismatch`);
-  if (!isH1 && field.space !== 'DG0') throw new Error(`evaluateField: space ${field.space} not supported (export an H1 or DG0 projection)`);
+  if (!isH1 && field.space !== 'DG0') throw new Error(`evaluateField: space ${field.space} not supported (Nedelec coefficients: evaluate the module's H1 projection, e.g. emw 'E_nodal', or a DG0 field)`);
   for (let i = 0; i < np; i++) {
     for (let d = 0; d < dim; d++) p[d] = points[dim * i + d]!;
-    const loc = L.locate(p);
+    const loc = L.locate(p, o.snap ?? 0);
     if (!loc) continue;
     if (field.space === 'DG0') { for (let j = 0; j < nc; j++) values[i * nc + j] = field.data[loc.cell * nc + j]!; continue; }
     shape(mesh.cells.type, loc.ref, N, dN);

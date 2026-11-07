@@ -15,7 +15,7 @@ import { cellPattern, restrict, SpdSolver, cellOrder, matVec } from '../common/s
 import { defaultRule, gatherX, physGrad, shapeTable, shape, REF_DIM } from '../common/lagrange.ts';
 import { elementSlots } from '@amp/core/la/sparse';
 import { makeSolution, StageTimer, scalar } from '../common/solution.ts';
-import { attachMesh } from '@amp/post';
+import { attachMesh } from '../common/solution.ts';
 import { bcsOf, cellProps, physicsNode, q as qty } from '../common/ctx.ts';
 import { MU0 } from '../electrostatics/index.ts';
 import { refNodes } from '../elastic/index.ts';
@@ -80,11 +80,14 @@ function unitLoad(m: Mesh, cm: Uint8Array): { F: Float64Array; area: number } {
   return { F, area };
 }
 
+const axisTolOf = (m: Mesh) => { let r = 0, lo = Infinity, hi = -Infinity; for (let i = 0; i < m.nodes.length / 2; i++) { r = Math.max(r, m.nodes[2 * i]!); lo = Math.min(lo, m.nodes[2 * i + 1]!); hi = Math.max(hi, m.nodes[2 * i + 1]!); } return 1e-12 * Math.max(r, hi - lo); };
+
 /** Nodal B_r, B_z (averages of element values at the element nodes). */
 export function nodalB(m: Mesh, A: Float64Array, mask: Uint8Array): { Br: Float64Array; Bz: Float64Array } {
   const k = NPC[m.cells.type], nc = nCells(m), nn = nNodes(m), rd = REF_DIM[m.cells.type]!;
   const Br = new Float64Array(nn), Bz = new Float64Array(nn), cnt = new Float64Array(nn);
   const rn = refNodes(m.cells.type);
+  const axisTol = axisTolOf(m);
   const N = new Float64Array(k), dN = new Float64Array(k * rd), X = new Float64Array(2 * k), G = new Float64Array(2 * k);
   for (let e = 0; e < nc; e++) {
     if (!mask[e]) continue;
@@ -95,7 +98,7 @@ export function nodalB(m: Mesh, A: Float64Array, mask: Uint8Array): { Br: Float6
       let dAr = 0, dAz = 0;
       for (let b = 0; b < k; b++) { const v = A[m.cells.conn[k * e + b]!]!; dAr += G[2 * b]! * v; dAz += G[2 * b + 1]! * v; }
       const node = m.cells.conn[k * e + a]!, rr = X[2 * a]!;
-      const aOverR = rr !== 0 ? A[node]! / rr : dAr;   // on the axis A ~ c r: A / r -> dA/dr
+      const aOverR = Math.abs(rr) > axisTol ? A[node]! / rr : dAr;   // on the axis A ~ c r: A / r -> dA/dr
       Br[node]! += -dAz; Bz[node]! += dAr + aOverR; cnt[node]!++;
     }
   }
@@ -114,7 +117,11 @@ export async function solveMagnetostatics(p: MagnetostaticsProblem): Promise<Sol
   const fixed = new Uint8Array(n);
   for (let i = 0; i < n; i++) if (!S0.active[i]) fixed[i] = 1;
   // axis nodes: r == 0 exactly (geometry places the axis at r = 0)
-  for (let i = 0; i < n; i++) if (m.nodes[2 * i] === 0) fixed[i] = 1;
+  let rMax = 0, zSpan = 0, zLo = Infinity, zHi = -Infinity;
+  for (let i = 0; i < n; i++) { rMax = Math.max(rMax, m.nodes[2 * i]!); zLo = Math.min(zLo, m.nodes[2 * i + 1]!); zHi = Math.max(zHi, m.nodes[2 * i + 1]!); }
+  zSpan = zHi - zLo;
+  const axisTol = 1e-12 * Math.max(rMax, zSpan);   // relative to the bounding box (audit M4)
+  for (let i = 0; i < n; i++) if (Math.abs(m.nodes[2 * i]!) <= axisTol) fixed[i] = 1;
   for (const v of facetNodes(m, facetsOn(m, p.insulation))) fixed[v] = 1;
   const free = Uint8Array.from(fixed, (f) => (f ? 0 : 1));
   const R = timer.time('assemble', () => restrict(S0.pat, S0.K, free));

@@ -118,3 +118,53 @@ export type BcLike = { id: string; type: string; select: string[]; settings?: Re
 export function bcsOf(spec: Spec, physicsId: string): BcLike[] {
   return (physicsNode(spec, physicsId).bcs ?? []) as BcLike[];
 }
+
+// ------------------------------------------------------------------------------------------------- readiness (audit S4)
+
+const isNA = (v: unknown): boolean => v === 'N/A' || (!!v && typeof v === 'object' && (v as { value?: unknown }).value === 'N/A');
+
+export interface ReadinessNeeds {
+  /** material properties the module needs on every material of the physics */
+  props: string[];
+  /** properties needed only when more than one material is present (e.g. acoustic density) */
+  propsIfMulti?: string[];
+  /** a time study needs physics settings.T0 */
+  t0?: boolean;
+  /** an eigen study needs settings.nModes */
+  eigen?: boolean;
+}
+
+/**
+ * Spec-level readiness reasons: N/A or absent material values (a `ref:` to materials/ defers the check to prepareRun),
+ * N/A BC settings, a missing T0 for time studies, a missing nModes for eigen studies.
+ */
+export function specReadiness(spec: Spec, physicsId: string, needs: ReadinessNeeds): string[] {
+  const out: string[] = [];
+  const ph = physicsNode(spec, physicsId);
+  const physSel = new Set(ph.select ?? []);
+  const touches = (sel: readonly string[]) => sel.some((s) => [...physSel].some((p) => s === p || s.startsWith(`${p}#`) || p.startsWith(`${s}#`)));
+  const mats = (spec.materials ?? []).filter((m) => touches(m.select));
+  const props = [...needs.props, ...(mats.length > 1 ? needs.propsIfMulti ?? [] : [])];
+  for (const m of mats) {
+    const ov = (m.override ?? {}) as Record<string, unknown>;
+    const ref = (m as { ref?: string }).ref;
+    for (const p of props) {
+      if (p in ov) { if (isNA(ov[p])) out.push(`materials.${m.id}.override.${p} is N/A`); }
+      else if (!ref) out.push(`materials.${m.id} has no ${p} (no override and no materials/ ref)`);
+    }
+  }
+  for (const b of (ph.bcs ?? []) as BcLike[]) for (const [k, v] of Object.entries(b.settings ?? {})) {
+    if (isNA(v) || (Array.isArray(v) && v.some(isNA))) out.push(`physics.${physicsId}.bcs.${b.id}.settings.${k} is N/A`);
+  }
+  const studies = (spec.studies ?? []).filter((s) => !(s as { physics?: string[] }).physics || (s as { physics?: string[] }).physics!.includes(physicsId));
+  if (needs.t0 && studies.some((s) => s.type === 'time')) {
+    const T0 = ((ph as { settings?: { T0?: unknown } }).settings ?? {}).T0;
+    if (T0 === undefined) out.push(`physics.${physicsId}.settings.T0 is required by the time study (initial temperature)`);
+    else if (isNA(T0)) out.push(`physics.${physicsId}.settings.T0 is N/A`);
+  }
+  if (needs.eigen) for (const s of studies.filter((x) => x.type === 'eigen')) {
+    const n = ((s as { settings?: { nModes?: unknown } }).settings ?? {}).nModes;
+    if (!(typeof n === 'number' && n >= 1)) out.push(`study ${(s as { id: string }).id} needs settings.nModes >= 1`);
+  }
+  return out;
+}
