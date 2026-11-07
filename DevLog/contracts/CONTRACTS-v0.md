@@ -184,3 +184,4 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - C5 RunRecord gains an optional `oplogHead`, the head hash of the operation log stored outside the log.
   - Spec quantities must be finite, with physical bounds (sizes > 0, absolute T >= 0 K, emissivity 0..1). L4 reviews the property bounds.
   - Keys `__proto__`, `constructor` and `prototype` are rejected everywhere.
+- 2026-11-06 16:15 PST, from the L8 audit (B5): the canonical signatures are L4's implementation, and L8 adapts to them. `@amp/post` `sample(solution, mesh, field, points, component?)`; `@amp/physics` exports `modules`, `registry` and `prepareRun` as defined in `packages/physics/src/index.ts` / `spec-adapter.ts`. The C4/C5 text is corrected in the contracts-v1 pass. Target lookup is by `metric_id` (slug grammar `[A-Za-z][A-Za-z0-9_.+-]*`, L7a), never by free-text `quantity`.
