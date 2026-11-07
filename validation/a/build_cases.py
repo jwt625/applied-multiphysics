@@ -151,7 +151,9 @@ def build() -> list[dict[str, Any]]:
              gate=False)],
         speed(1.0, "R3 s.3.1 browser est. < 1 s"), NAFEMS_RIGHTS, NOHERO, "nafems-t3",
         initial={"T": 273.15, "note": "0 C everywhere"},
-        convergence={**CONV, "note": "refine both h and dt; report dt and h levels separately"},
+        convergence={**CONV, "dt_with_h": True, "time_order": 2,
+                     "note": "dt scales with h (dt_factor = h_factor^(space_order/time_order)); sims/nafems-t3.yaml "
+                             "steps with BDF2, so time_order 2"},
         assumptions=["Locator resolved (R3 s.8 flag): target point is 0.08 m from the 0 C end at t = 32 s; FEATool's "
                      "x = 0.02 m is the same point from the heated end, and its t = 36 s gives 36.681 C "
                      "(eval/expected/HT-02.json T_x0.08_t36)."]))
@@ -191,6 +193,9 @@ def build() -> list[dict[str, Any]]:
               "Carslaw-Jaeger closed form (Holman eq. 4-15 form)", GH + "::ht04")
          for x in [0.0223, 0.0859, 0.1866, 0.3462]],
         speed(1.0, "R3 s.3.1 browser est. < 1 s"), ANSYS_RIGHTS, NOHERO, "semi-infinite-convection",
+        convergence={**CONV, "dt_with_h": True, "time_order": 2,
+                     "note": "dt scales with h so the BDF2 time error (sims/semi-infinite-convection.yaml) does not "
+                             "floor the space convergence (M2 audit)"},
         initial={"T": 273.15, "note": "0 C"},
         reference_results=[{"solver": "Ansys VM28 target (Holman)", "values_degC": [140.0, 98.9, 51.8, 14.5],
                             "locator": VM.format(28),
@@ -499,7 +504,11 @@ def build() -> list[dict[str, Any]]:
               (evt("RF-21", f"f_{k}")["mode"]),
               "Hz", {"rel": 1.0e-5, "after": "richardson"}, "closed form (Pozar ch. 6)", GE + "::rf21")
          for k in ["TM010", "TE111", "TM011", "TM110", "TE211", "TE011"]]
-        + [dref("RF-21", "Q_dielectric", "Q_d", "1/tan(delta)", "1", {"rel": 1.0e-3}, "closed form", GE + "::rf21")],
+        + [dref("RF-21", "Q_dielectric", "Q_d", "1/tan(delta)", "1", {"rel": 1.0e-3}, "closed form", GE + "::rf21",
+                gate=False,
+                note="identity, not a solver test: for a homogeneous fill Q_d^-1 = tan(delta) on any mesh and mode "
+                     "(M2 audit: 2500 +- 2e-11 on every level, 13.1 s of the 15.2 s case on the 3D path). Kept as an "
+                     "informative check; a single coarse level suffices once the harness supports per-target levels")],
         speed(2.0, "by analogy with R3 RF-01 2D browser est. < 2 s"),
         {"source_license": "formula textbook; set-up from Palace docs (Apache-2.0)",
          "allowed": ["cite_values", "re_derive_setup", "copy_with_attribution"],

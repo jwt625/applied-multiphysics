@@ -34,7 +34,10 @@ references:
   provenance: {citation: two independent eigen series (this lane), locator: 'validation/a/gen_heat.py::ht02; eval/expected/HT-02.json
       targets[metric_id=T_x0.08_t32]', accessed: null}
   expected: {file: eval/expected/HT-02.json, metric_id: T_x0.08_t32}
-  extract: {kind: probe, field: T, point: [0.08, 0.0025]}
+  extract:
+    kind: probe
+    field: T
+    point: [0.08, 0.0025]
 - quantity: T(0.08 m, 32 s)
   metric_id: T_C_nafems
   definition: NAFEMS target
@@ -47,10 +50,22 @@ references:
   gate: false
   provenance: {citation: NAFEMS T3 via Altair OS-V 0110, locator: 2021.help.altair.com/2021/hwsolvers/os/topics/solvers/os/nafems_test_problem_t3_r.htm
       (R3), accessed: '2026-11-06'}
-  extract: {kind: probe, field: T, point: [0.08, 0.0025]}
+  extract:
+    kind: probe
+    field: T
+    point: [0.08, 0.0025]
 reference_results: []
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], expected_order: 3, note: refine both h and dt; report
-    dt and h levels separately}
+convergence:
+  levels_min: 3
+  ratio_min: 1.5
+  method: richardson_gci
+  safety_factor: 1.25
+  dt_with_h: true
+  time_order: 2
+  note: dt scales with h (dt_factor = h_factor^(space_order/time_order)); sims/nafems-t3.yaml steps with BDF2, so time_order
+    2
+  h_factors: [1, 0.5, 0.25]
+  expected_order: 3
 speed:
   budget_s: {browser: 1.0, native: null}
   budget_basis: R3 s.3.1 browser est. < 1 s; est., not measured; native budget set after the first timing run (R3 O3)
