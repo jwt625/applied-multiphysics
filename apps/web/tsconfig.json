@@ -6,6 +6,7 @@
 		"strict": true,
 		"allowImportingTsExtensions": true,
 		"skipLibCheck": true,
+		"lib": ["esnext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
 		"types": ["node", "$app/types", "@webgpu/types"]
 	},
 	"include": ["src", "test", "scripts", "vite.config.ts"],

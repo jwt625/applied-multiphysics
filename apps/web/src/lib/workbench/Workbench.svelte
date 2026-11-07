@@ -22,6 +22,7 @@
 	import { captureGraphics } from '../gfx/capture';
 	import { HOOKS } from '../shell/hooks';
 	import Headlines from '../ui/Headlines.svelte';
+	import AgentPanel from '../agent/AgentPanel.svelte';
 	import { navTrail, resolvePointer, type CameraRequest, type NavigationHost, type NavResult, type ViewMode } from '../state/nav.svelte';
 	import Splitter from '../ui/Splitter.svelte';
 	import Tip from '../ui/Tip.svelte';
@@ -40,6 +41,9 @@
 	let sizes = $state({ tree: 220, settings: 340, bottom: 170 });
 	let highlight = $state<string[]>([]);
 	let agentOpen = $state(false);
+	// the panel stays mounted once opened (closing hides it; the chat and its session survive)
+	let agentMounted = $state(false);
+	$effect(() => { if (agentOpen) agentMounted = true; });
 
 	// Navigation host for the agent (L9, @amp/agent NavigationHost): UI state only, every call in the navigation trail.
 	function navHost(actor: string): NavigationHost {
@@ -144,7 +148,7 @@
 			<button disabled={!s?.model.canRedo} onclick={() => s?.model.redo()} data-tip="Redo (Shift+Ctrl/Cmd+Z)">Redo</button>
 			<button disabled={!s} onclick={copyShare} data-tip="Copy a link that holds the spec diff from the original model">Share</button>
 			{#if HEROES.includes(simId)}<a class="btn" href="/play/{simId}" data-sveltekit-reload data-tip="Play view of this model">Play</a>{/if}
-			<button class="agentb" class:on={agentOpen} onclick={() => (agentOpen = !agentOpen)} data-tip="Agent panel (lane L9, DevLog-012): space reserved; the chat is not connected yet">Agent</button>
+			<button class="agentb" class:on={agentOpen} onclick={() => (agentOpen = !agentOpen)} data-tip="Agent panel (bring your own key; edits land in the Timeline as agent ops with a reason)">Agent</button>
 			{#if highlight.length}<button onclick={() => (highlight = [])} data-tip={`Clear the highlight: ${highlight.join(' ')}`}>Clear highlight</button>{/if}
 			<span class="st" class:warn={s?.status === 'unavailable'} class:crit={s?.status === 'error'}>{statusText}</span>
 			<div class="mob">
@@ -174,7 +178,7 @@
 			</section>
 			<section class="pane agent" class:hidden={!agentOpen}>
 				<div class="ph">Agent</div>
-				<div class="pb"><div class="pad dim">Not connected. The chat panel of lane L9 (@amp/agent, bring-your-own key, opt-in local key storage) mounts here once its browser entry is published. Agent operations already appear in the Timeline with actor, reason and revert; navigation calls appear in the Navigation tab.</div></div>
+				<div class="pb">{#if s && agentMounted}<AgentPanel {s} nav={navHost} />{/if}</div>
 			</section>
 		</div>
 		<Splitter dir="row" label="resize bottom panel" onmove={(d) => { sizes.bottom = clamp(sizes.bottom - d, 60, 600); save(); }} />
@@ -197,7 +201,6 @@
 	.main { display: grid; grid-template-columns: var(--tw) 3px var(--sw) 3px minmax(0, 1fr) var(--cw); min-height: 0; }
 	.agent { border-left: 1px solid var(--line); }
 	.hidden { display: none; }
-	.pad { padding: 8px; font-size: 11px; }
 	.pane { display: grid; grid-template-rows: 24px minmax(0, 1fr); min-width: 0; min-height: 0; background: var(--surface); }
 	.ph { display: flex; align-items: center; padding: 0 8px; border-bottom: 1px solid var(--line); color: var(--ink-2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 	.ph.tabs { padding: 0; }

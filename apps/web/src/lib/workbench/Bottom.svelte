@@ -6,8 +6,9 @@
 	import { appLog, tsShort } from '../state/log.svelte';
 	import Timeline from './Timeline.svelte';
 	import { navTrail } from '../state/nav.svelte';
+	import MemoryTab from '../agent/MemoryTab.svelte';
 
-	export type BottomTab = 'messages' | 'log' | 'progress' | 'timeline' | 'navigation';
+	export type BottomTab = 'messages' | 'log' | 'progress' | 'timeline' | 'navigation' | 'memory';
 	let { s, tab = $bindable('messages'), onjump }: { s: Session; tab?: BottomTab; onjump?: (pointer: string) => void } = $props();
 	const issues = $derived(s.model.parsed?.issues ?? []);
 	const missing = $derived(((s.model.data as { missing?: unknown[] } | null)?.missing ?? []) as Array<string | { path?: string; what?: string }>);
@@ -21,7 +22,7 @@
 
 <div class="bp">
 	<div class="tabs" role="tablist">
-		{#each [['messages', `Messages${nMsg ? ` (${nMsg})` : ''}`], ['log', 'Log'], ['progress', 'Progress'], ['timeline', `Timeline (${s.model.ops.length})`], ['navigation', `Navigation (${navTrail.entries.length})`]] as [k, l]}
+		{#each [['messages', `Messages${nMsg ? ` (${nMsg})` : ''}`], ['log', 'Log'], ['progress', 'Progress'], ['timeline', `Timeline (${s.model.ops.length})`], ['navigation', `Navigation (${navTrail.entries.length})`], ['memory', 'Memory']] as [k, l]}
 			<button role="tab" aria-selected={tab === k} class:on={tab === k} onclick={() => (tab = k as BottomTab)}>{l}</button>
 		{/each}
 	</div>
@@ -53,6 +54,8 @@
 				{/each}
 				{#if !appLog.progress.length}<div class="m dim">No run yet.</div>{/if}
 			</div>
+		{:else if tab === 'memory'}
+			<MemoryTab />
 		{:else if tab === 'navigation'}
 			<div class="scroll mono">
 				{#each navTrail.entries as e}

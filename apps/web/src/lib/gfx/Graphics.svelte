@@ -18,6 +18,7 @@
 	import { perElement, type RefinedDisplay, type Space } from '../post/field2d';
 	import type { LatticeOut, RangeRule } from '../post/post.worker';
 	import { autoDeformScale, bbox3 } from '../post/solid3d';
+	import { revolveSurface, revolvedValues } from '../post/revolve';
 	import type { Layer2D, ScaleMode } from './renderer2d';
 	import type { Drawable } from './viewer3d';
 	import { COLORMAPS, type ColormapName } from './colormaps';
@@ -41,12 +42,15 @@
 		rangeDefault = 'full',
 		contoursDefault = false,
 		fieldLinesDefault = false,
-		autoAnimate = false
+		autoAnimate = false,
+		revolve = false
 	}: {
 		s: Session; mode?: Mode; step?: number; playing?: boolean; handles?: Handle[];
 		onhandle?: (id: string, x: number, y: number, phase: 'move' | 'end') => void; compact?: boolean; fitKey?: number;
 		focus?: [number, number, number, number] | null; highlight?: string[]; rangeDefault?: RangeRule; contoursDefault?: boolean;
 		fieldLinesDefault?: boolean; autoAnimate?: boolean;
+		/** axisymmetric electromagnetic modes: results drawn on the surface of revolution (post/revolve.ts) */
+		revolve?: boolean;
 	} = $props();
 
 	let wireUser = $state(false);
@@ -83,7 +87,10 @@
 	const wire = $derived(mode === 'mesh' || wireUser);
 	const mesh = $derived(s.mesh);
 	const m2 = $derived(s.m2);
-	const is3d = $derived(!!mesh && mesh.dim === 3);
+	// results of an axisymmetric mode solver drawn in 3D: E_rphiz revolved with its azimuthal order m (display only)
+	// stable across remeshes during a drag (the canvas must not switch between 2D and 3D: a new WebGL context each time)
+	const rev = $derived(revolve && !!s.mesh?.axisym && mode === 'results' && !!s.solution && s.solution.fields.some((f) => f.name === 'E_rphiz' && f.space === 'H1P1' && f.components === 3));
+	const is3d = $derived((!!mesh && mesh.dim === 3) || rev);
 	/** the solution is drawn only on the mesh it was computed on */
 	const sol = $derived(s.solution && mesh && s.solution.meshHash === mesh.hash ? s.solution : null);
 	const stale = $derived(!!sol && s.staleSolution);
@@ -133,13 +140,14 @@
 		for (let k = 0; k < f.components; k++) q += f.data[f.components * n + k]! ** 2;
 		return Math.sqrt(q);
 	};
+	const solNorm = $derived(((sol as unknown as { normalization?: string } | null)?.normalization) ?? '');
 	/** display affine: spec unit, or normalization to max |.| = 1 for eigenmodes (audit S4) */
 	const disp = $derived.by(() => {
 		if (field && eigen) {
 			let mx = 0;
 			const n = field.data.length / field.components;
 			for (let i = 0; i < n; i++) mx = Math.max(mx, Math.abs(scalarAt(field, i, field.components > 1 ? comp : 0)));
-			return { a: mx > 0 ? 1 / mx : 1, b: 0, unit: '', note: `normalized eigenmode: max |${field.name}| = 1 (the amplitude of an eigenmode is arbitrary)` };
+			return { a: mx > 0 ? 1 / mx : 1, b: 0, unit: '', note: `normalized eigenmode: max |${field.name}| = 1 (the amplitude of an eigenmode is arbitrary)${solNorm ? `. Solver normalization: ${solNorm}` : ''}` };
 		}
 		const u = resultsSpec.find((r) => exprIs(r.expr, field?.name))?.unit ?? field?.unit;
 		return { ...displayScale(u), note: '' };
@@ -219,18 +227,21 @@
 	});
 
 	// ---------------------------------------------------------------- 3D
+	const revSurf = $derived(rev && mesh ? revolveSurface(mesh, 64) : null);
 	$effect(() => {
-		if (!is3d || !mesh) { ext = null; return; }
+		if (rev && !Canvas3D) void import('./Canvas3D.svelte').then((mod) => (Canvas3D = mod.default));
+		if (!is3d || !mesh || mesh.dim !== 3) { ext = null; return; }
 		const m = mesh;
 		void s.post.call<'exterior'>({ type: 'exterior' }).then((r) => { if (s.mesh === m) ext = { mesh: m, pos: r.pos, node: r.node, cell: r.cell, edges: r.edges, features: r.features, c0: r.c0 }; });
 		if (!Canvas3D) void import('./Canvas3D.svelte').then((mod) => (Canvas3D = mod.default));
 	});
 	const half = $derived.by((): [number, number, number] => {
+		if (revSurf) return revSurf.half;
 		if (!mesh || mesh.dim !== 3) return [1, 1, 1];
 		const b = bbox3(mesh.nodes);
 		return [(b.hi[0] - b.lo[0]) / 2, (b.hi[1] - b.lo[1]) / 2, (b.hi[2] - b.lo[2]) / 2];
 	});
-	const nodal3 = $derived(is3d && sol && field && (field.space === 'H1P1' || field.space === 'H1P2') ? field : null);
+	const nodal3 = $derived(is3d && !rev && mesh?.dim === 3 && sol && field && (field.space === 'H1P1' || field.space === 'H1P2') ? field : null);
 	const dispField = $derived(is3d && sol ? (sol.fields.find((f) => f.components === 3 && f.unit === 'm' && (f.space === 'H1P1' || f.space === 'H1P2') && (f.step ?? 0) === (field?.step ?? 0)) ?? null) : null);
 	const canAnimate = $derived(drawable && ((eigen && (signedField || !!dispField)) || (!eigen && nSteps > 1)));
 	const autoScale = $derived(dispField && mesh ? autoDeformScale(bbox3(mesh.nodes).diag, dispField.data) : 0);
@@ -241,7 +252,22 @@
 		x.sort((p, q) => p - q);
 		return { lo: x[Math.floor(0.01 * (x.length - 1))] ?? 0, hi: x[Math.ceil(0.99 * (x.length - 1))] ?? 1 };
 	}
+	const azimuthal = $derived(sol ? (sol.scalars[`m_${field?.step ?? 0}`]?.value ?? 0) : 0);
 	const view3d = $derived.by(() => {
+		if (revSurf) {
+			// field and surface must come from the same mesh; otherwise keep the last view (shown3d)
+			if (!sol || !field || field.name !== 'E_rphiz') return null;
+			const val = revolvedValues(field.data, azimuthal, comp, revSurf);
+			let mx = 0;
+			for (const v of val) mx = Math.max(mx, Math.abs(v));
+			if (mx > 0) for (let i = 0; i < val.length; i++) val[i] = val[i]! / mx;
+			let lo = Infinity, hi = -Infinity;
+			for (const v of val) { if (v < lo) lo = v; if (v > hi) hi = v; }
+			const mp = mapping(lo, hi);
+			const label = `E ${comp < 0 ? 'magnitude' : ['r', 'phi', 'z'][comp]}, azimuthal order m = ${azimuthal}`;
+			const note = `normalized: max |.| on the drawn surface = 1 (eigenmode amplitude is arbitrary). Reconstructed from the (r, z) solution: E_r cos(m phi), E_phi sin(m phi), E_z cos(m phi), one partner of an m >= 1 doublet${solNorm ? `. Solver normalization: ${solNorm}` : ''}`;
+			return { surface: { pos: revSurf.pos, val, disp: null } as Drawable, region: false, map: mp, range: mp.range, edges: revSurf.rings, ed: null, cb: { ...mp.range, label, unit: '', cm: mp.cm, scale: mp.scale, note } };
+		}
 		// the exterior must belong to the current mesh (a remesh may be in flight)
 		if (!ext || !mesh || ext.mesh !== mesh) return null;
 		const nv = ext.node.length;
@@ -290,6 +316,7 @@
 	});
 	const clip3 = $derived.by(() => {
 		if (!clipOn || !mesh || !is3d) return null;
+		if (revSurf) { const n: [number, number, number] = [0, 0, 0]; n[clipAxis] = 1; return { n, d: (2 * clipFrac - 1) * revSurf.half[clipAxis]! }; }
 		const b = bbox3(mesh.nodes);
 		const n: [number, number, number] = [0, 0, 0];
 		n[clipAxis] = 1;
@@ -387,7 +414,7 @@
 </script>
 
 <div class="gfx" class:stale role="presentation" onpointerdown={firstTouch}>
-	{#if m2}
+	{#if m2 && !rev}
 		<Canvas2D layers={view2d.layers} bbox={focus ?? m2.bbox} fitKey={fitKey + fit} {handles} {onhandle} onhover={hover} onframe={(ms) => (frameMs = ms)} lines={boundaryLines} {hiLines} {markers} />
 	{:else if is3d && Canvas3D && shown3d}
 		<Canvas3D surface={shown3d.surface} regionColors={shown3d.region ? regionColors : null} edges={shown3d.edges} edgeDisp={shown3d.ed} colormap={shown3d.map?.cm ?? 'viridis'} range={shown3d.range} logScale={shown3d.map?.scale === 'log'} wire={true}
@@ -419,7 +446,7 @@
 				{#if field && field.components > 1}
 					<select bind:value={comp} data-tip="Component">
 						<option value={-1}>magnitude</option>
-						{#each Array.from({ length: field.components }, (_, i) => i) as i}<option value={i}>{i}</option>{/each}
+						{#each Array.from({ length: field.components }, (_, i) => i) as i}<option value={i}>{field.name === 'E_rphiz' ? ['r', 'phi', 'z'][i] : i}</option>{/each}
 					</select>
 				{/if}
 				{#if nSteps > 1}
@@ -433,7 +460,7 @@
 				</select>
 				{#if map?.logOk}<button class:on={scaleUser === 'log'} data-tip="Logarithmic colour scale (the data span more than two decades)" onclick={() => (scaleUser = scaleUser === 'log' ? 'linear' : 'log')}>log</button>{/if}
 				{#if canAnimate}<button class:on={playing} data-tip={eigen ? 'Animate the mode: Re(u e^(i phase)) (Space)' : 'Play the steps (Space)'} onclick={() => (playing = !playing)}>{playing ? 'Pause' : 'Animate'}</button>{/if}
-				{#if m2}
+				{#if m2 && !rev}
 					{#if field?.space !== 'DG0'}<button class:on={contours} data-tip="Contour lines at the colorbar ticks" onclick={() => (contours = !contours)}>Contours</button>{/if}
 					{#if aphi}<button class:on={fieldLines} data-tip="Magnetic field lines: contours of the flux function r A_phi at equal flux steps (line density follows |B|)" onclick={() => (fieldLines = !fieldLines)}>Field lines</button>{/if}
 					{#if !compact}
@@ -444,7 +471,7 @@
 				{/if}
 			{/if}
 		{/if}
-		{#if is3d && !compact}
+		{#if is3d && (!compact || rev)}
 			<button class:on={clipOn} data-tip="Section: cut away the half space beyond the plane" onclick={() => (clipOn = !clipOn)}>Section</button>
 			{#if clipOn}
 				<select bind:value={clipAxis}>{#each ['x', 'y', 'z'] as a, i}<option value={i}>{a}</option>{/each}</select>

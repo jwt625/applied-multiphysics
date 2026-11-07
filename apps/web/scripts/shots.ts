@@ -184,6 +184,11 @@ for (const v of VIEWS) for (const sim of ONLY ? [] : ['kirsch-plate', 'box-acous
 		for (let i = 0; i < 20; i++) { await undo.click(); await p.waitForTimeout(20); }
 		const t1 = await p.evaluate(() => (window as unknown as { __ampWorkbench: { session: { model: { text: string; ops: unknown[] } } } }).__ampWorkbench.session.model.text);
 		result.oplogRoundTrip = { edits: nOps, identical: t0 === t1, bytes: t0.length };
+		// Pass 2: the workbench agent column mounts (no key entered; nothing captured: no screenshot while it is open)
+		await p.locator('.tb button', { hasText: 'Agent' }).click();
+		await p.locator('[data-agent-panel] input[type=password]').waitFor({ timeout: 20000 });
+		result.agentWorkbench = await p.evaluate(() => ({ keyFieldIsPassword: !!document.querySelector('[data-agent-panel] input[type=password]'), storageKeys: Object.keys(localStorage) }));
+		await p.locator('.tb button', { hasText: 'Agent' }).click();
 		// one agent operation through the bound agent path (S11 rendering)
 		await p.evaluate(() => (window as unknown as { __ampWorkbench: { session: { model: { applyAgent(sess: string, patch: unknown[], reason: string): Promise<unknown> } } } }).__ampWorkbench.session.model.applyAgent('demo', [{ op: 'replace', path: '/params/D/value', value: 8 }], 'verification: agent row rendering (shots.ts)'));
 		await p.evaluate(() => (window as unknown as { __ampWorkbench: { setTab(t: string): void } }).__ampWorkbench.setTab('timeline'));
@@ -206,6 +211,28 @@ for (const v of VIEWS) for (const sim of SIMS) {
 		const st = await status(p, '__ampPlay');
 		const nh = await nodeMeshHash(await p.evaluate(() => (window as unknown as { __ampPlay: { session: { model: { original: string } } } }).__ampPlay.session.model.original));
 		(result.playStatus as Record<string, unknown>)[sim] = { ...st, nodeMeshHash: nh, hashMatch: st.meshHash === nh, longTasksLoad: await longTasks(p) };
+		if (sim === 'kirsch-plate') {
+			// Pass 2 item 4: agent on the scripted mock provider (no network, no key): "make the hole 2x larger and rerun"
+			type W = { __ampPlay: { session: { model: { text: string; ops: Array<{ actor: string; reason?: string; seq: number }>; data: { params: { D: { value: number } } }; specHash: string }; fresh: boolean; solutionSpec: string; solution: { run: { startedAt: string } } | null }; openAgentMock(steps: unknown[]): Promise<void>; mock: { remaining: number; wireViolations: unknown[] } | null } };
+			const before = await p.evaluate(() => { const s = (window as unknown as W).__ampPlay.session; return { text: s.model.text, D: s.model.data.params.D.value, run: s.solution?.run.startedAt ?? '' }; });
+			const steps = [
+				{ content: [{ type: 'tool_use', id: 'toolu_t1', name: 'apply_ops', input: { ops: [{ op: 'replace', path: '/params/D/value', value: 2 * before.D }, { op: 'replace', path: '/params/D/range', value: [1, 2 * before.D] }], reason: `User: hole diameter 2x (${before.D} mm -> ${2 * before.D} mm); D range widened to include it` } }] },
+				{ content: [{ type: 'tool_use', id: 'toolu_t2', name: 'run_study', input: { study: 'std1', reason: 'User asked to rerun after the hole change' } }] },
+				{ content: [{ type: 'text', text: 'Hole diameter doubled and the study rerun.' }] }
+			];
+			await p.evaluate((st) => (window as unknown as W).__ampPlay.openAgentMock(st), steps);
+			const box = p.locator('[data-agent-panel] textarea');
+			await box.waitFor({ timeout: 20000 });
+			await box.fill('make the hole 2x larger and rerun');
+			await p.locator('[data-agent-panel] button', { hasText: 'Send' }).click();
+			await p.waitForFunction(() => (window as unknown as W).__ampPlay.mock?.remaining === 0 && /last stop/.test(document.querySelector('[data-agent-panel] .btns')?.textContent ?? ''), null, { timeout: 60000 });
+			await settled(p, '__ampPlay');
+			const after = await p.evaluate(() => { const w = (window as unknown as W).__ampPlay, s = w.session; const op = s.model.ops.at(-1)!; const agentOps = s.model.ops.filter((o) => o.actor.startsWith('agent:')); return { D: s.model.data.params.D.value, fresh: s.fresh, run: s.solution?.run.startedAt ?? '', solvedFor: s.solutionSpec === s.model.specHash, agentOps: agentOps.map((o) => ({ actor: o.actor, reason: o.reason })), lastActor: op.actor, wire: w.mock?.wireViolations.length ?? -1 }; });
+			await p.locator('header button', { hasText: 'Undo' }).click();
+			await settled(p, '__ampPlay');
+			const undone = await p.evaluate(() => (window as unknown as W).__ampPlay.session.model.text);
+			result.agentPlay = { D0: before.D, D1: after.D, doubled: after.D === 2 * before.D, reran: after.run !== before.run && after.fresh && after.solvedFor, agentOps: after.agentOps, wireViolations: after.wire, undoRestoresBytes: undone === before.text };
+		}
 		if (sim === 'helmholtz-coil') {
 			// B1: exact-field edit of a solution-only parameter re-solves; W_m scales with I^2
 			const w1 = await scalar(p, 'W_m');

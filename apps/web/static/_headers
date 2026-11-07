@@ -13,7 +13,7 @@
 
 /_app/*
   # scripts and workers (a worker's CSP comes from its own response)
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://api.anthropic.com; worker-src 'self' blob:; img-src 'self' data: blob:; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://api.anthropic.com; worker-src 'self'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'
 
 /_app/immutable/*
   Cache-Control: public, max-age=31536000, immutable

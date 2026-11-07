@@ -4,7 +4,7 @@
 // redo and revert append operations. Nothing else writes the text.
 // Actors are bound here, not taken from callers (audit S10): `apply` is always `user`; `applyAgent` binds
 // `agent:<session>` for the agent panel (L9) and requires a reason. The log is a true private field (#log).
-import { applyPatch, createOpLog, isValidActor, parseSpecText, parseYaml, type OpLog, type ParseResult, type Registry } from '@amp/spec';
+import { applyPatch, createOpLog, isValidActor, parseSpecText, parseYaml, type OpLog, type OpMeta, type ParseResult, type Registry } from '@amp/spec';
 import type { JsonPatchOp, Operation } from '@amp/spec/types';
 import { diffPatch, encodeShare } from './diff';
 
@@ -62,6 +62,41 @@ export class ModelState {
 		this.refresh();
 		if (op) for (const f of this.listeners) f(op);
 		return op;
+	}
+
+	/**
+	 * The op log as seen by one agent session (L9 `mountAgent`): the same log instance (agent ops land in this
+	 * timeline), with every write checked to carry exactly `agent:<session>` and a reason, and the UI refreshed after
+	 * each op. No other code path receives the log.
+	 */
+	agentLog(session: string): OpLog {
+		const actor = `agent:${session}`;
+		if (!isValidActor(actor)) throw new Error(`invalid agent session id '${session}'`);
+		const L = this.#log;
+		// `user` is accepted for undo and revert only: the panel's "Revert turn" is a user action (L9 revertTurn)
+		const check = (meta: OpMeta, userOk = false) => {
+			if (userOk && meta.actor === 'user') return;
+			if (meta.actor !== actor) throw new Error(`agent log for ${actor} refused actor ${String(meta.actor)}`);
+			if (!meta.reason?.trim()) throw new Error('agent operations require a reason');
+		};
+		const self = this;
+		return {
+			get text() { return L.text; },
+			get data() { return L.data; },
+			get ops() { return L.ops; },
+			get genesis() { return L.genesis; },
+			get head() { return L.head; },
+			get canUndo() { return L.canUndo; },
+			get canRedo() { return L.canRedo; },
+			get undoTarget() { return L.undoTarget; },
+			get redoTarget() { return L.redoTarget; },
+			effectOf: (seq: number) => L.effectOf(seq),
+			toJSONL: () => L.toJSONL(),
+			async apply(patch, meta, opts) { check(meta); const op = await L.apply(patch, meta, opts); self.done(op); return op; },
+			async undo(meta) { check(meta, true); return self.done(await L.undo(meta)); },
+			async redo(meta) { check(meta); return self.done(await L.redo(meta)); },
+			async revert(seq, meta) { check(meta, true); const op = await L.revert(seq, meta); self.done(op); return op; }
+		} as OpLog;
 	}
 
 	/** Agent edit (L9 panel): the actor is bound to `agent:<session>`, a reason is required (op log rule). */

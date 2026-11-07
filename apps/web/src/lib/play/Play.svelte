@@ -21,8 +21,39 @@
 	import Headlines from '../ui/Headlines.svelte';
 	import { unitLabel } from '../gfx/units';
 	import { HOOKS } from '../shell/hooks';
+	import AgentPanel from '../agent/AgentPanel.svelte';
+	import { captureGraphics } from '../gfx/capture';
+	import { navTrail, type NavigationHost, type NavResult } from '../state/nav.svelte';
+	import type { ProviderAdapter } from '@amp/agent';
 
 	let { simId, share = '' }: { simId: string; share?: string } = $props();
+	// Pass 2 item 5: the cavity Play view solves the meridional section (emw-axisym, m = 0, 1, 2) and draws the
+	// modes revolved in 3D; the 3D Nedelec solver stays available with ?solver=3d
+	const AXISYM: Record<string, string> = { 'cylinder-cavity': 'cylinder-cavity-axisym' };
+	let solver3d = $state(false);
+	const specId = $derived(!solver3d && AXISYM[simId] ? AXISYM[simId]! : simId);
+	let agentOpen = $state(false);
+	let agentMounted = $state(false);
+	let mock = $state.raw<ProviderAdapter | null>(null);
+	$effect(() => { if (agentOpen) agentMounted = true; });
+
+	// navigation host of the Play view (agent tools; UI state only, recorded in the navigation trail)
+	function navHost(actor: string): NavigationHost {
+		const rec = (tool: string, args: Record<string, unknown>, r: NavResult) => navTrail.record(actor, tool, args, r);
+		const none = (tool: string, args: Record<string, unknown>) => rec(tool, args, { ok: false, message: 'the Play view has no model tree or settings; open the workbench' });
+		return {
+			focusNode: (pointer) => none('focus_node', { pointer }),
+			openSettings: (pointer, field) => none('open_settings', { pointer, ...(field ? { field } : {}) }),
+			highlightSelection: (ids) => rec('highlight_selection', { ids }, { ok: false, message: 'highlight is available in the workbench' }),
+			setCamera: (req) => rec('set_camera', { ...req }, { ok: false, message: 'camera control is available in the workbench' }),
+			setViewMode: (m) => rec('set_view_mode', { mode: m }, ((mode = m), { ok: true })),
+			screenshot: async (view) => {
+				const c = captureGraphics();
+				rec('screenshot', { view: view ?? 'graphics' }, c ? { ok: true } : { ok: false, message: 'graphics canvas not available' });
+				return c ? { mediaType: 'image/png', ...c } : null;
+			}
+		};
+	}
 	let s = $state.raw<Session | null>(null);
 	let failed = $state('');
 	let mode = $state<Mode>('geometry');
@@ -33,9 +64,10 @@
 		let alive = true;
 		void (async () => {
 			try {
-				const [text, phys] = await Promise.all([loadSimText(simId), loadPhysics()]);
+				solver3d = new URLSearchParams(location.search).get('solver') === '3d';
+				const [text, phys] = await Promise.all([loadSimText(specId), loadPhysics()]);
 				const { reg } = appRegistry(phys);
-				const sess = await Session.open(simId, text, reg);
+				const sess = await Session.open(specId, text, reg);
 				if (!alive) return sess.dispose();
 				hasPhysics = moduleList(phys).length > 0;
 				sess.autoCompute = hasPhysics;
@@ -48,7 +80,12 @@
 				failed = (e as Error).message;
 			}
 		})();
-		if (HOOKS) (window as unknown as { __ampPlay?: unknown }).__ampPlay = { get session() { return s; } };
+		if (HOOKS) (window as unknown as { __ampPlay?: unknown }).__ampPlay = {
+			get session() { return s; },
+			// tests only: open the agent panel on @amp/agent's scripted mock provider (no network, no key)
+			async openAgentMock(steps: unknown[]) { const A = await import('@amp/agent'); mock = new A.ScriptedProvider(steps as never); agentOpen = true; },
+			get mock() { return mock; }
+		};
 		return () => { alive = false; s?.dispose(); };
 	});
 
@@ -125,13 +162,14 @@
 	async function copyShare() {
 		if (!s) return;
 		const code = s.model.sharePatch().length ? `#d=${s.model.shareCode()}` : '';
-		const url = `${location.origin}/play/${simId}${code}`;
+		const url = `${location.origin}/play/${simId}${solver3d ? '?solver=3d' : ''}${code}`;
 		history.replaceState(null, '', url);
 		try { await navigator.clipboard.writeText(url); shareMsg = `copied (${url.length} chars)`; } catch { shareMsg = url; }
 	}
 
 	// module scalars except the per-mode lists (shown as the mode list); SI with display symbols; dimensionless without "1"
-	const scalars = $derived(s?.solution ? Object.entries(s.solution.scalars).filter(([k]) => !/^(f|Q)_\d+$/.test(k)) : []);
+	// per-mode scalars (`<name>_<k>`) are listed for the selected mode only; frequencies are the mode buttons
+	const scalars = $derived(s?.solution ? Object.entries(s.solution.scalars).filter(([k]) => { const m = /_(\d+)$/.exec(k); return !m || (Number(m[1]) === step && !/^f_\d+$/.test(k)); }) : []);
 	const modes = $derived(s?.solution?.steps?.kind === 'eigen' ? Array.from(s.solution.steps.values) : []);
 	const modeUnit = $derived(s?.solution?.steps?.unit ?? '');
 	let step = $state(0);
@@ -144,7 +182,7 @@
 {#if failed}
 	<div class="fail">Failed to open {simId}: {failed}</div>
 {:else}
-	<div class="play">
+	<div class="play" class:withagent={agentOpen}>
 		<header>
 			<a href="/?sim={simId}" data-sveltekit-reload class="dim" data-tip="Open this model in the workbench (same op log format)">workbench</a>
 			<span class="t">{title}</span>
@@ -153,11 +191,13 @@
 			<button disabled={!s?.model.canUndo} onclick={() => s?.model.undo()} data-tip="Undo">Undo</button>
 			<button disabled={!s?.model.canRedo} onclick={() => s?.model.redo()} data-tip="Redo">Redo</button>
 			<button disabled={!s} onclick={copyShare} data-tip="Copy a link holding the spec diff from the original model">Share</button>
+			<button class:on={agentOpen} onclick={() => (agentOpen = !agentOpen)} data-tip="Agent panel (bring your own key)">Agent</button>
 			{#if shareMsg}<span class="dim msg">{shareMsg}</span>{/if}
 		</header>
 		<div class="cv">
-			{#if s}<Graphics {s} bind:mode bind:step bind:playing {handles} {onhandle} {focus} compact rangeDefault={ranges[simId] ?? 'full'} contoursDefault={simId !== 'helmholtz-coil'} fieldLinesDefault autoAnimate />{/if}
+			{#if s}<Graphics {s} bind:mode bind:step bind:playing {handles} {onhandle} {focus} compact revolve={specId !== simId} rangeDefault={ranges[simId] ?? 'full'} contoursDefault={simId !== 'helmholtz-coil'} fieldLinesDefault autoAnimate />{/if}
 		</div>
+		{#if s && agentMounted}<section class="agent" class:hidden={!agentOpen}><AgentPanel {s} nav={navHost} provider={mock} /></section>{/if}
 		<aside>
 			<div class="h">parameters</div>
 			{#each params as p (p.name)}
@@ -172,7 +212,7 @@
 			{#if s}<Headlines {s} big />{/if}
 			{#if modes.length}
 				<div class="modes">
-					{#each modes as f, i}<button class:on={i === step} data-tip={`mode ${i}: ${fmt(f, 6)} ${unitLabel(modeUnit)}; click to show, the animation starts`} onclick={() => { step = i; playing = true; mode = 'results'; }}>{fmt(f, 4)} {unitLabel(modeUnit)}</button>{/each}
+					{#each modes as f, i}{@const mm = s?.solution?.scalars[`m_${i}`]?.value}<button class:on={i === step} data-tip={`mode ${i}: ${fmt(f, 6)} ${unitLabel(modeUnit)}${mm !== undefined ? `, azimuthal order m = ${mm}` : ''}; click to show`} onclick={() => { step = i; playing = true; mode = 'results'; }}>{fmt(f, 4)} {unitLabel(modeUnit)}{mm !== undefined ? ` m${mm}` : ''}</button>{/each}
 				</div>
 			{/if}
 			{#if scalars.length}
@@ -186,6 +226,13 @@
 				<label class="case" data-tip={`Fill properties that are N/A in the model with the sourced inputs of eval case ${s.caseInfo.id}:\n${s.caseInfo.materials}`}><input type="checkbox" checked={s.useCase} onchange={(e) => { if (s) { s.useCase = (e.currentTarget as HTMLInputElement).checked; s.requestCompute(); } }} /> N/A inputs from eval case {s.caseInfo.id}</label>
 				<div class="dim small">{s.caseFilled.length ? `case values used: ${s.caseFilled.join(', ')}` : 'materials: from the model'}</div>
 			{/if}
+			{#if AXISYM[simId]}
+				<div class="h">solver</div>
+				<div class="pre">
+					<a class="btn" class:on={!solver3d} href="/play/{simId}" data-sveltekit-reload data-tip="Meridional (r, z) section, azimuthal orders m = 0, 1, 2 (emw-axisym); modes drawn revolved in 3D">axisymmetric</a>
+					<a class="btn" class:on={solver3d} href="/play/{simId}?solver=3d" data-sveltekit-reload data-tip="Full 3D Nedelec eigen solve (emw, tet10)">3D</a>
+				</div>
+			{/if}
 			<div class="h">timing</div>
 			<div class="kv mono" data-tip="input to result arrival of the last drag step (coarse mesh, sizes x2), before the next frame"><span>drag preview</span><span>{s?.dragMs ? fmtMs(s.dragMs) : '-'}</span></div>
 			<div class="kv mono" data-tip="worker round trip of the last full mesh"><span>mesh</span><span>{s?.meshInfo ? `${fmtMs(s.meshInfo.roundTripMs)}, ${s.meshInfo.cells} cells` : '-'}</span></div>
@@ -197,6 +244,10 @@
 <style>
 	.fail { padding: 20px; color: var(--crit); }
 	.play { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: 34px minmax(0, 1fr); background: var(--bg); }
+	.play.withagent { grid-template-columns: minmax(0, 1fr) 300px 320px; }
+	.play.withagent header { grid-column: 1 / 4; }
+	.agent { position: relative; grid-column: 3; grid-row: 2; border-left: 1px solid var(--line); min-height: 0; }
+	.hidden { display: none; }
 	header { grid-column: 1 / 3; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-bottom: 1px solid var(--line); background: var(--surface); min-width: 0; overflow: hidden; white-space: nowrap; }
 	.t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 	.sp { flex: 1; }
@@ -208,6 +259,8 @@
 	.kv { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; }
 	.na { font-size: 11px; color: var(--ink-2); }
 	.small { font-size: 10px; }
+	.btn { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--border); color: var(--ink-2); font-size: 11px; }
+	.btn.on { background: #2462b5; border-color: #2462b5; color: #fff; }
 	.modes { display: flex; flex-wrap: wrap; gap: 3px; }
 	.modes button { font-size: 11px; }
 	.dimv { opacity: 0.55; }
@@ -216,6 +269,9 @@
 		.play { grid-template-columns: minmax(0, 1fr); grid-template-rows: 34px minmax(0, 1fr) 240px; }
 		header { grid-column: 1; }
 		aside { border-left: 0; border-top: 1px solid var(--line); }
+		.play.withagent { grid-template-columns: minmax(0, 1fr); }
+		.play.withagent header { grid-column: 1; }
+		.agent { grid-column: 1; grid-row: 2; z-index: 3; border-left: 0; }
 		/* touch-sized controls on phones (audit M3, top-10 #9) */
 		aside :global(button), aside :global(input:not([type='checkbox'])), header button { min-height: 36px; }
 		aside :global(input[type='range']) { height: 36px; }

@@ -14,6 +14,7 @@
     "shots": "node --max-old-space-size=1536 scripts/shots.ts"
   },
   "dependencies": {
+    "@amp/agent": "link:../../packages/agent",
     "@amp/core": "link:../../packages/core",
     "@amp/geom": "link:../../packages/geom",
     "@amp/materials": "link:../../packages/materials",
@@ -22,6 +23,7 @@
     "@amp/post": "link:../../packages/post",
     "@amp/rt": "link:../../packages/rt",
     "@amp/spec": "link:../../packages/spec",
+    "@anthropic-ai/sdk": "1.1.0",
     "three": "0.187.0"
   },
   "devDependencies": {

@@ -274,3 +274,47 @@ Not mounted: the L9 chat panel (coordinator: wait for DevLog-012 mount and CSP n
 - 2026-11-06 17:12-17:19 PST: verification runs found: a `$state` proxy posted to the worker (focus box; fixed by copying), the 3D canvas remounting on every remesh (CPU profile; fixed), per-object TSL rebuilds (render objects pooled). Coordinator note: L3 detmath, hashes now equal across Node and Chrome (S3 gate added).
 - 2026-11-06 17:21 PST: final run, production build without hooks, 25 screenshots kept.
 
+
+## 8. Pass 2 (coordinator order 2026-11-06 ~17:22 PST)
+
+No live LLM call was made; every agent test ran on `@amp/agent`'s `ScriptedProvider`. No key was entered in any test or screenshot.
+
+### 8.1 Changes
+
+| Item | Done |
+|---|---|
+| 1 chat panel | `@amp/agent` (`link:`) and `@anthropic-ai/sdk` 1.1.0 (exact) added; root lockfile unchanged (diff). `lib/agent/mount.ts` mounts per DevLog-012 s.6.1: `log` = `ModelState.agentLog(session)` (the same op log; every write must carry exactly `agent:<session>` and a reason, `user` accepted only for undo and revert from the panel's "revert turn"; the UI refreshes after each agent op), `nav` = the workbench `navHost(actor)` or the Play view's host (calls recorded in the Navigation trail), `runner` = the session's C6 worker (current text, first study), memory on OPFS (falls back to an in-memory backend), `storage` = localStorage for the opt-in only, `isApiError` and `isToolInputParseError` (`AnthropicError && !APIError`), budget defaults USD 1 per turn and USD 5 per session. The SDK is imported only when the panel mounts without a test provider. `AgentPanel.svelte`: key field (password input, never echoed; "remember on this device" opt-in, Clear key), messages as text, Send / Stop, secret warning with Redact (`hasSecret` / `redact`), budget line (calls, tools, tokens in/out/cache, turn and session cost as estimate or N/A, editable caps), revert per turn, prompt inspector. Workbench: Agent column (stays mounted once opened). Play: Agent button opens a third column (overlay on phones). Memory tab in the bottom panel: files, raw edit as the user (one memory op per save), the memory log with actor and reason, Refresh for outside edits. Agent spec ops appear in the Timeline (amber bar, actor, reason, revert) |
+| 2 CSP | page meta (kit hash mode): `default-src 'self'; script-src 'self' 'wasm-unsafe-eval' <bootstrap hash>; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://api.anthropic.com; worker-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'`; `_headers`: `frame-ancestors 'none'` for all paths and the same script policy for `/_app/*` (workers). Tightened from pass 1: `worker-src` no longer allows `blob:`, `form-action 'none'`, `font-src 'self'`. Network reach of the panel: this origin and `https://api.anthropic.com` only |
+| 3 no key in captures | screenshots are taken with the panel closed; the screenshot tool captures the graphics canvas only; the tests use the scripted mock and no key; check: key field is `type=password`, localStorage empty after mounting |
+| 4 Play agent test | mock script "make the hole 2x larger and rerun" (apply_ops D 10 -> 20 mm with its range, run_study std1, answer), typed into the panel and sent with its Send button |
+| 5 axisymmetric cavity | `/play/cylinder-cavity` loads `sims/cylinder-cavity-axisym.yaml` (`emw-axisym`, m = 0, 1, 2) and draws each mode revolved in 3D (`post/revolve.ts`: the meridional boundary revolved in 64 sectors; E_r cos(m phi), E_phi sin(m phi), E_z cos(m phi), one doublet partner; normalized to max 1 on the drawn surface; the solver's normalization statement in the colorbar tooltip). Mode buttons show f and m. `?solver=3d` (aside "solver" switch) keeps the 3D Nedelec solve. Results shown also include the per-mode scalars of the selected mode only |
+
+Also: `Solution.normalization` (L4) is shown in the eigenmode colorbar tooltip; the revolved canvas stays mounted during drags (the first version switched 2D/3D canvases per remesh: 38 long tasks; fixed: 0).
+
+### 8.2 Gates (`logs/L5-shots-20261107T013227.json`, tests `logs/L5-test-20261106T172959.log`, production build `logs/L5-build-20261106T173359.log`)
+
+| Gate | Result |
+|---|---|
+| `pnpm check` / `pnpm build` / `pnpm test` | 0 errors 0 warnings (1374 files) / ok, 10 pages, CSP meta present, 0 hook references in the production build / 6/6 |
+| Play agent (mock) | D 10 -> 20 mm; study rerun (new run, fresh, solved for the current spec hash); 1 agent op `agent:s-...` with reason "User: hole diameter 2x (10 mm -> 20 mm); D range widened to include it"; 0 wire violations; Undo restores the spec text byte for byte |
+| Workbench agent column | mounts; key field is a password input; localStorage keys: none |
+| B1 (I x2 gives W_m x4) / B2 (switcher reachable) / op log round trip | pass / pass / byte-identical |
+| S3 mesh hashes browser = Node | 6/6 (cavity now the axisym mesh `f5f6aeb5`, 169 tri6) |
+| FCP / tab switch / mode switch | 38.6 / 38.0 / 36.9 ms medians (`/`, kirsch Play, LBM); 15.7-16.5 ms; 19.2 ms median |
+| Play load to fresh result | kirsch 213 ms, heat 232, helmholtz 241, box 230, cavity (axisym, 4,103 DOF) 272 ms (3D was 2.7 s), rib 3,876 ms |
+| Drag previews (median) and long tasks during drags | kirsch 52 ms, heat 29, helmholtz 44, rib 316, cavity 28, box 15; 0 long tasks in all six |
+| Errors | none |
+
+Screenshots (25, `logs/L5-*-20261107T013227.png`, one per view, panel closed in all).
+
+### 8.3 Progress
+
+- 2026-11-06 17:22 PST: read DevLog-012 s.6, s.7 and `@amp/agent` (chat, session, memory, mock).
+- 2026-11-06 17:25-17:31 PST: dependencies, agentLog, mount, panel, Memory tab, Play panel and nav host, CSP; mock test passes on the first run.
+- 2026-11-06 17:31-17:34 PST: axisymmetric cavity view; a drag test found canvas switching (fixed); final run; production build.
+
+### 8.4 Open
+
+- Not exercised: a live Anthropic call (by instruction), OPFS in other browsers, the key opt-in path end to end (only the empty state was checked; no key may be entered in tests).
+- The agent runner solves the current text and the first study only; `geometry` is passed as null (no BuiltGeometry adapter yet).
+- The revolved view draws one partner of each m >= 1 doublet and no interior (section shows the shell); slices and isosurfaces are 3D-mesh only.
