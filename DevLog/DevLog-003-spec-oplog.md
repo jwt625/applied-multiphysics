@@ -277,5 +277,17 @@ export function resolveEntityIds(table: EntityTable, kind: 'domains' | 'boundari
 ```
 
 Open for L3 and the coordinator:
-- The L3 grammar (DevLog-004 s.4.7) also emits `&` (fragment `a&b`) and `@` (layers `<d>@<layer>`). `ENTITY_ID` does not accept these characters yet, so a spec cannot select those entities. This follow-up was scoped to `#k` only; extending the grammar needs a C2 decision.
+- ~~The L3 grammar also emits `&` and `@`~~: resolved by the coordinator decision below.
 - C2 should document the `#k#k` grammar and the piece numbering (L3 numbers pieces from 1).
+
+Coordinator decision (contract changelog, 2026-11-06 ~16:16 PST):
+- `&` is accepted in entity ids, for fragment overlap pieces (`dom:a&b`).
+- Layers become `.L<k>` sub-entities in L3, so entity ids carry no `@`.
+- The name `resolveEntityIds` is adopted, and L3 exports it.
+
+Applied 2026-11-06 16:17 PST:
+- `ENTITY_ID` feature part: up to 16 feature ids joined by `&` (`a&b&c`), then sub-entities, then `#k` pieces.
+- `parseEntityId(...).features` lists the `&` components, and validation requires each one to be a geometry feature.
+- Rejected: `&a`, `a&`, `a&&b`, `a&1b`, `a@2`, and `&` inside sub-entities (`bnd:a.b&c`).
+- `.L2.top` style layer sub-entities already fit the sub-entity grammar.
+- Tests added in `entity ids` (schema.test.ts). `pnpm test` 44/44 and `pnpm check` clean (`logs/L2-test-20261106T161643.log`, `logs/L2-check-20261106T161643.log`).

@@ -204,7 +204,13 @@ const refResolver: EntityResolver = (table, kind, ids) => {
 };
 
 test('entity ids: repeated #k split suffixes (L3 audit S1); spec checks grammar, the injected resolver expands', () => {
-  assert.deepEqual(parseEntityId('dom:p#2#1'), { kind: 'dom', feature: 'p', sub: [], split: [2, 1] });
+  assert.deepEqual(parseEntityId('dom:p#2#1'), { kind: 'dom', feature: 'p', features: ['p'], sub: [], split: [2, 1] });
+  // fragment overlap pieces (coordinator contract changelog 2026-11-06) and layer sub-entities .L<k>
+  assert.deepEqual(parseEntityId('dom:a&b#1'), { kind: 'dom', feature: 'a&b', features: ['a', 'b'], sub: [], split: [1] });
+  assert.deepEqual(parseEntityId('bnd:slab.L2.top')?.sub, ['L2', 'top']);
+  for (const bad of ['dom:&a', 'dom:a&', 'dom:a&&b', 'dom:a&1b', 'dom:a@2', 'bnd:a.b&c']) assert.equal(parseEntityId(bad), null, bad);
+  assert.deepEqual(codes(edit(KIRSCH, '{id: steel, ref: materials/structural-steel, select: ["dom:plate"]}', '{id: steel, ref: materials/structural-steel, select: ["dom:quarter&hole"]}')), []);
+  assert.deepEqual(codes(edit(KIRSCH, '{id: steel, ref: materials/structural-steel, select: ["dom:plate"]}', '{id: steel, ref: materials/structural-steel, select: ["dom:quarter&nope"]}')), ['unknown_feature materials.0.select.0']);
   assert.deepEqual(parseEntityId('bnd:base.top#1#3')?.split, [1, 3]);
   assert.deepEqual(parseEntityId('dom:plate')?.split, []);
   for (const bad of ['dom:a#', 'dom:a##1', 'dom:a#1#', 'dom:a#x', `dom:a${'#1'.repeat(9)}`]) assert.equal(parseEntityId(bad), null, bad);

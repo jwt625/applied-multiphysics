@@ -15,9 +15,11 @@ export const ENTITY_KINDS = ['dom', 'bnd', 'edg', 'pnt'] as const;
 export type EntityKind = (typeof ENTITY_KINDS)[number];
 /**
  * Persistent entity id: `<kind>:<feature id>(.<sub-entity>)*(#<k>)*`, e.g. `bnd:rect1.top`, `dom:plate#1`, and
- * pieces of pieces `dom:a#1#2` (L3 splits a split piece again; L3 audit S1). At most 8 split levels.
+ * pieces of pieces `dom:a#1#2` (L3 splits a split piece again; L3 audit S1; at most 8 levels), and fragment overlap
+ * pieces `dom:a&b` (feature ids joined by `&` in construction order; coordinator contract changelog 2026-11-06; at
+ * most 16). Layers are sub-entities `.L<k>` (no `@`).
  */
-export const ENTITY_ID = /^(dom|bnd|edg|pnt):([A-Za-z_][A-Za-z0-9_-]{0,63})((?:\.[A-Za-z0-9_-]{1,64})*)((?:#\d{1,6}){0,8})$/;
+export const ENTITY_ID = /^(dom|bnd|edg|pnt):([A-Za-z_][A-Za-z0-9_-]{0,63}(?:&[A-Za-z_][A-Za-z0-9_-]{0,63}){0,15})((?:\.[A-Za-z0-9_-]{1,64})*)((?:#\d{1,6}){0,8})$/;
 /** Reference to a materials/ file id. */
 export const MATERIAL_REF = /^materials\/[a-z0-9][a-z0-9._-]{0,127}$/;
 /** ISO 8601 calendar date. */
@@ -39,8 +41,8 @@ export function findForbiddenKey(x: unknown, at: Array<string | number> = []): A
   return null;
 }
 
-/** split: the `#k` piece numbers, outermost first (empty when the id names an unsplit entity). */
-export interface EntityIdParts { kind: EntityKind; feature: string; sub: string[]; split: number[] }
+/** feature: the full feature part (`a&b`); features: its `&` components; split: `#k` numbers, outermost first. */
+export interface EntityIdParts { kind: EntityKind; feature: string; features: string[]; sub: string[]; split: number[] }
 
 export function parseEntityId(id: string): EntityIdParts | null {
   const m = ENTITY_ID.exec(id);
@@ -48,6 +50,7 @@ export function parseEntityId(id: string): EntityIdParts | null {
   return {
     kind: m[1] as EntityKind,
     feature: m[2] as string,
+    features: (m[2] as string).split('&'),
     sub: m[3] ? m[3].slice(1).split('.') : [],
     split: m[4] ? m[4].slice(1).split('#').map(Number) : [],
   };

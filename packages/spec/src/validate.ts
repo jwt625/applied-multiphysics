@@ -264,7 +264,7 @@ function crossCheck(spec: Spec, reg: Registry, scope: ReadonlyMap<string, ScopeV
   const checkSel = (sel: readonly string[] | undefined, path: PathKey[]) => {
     sel?.forEach((id, j) => {
       const p = parseEntityId(id);
-      if (p && !featureIds.has(p.feature)) issues.push(issue([...path, j], 'unknown_feature', `entity '${id}': no geometry feature '${p.feature}'`));
+      for (const f of p?.features ?? []) if (!featureIds.has(f)) issues.push(issue([...path, j], 'unknown_feature', `entity '${id}': no geometry feature '${f}'`));
     });
   };
 
