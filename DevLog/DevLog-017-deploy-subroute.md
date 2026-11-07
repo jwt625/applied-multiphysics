@@ -120,8 +120,9 @@ Grep after the change: no absolute `/_app`, `/play` or `fetch("/...")` URLs in `
 - If the beacon survives no-transform after redeploy: add "Disable Real User Monitoring (RUM)" to the existing Configuration Rule (dashboard, Wentao).
 
 ### 6.4 Follow-ups
-- [ ] Recheck the live console after the Pages rebuild of this commit.
+- [x] Recheck the live console after the Pages rebuild of this commit (817efd4, live ~60 s after push).
 - [ ] `404.html` under the base (missing path currently downloads in Chromium).
 - [ ] NODE_VERSION: move from 23.7.0 (EOL) to an LTS line once the local toolchain moves (local Node is 23.7.0; check that the LTS line runs the erasable TS without flags before switching).
 
 - 2026-11-06 20:33 PST: section 6 written.
+- 2026-11-06 20:35 PST: live recheck after 817efd4: HTML carries no-transform; 0 matches for challenge-platform / cloudflareinsights in the served HTML; 5 pages + SW reload: crossOriginIsolated true, SW scope under the base, 0 console errors, 0 failed or >= 400 requests, 0 page errors. RUM Configuration Rule not needed. Screenshots (session scratch): workbench meshes kirsch-plate (2647 tri3); kirsch Play view solves (Kt 3.021, 170,296 DOF, badge "vs SM-01 ref 7.1e-3 rel (tol 1e-3)" shown in the warning style on the default h 0.25 mesh).
