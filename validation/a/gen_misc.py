@@ -173,9 +173,9 @@ def fl01() -> None:
     write_expected(
         "FL-01",
         [target("kovasznay.lambda", lam, "1", {"method": "closed form", "mpmath_30digit": mp.nstr(lam_m, 20)}),
-         target("kovasznay.u(0.5,0.25)", float(k["u"][0]), "m/s", cf),
-         target("kovasznay.v(0.5,0.25)", float(k["v"][0]), "m/s", cf),
-         target("kovasznay.p(1.0,0.5)", float(k["p"][1]), "Pa", cf, locator="zero-mean pressure over the domain"),
+         target("kovasznay.u.x0.5_y0.25", float(k["u"][0]), "m/s", cf),
+         target("kovasznay.v.x0.5_y0.25", float(k["v"][0]), "m/s", cf),
+         target("kovasznay.p.x1.0_y0.5", float(k["p"][1]), "Pa", cf, locator="zero-mean pressure over the domain"),
          target("kovasznay.field_rel_L2_u", 0.0, "1", cf,
                 locator="||u_h - u||_L2/||u||_L2, rate p+1 (velocity), H1 rate p; exact field fields.py FL-01"),
          target("poiseuille.u_max", 1.0, "m/s", {"method": "closed form"}, locator="y = 0.5"),
@@ -250,15 +250,15 @@ def sc01() -> None:
         W = math.sqrt(2 * er * EPS0 * vbi * (NA + ND) / (Q_E * NA * ND))
         xn = W * NA / (NA + ND)
         Emax = Q_E * ND * xn / (er * EPS0)
-        targets.append(target(f"W_0V[eps_r={er}]", W, "m", {"method": "closed form, depletion approximation"},
+        targets.append(target(f"W_0V.epsr{er}", W, "m", {"method": "closed form, depletion approximation"},
                               r3=r3_compare(W * 1e9, r3, "compared in nm") if r3 else None))
-        targets.append(target(f"E_max_0V[eps_r={er}]", Emax, "V/m", {"method": "closed form, depletion approximation"}))
+        targets.append(target(f"E_max_0V.epsr{er}", Emax, "V/m", {"method": "closed form, depletion approximation"}))
         # Exact first integral of the equilibrium Poisson-Boltzmann equation (Boltzmann statistics, full ionization),
         # symmetric doping so psi = 0 (intrinsic level) at the metallurgical junction:
         # eps E^2 / 2 = q [N_A V_T ln(N_A/n_i) - V_T N_A + 2 n_i V_T - V_T n_i^2/N_A]
         I = vt * (NA * math.log(NA / ni) - NA + 2 * ni - ni * ni / NA)  # noqa: E741
         Epb = math.sqrt(2 * Q_E * I / (er * EPS0))
-        targets.append(target(f"E_max_PB_0V[eps_r={er}]", Epb, "V/m",
+        targets.append(target(f"E_max_PB_0V.epsr{er}", Epb, "V/m",
                               {"method": "closed form, exact first integral of Poisson-Boltzmann",
                                "ratio_to_depletion_approx": Epb / Emax,
                                "sze_debye_correction_sqrt(1-2VT/Vbi)": math.sqrt(1 - 2 * vt / vbi)},

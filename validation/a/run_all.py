@@ -47,6 +47,10 @@ def compare(ref_dir: Path, new_dir: Path, log) -> int:
             bad += 1
             continue
         old = {t["metric_id"]: t["value"] for t in json.loads(old_path.read_text())["targets"]}
+        stale = set(old) - {t["metric_id"] for t in new["targets"]}
+        for mid in sorted(stale):
+            bad += 1
+            log.write(f"STALE {f.stem} {mid}: in eval/expected but no longer generated\n")
         for t in new["targets"]:
             n += 1
             ov = old.get(t["metric_id"])
@@ -55,7 +59,17 @@ def compare(ref_dir: Path, new_dir: Path, log) -> int:
             if not same:
                 bad += 1
                 log.write(f"DIFF {f.stem} {t['metric_id']}: expected {ov} regenerated {nv}\n")
-    log.write(f"compared {n} target values; {bad} differ or are missing\n")
+    gen_cases = {f.stem for f in new_dir.glob("*.json")}
+    for f in sorted(ref_dir.glob("*.json")):
+        try:
+            d = json.loads(f.read_text())
+        except json.JSONDecodeError:
+            continue
+        ours = d.get("class") == "a" and str(d.get("generator", "")).startswith("validation/a/")
+        if ours and f.stem not in gen_cases:
+            bad += 1
+            log.write(f"STALE FILE {f.name}: class-a expected file no generator writes\n")
+    log.write(f"compared {n} target values; {bad} differ, are missing or stale\n")
     return bad
 
 

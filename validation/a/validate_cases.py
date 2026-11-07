@@ -97,6 +97,9 @@ def check(path: Path) -> list[str]:
         for k in REF_REQ:
             if k not in r:
                 e.append(f"references[{i}] missing {k}")
+        mid = r.get("metric_id")
+        if mid is not None and not re.fullmatch(r"[A-Za-z][A-Za-z0-9_.+-]*", str(mid)):
+            e.append(f"references[{i}] metric_id {mid!r} violates [A-Za-z][A-Za-z0-9_.+-]*")
         if r.get("basis") not in BASIS:
             e.append(f"references[{i}] bad basis")
         if r.get("form") not in FORMS:

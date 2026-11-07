@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_optics.py",
   "command": "cd validation && uv run python a/gen_optics.py",
   "method": "Symmetric slab: kappa tan(kappa d) = r gamma, r = 1 (TE) or (n1/n2)^2 (TM), d = t/2",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:01:19-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",

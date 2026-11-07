@@ -19,7 +19,11 @@ materials:
 bcs:
 - {selection: walls, type: rigid}
 initial: null
-study: {type: eigen, n: 11, shift: 0.0}
+study:
+  type: eigen
+  n: 11
+  shift: -1.0
+  settings: {shift_unit: (rad/s)^2; avoids the constant-pressure null space}
 references:
 - quantity: f mode 1
   metric_id: f_mode1

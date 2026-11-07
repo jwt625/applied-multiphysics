@@ -19,11 +19,17 @@ materials:
 bcs:
 - {selection: walls, type: pec}
 initial: null
-study: {type: eigen, n: 8, shift: 2500000000.0}
+study:
+  type: eigen
+  n: 16
+  shift: 2500000000.0
+  settings: {n_note: '3D: n >= 16 reaches TE011/TM111 (indices 12-14) with all degenerate partners; 2D-axisym: solve per
+      azimuthal order m = 0, 1, 2 (n >= 4 each)', classifier: 'TE: E_z = 0; TM: H_z = 0; m from the phi dependence. TE011
+      and TM111 are exactly degenerate (x''01 = x11, J0'' = -J1): identify TE011 by m = 0 and E_z = 0'}
 references:
 - quantity: f TM010
   metric_id: f_TM010
-  definition: resonance
+  definition: TM, m = 0, n = 1, p = 0, multiplicity 1, 3D ascending index 1-1
   value: 2903636072.3343897
   unit: Hz
   tolerance: {rel: 1.0e-05, after: richardson}
@@ -36,7 +42,7 @@ references:
   expected: {file: eval/expected/RF-21.json, metric_id: f_TM010}
 - quantity: f TE111
   metric_id: f_TE111
-  definition: resonance
+  definition: TE, m = 1, n = 1, p = 1, multiplicity 2, 3D ascending index 2-3
   value: 2922197191.014636
   unit: Hz
   tolerance: {rel: 1.0e-05, after: richardson}
@@ -49,7 +55,7 @@ references:
   expected: {file: eval/expected/RF-21.json, metric_id: f_TE111}
 - quantity: f TM011
   metric_id: f_TM011
-  definition: resonance
+  definition: TM, m = 0, n = 1, p = 1, multiplicity 1, 3D ascending index 4-4
   value: 3468175212.9848056
   unit: Hz
   tolerance: {rel: 1.0e-05, after: richardson}
@@ -62,7 +68,7 @@ references:
   expected: {file: eval/expected/RF-21.json, metric_id: f_TM011}
 - quantity: f TM110
   metric_id: f_TM110
-  definition: resonance
+  definition: TM, m = 1, n = 1, p = 0, multiplicity 2, 3D ascending index 9-10
   value: 4626480967.847846
   unit: Hz
   tolerance: {rel: 1.0e-05, after: richardson}
@@ -75,7 +81,7 @@ references:
   expected: {file: eval/expected/RF-21.json, metric_id: f_TM110}
 - quantity: f TE211
   metric_id: f_TE211
-  definition: resonance
+  definition: TE, m = 2, n = 1, p = 1, multiplicity 2, 3D ascending index 5-6
   value: 4146881712.463177
   unit: Hz
   tolerance: {rel: 1.0e-05, after: richardson}
@@ -88,7 +94,7 @@ references:
   expected: {file: eval/expected/RF-21.json, metric_id: f_TE211}
 - quantity: f TE011
   metric_id: f_TE011
-  definition: resonance
+  definition: TE, m = 0, n = 1, p = 1, multiplicity 1, 3D ascending index 12-12, degenerate with TM111
   value: 5000146299.18556
   unit: Hz
   tolerance: {rel: 1.0e-05, after: richardson}

@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_em.py",
   "command": "cd validation && uv run python a/gen_em.py",
   "method": "Helmholtz pair of filament loops, radius R, spacing R. B0 = (4/5)^(3/2) mu0 N I / R; off-axis field from the elliptic-integral loop formula (Smythe 1950 / Jackson 5.37 form).",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:00:51-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -81,6 +81,78 @@
         "method": "closed form"
       },
       "locator": "max | |B| - B0 | / B0 on a sphere radius 0.1 R"
+    },
+    {
+      "metric_id": "truncation.dirichlet_A.Rb10R",
+      "value": -0.0013975424859373684,
+      "unit": "1",
+      "precision": {
+        "method": "closed form, leading (dipole) image"
+      },
+      "locator": "(B_fem(0) - B0)/B0 from A_phi = 0 on a sphere R_b = 10 R"
+    },
+    {
+      "metric_id": "truncation.neumann_A.Rb10R",
+      "value": 0.0006987712429686842,
+      "unit": "1",
+      "precision": {
+        "method": "closed form, leading (dipole) image"
+      },
+      "locator": "(B_fem(0) - B0)/B0 from H_t = 0 on a sphere R_b = 10 R"
+    },
+    {
+      "metric_id": "truncation.dirichlet_A.Rb20R",
+      "value": -0.00017469281074217104,
+      "unit": "1",
+      "precision": {
+        "method": "closed form, leading (dipole) image"
+      },
+      "locator": "(B_fem(0) - B0)/B0 from A_phi = 0 on a sphere R_b = 20 R"
+    },
+    {
+      "metric_id": "truncation.neumann_A.Rb20R",
+      "value": 8.734640537108552e-05,
+      "unit": "1",
+      "precision": {
+        "method": "closed form, leading (dipole) image"
+      },
+      "locator": "(B_fem(0) - B0)/B0 from H_t = 0 on a sphere R_b = 20 R"
+    },
+    {
+      "metric_id": "truncation.dirichlet_A.Rb30R",
+      "value": -5.176083281249513e-05,
+      "unit": "1",
+      "precision": {
+        "method": "closed form, leading (dipole) image"
+      },
+      "locator": "(B_fem(0) - B0)/B0 from A_phi = 0 on a sphere R_b = 30 R"
+    },
+    {
+      "metric_id": "truncation.neumann_A.Rb30R",
+      "value": 2.5880416406247567e-05,
+      "unit": "1",
+      "precision": {
+        "method": "closed form, leading (dipole) image"
+      },
+      "locator": "(B_fem(0) - B0)/B0 from H_t = 0 on a sphere R_b = 30 R"
+    },
+    {
+      "metric_id": "truncation.dirichlet_A.Rb100R",
+      "value": -1.3975424859373686e-06,
+      "unit": "1",
+      "precision": {
+        "method": "closed form, leading (dipole) image"
+      },
+      "locator": "(B_fem(0) - B0)/B0 from A_phi = 0 on a sphere R_b = 100 R"
+    },
+    {
+      "metric_id": "truncation.neumann_A.Rb100R",
+      "value": 6.987712429686843e-07,
+      "unit": "1",
+      "precision": {
+        "method": "closed form, leading (dipole) image"
+      },
+      "locator": "(B_fem(0) - B0)/B0 from H_t = 0 on a sphere R_b = 100 R"
     }
   ],
   "inputs": {

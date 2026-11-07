@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_misc.py",
   "command": "cd validation && uv run python a/gen_misc.py",
   "method": "Helmholtz-Smoluchowski u_HS = -eps zeta E/eta; Debye-Hueckel potential psi = zeta cosh(y/lD)/cosh(h/lD); Stokes u = u_HS (1 - psi/zeta); lD = sqrt(eps kT / (2 N_A c0 e^2)).",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:01:19-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",

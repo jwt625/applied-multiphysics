@@ -22,7 +22,11 @@ bcs:
   fixed: [uz]
   note: as on the Ansys page; in-plane rigid modes 1-3 remain
 initial: null
-study: {type: eigen, n: 10, shift: 0.0}
+study:
+  type: eigen
+  n: 10
+  shift: -1.0
+  settings: {shift_unit: (rad/s)^2; small negative shift avoids the rigid-body null space}
 references:
 - quantity: f_mode4
   metric_id: f_mode4

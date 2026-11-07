@@ -11,15 +11,21 @@ dimension: 2D
 units: SI
 geometry:
   kind: analytic
-  spec: {length_m: 0.254, width_m: 0.0254, height_m: 0.0508, note: 10 x 1 x 2 in (Ansys VM24)}
-  symmetry: half (mid-span)
+  spec: {length_m: 0.254, width_m: 0.0254, height_m: 0.0508, note: 10 x 1 x 2 in full beam (Ansys VM24); a half model (mid-span
+      symmetry) is allowed}
+  symmetry: half (mid-span), optional
 materials:
   steel: {E: 206842718795.0508, nu: 0.3, sigma_y: 248211262.554061, hardening: none (perfectly plastic), source: Ansys VM24}
 bcs:
-- {selection: mid-span section, type: symmetry}
-- selection: end section
+- selection: mid-span section (half model)
+  type: symmetry
+  fixed: [ux]
+- selection: end section(s)
   type: moment
-  values_over_Myp: [1.0, 1.1666, 1.3333, 1.5]
+  values_over_Myp: [1.0, 1.1666, 1.3333]
+  M_yp: 2711.6358966628004
+  note: 'pure bending: end section kept plane (rigid-section / kinematic coupling) with the moment applied at its centroid;
+    M/M_yp = 1.5 is the collapse limit, not a load step'
 initial: null
 study:
   type: parametric
@@ -28,8 +34,9 @@ study:
     values: [1.0, 1.1666, 1.3333]
 references:
 - quantity: theta(M/Myp = 1.0)
-  metric_id: rotation_M/Myp=1.0[literal]
-  definition: end-to-end rotation over L
+  metric_id: rotation.m1.0.literal
+  definition: 'relative rotation of the two end sections of the full 10 in beam = kappa L (half model: 2 x the end-section
+    rotation relative to the mid-span plane)'
   value: 0.012000000000000004
   unit: rad
   tolerance: {rel: 0.002}
@@ -38,11 +45,12 @@ references:
   form: closed_form
   gate: true
   provenance: {citation: 'Timoshenko, Strength of Materials II art. 64 (via Ansys VM24)', locator: 'validation/a/gen_solid.py::sm07;
-      eval/expected/SM-07.json targets[metric_id=rotation_M/Myp=1.0[literal]]', accessed: null}
-  expected: {file: eval/expected/SM-07.json, metric_id: 'rotation_M/Myp=1.0[literal]'}
+      eval/expected/SM-07.json targets[metric_id=rotation.m1.0.literal]', accessed: null}
+  expected: {file: eval/expected/SM-07.json, metric_id: rotation.m1.0.literal}
 - quantity: theta(M/Myp = 1.1666)
-  metric_id: rotation_M/Myp=1.1666[literal]
-  definition: end-to-end rotation over L
+  metric_id: rotation.m1.1666.literal
+  definition: 'relative rotation of the two end sections of the full 10 in beam = kappa L (half model: 2 x the end-section
+    rotation relative to the mid-span plane)'
   value: 0.014695468983270746
   unit: rad
   tolerance: {rel: 0.002}
@@ -51,11 +59,12 @@ references:
   form: closed_form
   gate: true
   provenance: {citation: 'Timoshenko, Strength of Materials II art. 64 (via Ansys VM24)', locator: 'validation/a/gen_solid.py::sm07;
-      eval/expected/SM-07.json targets[metric_id=rotation_M/Myp=1.1666[literal]]', accessed: null}
-  expected: {file: eval/expected/SM-07.json, metric_id: 'rotation_M/Myp=1.1666[literal]'}
+      eval/expected/SM-07.json targets[metric_id=rotation.m1.1666.literal]', accessed: null}
+  expected: {file: eval/expected/SM-07.json, metric_id: rotation.m1.1666.literal}
 - quantity: theta(M/Myp = 1.3333)
-  metric_id: rotation_M/Myp=1.3333[literal]
-  definition: end-to-end rotation over L
+  metric_id: rotation.m1.3333.literal
+  definition: 'relative rotation of the two end sections of the full 10 in beam = kappa L (half model: 2 x the end-section
+    rotation relative to the mid-span plane)'
   value: 0.02078253154157464
   unit: rad
   tolerance: {rel: 0.002}
@@ -64,12 +73,13 @@ references:
   form: closed_form
   gate: true
   provenance: {citation: 'Timoshenko, Strength of Materials II art. 64 (via Ansys VM24)', locator: 'validation/a/gen_solid.py::sm07;
-      eval/expected/SM-07.json targets[metric_id=rotation_M/Myp=1.3333[literal]]', accessed: null}
-  expected: {file: eval/expected/SM-07.json, metric_id: 'rotation_M/Myp=1.3333[literal]'}
+      eval/expected/SM-07.json targets[metric_id=rotation.m1.3333.literal]', accessed: null}
+  expected: {file: eval/expected/SM-07.json, metric_id: rotation.m1.3333.literal}
 reference_results:
 - solver: Ansys VM24 target
   rotations: [0.012, 0.01469, 0.02078]
   note: 0.01469 is the closed form 0.0146955 truncated
+  locator: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM24.html
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
   budget_s: {browser: 3.0, native: null}
@@ -86,4 +96,4 @@ hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, ref: sims/plastic-hinge.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
     a proposal}
 missing: []
-assumptions: [Rotation = curvature x L with L = 10 in (reproduces the VM24 0.01200 at first yield).]
+assumptions: [Rotation = curvature x full length L = 10 in (reproduces the VM24 0.01200 at first yield).]

@@ -13,12 +13,14 @@ geometry:
   kind: analytic
   spec:
     dielectric: {radius_m: 5.25e-07, wavelength_m: 6.328e-07, size_parameter: 5.212819668567135}
-    absorbing: {size_parameter: 1.0, note: only x matters}
+    absorbing: {size_parameter: 1.0, wavelength_m: 6.328e-07, radius_m: 1.0071324798855137e-07, note: synthetic radius a
+        = lambda/(2 pi) so x = 1; same frequency as the dielectric sub-case}
     background: vacuum, n = 1
   symmetry: two mirror planes (x = 0, y = 0) for x-polarized incidence
 materials:
   sphere_dielectric: {m: '1.55', source: BH appendix example via miepython test_03_bh_dielectric}
-  sphere_absorbing: {m: 1.5 + 1i (BH sign; miepython writes 1.5 - 1j), source: Wiscombe MIEV0 case 14 via miepython test_07}
+  sphere_absorbing: {m: 1.5 + 1i (BH sign; miepython writes 1.5 - 1j), eps_r: (1.5 + 1i)^2 = 1.25 + 3i under exp(-i w t);
+      1.25 - 3j under exp(+j w t), source: Wiscombe MIEV0 case 14 via miepython test_07}
 bcs:
 - {selection: incident, type: plane_wave, polarization: x, direction: +z, amplitude: 1.0}
 - {selection: outer boundary, type: pml}
@@ -131,8 +133,8 @@ references:
   provenance: {citation: Bohren-Huffman, locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json targets[metric_id=absorbing.g]',
     accessed: null}
   expected: {file: eval/expected/WO-03.json, metric_id: absorbing.g}
-- quantity: '|E|^2 at z=+1.5a'
-  metric_id: dielectric.near.|E|^2[z=+1.5a]
+- quantity: '|E|^2 at zp1.5a'
+  metric_id: dielectric.near.E2.zp1.5a
   definition: near-field probe
   value: 5.89099356789645
   unit: E0^2
@@ -142,10 +144,10 @@ references:
   form: closed_form
   gate: true
   provenance: {citation: BH vector harmonics (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
-      targets[metric_id=dielectric.near.|E|^2[z=+1.5a]]', accessed: null}
-  expected: {file: eval/expected/WO-03.json, metric_id: 'dielectric.near.|E|^2[z=+1.5a]'}
-- quantity: '|E|^2 at z=-1.5a'
-  metric_id: dielectric.near.|E|^2[z=-1.5a]
+      targets[metric_id=dielectric.near.E2.zp1.5a]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: dielectric.near.E2.zp1.5a}
+- quantity: '|E|^2 at zm1.5a'
+  metric_id: dielectric.near.E2.zm1.5a
   definition: near-field probe
   value: 0.9823264202269234
   unit: E0^2
@@ -155,10 +157,10 @@ references:
   form: closed_form
   gate: true
   provenance: {citation: BH vector harmonics (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
-      targets[metric_id=dielectric.near.|E|^2[z=-1.5a]]', accessed: null}
-  expected: {file: eval/expected/WO-03.json, metric_id: 'dielectric.near.|E|^2[z=-1.5a]'}
+      targets[metric_id=dielectric.near.E2.zm1.5a]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: dielectric.near.E2.zm1.5a}
 - quantity: '|E|^2 at centre'
-  metric_id: dielectric.near.|E|^2[centre]
+  metric_id: dielectric.near.E2.centre
   definition: near-field probe
   value: 2.0313918435786475
   unit: E0^2
@@ -168,10 +170,10 @@ references:
   form: closed_form
   gate: true
   provenance: {citation: BH vector harmonics (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
-      targets[metric_id=dielectric.near.|E|^2[centre]]', accessed: null}
-  expected: {file: eval/expected/WO-03.json, metric_id: 'dielectric.near.|E|^2[centre]'}
-- quantity: '|E|^2 at x=+1.5a'
-  metric_id: dielectric.near.|E|^2[x=+1.5a]
+      targets[metric_id=dielectric.near.E2.centre]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: dielectric.near.E2.centre}
+- quantity: '|E|^2 at xp1.5a'
+  metric_id: dielectric.near.E2.xp1.5a
   definition: near-field probe
   value: 0.5893120137814432
   unit: E0^2
@@ -181,8 +183,8 @@ references:
   form: closed_form
   gate: true
   provenance: {citation: BH vector harmonics (this lane), locator: 'validation/a/gen_optics.py::wo03; eval/expected/WO-03.json
-      targets[metric_id=dielectric.near.|E|^2[x=+1.5a]]', accessed: null}
-  expected: {file: eval/expected/WO-03.json, metric_id: 'dielectric.near.|E|^2[x=+1.5a]'}
+      targets[metric_id=dielectric.near.E2.xp1.5a]', accessed: null}
+  expected: {file: eval/expected/WO-03.json, metric_id: dielectric.near.E2.xp1.5a}
 reference_results:
 - solver: miepython tests (BHMIE, MIEV0)
   dielectric: {qext: 3.10543, qback: 2.92534, g: 0.63314}

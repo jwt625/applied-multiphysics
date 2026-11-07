@@ -162,7 +162,7 @@ def sm07() -> None:
     for m_lit, m_exact, r3 in [("1.0", 1.0, "0.01200"), ("1.1666", 7 / 6, "0.01469"), ("1.3333", 4 / 3, "0.02078")]:
         for label, m in [("literal", float(m_lit)), ("exact_fraction", m_exact)]:
             th = th_yp / math.sqrt(3 - 2 * m)
-            targets.append(target(f"rotation_M/Myp={m_lit}[{label}]", th, "rad",
+            targets.append(target(f"rotation.m{m_lit}.{label}", th, "rad",
                                   {"method": "closed form", "M_over_Myp": m},
                                   r3=r3_compare(th, r3) if label == "literal" else None,
                                   locator="end-to-end rotation over L = 10 in under pure bending"))
@@ -249,11 +249,68 @@ def cp21() -> None:
     )
 
 
+# ---------------------------------------------------------------- SM-06 NAFEMS FV12, Kirchhoff free square plate (Ritz)
+FV12 = {"E": 200.0e9, "nu": 0.3, "rho": 8000.0, "t": 0.05, "a": 10.0}
+
+
+def fv12_ritz(N: int, p: dict[str, float] = FV12, nq: int = 96) -> np.ndarray:
+    """Rayleigh-Ritz, Kirchhoff plate, all edges free. Basis T_i(xi) T_j(eta), Chebyshev polynomials of the first
+    kind on [-1, 1], i, j < N; exact Gauss-Legendre quadrature (degree <= 2N - 2 < 2 nq - 1). Returns f (Hz), sorted,
+    rigid-body modes included. Energy: D int [w_xx^2 + w_yy^2 + 2 nu w_xx w_yy + 2 (1 - nu) w_xy^2] dA."""
+    from numpy.polynomial import chebyshev as Ch
+    from scipy.linalg import eigh
+
+    E, nu, rho, t, a = p["E"], p["nu"], p["rho"], p["t"], p["a"]
+    D = E * t**3 / (12 * (1 - nu**2))
+    s = a / 2
+    xg, wg = np.polynomial.legendre.leggauss(nq)
+    I = np.eye(N)  # noqa: E741
+    V0 = np.array([Ch.chebval(xg, I[i]) for i in range(N)])
+    V1 = np.array([Ch.chebval(xg, Ch.chebder(I[i], 1)) for i in range(N)]) / s
+    V2 = np.array([Ch.chebval(xg, Ch.chebder(I[i], 2)) for i in range(N)]) / s**2
+    W = wg * s
+    A00, A11, A22, A02 = (V0 * W) @ V0.T, (V1 * W) @ V1.T, (V2 * W) @ V2.T, (V0 * W) @ V2.T
+    # index (i, j) -> i * N + j with w = sum c_ij phi_i(x) phi_j(y)
+    K = D * (np.kron(A22, A00) + np.kron(A00, A22) + nu * (np.kron(A02.T, A02) + np.kron(A02, A02.T))
+             + 2 * (1 - nu) * np.kron(A11, A11))
+    M = rho * t * np.kron(A00, A00)
+    w2 = eigh(K, M, eigvals_only=True)
+    return np.sqrt(np.clip(w2, 0, None)) / (2 * np.pi)
+
+
+def sm06() -> None:
+    levels = [10, 14, 18, 22, 26]
+    res = {N: fv12_ritz(N) for N in levels}
+    fin = res[levels[-1]]
+    prev = res[levels[-2]]
+    nafems = {4: 1.622, 5: 2.360, 6: 2.922, 7: 4.233, 8: 4.233, 9: 7.416}
+    rigid = [float(x) for x in fin[:3]]
+    targets = []
+    for mode in range(4, 11):
+        v = float(fin[mode - 1])
+        ref = nafems.get(mode)
+        targets.append(target(
+            f"f_mode{mode}", v, "Hz",
+            {"method": "Rayleigh-Ritz, Chebyshev tensor basis", "basis_per_direction": levels[-1],
+             "change_vs_previous_level": abs(v - float(prev[mode - 1])),
+             "levels": {str(N): float(res[N][mode - 1]) for N in levels}},
+            locator=f"mode {mode} in ascending order (modes 1-3 rigid)",
+            nafems_value=ref, nafems_minus_ritz_rel=(ref - v) / v if ref else None))
+    write_expected(
+        "SM-06", targets, GEN,
+        "Kirchhoff thin plate, free square, Rayleigh-Ritz (upper bound, converges from above). Midsurface model: "
+        "in-plane motion decoupled, so only flexural modes. Shear deformation and rotary inertia neglected "
+        "(t/a = 0.005; Mindlin correction est. < 1e-3 rel. for these modes, not computed).",
+        extra={"inputs": FV12, "rigid_modes_Hz": rigid},
+    )
+
+
 if __name__ == "__main__":
     sm01()
     sm03()
     sm04()
+    sm06()
     sm07()
     sm21()
     cp21()
-    print("solid: wrote SM-01, SM-03, SM-04, SM-07, SM-21, CP-21")
+    print("solid: wrote SM-01, SM-03, SM-04, SM-06, SM-07, SM-21, CP-21")

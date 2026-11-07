@@ -200,7 +200,9 @@ Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope f
 - [x] Wave 1 lanes launched: L1 DevLog-002, L2 DevLog-003, L3 DevLog-004, L6 DevLog-005, L7a DevLog-006, L7b DevLog-007, L7c DevLog-008, L8 DevLog-009
 - [ ] Wave 1b: L4 physics H1-H6 (DevLog-010) and L5 workbench + Play view (DevLog-011), once the L1/L2 interfaces exist
 - [ ] Wave 2: L9 agent (DevLog-012; BYO key only), heroes H7-H13
-- [ ] Fresh-context audit after each wave-1 lane hand-off
+- [ ] Fresh-context audit after each wave-1 lane hand-off (done: L1, L2, L7a; running: L3, L6, L7b, L7c; queued: L8)
+- [ ] RF-04 (dipole): the 3 % conductance gate rests on L7a's own Hallen moment-method solver, which no published finite-radius table has checked. Set it to `gate: false` until it is cross-checked against a published table (e.g. King's), or against an open MoM code such as NEC-2 run via uv where feasible.
+- [ ] Contracts v1 pass at the end of wave 1: C2 facet blocks, `tagHash`, L3's optional fields into `@amp/spec`, affine units (`degC`, `lbf`), `prepareRun`/`sample` in the C4/C5 text.
 - [ ] Fresh-context audit of the research reports R3-R5 (unaudited at hand-off)
 - [ ] Fresh-context audit of this plan
 

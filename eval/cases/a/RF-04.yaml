@@ -1,9 +1,9 @@
-# RF-04: Thin centre-fed half-wave dipole: input impedance
+# RF-04: Centre-fed half-wave dipole: input conductance vs radius, thin-wire impedance
 # Built by validation/a/build_cases.py from eval/expected/RF-04.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
 schema: amp-eval/0
 id: RF-04
 class: a
-title: 'Thin centre-fed half-wave dipole: input impedance'
+title: 'Centre-fed half-wave dipole: input conductance vs radius, thin-wire impedance'
 status: unvalidated
 untestable_reason: null
 physics: [rf-antenna]
@@ -11,7 +11,12 @@ dimension: 2D-axisym
 units: SI
 geometry:
   kind: analytic
-  spec: {length: lambda/2, radius: 'sweep, e.g. lambda/1000 .. lambda/100', gap: delta-gap feed}
+  spec:
+    wavelength_m: 1.0
+    half_length_m: 0.25
+    radius_list_m: [0.01, 0.0033333333333333335, 0.001]
+    gap_width_m: <= 2 x radius (finite-gap port); the reference is a delta gap
+    note: lambda = 1 m (f = 299.792458 MHz); all lengths scale with lambda
   symmetry: axisymmetric
 materials:
   air: {eps_r: 1.0, mu_r: 1.0, source: vacuum}
@@ -21,25 +26,66 @@ bcs:
 - {selection: gap, type: lumped_port, impedance: 50.0}
 - {selection: outer boundary, type: absorbing, note: PML or first-order ABC}
 initial: null
-study: {type: frequency, f_list: f such that L = lambda/2; plus a sweep for the resonant length}
+study:
+  type: frequency
+  f_list: [299792458.0]
 references:
-- quantity: R_in
-  metric_id: R_in
-  definition: thin-wire limit, sinusoidal current
-  value: 73.07901023597411
-  unit: Ohm
-  tolerance:
-    rule: {type: monotonic, direction: decreasing, of: error, note: '|R_in(radius) - value| over radii lambda/100, lambda/300,
-        lambda/1000 (ordered toward radius -> 0) at L = lambda/2; second condition X_in = 0 at a length < lambda/2 (not
-        yet a structured target)'}
+- quantity: G_in, a = lambda/100
+  metric_id: G_in.a_lambda_over_100
+  definition: input conductance Re(1/Z_in) at L = lambda/2
+  value: 0.008299347339996516
+  unit: S
+  tolerance: {rel: 0.03, after: finest, note: '3 % covers the finite-gap vs delta-gap feed difference (proposal); the reference
+      is a Hallen MoM, Richardson-extrapolated (correction <= 0.18 %)'}
   bounds: null
   basis: D
   form: closed_form
   gate: true
+  provenance: {citation: 'Hallen MoM, exact kernel (this lane)', locator: 'validation/a/gen_em.py::rf04 hallen_dipole; eval/expected/RF-04.json
+      targets[metric_id=G_in.a_lambda_over_100]', accessed: null}
+  expected: {file: eval/expected/RF-04.json, metric_id: G_in.a_lambda_over_100}
+- quantity: G_in, a = lambda/300
+  metric_id: G_in.a_lambda_over_300
+  definition: input conductance Re(1/Z_in) at L = lambda/2
+  value: 0.008445937415539256
+  unit: S
+  tolerance: {rel: 0.03, after: finest, note: '3 % covers the finite-gap vs delta-gap feed difference (proposal); the reference
+      is a Hallen MoM, Richardson-extrapolated (correction <= 0.18 %)'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: 'Hallen MoM, exact kernel (this lane)', locator: 'validation/a/gen_em.py::rf04 hallen_dipole; eval/expected/RF-04.json
+      targets[metric_id=G_in.a_lambda_over_300]', accessed: null}
+  expected: {file: eval/expected/RF-04.json, metric_id: G_in.a_lambda_over_300}
+- quantity: G_in, a = lambda/1000
+  metric_id: G_in.a_lambda_over_1000
+  definition: input conductance Re(1/Z_in) at L = lambda/2
+  value: 0.008808501566966744
+  unit: S
+  tolerance: {rel: 0.03, after: finest, note: '3 % covers the finite-gap vs delta-gap feed difference (proposal); the reference
+      is a Hallen MoM, Richardson-extrapolated (correction <= 0.18 %)'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: 'Hallen MoM, exact kernel (this lane)', locator: 'validation/a/gen_em.py::rf04 hallen_dipole; eval/expected/RF-04.json
+      targets[metric_id=G_in.a_lambda_over_1000]', accessed: null}
+  expected: {file: eval/expected/RF-04.json, metric_id: G_in.a_lambda_over_1000}
+- quantity: R_in
+  metric_id: R_in
+  definition: thin-wire limit, sinusoidal current (induced EMF)
+  value: 73.07901023597411
+  unit: Ohm
+  tolerance: {rel: 0.05}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
   provenance: {citation: Balanis ch. 4 (eq. 4-79 form; formula not fetched), locator: 'validation/a/gen_em.py::rf04; eval/expected/RF-04.json
       targets[metric_id=R_in]', accessed: null}
   expected: {file: eval/expected/RF-04.json, metric_id: R_in}
-  note: FEM on a finite radius cannot hit the thin-wire value; the gate is the trend rule (R3)
+  note: the a -> 0 limit; finite-radius solvers approach it logarithmically
 - quantity: X_in
   metric_id: X_in
   definition: thin-wire limit, sinusoidal current
@@ -53,6 +99,19 @@ references:
   provenance: {citation: Balanis ch. 4, locator: 'validation/a/gen_em.py::rf04; eval/expected/RF-04.json targets[metric_id=X_in]',
     accessed: null}
   expected: {file: eval/expected/RF-04.json, metric_id: X_in}
+- quantity: G_in thin limit
+  metric_id: G_in.thin_limit
+  definition: Re(1/(R_in + j X_in))
+  value: 0.010223590648161281
+  unit: S
+  tolerance: {rel: 0.05}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: closed form, locator: 'validation/a/gen_em.py::rf04; eval/expected/RF-04.json targets[metric_id=G_in.thin_limit]',
+    accessed: null}
+  expected: {file: eval/expected/RF-04.json, metric_id: G_in.thin_limit}
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -69,5 +128,7 @@ hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, ref: sims/half-wave-dipole.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id
     is a proposal}
 missing: []
-assumptions: [The finite-radius impedance at L = lambda/2 is not a closed form; no finite-radius value is claimed here (King-Middleton
-    or Hallen tables would be a class-b addition).]
+assumptions: ['Gate on input conductance only: with a delta gap the susceptance grows like ln N (zero-width gap capacitance)
+    and a finite gap adds its own capacitance, so X_in is not comparable between feed models; a shunt gap capacitance leaves
+    G unchanged.', 'MoM reference is this lane''s Hallen solver (eval/expected/RF-04.json records levels, observed order
+    ~1 and the quadrature check); no published finite-radius table was fetched.']

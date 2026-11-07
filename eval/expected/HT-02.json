@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_heat.py",
   "command": "cd validation && uv run python a/gen_heat.py",
   "method": "NAFEMS T3 1D bar: alpha = k/(rho cp); T(0,t) = 0, T(L,t) = 100 sin(pi t/40), T(x,0) = 0. Two independent series. R3 flag resolved: 36.60 C is at x = 0.08 m from the T = 0 end at t = 32 s.",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:00:51-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",

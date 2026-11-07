@@ -47,8 +47,9 @@ references:
   basis: P
   form: benchmark
   gate: true
-  provenance: {citation: 'NAFEMS TNSB Rev. 3 LE10 via Altair OS-V 0060 (target 5.38 MPa, compressive)', locator: help.altair.com/hwsolvers/os/topics/solvers/os/nafems_test_problem_le10_r.htm
-      ('All results are normalized with the target value (5.38 MPa)'); sign from FeenoX -5.37968 MPa, accessed: '2026-11-06'}
+  provenance: {citation: 'NAFEMS TNSB Rev. 3 LE10 via Altair OS-V 0060 (target 5.38 MPa, compressive)', locator: 2021.help.altair.com/2021/hwsolvers/os/topics/solvers/os/nafems_test_problem_le10_r.htm
+      (versioned copy of the page fetched unversioned on 2026-11-06; the page normalizes its results by a 5.38 MPa target);
+      sign from FeenoX -5.37968 MPa, accessed: '2026-11-06'}
 reference_results:
 - {solver: FeenoX, value_MPa: -5.37968}
 - {solver: advanced-packaging-atlas L5 scikit-fem P2 tets, value_MPa: -5.3847}

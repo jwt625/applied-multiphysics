@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_optics.py",
   "command": "cd validation && uv run python a/gen_optics.py",
   "method": "Mie (Bohren-Huffman ch. 4): efficiencies from a_n, b_n; near field from the vector spherical harmonic expansion (incident + scattered outside, c_n, d_n inside).",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:01:19-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -173,7 +173,7 @@
       "locator": "m = (1.5+1j) (BH sign), x = 1.0"
     },
     {
-      "metric_id": "dielectric.near.|E|^2[z=+1.5a]",
+      "metric_id": "dielectric.near.E2.zp1.5a",
       "value": 5.89099356789645,
       "unit": "E0^2",
       "precision": {
@@ -187,10 +187,10 @@
           "offset_rel": 1e-09
         }
       },
-      "locator": "lambda0 = 0.6328 um, radius = 0.525 um, vacuum, point z=+1.5a"
+      "locator": "lambda0 = 0.6328 um, radius a = 0.525 um, vacuum, point (0, 0, +1.5 a)"
     },
     {
-      "metric_id": "dielectric.near.|E|^2[z=-1.5a]",
+      "metric_id": "dielectric.near.E2.zm1.5a",
       "value": 0.9823264202269234,
       "unit": "E0^2",
       "precision": {
@@ -204,10 +204,10 @@
           "offset_rel": 1e-09
         }
       },
-      "locator": "lambda0 = 0.6328 um, radius = 0.525 um, vacuum, point z=-1.5a"
+      "locator": "lambda0 = 0.6328 um, radius a = 0.525 um, vacuum, point (0, 0, -1.5 a)"
     },
     {
-      "metric_id": "dielectric.near.|E|^2[centre]",
+      "metric_id": "dielectric.near.E2.centre",
       "value": 2.0313918435786475,
       "unit": "E0^2",
       "precision": {
@@ -221,10 +221,10 @@
           "offset_rel": 1e-09
         }
       },
-      "locator": "lambda0 = 0.6328 um, radius = 0.525 um, vacuum, point centre"
+      "locator": "lambda0 = 0.6328 um, radius a = 0.525 um, vacuum, point (0, 0, 0)"
     },
     {
-      "metric_id": "dielectric.near.|E|^2[x=+1.5a]",
+      "metric_id": "dielectric.near.E2.xp1.5a",
       "value": 0.5893120137814432,
       "unit": "E0^2",
       "precision": {
@@ -238,7 +238,7 @@
           "offset_rel": 1e-09
         }
       },
-      "locator": "lambda0 = 0.6328 um, radius = 0.525 um, vacuum, point x=+1.5a"
+      "locator": "lambda0 = 0.6328 um, radius a = 0.525 um, vacuum, point (+1.5 a, 0, 0)"
     }
   ],
   "terms": {

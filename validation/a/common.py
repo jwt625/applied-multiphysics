@@ -12,6 +12,7 @@ import json
 import math
 import os
 import platform
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,10 @@ Q_E = sc.e
 K_B = sc.k
 N_A = sc.N_A
 SIGMA_SB = sc.Stefan_Boltzmann
+
+
+# metric_id grammar (proposal to L8): ASCII letters, digits, '_', '.', '+', '-'; starts with a letter.
+METRIC_ID_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.+-]*")
 
 
 def versions() -> dict[str, str]:
@@ -133,6 +138,8 @@ def target(
     r3: dict[str, Any] | None = None,
     **kw: Any,
 ) -> dict[str, Any]:
+    if not METRIC_ID_RE.fullmatch(metric_id):
+        raise ValueError(f"metric_id {metric_id!r} violates the grammar {METRIC_ID_RE.pattern}")
     t: dict[str, Any] = {"metric_id": metric_id, "value": value, "unit": unit, "precision": precision}
     if r3 is not None:
         t["r3"] = r3

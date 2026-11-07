@@ -270,13 +270,14 @@ def wo03() -> None:
     nmax_f = int(round(WO03_CASES["dielectric"]["x"] + 4.05 * WO03_CASES["dielectric"]["x"] ** (1 / 3) + 2)) + 10
     Ep = mie_field(probe, rad, lam, 1.55 + 0j, nmax=nmax_f)
     Ep2 = mie_field(probe, rad, lam, 1.55 + 0j, nmax=2 * nmax_f)
-    labels = ["z=+1.5a", "z=-1.5a", "centre", "x=+1.5a"]
+    labels = ["zp1.5a", "zm1.5a", "centre", "xp1.5a"]
+    desc = {"zp1.5a": "(0, 0, +1.5 a)", "zm1.5a": "(0, 0, -1.5 a)", "centre": "(0, 0, 0)", "xp1.5a": "(+1.5 a, 0, 0)"}
     for lab, E, E2 in zip(labels, Ep, Ep2, strict=True):
         v, v2 = float(np.sum(np.abs(E) ** 2)), float(np.sum(np.abs(E2) ** 2))
-        targets.append(target(f"dielectric.near.|E|^2[{lab}]", v, "E0^2",
+        targets.append(target(f"dielectric.near.E2.{lab}", v, "E0^2",
                               {"method": "BH vector-harmonic series", "terms": nmax_f,
                                "change_on_doubling": abs(v2 - v), "bc_checks": chk},
-                              locator=f"lambda0 = 0.6328 um, radius = 0.525 um, vacuum, point {lab}"))
+                              locator=f"lambda0 = 0.6328 um, radius a = 0.525 um, vacuum, point {desc[lab]}"))
     write_expected(
         "WO-03", targets, GEN,
         "Mie (Bohren-Huffman ch. 4): efficiencies from a_n, b_n; near field from the vector spherical harmonic "

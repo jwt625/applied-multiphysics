@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_em.py",
   "command": "cd validation && uv run python a/gen_em.py",
   "method": "Infinitely thin centre-fed half-wave dipole, sinusoidal current (induced-EMF method). Balanis eq. 4-79 with kl = pi: cos(kl) = -1, sin(kl) = 0, so X_m = (eta0/4pi) Si(2 pi) (the radius term multiplies sin(kl) and vanishes) and R_r = (eta0/4pi) Cin(2 pi); Z_in = Z_m / sin^2(kl/2) = Z_m. Cin(x) = gamma + ln x - Ci(x).",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:01:19-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -51,6 +51,110 @@
         "agreement": "agree",
         "note": "compared at R3's 5 significant digits"
       }
+    },
+    {
+      "metric_id": "G_in.thin_limit",
+      "value": 0.010223590648161281,
+      "unit": "S",
+      "precision": {
+        "method": "closed form, 1/(R + jX) of the thin-wire values"
+      }
+    },
+    {
+      "metric_id": "G_in.a_lambda_over_100",
+      "value": 0.008299347339996516,
+      "unit": "S",
+      "precision": {
+        "method": "Hallen MoM, exact kernel, triangle basis, delta gap; Richardson over N = 200/400/800",
+        "levels_N": [
+          200,
+          400,
+          800
+        ],
+        "G_mS": [
+          8.327174956411861,
+          8.313258525686512,
+          8.306301621829826
+        ],
+        "B_mS": [
+          -0.6158316349791929,
+          -0.15444445857913622,
+          0.30736449744152666
+        ],
+        "observed_order": 1.0002719492605314,
+        "richardson_minus_finest_rel": 0.0008379311707797177,
+        "quadrature_check_finest_rel": 1.3577159179280278e-07,
+        "B_note": "B grows ~ ln N (zero-width-gap capacitance): not converged, never gated"
+      },
+      "locator": "input conductance Re(1/Z_in), L = lambda/2, radius a = 0.01 lambda",
+      "Z_in_finest_Ohm": [
+        120.22590060309906,
+        -4.448811902183961
+      ]
+    },
+    {
+      "metric_id": "G_in.a_lambda_over_300",
+      "value": 0.008445937415539256,
+      "unit": "S",
+      "precision": {
+        "method": "Hallen MoM, exact kernel, triangle basis, delta gap; Richardson over N = 200/400/800",
+        "levels_N": [
+          200,
+          400,
+          800
+        ],
+        "G_mS": [
+          8.48672210259941,
+          8.466455527729549,
+          8.456259743800167
+        ],
+        "B_mS": [
+          -3.660574522494251,
+          -3.5091395704512363,
+          -3.3564437569205507
+        ],
+        "observed_order": 0.9911295833394013,
+        "richardson_minus_finest_rel": 0.0012221649004785261,
+        "quadrature_check_finest_rel": 5.836111669123356e-08,
+        "B_note": "B grows ~ ln N (zero-width-gap capacitance): not converged, never gated"
+      },
+      "locator": "input conductance Re(1/Z_in), L = lambda/2, radius a = 0.00333333 lambda",
+      "Z_in_finest_Ohm": [
+        102.16076660430222,
+        40.54947194859142
+      ]
+    },
+    {
+      "metric_id": "G_in.a_lambda_over_1000",
+      "value": 0.008808501566966744,
+      "unit": "S",
+      "precision": {
+        "method": "Hallen MoM, exact kernel, triangle basis, delta gap; Richardson over N = 200/400/800",
+        "levels_N": [
+          200,
+          400,
+          800
+        ],
+        "G_mS": [
+          8.864421074872118,
+          8.837851204946592,
+          8.823905873653523
+        ],
+        "B_mS": [
+          -4.7766630680174655,
+          -4.736900454117735,
+          -4.693730625396853
+        ],
+        "observed_order": 0.9300089567996404,
+        "richardson_minus_finest_rel": 0.0017487999031013215,
+        "quadrature_check_finest_rel": 2.13172863202329e-08,
+        "B_note": "B grows ~ ln N (zero-width-gap capacitance): not converged, never gated"
+      },
+      "locator": "input conductance Re(1/Z_in), L = lambda/2, radius a = 0.001 lambda",
+      "Z_in_finest_Ohm": [
+        88.33408673541423,
+        46.98785482452166
+      ]
     }
   ],
   "inputs": {
@@ -59,6 +163,6 @@
     "Cin_2pi": 2.437653393057224
   },
   "flag_resolution": {
-    "dipole": "Z_in = 73.079010 + j42.515115 Ohm with eta0 = 376.730313412 Ohm (CODATA mu0); with the eta0 ~ 120 pi = 30 * 4 pi convention: 73.129602 + j42.544547 Ohm. Textbook 73 + j42.5 is the rounded form. Independent of wire radius only in the thin limit; FEM gates on the trend."
+    "dipole": "Z_in = 73.079010 + j42.515115 Ohm with eta0 = 376.730313412 Ohm (CODATA mu0); with the eta0 ~ 120 pi = 30 * 4 pi convention: 73.129602 + j42.544547 Ohm. Textbook 73 + j42.5 is the rounded form. Independent of wire radius only in the thin limit; the finite-radius gate is the Hallen MoM input conductance."
   }
 }

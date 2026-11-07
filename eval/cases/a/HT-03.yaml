@@ -25,7 +25,7 @@ initial: null
 study: {type: stationary}
 references:
 - quantity: T_B
-  metric_id: T_B[k = 55.6 W/(m K); sigma CODATA]
+  metric_id: T_B.k55.6.sigma_codata
   definition: temperature at end B
   value: 927.0039504502631
   unit: K
@@ -35,8 +35,8 @@ references:
   form: closed_form
   gate: true
   provenance: {citation: brentq root of the 1D balance (this lane), locator: 'validation/a/gen_heat.py::ht03; eval/expected/HT-03.json
-      targets[metric_id=T_B[k = 55.6 W/(m K); sigma CODATA]]', accessed: null}
-  expected: {file: eval/expected/HT-03.json, metric_id: 'T_B[k = 55.6 W/(m K); sigma CODATA]'}
+      targets[metric_id=T_B.k55.6.sigma_codata]', accessed: null}
+  expected: {file: eval/expected/HT-03.json, metric_id: T_B.k55.6.sigma_codata}
 - quantity: T_B
   metric_id: T_B_nafems
   definition: NAFEMS target

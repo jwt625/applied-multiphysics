@@ -91,7 +91,7 @@ references:
   expected: {file: eval/expected/AC-03.json, metric_id: sigma_over_pia2_ka10.0}
 - quantity: '|f(pi)|, ka = 0.5'
   metric_id: abs_f_back_ka0.5
-  definition: backscatter form function
+  definition: backscatter form function 2/(ka) |sum_n (-1)^n (2n+1) j_n'(ka)/h_n'(ka)|, p_s -> p0 (a/2r) f e^{ikr}
   value: 0.36626350678787567
   unit: '1'
   tolerance: {rel: 0.005}
@@ -104,7 +104,7 @@ references:
   expected: {file: eval/expected/AC-03.json, metric_id: abs_f_back_ka0.5}
 - quantity: '|f(pi)|, ka = 1.0'
   metric_id: abs_f_back_ka1.0
-  definition: backscatter form function
+  definition: backscatter form function 2/(ka) |sum_n (-1)^n (2n+1) j_n'(ka)/h_n'(ka)|, p_s -> p0 (a/2r) f e^{ikr}
   value: 0.9381223076342368
   unit: '1'
   tolerance: {rel: 0.005}
@@ -117,7 +117,7 @@ references:
   expected: {file: eval/expected/AC-03.json, metric_id: abs_f_back_ka1.0}
 - quantity: '|f(pi)|, ka = 2.0'
   metric_id: abs_f_back_ka2.0
-  definition: backscatter form function
+  definition: backscatter form function 2/(ka) |sum_n (-1)^n (2n+1) j_n'(ka)/h_n'(ka)|, p_s -> p0 (a/2r) f e^{ikr}
   value: 0.7617464315700527
   unit: '1'
   tolerance: {rel: 0.005}
@@ -130,7 +130,7 @@ references:
   expected: {file: eval/expected/AC-03.json, metric_id: abs_f_back_ka2.0}
 - quantity: '|f(pi)|, ka = 5.0'
   metric_id: abs_f_back_ka5.0
-  definition: backscatter form function
+  definition: backscatter form function 2/(ka) |sum_n (-1)^n (2n+1) j_n'(ka)/h_n'(ka)|, p_s -> p0 (a/2r) f e^{ikr}
   value: 1.0398095349049368
   unit: '1'
   tolerance: {rel: 0.005}
@@ -143,7 +143,7 @@ references:
   expected: {file: eval/expected/AC-03.json, metric_id: abs_f_back_ka5.0}
 - quantity: '|f(pi)|, ka = 10.0'
   metric_id: abs_f_back_ka10.0
-  definition: backscatter form function
+  definition: backscatter form function 2/(ka) |sum_n (-1)^n (2n+1) j_n'(ka)/h_n'(ka)|, p_s -> p0 (a/2r) f e^{ikr}
   value: 0.9785784172660011
   unit: '1'
   tolerance: {rel: 0.005}

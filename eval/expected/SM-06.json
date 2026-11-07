@@ -1,0 +1,176 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "SM-06",
+  "class": "a",
+  "generator": "validation/a/gen_solid.py",
+  "command": "cd validation && uv run python a/gen_solid.py",
+  "method": "Kirchhoff thin plate, free square, Rayleigh-Ritz (upper bound, converges from above). Midsurface model: in-plane motion decoupled, so only flexural modes. Shear deformation and rotary inertia neglected (t/a = 0.005; Mindlin correction est. < 1e-3 rel. for these modes, not computed).",
+  "generated_at": "2026-11-06T16:00:51-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "f_mode4",
+      "value": 1.6216543785806787,
+      "unit": "Hz",
+      "precision": {
+        "method": "Rayleigh-Ritz, Chebyshev tensor basis",
+        "basis_per_direction": 26,
+        "change_vs_previous_level": 2.066709470227579e-08,
+        "levels": {
+          "10": 1.621655294550121,
+          "14": 1.6216544371201875,
+          "18": 1.6216543683216147,
+          "22": 1.621654357913584,
+          "26": 1.6216543785806787
+        }
+      },
+      "locator": "mode 4 in ascending order (modes 1-3 rigid)",
+      "nafems_value": 1.622,
+      "nafems_minus_ritz_rel": 0.0002131289033510778
+    },
+    {
+      "metric_id": "f_mode5",
+      "value": 2.3594962744344814,
+      "unit": "Hz",
+      "precision": {
+        "method": "Rayleigh-Ritz, Chebyshev tensor basis",
+        "basis_per_direction": 26,
+        "change_vs_previous_level": 5.701128458213134e-10,
+        "levels": {
+          "10": 2.359496339553024,
+          "14": 2.359496276270727,
+          "18": 2.3594962754980613,
+          "22": 2.3594962750045942,
+          "26": 2.3594962744344814
+        }
+      },
+      "locator": "mode 5 in ascending order (modes 1-3 rigid)",
+      "nafems_value": 2.36,
+      "nafems_minus_ritz_rel": 0.00021348860389245903
+    },
+    {
+      "metric_id": "f_mode6",
+      "value": 2.9222824654544666,
+      "unit": "Hz",
+      "precision": {
+        "method": "Rayleigh-Ritz, Chebyshev tensor basis",
+        "basis_per_direction": 26,
+        "change_vs_previous_level": 1.163031004836057e-09,
+        "levels": {
+          "10": 2.922283085290699,
+          "14": 2.9222824992920935,
+          "18": 2.9222824708030357,
+          "22": 2.9222824666174976,
+          "26": 2.9222824654544666
+        }
+      },
+      "locator": "mode 6 in ascending order (modes 1-3 rigid)",
+      "nafems_value": 2.922,
+      "nafems_minus_ritz_rel": -9.665918945398391e-05
+    },
+    {
+      "metric_id": "f_mode7",
+      "value": 4.190242764609657,
+      "unit": "Hz",
+      "precision": {
+        "method": "Rayleigh-Ritz, Chebyshev tensor basis",
+        "basis_per_direction": 26,
+        "change_vs_previous_level": 1.028498974875447e-08,
+        "levels": {
+          "10": 4.1902488759808145,
+          "14": 4.190243190191598,
+          "18": 4.190242827288025,
+          "22": 4.190242774894647,
+          "26": 4.190242764609657
+        }
+      },
+      "locator": "mode 7 in ascending order (modes 1-3 rigid)",
+      "nafems_value": 4.233,
+      "nafems_minus_ritz_rel": 0.010203999575267035
+    },
+    {
+      "metric_id": "f_mode8",
+      "value": 4.190242765382964,
+      "unit": "Hz",
+      "precision": {
+        "method": "Rayleigh-Ritz, Chebyshev tensor basis",
+        "basis_per_direction": 26,
+        "change_vs_previous_level": 1.0519046966805945e-08,
+        "levels": {
+          "10": 4.1902488759863115,
+          "14": 4.19024319029104,
+          "18": 4.190242827358754,
+          "22": 4.190242775902011,
+          "26": 4.190242765382964
+        }
+      },
+      "locator": "mode 8 in ascending order (modes 1-3 rigid)",
+      "nafems_value": 4.233,
+      "nafems_minus_ritz_rel": 0.010203999388834503
+    },
+    {
+      "metric_id": "f_mode9",
+      "value": 7.356003660814944,
+      "unit": "Hz",
+      "precision": {
+        "method": "Rayleigh-Ritz, Chebyshev tensor basis",
+        "basis_per_direction": 26,
+        "change_vs_previous_level": 2.051621983412133e-09,
+        "levels": {
+          "10": 7.356017531787789,
+          "14": 7.356003778901149,
+          "18": 7.356003677556538,
+          "22": 7.356003662866566,
+          "26": 7.356003660814944
+        }
+      },
+      "locator": "mode 9 in ascending order (modes 1-3 rigid)",
+      "nafems_value": 7.416,
+      "nafems_minus_ritz_rel": 0.008156105128747204
+    },
+    {
+      "metric_id": "f_mode10",
+      "value": 7.356003662616934,
+      "unit": "Hz",
+      "precision": {
+        "method": "Rayleigh-Ritz, Chebyshev tensor basis",
+        "basis_per_direction": 26,
+        "change_vs_previous_level": 1.9455184130379166e-09,
+        "levels": {
+          "10": 7.356017531791273,
+          "14": 7.356003778915035,
+          "18": 7.356003677635141,
+          "22": 7.3560036645624525,
+          "26": 7.356003662616934
+        }
+      },
+      "locator": "mode 10 in ascending order (modes 1-3 rigid)",
+      "nafems_value": null,
+      "nafems_minus_ritz_rel": null
+    }
+  ],
+  "inputs": {
+    "E": 200000000000.0,
+    "nu": 0.3,
+    "rho": 8000.0,
+    "t": 0.05,
+    "a": 10.0
+  },
+  "rigid_modes_Hz": [
+    0.0,
+    0.0,
+    0.00020429453487441675
+  ]
+}

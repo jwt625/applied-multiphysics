@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_misc.py",
   "command": "cd validation && uv run python a/gen_misc.py",
   "method": "First-order reaction, steady. PFR: C/C0 = exp(-Da), Da = kL/u. Axial dispersion with Danckwerts BCs: C(L)/C0 = 4 a e^{Pe/2} / ((1 + a)^2 e^{a Pe/2} - (1 - a)^2 e^{-a Pe/2}), a = sqrt(1 + 4 Da/Pe), Pe = uL/D. Inputs are synthetic (R3 gives none).",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:01:19-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",

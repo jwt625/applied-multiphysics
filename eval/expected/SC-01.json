@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_misc.py",
   "command": "cd validation && uv run python a/gen_misc.py",
   "method": "Abrupt pn junction, depletion approximation: V_bi = (kT/q) ln(N_A N_D / n_i^2), W = sqrt(2 eps V_bi (N_A + N_D)/(q N_A N_D)) (Hu eqs. 4.1.2, 4.2.8). eps_r 11.7 and 11.1 as R3 states; 11.9 added for comparison (eps_r source to be verified; see case missing list). E_max_PB: exact peak field of the nonlinear equilibrium Poisson equation, the gate for a drift-diffusion solver.",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:01:19-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -43,7 +43,7 @@
       }
     },
     {
-      "metric_id": "W_0V[eps_r=11.7]",
+      "metric_id": "W_0V.epsr11.7",
       "value": 4.9631454436638445e-08,
       "unit": "m",
       "precision": {
@@ -57,7 +57,7 @@
       }
     },
     {
-      "metric_id": "E_max_0V[eps_r=11.7]",
+      "metric_id": "E_max_0V.epsr11.7",
       "value": 38379808.93883373,
       "unit": "V/m",
       "precision": {
@@ -65,7 +65,7 @@
       }
     },
     {
-      "metric_id": "E_max_PB_0V[eps_r=11.7]",
+      "metric_id": "E_max_PB_0V.epsr11.7",
       "value": 37323514.516489305,
       "unit": "V/m",
       "precision": {
@@ -76,7 +76,7 @@
       "locator": "peak field at the junction, equilibrium; gate for a drift-diffusion solve"
     },
     {
-      "metric_id": "W_0V[eps_r=11.9]",
+      "metric_id": "W_0V.epsr11.9",
       "value": 5.005385741003641e-08,
       "unit": "m",
       "precision": {
@@ -84,7 +84,7 @@
       }
     },
     {
-      "metric_id": "E_max_0V[eps_r=11.9]",
+      "metric_id": "E_max_0V.epsr11.9",
       "value": 38055922.90380941,
       "unit": "V/m",
       "precision": {
@@ -92,7 +92,7 @@
       }
     },
     {
-      "metric_id": "E_max_PB_0V[eps_r=11.9]",
+      "metric_id": "E_max_PB_0V.epsr11.9",
       "value": 37008542.5178224,
       "unit": "V/m",
       "precision": {
@@ -103,7 +103,7 @@
       "locator": "peak field at the junction, equilibrium; gate for a drift-diffusion solve"
     },
     {
-      "metric_id": "W_0V[eps_r=11.1]",
+      "metric_id": "W_0V.epsr11.1",
       "value": 4.8342105385592195e-08,
       "unit": "m",
       "precision": {
@@ -117,7 +117,7 @@
       }
     },
     {
-      "metric_id": "E_max_0V[eps_r=11.1]",
+      "metric_id": "E_max_0V.epsr11.1",
       "value": 39403450.12781202,
       "unit": "V/m",
       "precision": {
@@ -125,7 +125,7 @@
       }
     },
     {
-      "metric_id": "E_max_PB_0V[eps_r=11.1]",
+      "metric_id": "E_max_PB_0V.epsr11.1",
       "value": 38318982.9107535,
       "unit": "V/m",
       "precision": {

@@ -133,14 +133,15 @@ def ht02() -> None:
 def ht03() -> None:
     L, TA, eps, Tinf = 0.1, 1000.0, 0.98, 300.0
     targets = []
-    for k, r3, label in [(55.6, "927.004", "k = 55.6 W/(m K)"), (55.563, "926.967", "k = 55.563 W/(m K) (FEATool)")]:
-        for sig, sl in [(SIGMA_SB, "CODATA"), (5.67e-8, "5.67e-8")]:
+    for k, r3, label in [(55.6, "927.004", "k55.6"), (55.563, "926.967", "k55.563")]:
+        for sig, sl in [(SIGMA_SB, "codata"), (5.67e-8, "5.67e-8")]:
             f = lambda TB, k=k, sig=sig: k * (TA - TB) / L - eps * sig * (TB**4 - Tinf**4)  # noqa: E731
             TB = brentq(f, Tinf, TA, xtol=1e-13, rtol=1e-15)
             targets.append(target(
-                f"T_B[{label}; sigma {sl}]", TB, "K",
+                f"T_B.{label}.sigma_{sl}", TB, "K",
                 {"method": "brentq root", "xtol_K": 1e-13, "residual_W_m2": f(TB)},
-                r3=r3_compare(TB, r3) if sl == "CODATA" else None, locator="end B, x = L",
+                r3=r3_compare(TB, r3) if sl == "codata" else None,
+                locator=f"end B, x = L; k = {k} W/(m K), sigma = {sl}",
                 inputs={"k": k, "sigma": sig}))
     write_expected("HT-03", targets, GEN,
                    "Root of k (T_A - T_B)/L = eps sigma (T_B^4 - T_inf^4), 1D, no other loss. Both sigma values "

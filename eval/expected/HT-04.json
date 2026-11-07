@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_heat.py",
   "command": "cd validation && uv run python a/gen_heat.py",
   "method": "Carslaw-Jaeger / Holman semi-infinite solid with surface convection: (T - Ti)/(Tinf - Ti) = erfc(xi) - exp(h x/k + h^2 a t/k^2) erfc(xi + h sqrt(a t)/k), xi = x / (2 sqrt(a t)).",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:00:51-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",

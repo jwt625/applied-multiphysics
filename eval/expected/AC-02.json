@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_misc.py",
   "command": "cd validation && uv run python a/gen_misc.py",
   "method": "Rigid-walled box: f = (c/2) sqrt((l/Lx)^2 + (m/Ly)^2 + (n/Lz)^2), lowest 10 non-zero modes (index search to 7 per axis covers them)",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:01:19-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",

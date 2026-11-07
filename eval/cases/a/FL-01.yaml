@@ -29,7 +29,9 @@ bcs:
 - {selection: 'poiseuille: x = 0', type: pressure, value: 8.0}
 - {selection: 'poiseuille: x = 1', type: pressure, value: 0.0}
 initial: null
-study: {type: stationary}
+study:
+  type: stationary
+  settings: {element_assumed_by_tolerances: 'Taylor-Hood P2/P1 (velocity L2 rate 3, H1 rate 2; Poiseuille exact)'}
 references:
 - quantity: velocity field error
   metric_id: kovasznay.field_rel_L2_u
@@ -48,7 +50,7 @@ references:
     accessed: null}
   expected: {file: eval/expected/FL-01.json, metric_id: kovasznay.field_rel_L2_u}
 - quantity: v(0.5, 0.25)
-  metric_id: kovasznay.v(0.5,0.25)
+  metric_id: kovasznay.v.x0.5_y0.25
   definition: probe
   value: -0.10600296896882014
   unit: m/s
@@ -57,11 +59,11 @@ references:
   basis: D
   form: closed_form
   gate: true
-  provenance: {citation: Kovasznay 1948, locator: 'validation/a/gen_misc.py::fl01; eval/expected/FL-01.json targets[metric_id=kovasznay.v(0.5,0.25)]',
+  provenance: {citation: Kovasznay 1948, locator: 'validation/a/gen_misc.py::fl01; eval/expected/FL-01.json targets[metric_id=kovasznay.v.x0.5_y0.25]',
     accessed: null}
-  expected: {file: eval/expected/FL-01.json, metric_id: 'kovasznay.v(0.5,0.25)'}
+  expected: {file: eval/expected/FL-01.json, metric_id: kovasznay.v.x0.5_y0.25}
 - quantity: p(1.0, 0.5)
-  metric_id: kovasznay.p(1.0,0.5)
+  metric_id: kovasznay.p.x1.0_y0.5
   definition: probe, zero-mean pressure
   value: 0.8525855954396337
   unit: Pa
@@ -70,15 +72,16 @@ references:
   basis: D
   form: closed_form
   gate: true
-  provenance: {citation: Kovasznay 1948, locator: 'validation/a/gen_misc.py::fl01; eval/expected/FL-01.json targets[metric_id=kovasznay.p(1.0,0.5)]',
+  provenance: {citation: Kovasznay 1948, locator: 'validation/a/gen_misc.py::fl01; eval/expected/FL-01.json targets[metric_id=kovasznay.p.x1.0_y0.5]',
     accessed: null}
-  expected: {file: eval/expected/FL-01.json, metric_id: 'kovasznay.p(1.0,0.5)'}
+  expected: {file: eval/expected/FL-01.json, metric_id: kovasznay.p.x1.0_y0.5}
 - quantity: u_max
   metric_id: poiseuille.u_max
   definition: centreline velocity
   value: 1.0
   unit: m/s
-  tolerance: {rel: 1.0e-06}
+  tolerance: {rel: 1.0e-06, after: finest, note: 'Taylor-Hood P2/P1 contains the exact field; other elements: rel 1e-3 after
+      richardson'}
   bounds: null
   basis: D
   form: closed_form
@@ -91,7 +94,8 @@ references:
   definition: flow rate per unit depth
   value: 0.6666666666666666
   unit: m^2/s
-  tolerance: {rel: 1.0e-06}
+  tolerance: {rel: 1.0e-06, after: finest, note: 'Taylor-Hood P2/P1 contains the exact field; other elements: rel 1e-3 after
+      richardson'}
   bounds: null
   basis: D
   form: closed_form

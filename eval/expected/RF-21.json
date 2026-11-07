@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_em.py",
   "command": "cd validation && uv run python a/gen_em.py",
   "method": "PEC circular cylinder cavity filled with eps_r: f = c/(2 pi sqrt(eps_r)) sqrt((x/a)^2 + (p pi/d)^2), x = Bessel zero (TM) or derivative zero (TE).",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:01:19-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -35,7 +35,17 @@
         "agreement": "disagree",
         "note": "vs Palace cylinder.md analytic table, in GHz"
       },
-      "ten_digits_GHz": "2.903636072"
+      "ten_digits_GHz": "2.903636072",
+      "mode": {
+        "family": "TM",
+        "m": 0,
+        "n": 1,
+        "p": 0,
+        "multiplicity": 1,
+        "index_3d_first": 1,
+        "index_3d_last": 1,
+        "degenerate_with": []
+      }
     },
     {
       "metric_id": "f_TE111",
@@ -52,7 +62,17 @@
         "agreement": "disagree",
         "note": "vs Palace cylinder.md analytic table, in GHz"
       },
-      "ten_digits_GHz": "2.922197191"
+      "ten_digits_GHz": "2.922197191",
+      "mode": {
+        "family": "TE",
+        "m": 1,
+        "n": 1,
+        "p": 1,
+        "multiplicity": 2,
+        "index_3d_first": 2,
+        "index_3d_last": 3,
+        "degenerate_with": []
+      }
     },
     {
       "metric_id": "f_TM011",
@@ -69,7 +89,17 @@
         "agreement": "disagree",
         "note": "vs Palace cylinder.md analytic table, in GHz"
       },
-      "ten_digits_GHz": "3.468175213"
+      "ten_digits_GHz": "3.468175213",
+      "mode": {
+        "family": "TM",
+        "m": 0,
+        "n": 1,
+        "p": 1,
+        "multiplicity": 1,
+        "index_3d_first": 4,
+        "index_3d_last": 4,
+        "degenerate_with": []
+      }
     },
     {
       "metric_id": "f_TM110",
@@ -86,7 +116,17 @@
         "agreement": "disagree",
         "note": "vs Palace cylinder.md analytic table, in GHz"
       },
-      "ten_digits_GHz": "4.626480968"
+      "ten_digits_GHz": "4.626480968",
+      "mode": {
+        "family": "TM",
+        "m": 1,
+        "n": 1,
+        "p": 0,
+        "multiplicity": 2,
+        "index_3d_first": 9,
+        "index_3d_last": 10,
+        "degenerate_with": []
+      }
     },
     {
       "metric_id": "f_TE211",
@@ -103,7 +143,17 @@
         "agreement": "disagree",
         "note": "vs Palace cylinder.md analytic table, in GHz"
       },
-      "ten_digits_GHz": "4.146881712"
+      "ten_digits_GHz": "4.146881712",
+      "mode": {
+        "family": "TE",
+        "m": 2,
+        "n": 1,
+        "p": 1,
+        "multiplicity": 2,
+        "index_3d_first": 5,
+        "index_3d_last": 6,
+        "degenerate_with": []
+      }
     },
     {
       "metric_id": "f_TE011",
@@ -120,7 +170,19 @@
         "agreement": "disagree",
         "note": "vs Palace cylinder.md analytic table, in GHz"
       },
-      "ten_digits_GHz": "5.000146299"
+      "ten_digits_GHz": "5.000146299",
+      "mode": {
+        "family": "TE",
+        "m": 0,
+        "n": 1,
+        "p": 1,
+        "multiplicity": 1,
+        "index_3d_first": 12,
+        "index_3d_last": 12,
+        "degenerate_with": [
+          "TM111"
+        ]
+      }
     },
     {
       "metric_id": "Q_dielectric",
@@ -144,6 +206,133 @@
     "eps_r": 2.08,
     "tan_delta": 0.0004
   },
+  "mode_table_to_5.3GHz": [
+    {
+      "label": "TM010",
+      "family": "TM",
+      "m": 0,
+      "n": 1,
+      "p": 0,
+      "f_Hz": 2903636072.3343897,
+      "multiplicity": 1,
+      "index_3d_first": 1,
+      "index_3d_last": 1,
+      "degenerate_with": []
+    },
+    {
+      "label": "TE111",
+      "family": "TE",
+      "m": 1,
+      "n": 1,
+      "p": 1,
+      "f_Hz": 2922197191.014636,
+      "multiplicity": 2,
+      "index_3d_first": 2,
+      "index_3d_last": 3,
+      "degenerate_with": []
+    },
+    {
+      "label": "TM011",
+      "family": "TM",
+      "m": 0,
+      "n": 1,
+      "p": 1,
+      "f_Hz": 3468175212.9848056,
+      "multiplicity": 1,
+      "index_3d_first": 4,
+      "index_3d_last": 4,
+      "degenerate_with": []
+    },
+    {
+      "label": "TE211",
+      "family": "TE",
+      "m": 2,
+      "n": 1,
+      "p": 1,
+      "f_Hz": 4146881712.463177,
+      "multiplicity": 2,
+      "index_3d_first": 5,
+      "index_3d_last": 6,
+      "degenerate_with": []
+    },
+    {
+      "label": "TE112",
+      "family": "TE",
+      "m": 1,
+      "n": 1,
+      "p": 2,
+      "f_Hz": 4396663169.424739,
+      "multiplicity": 2,
+      "index_3d_first": 7,
+      "index_3d_last": 8,
+      "degenerate_with": []
+    },
+    {
+      "label": "TM110",
+      "family": "TM",
+      "m": 1,
+      "n": 1,
+      "p": 0,
+      "f_Hz": 4626480967.847846,
+      "multiplicity": 2,
+      "index_3d_first": 9,
+      "index_3d_last": 10,
+      "degenerate_with": []
+    },
+    {
+      "label": "TM012",
+      "family": "TM",
+      "m": 0,
+      "n": 1,
+      "p": 2,
+      "f_Hz": 4776991721.8019495,
+      "multiplicity": 1,
+      "index_3d_first": 11,
+      "index_3d_last": 11,
+      "degenerate_with": []
+    },
+    {
+      "label": "TE011",
+      "family": "TE",
+      "m": 0,
+      "n": 1,
+      "p": 1,
+      "f_Hz": 5000146299.18556,
+      "multiplicity": 1,
+      "index_3d_first": 12,
+      "index_3d_last": 12,
+      "degenerate_with": [
+        "TM111"
+      ]
+    },
+    {
+      "label": "TM111",
+      "family": "TM",
+      "m": 1,
+      "n": 1,
+      "p": 1,
+      "f_Hz": 5000146299.18556,
+      "multiplicity": 2,
+      "index_3d_first": 13,
+      "index_3d_last": 14,
+      "degenerate_with": [
+        "TE011"
+      ]
+    },
+    {
+      "label": "TE212",
+      "family": "TE",
+      "m": 2,
+      "n": 1,
+      "p": 2,
+      "f_Hz": 5290372249.602449,
+      "multiplicity": 2,
+      "index_3d_first": 15,
+      "index_3d_last": 16,
+      "degenerate_with": []
+    }
+  ],
+  "classifier": "TE: E_z = 0 everywhere; TM: H_z = 0. Azimuthal order m from the phi dependence cos(m phi) or the 2D-axisym harmonic. TE011 and TM111 are exactly degenerate (x'01 = x11 because J0' = -J1); separate them by m (0 vs 1) or E_z = 0.",
   "bessel_zeros": {
     "TM01": 2.404825557695773,
     "TM11": 3.8317059702075125,

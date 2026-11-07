@@ -14,7 +14,7 @@ geometry:
   spec: {sphere_radius_m: 0.008, plane: 'rigid, z = 0'}
   symmetry: axisymmetric about the load axis
 materials:
-  sphere: {E: 1000000000.0, nu: 0.3, source: 'Ansys VM63 (E = 1000 N/mm^2, nu = 0.3)'}
+  sphere: {E: 1000000000.0, nu: 0.3, source: 'Ansys VM63 (E = 1000 N/mm^2, nu = 0.3), ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM63.html'}
 bcs:
 - {selection: contact face, type: frictionless_contact, target: rigid plane}
 - {selection: load, type: force, value: 188.49555921538757, unit: N, note: F = 30 * 2 pi N (VM63); applied far from the
@@ -29,7 +29,7 @@ references:
   definition: contact radius
   value: 0.00100963544445813
   unit: m
-  tolerance: {rel: 0.005, after: richardson}
+  tolerance: {rel: 0.005, after: finest}
   bounds: null
   basis: D
   form: closed_form
@@ -65,7 +65,7 @@ references:
   expected: {file: eval/expected/SM-04.json, metric_id: delta}
   note: depends on where the load is applied relative to the far field; informative
 reference_results:
-- {solver: Ansys VM63 target, a_mm: 1.01}
+- {solver: Ansys VM63 target, a_mm: 1.01, ansys_result_mm: 1.011, locator: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM63.html}
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
   budget_s: {browser: 3.0, native: null}

@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_misc.py",
   "command": "cd validation && uv run python a/gen_misc.py",
   "method": "Rigid sphere, plane wave p0 exp(i k z): p_s = -p0 sum i^n (2n+1) [j_n'(ka)/h_n'(ka)] h_n(kr) P_n(cos th) (Morse-Ingard sec. 8.2 form; not fetched). f(th) = (2i/ka) sum (2n+1) (j_n'/h_n') P_n(cos th); sigma/(pi a^2) = (4/(ka)^2) sum (2n+1) |j_n'/h_n'|^2.",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:01:19-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",

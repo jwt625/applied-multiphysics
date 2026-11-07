@@ -18,6 +18,7 @@ import yaml
 from common import CASES_DIR, EXPECTED_DIR
 
 ACC = "2026-11-06"
+VM = "ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM{}.html"
 R3 = "DevLog/research/2026-11-06-R3-eval-set-sources.md"
 
 TEXTBOOK_RIGHTS = {"source_license": "textbook formula (facts); no text, figures or tables copied",
@@ -43,9 +44,15 @@ def ev(case_id: str, metric_id: str) -> float:
     raise KeyError(f"{case_id}:{metric_id}")
 
 
+def evt(case_id: str, metric_id: str) -> dict[str, Any]:
+    ev(case_id, metric_id)
+    return next(t for t in _EXP[case_id]["targets"] if t["metric_id"] == metric_id)
+
+
 def ref(quantity: str, metric_id: str, definition: str, value: float, unit: str, tolerance: dict[str, Any],
         basis: str, form: str, citation: str, locator: str, *, case: str | None = None, bounds=None,
-        gate: bool = True, accessed: str | None = ACC, note: str | None = None) -> dict[str, Any]:
+        gate: bool = True, accessed: str | None = ACC, note: str | None = None,
+        extract: dict[str, Any] | None = None) -> dict[str, Any]:
     r: dict[str, Any] = {"quantity": quantity, "metric_id": metric_id, "definition": definition, "value": value,
                          "unit": unit, "tolerance": tolerance, "bounds": bounds, "basis": basis, "form": form,
                          "gate": gate,
@@ -55,6 +62,8 @@ def ref(quantity: str, metric_id: str, definition: str, value: float, unit: str,
         r["expected"] = {"file": f"eval/expected/{case}.json", "metric_id": metric_id}
     if note:
         r["note"] = note
+    if extract:
+        r["extract"] = extract
     return r
 
 
@@ -153,7 +162,7 @@ def build() -> list[dict[str, Any]]:
           "sigma": "CODATA (scipy.constants.Stefan_Boltzmann)"},
          {"selection": "lateral surface", "type": "insulated"}],
         {"type": "stationary"},
-        [dref("HT-03", "T_B[k = 55.6 W/(m K); sigma CODATA]", "T_B", "temperature at end B", "K",
+        [dref("HT-03", "T_B.k55.6.sigma_codata", "T_B", "temperature at end B", "K",
               {"rel": 1.0e-6}, "brentq root of the 1D balance (this lane)", GH + "::ht03"),
          ref("T_B", "T_B_nafems", "NAFEMS target", 927.0, "K", {"abs": 0.5}, "P", "benchmark",
              "NAFEMS T2 via CalculiX forum (C3D20 927.004 K) (R3 s.3.1)",
@@ -170,7 +179,8 @@ def build() -> list[dict[str, Any]]:
         ["heat-cond", "heat-conv", "heat-transient"], "1D",
         {"kind": "analytic", "spec": {"domain_m": [0.0, 2.0], "note": "truncate at 2.0 m (>> 4 sqrt(a t) = 0.44 m)"},
          "symmetry": "none"},
-        {"steel": {"k": 54.0, "rho": 7833.0, "c": 465.0, "source": "Ansys VM28 (cites Holman 4th ed. p. 106) (R3)"}},
+        {"steel": {"k": 54.0, "rho": 7833.0, "c": 465.0,
+                   "source": "Ansys VM28 (cites Holman 4th ed. p. 106), " + VM.format(28)}},
         [{"selection": "x = 0", "type": "convection", "h": 50.0, "T_inf": 1273.15, "note": "1000 C"},
          {"selection": "x = 2.0", "type": "insulated", "note": "far field; temperature rise < 1e-12 K at t = 2000 s"}],
         {"type": "transient", "t_end": 2000.0, "dt_out": 100.0},
@@ -180,6 +190,7 @@ def build() -> list[dict[str, Any]]:
         speed(1.0, "R3 s.3.1 browser est. < 1 s"), ANSYS_RIGHTS, NOHERO, "semi-infinite-convection",
         initial={"T": 273.15, "note": "0 C"},
         reference_results=[{"solver": "Ansys VM28 target (Holman)", "values_degC": [140.0, 98.9, 51.8, 14.5],
+                            "locator": VM.format(28),
                             "note": "first point 0.3 % below the closed form (R3 s.8)"}],
         assumptions=["Truncation depth 2.0 m chosen by this lane (synthetic); its effect is below the tolerance."]))
 
@@ -246,10 +257,12 @@ def build() -> list[dict[str, Any]]:
         "SM-03", "Euler column, pinned-pinned, first buckling load", ["solid-buckling"], "1D",
         {"kind": "analytic", "spec": {"length_m": 200 * in_, "square_section_side_m": 0.5 * in_,
                                       "note": "200 in, 0.5 in square (Ansys VM127)"}, "symmetry": "none"},
-        {"steel": {"E": 30.0e6 * psi, "source": "Ansys VM127 (E = 30e6 psi), exact unit conversion"}},
+        {"steel": {"E": 30.0e6 * psi,
+                   "source": "Ansys VM127 (E = 30e6 psi), exact unit conversion, " + VM.format(127)}},
         [{"selection": "end 0", "type": "pinned", "fixed": ["ux", "uy"]},
          {"selection": "end L", "type": "pinned", "fixed": ["uy"], "load": "axial compression, unit reference load"}],
-        {"type": "eigen", "n": 3, "shift": 0.0, "settings": {"kind": "linear_buckling"}},
+        {"type": "eigen", "n": 3, "shift": 0.0, "settings": {"kind": "linear_buckling",
+                                                             "shift_note": "buckling eigenproblem has no null space"}},
         [dref("SM-03", "F_cr", "F_cr", "pi^2 E I / L^2", "N", {"rel": 1.0e-4, "after": "richardson"},
               "Timoshenko, Strength of Materials II, p. 148 (via Ansys VM127)", GS + "::sm03"),
          dref("SM-03", "F_cr_lbf", "F_cr", "same in lbf", "lbf", {"rel": 1.0e-4}, "Ansys VM127", GS + "::sm03",
@@ -260,19 +273,20 @@ def build() -> list[dict[str, Any]]:
         "SM-04", "Hertz: elastic sphere on a rigid plane", ["solid-contact"], "2D-axisym",
         {"kind": "analytic", "spec": {"sphere_radius_m": 8.0e-3, "plane": "rigid, z = 0"},
          "symmetry": "axisymmetric about the load axis"},
-        {"sphere": {"E": 1000.0e6, "nu": 0.3, "source": "Ansys VM63 (E = 1000 N/mm^2, nu = 0.3)"}},
+        {"sphere": {"E": 1000.0e6, "nu": 0.3, "source": "Ansys VM63 (E = 1000 N/mm^2, nu = 0.3), " + VM.format(63)}},
         [{"selection": "contact face", "type": "frictionless_contact", "target": "rigid plane"},
          {"selection": "load", "type": "force", "value": 60 * math.pi, "unit": "N",
           "note": "F = 30 * 2 pi N (VM63); applied far from the contact (e.g. on the equatorial plane of a "
                   "hemisphere) so the contact zone sees the Hertz load"}],
         {"type": "stationary", "settings": {"nonlinear": "contact"}},
-        [dref("SM-04", "a_contact", "a", "contact radius", "m", {"rel": 5.0e-3, "after": "richardson"},
+        [dref("SM-04", "a_contact", "a", "contact radius", "m", {"rel": 5.0e-3, "after": "finest"},
               "Timoshenko-Goodier 3rd ed. art. 140 (via Ansys VM63)", GS + "::sm04"),
          dref("SM-04", "p0", "p0", "peak contact pressure", "Pa", {"rel": 1.0e-2}, "Hertz", GS + "::sm04"),
          dref("SM-04", "delta", "delta", "approach", "m", {"rel": 1.0e-2}, "Hertz", GS + "::sm04", gate=False,
               note="depends on where the load is applied relative to the far field; informative")],
         speed(3.0, "R3 s.3.2 browser est. 1-3 s"), ANSYS_RIGHTS, NOHERO, "hertz-sphere",
-        reference_results=[{"solver": "Ansys VM63 target", "a_mm": 1.010}],
+        reference_results=[{"solver": "Ansys VM63 target", "a_mm": 1.010, "ansys_result_mm": 1.011,
+                            "locator": VM.format(63)}],
         missing=["VM63 load application detail is not stated on the public page."],
         assumptions=["Small-strain linear elasticity; Hertz assumes a << R (a/R = 0.126 here), so expect a "
                      "small model-form difference; tolerance 0.5 %."]))
@@ -283,7 +297,8 @@ def build() -> list[dict[str, Any]]:
         {"steel": {"E": 200.0e9, "nu": 0.3, "rho": 8000.0, "source": "Ansys VM-NAFEMS FV52 (TNSB Aug 1989)"}},
         [{"selection": "4 bottom edges (z = 0)", "type": "displacement", "fixed": ["uz"],
           "note": "as on the Ansys page; in-plane rigid modes 1-3 remain"}],
-        {"type": "eigen", "n": 10, "shift": 0.0},
+        {"type": "eigen", "n": 10, "shift": -1.0,
+         "settings": {"shift_unit": "(rad/s)^2; small negative shift avoids the rigid-body null space"}},
         [ref(f"f_mode{m}", f"f_mode{m}", f"natural frequency, mode {m} (modes 1-3 rigid)", v, "Hz",
              {"rel": 5.0e-3, "after": "richardson"}, "P", "benchmark",
              "NAFEMS TNSB FV52 (modified) via Ansys VM-NAFEMS",
@@ -294,42 +309,66 @@ def build() -> list[dict[str, Any]]:
         missing=["Constraints on ux, uy are not stated on the Ansys page beyond 'UZ = 0 along the 4 edges at Z = 0'."]))
 
     C.append(case(
-        "SM-06", "NAFEMS FV12: free thin square plate, free vibration", ["solid-modal"], "3D",
-        {"kind": "analytic", "spec": {"plate_m": [10.0, 10.0, 0.05]}, "symmetry": "none",
+        "SM-06", "NAFEMS FV12: free thin square plate, free vibration (midsurface plate model)", ["solid-modal"],
+        "2D",
+        {"kind": "analytic", "spec": {"plate_midsurface_m": [10.0, 10.0], "thickness_m": 0.05,
+                                      "model": "Kirchhoff (or Mindlin) plate on the midsurface; in-plane motion "
+                                               "decoupled (u_x = u_y = theta_z = 0)",
+                                      "alt_3d": "3D solid allowed only with the in-plane constraint applied to "
+                                                "midsurface nodes (or as a through-thickness average equation), "
+                                                "never to all nodes: that locks bending"},
+         "symmetry": "none",
          "source": "side 10 m per R3 s.3.2 (the mirror page shows it only in a figure); thickness 0.05 m"},
         {"steel": {"E": 200.0e9, "nu": 0.3, "rho": 8000.0,
                    "source": "Abaqus Benchmarks v2016 mirror, FV12 (pointer only; cites TNSB Rev. 3)"}},
-        [{"selection": "all", "type": "free"},
-         {"selection": "all nodes", "type": "constraint", "fixed": ["ux", "uy"],
-          "note": "in-plane constraint as inferred; see assumptions"}],
-        {"type": "eigen", "n": 10, "shift": 0.0},
-        [ref(f"f_mode{m}", f"f_mode{m}", f"natural frequency, mode {m} (modes 1-3 rigid)", v, "Hz",
-             {"rel": 5.0e-3, "after": "richardson"}, "P", "benchmark",
-             "NAFEMS TNSB Rev. 3 FV12 via Abaqus v2016 mirror",
-             "ceae-server.colorado.edu/v2016/books/bmk/ch04s04anf18.html, target table (rights unclear: pointer)")
-         for m, v in [(4, 1.622), (5, 2.360), (6, 2.922), (7, 4.233), (8, 4.233), (9, 7.416)]],
+        [{"selection": "all edges", "type": "free"},
+         {"selection": "midsurface", "type": "constraint", "fixed": ["ux", "uy", "theta_z"],
+          "note": "NAFEMS FV12 shell constraint; Abaqus continuum shells use equivalent midsurface equations"}],
+        {"type": "eigen", "n": 10, "shift": -1.0,
+         "settings": {"shift_unit": "(rad/s)^2; small negative shift avoids the three rigid-body modes' null space"}},
+        [dref("SM-06", f"f_mode{m}", f"f mode {m}", f"natural frequency, mode {m} ascending (modes 1-3 rigid)", "Hz",
+              {"rel": 2.0e-3, "after": "richardson"}, "Rayleigh-Ritz Kirchhoff plate (this lane)", GS + "::sm06",
+              extract={"kind": "eigen", "offset": 3, "floor": 1.0e-2, "match": "sorted"})
+         for m in range(4, 11)]
+        + [ref(f"f_mode{m}", f"f_mode{m}.nafems", f"NAFEMS target, mode {m}", v, "Hz",
+               {"rel": 1.5e-2}, "P", "benchmark", "NAFEMS TNSB Rev. 3 FV12 via Abaqus v2016 mirror",
+               "ceae-server.colorado.edu/v2016/books/bmk/ch04s04anf18.html, target table (rights unclear: pointer)",
+               gate=False, note="informative: modes 7-9 sit 0.8-1.0 % above the converged Kirchhoff solution; the "
+                                "basis of the NAFEMS FV12 values is not stated on any page seen")
+           for m, v in [(4, 1.622), (5, 2.360), (6, 2.922), (7, 4.233), (8, 4.233), (9, 7.416)]],
         speed(5.0, "R3 s.3.2 browser est. 2-5 s"), NAFEMS_RIGHTS, NOHERO, "nafems-fv12",
-        missing=["Exact constraint equation (an image on the mirror page).",
+        reference_results=[{"solver": "Abaqus S4R (same mirror page)", "modes_7_9_Hz": [4.265, 7.880],
+                            "note": "auditor reading, above both NAFEMS and Ritz"}],
+        missing=["Exact NAFEMS constraint equation (an image on the mirror page).",
                  "Frequency unit not printed (Hz assumed)."],
-        assumptions=["In-plane displacements constrained so that only flexural modes appear, consistent with three "
-                     "rigid-body modes in the target table (inference, to verify against TNSB)."]))
+        assumptions=["Gate is the converged Kirchhoff Ritz solution (change between the two finest levels <= 2e-8 "
+                     "Hz). Shear deformation and rotary inertia are neglected; their effect at t/a = 0.005 is "
+                     "est. < 1e-3 rel. (not computed), inside the 2e-3 tolerance; a Mindlin or 3D solver may sit "
+                     "slightly below the Ritz values."]))
 
     C.append(case(
         "SM-07", "Plastic hinge in a rectangular beam under pure bending", ["solid-plasticity"], "2D",
         {"kind": "analytic", "spec": {"length_m": 10 * in_, "width_m": 1 * in_, "height_m": 2 * in_,
-                                      "note": "10 x 1 x 2 in (Ansys VM24)"}, "symmetry": "half (mid-span)"},
+                                      "note": "10 x 1 x 2 in full beam (Ansys VM24); a half model (mid-span "
+                                              "symmetry) is allowed"}, "symmetry": "half (mid-span), optional"},
         {"steel": {"E": 30.0e6 * psi, "nu": 0.3, "sigma_y": 36000 * psi, "hardening": "none (perfectly plastic)",
                    "source": "Ansys VM24"}},
-        [{"selection": "mid-span section", "type": "symmetry"},
-         {"selection": "end section", "type": "moment", "values_over_Myp": [1.0, 1.1666, 1.3333, 1.5]}],
+        [{"selection": "mid-span section (half model)", "type": "symmetry", "fixed": ["ux"]},
+         {"selection": "end section(s)", "type": "moment", "values_over_Myp": [1.0, 1.1666, 1.3333],
+          "M_yp": 24000 * lbf * in_,
+          "note": "pure bending: end section kept plane (rigid-section / kinematic coupling) with the moment applied "
+                  "at its centroid; M/M_yp = 1.5 is the collapse limit, not a load step"}],
         {"type": "parametric", "settings": {"parameter": "M/M_yp", "values": [1.0, 1.1666, 1.3333]}},
-        [dref("SM-07", f"rotation_M/Myp={m}[literal]", f"theta(M/Myp = {m})", "end-to-end rotation over L", "rad",
+        [dref("SM-07", f"rotation.m{m}.literal", f"theta(M/Myp = {m})",
+              "relative rotation of the two end sections of the full 10 in beam = kappa L (half model: 2 x the "
+              "end-section rotation relative to the mid-span plane)", "rad",
               {"rel": 2.0e-3}, "Timoshenko, Strength of Materials II art. 64 (via Ansys VM24)", GS + "::sm07")
          for m in ["1.0", "1.1666", "1.3333"]],
         speed(3.0, "R3 s.3.2 browser est. 1-3 s"), ANSYS_RIGHTS, NOHERO, "plastic-hinge",
         reference_results=[{"solver": "Ansys VM24 target", "rotations": [0.01200, 0.01469, 0.02078],
-                            "note": "0.01469 is the closed form 0.0146955 truncated"}],
-        assumptions=["Rotation = curvature x L with L = 10 in (reproduces the VM24 0.01200 at first yield)."]))
+                            "note": "0.01469 is the closed form 0.0146955 truncated",
+                            "locator": VM.format(24)}],
+        assumptions=["Rotation = curvature x full length L = 10 in (reproduces the VM24 0.01200 at first yield)."]))
 
     # ------------------------------------------------------------------ EM / RF
     C.append(case(
@@ -349,19 +388,29 @@ def build() -> list[dict[str, Any]]:
         "EM-04", "Helmholtz coil: centre field and uniformity", ["magnetostatics"], "2D-axisym",
         {"kind": "analytic", "spec": {"loop_radius_m": 0.1, "loop_z_m": [-0.05, 0.05], "turns": 1,
                                       "wire": "filament (or thin wire, radius << R)",
-                                      "air_box": "sphere or cylinder radius >= 10 R with an open BC"},
+                                      "air_box": "Kelvin transform or infinite elements; or a truncation sphere "
+                                                 "R_b >= 30 R (truncation error <= 5.2e-5 B0, see "
+                                                 "eval/expected/EM-04.json truncation.*)"},
          "symmetry": "axisymmetric"},
         {"air": {"mu_r": 1.0, "source": "vacuum"}},
         [{"selection": "loops", "type": "current", "value": 1.0, "unit": "A"},
-         {"selection": "outer boundary", "type": "open", "note": "infinite element, Kelvin transform or large box"}],
+         {"selection": "outer boundary", "type": "open",
+          "note": "A_phi = 0 on a sphere R_b shifts B(0) by -1.398 (R/R_b)^3 B0 (H_t = 0: +0.699 (R/R_b)^3 B0); "
+                  "R_b = 10 R gives 1.4e-3 B0, above the 1e-3 gate, so R_b >= 30 R or an exact open BC"}],
         {"type": "stationary"},
         [dref("EM-04", "B_center", "B(0)", "|B| at the centre", "T", rel3, "Biot-Savart closed form", GE + "::em04"),
          dref("EM-04", "Bz_probe", "B_z(0.02, 0.01)", "off-axis probe", "T", rel3,
               "elliptic-integral loop formula", GE + "::em04"),
-         dref("EM-04", "Br_probe", "B_rho(0.02, 0.01)", "off-axis probe", "T", {"rel": 1.0e-2},
+         dref("EM-04", "Br_probe", "B_rho(0.02, 0.01)", "off-axis probe (|B_rho| = 9.3e-4 B0)", "T",
+              {"abs": 9.0e-10, "note": "abs 1e-4 B0 (B0 = 8.99e-6 T), same absolute accuracy as B_z at 1e-4"},
               "elliptic-integral loop formula", GE + "::em04"),
          dref("EM-04", "uniformity_sphere_0.1R", "uniformity", "max | |B| - B0 | / B0 on a sphere r = 0.1 R", "1",
-              {"rel": 5.0e-2}, "elliptic-integral loop formula", GE + "::em04")],
+              {"abs": 2.0e-5}, "elliptic-integral loop formula", GE + "::em04", gate=False,
+              note="informative: 1.14e-4 is the same order as the allowed truncation shift"),
+         dref("EM-04", "truncation.dirichlet_A.Rb30R", "truncation shift",
+              "(B(0) - B0)/B0 from A_phi = 0 at R_b = 30 R",
+              "1", {"abs": 1.0e-5}, "dipole image, closed form (this lane)", GE + "::em04", gate=False,
+              note="sensitivity record for the truncation requirement")],
         speed(2.0, "R3 s.3.3 browser est. < 2 s"), TEXTBOOK_RIGHTS,
         {"suitable": True, "why": "R3 hero; field lines and the uniform region respond live to spacing",
          "visual": ["B_magnitude", "field_lines"]}, "helmholtz-coil",
@@ -375,8 +424,11 @@ def build() -> list[dict[str, Any]]:
         {"air": {"eps_r": 1.0, "mu_r": 1.0, "source": "vacuum"}},
         [{"selection": "walls", "type": "pec"},
          {"selection": ["port1", "port2"], "type": "port", "mode": "TE10", "note": "3D S-parameter variant only"}],
-        {"type": "eigen", "n": 4, "shift": 0.0, "settings": {"kind": "2D cross-section cutoff",
-                                                             "frequency_variant_f_list": [10.0e9]}},
+        {"type": "eigen", "n": 4, "shift": 5.0e9, "settings": {"kind": "2D cross-section cutoff",
+                                                               "shift_unit": "Hz, below the TE10 cutoff; a "
+                                                                             "curl-curl form has a gradient null "
+                                                                             "space at 0",
+                                                               "frequency_variant_f_list": [10.0e9]}},
         [dref("RF-02", "fc_TE10", "f_c TE10", "cutoff", "Hz", {"rel": 1.0e-5, "after": "richardson"}, "Pozar ch. 3",
               GE + "::rf02"),
          dref("RF-02", "fc_TE20", "f_c TE20", "cutoff", "Hz", {"rel": 1.0e-5, "after": "richardson"}, "Pozar ch. 3",
@@ -387,28 +439,42 @@ def build() -> list[dict[str, Any]]:
               "Pozar ch. 3", GE + "::rf02", gate=False, note="3D S-parameter variant"),
          dref("RF-02", "S11_mag", "|S11|", "matched straight section", "1", {"abs": 1.0e-3}, "Pozar ch. 3",
               GE + "::rf02", gate=False, note="3D S-parameter variant")],
-        speed(1.0, "R3 s.3.4 browser est. 2D eig < 1 s (3D S 5-20 s)"), TEXTBOOK_RIGHTS, NOHERO, "wr90-guide"))
+        speed(1.0, "R3 s.3.4 browser est. 2D eig < 1 s (3D S 5-20 s)"), TEXTBOOK_RIGHTS, NOHERO, "wr90-guide",
+        assumptions=["S21/S11 targets belong to a 3D variant; split into its own case or sub-spec when the L2 "
+                     "models land (audit M10)."]))
 
     C.append(case(
-        "RF-04", "Thin centre-fed half-wave dipole: input impedance", ["rf-antenna"], "2D-axisym",
-        {"kind": "analytic", "spec": {"length": "lambda/2", "radius": "sweep, e.g. lambda/1000 .. lambda/100",
-                                      "gap": "delta-gap feed"}, "symmetry": "axisymmetric"},
+        "RF-04", "Centre-fed half-wave dipole: input conductance vs radius, thin-wire impedance", ["rf-antenna"],
+        "2D-axisym",
+        {"kind": "analytic", "spec": {"wavelength_m": 1.0, "half_length_m": 0.25,
+                                      "radius_list_m": [1.0e-2, 1.0 / 300, 1.0e-3],
+                                      "gap_width_m": "<= 2 x radius (finite-gap port); the reference is a delta gap",
+                                      "note": "lambda = 1 m (f = 299.792458 MHz); all lengths scale with lambda"},
+         "symmetry": "axisymmetric"},
         {"air": {"eps_r": 1.0, "mu_r": 1.0, "source": "vacuum"}, "wire": {"type": "pec", "source": "ideal conductor"}},
         [{"selection": "wire", "type": "pec"}, {"selection": "gap", "type": "lumped_port", "impedance": 50.0},
          {"selection": "outer boundary", "type": "absorbing", "note": "PML or first-order ABC"}],
-        {"type": "frequency", "f_list": "f such that L = lambda/2; plus a sweep for the resonant length"},
-        [dref("RF-04", "R_in", "R_in", "thin-wire limit, sinusoidal current", "Ohm",
-              {"rule": {"type": "monotonic", "direction": "decreasing", "of": "error",
-                        "note": "|R_in(radius) - value| over radii lambda/100, lambda/300, lambda/1000 (ordered "
-                                "toward radius -> 0) at L = lambda/2; second condition X_in = 0 at a length < "
-                                "lambda/2 (not yet a structured target)"}},
-              "Balanis ch. 4 (eq. 4-79 form; formula not fetched)", GE + "::rf04",
-              note="FEM on a finite radius cannot hit the thin-wire value; the gate is the trend rule (R3)"),
-         dref("RF-04", "X_in", "X_in", "thin-wire limit, sinusoidal current", "Ohm", {"rel": 1.0e-1},
-              "Balanis ch. 4", GE + "::rf04", gate=False)],
+        {"type": "frequency", "f_list": [299792458.0]},
+        [dref("RF-04", f"G_in.a_{nm}", f"G_in, a = {lab}", "input conductance Re(1/Z_in) at L = lambda/2", "S",
+              {"rel": 3.0e-2, "after": "finest",
+               "note": "3 % covers the finite-gap vs delta-gap feed difference (proposal); the reference is a "
+                       "Hallen MoM, Richardson-extrapolated (correction <= 0.18 %)"},
+              "Hallen MoM, exact kernel (this lane)", GE + "::rf04 hallen_dipole")
+         for nm, lab in [("lambda_over_100", "lambda/100"), ("lambda_over_300", "lambda/300"),
+                         ("lambda_over_1000", "lambda/1000")]]
+        + [dref("RF-04", "R_in", "R_in", "thin-wire limit, sinusoidal current (induced EMF)", "Ohm", {"rel": 5.0e-2},
+                "Balanis ch. 4 (eq. 4-79 form; formula not fetched)", GE + "::rf04", gate=False,
+                note="the a -> 0 limit; finite-radius solvers approach it logarithmically"),
+           dref("RF-04", "X_in", "X_in", "thin-wire limit, sinusoidal current", "Ohm", {"rel": 1.0e-1},
+                "Balanis ch. 4", GE + "::rf04", gate=False),
+           dref("RF-04", "G_in.thin_limit", "G_in thin limit", "Re(1/(R_in + j X_in))", "S", {"rel": 5.0e-2},
+                "closed form", GE + "::rf04", gate=False)],
         speed(10.0, "R3 s.3.4 browser est. 3-10 s"), TEXTBOOK_RIGHTS, NOHERO, "half-wave-dipole",
-        assumptions=["The finite-radius impedance at L = lambda/2 is not a closed form; no finite-radius value is "
-                     "claimed here (King-Middleton or Hallen tables would be a class-b addition)."]))
+        assumptions=["Gate on input conductance only: with a delta gap the susceptance grows like ln N (zero-width "
+                     "gap capacitance) and a finite gap adds its own capacitance, so X_in is not comparable between "
+                     "feed models; a shunt gap capacitance leaves G unchanged.",
+                     "MoM reference is this lane's Hallen solver (eval/expected/RF-04.json records levels, observed "
+                     "order ~1 and the quadrature check); no published finite-radius table was fetched."]))
 
     C.append(case(
         "RF-21", "PEC circular cylinder cavity, filled with eps_r 2.08: closed-form modes", ["rf-resonator"],
@@ -418,9 +484,17 @@ def build() -> list[dict[str, Any]]:
          "source": "Palace docs examples/cylinder.md set-up (analytic twin of class-c RF-01)"},
         {"fill": {"eps_r": 2.08, "tan_delta": 4.0e-4, "mu_r": 1.0, "source": "Palace docs cylinder.md (R3 s.3.4)"}},
         [{"selection": "walls", "type": "pec"}],
-        {"type": "eigen", "n": 8, "shift": 2.5e9},
-        [dref("RF-21", f"f_{k}", f"f {k}", "resonance", "Hz", {"rel": 1.0e-5, "after": "richardson"},
-              "closed form (Pozar ch. 6)", GE + "::rf21")
+        {"type": "eigen", "n": 16, "shift": 2.5e9,
+         "settings": {"n_note": "3D: n >= 16 reaches TE011/TM111 (indices 12-14) with all degenerate partners; "
+                                "2D-axisym: solve per azimuthal order m = 0, 1, 2 (n >= 4 each)",
+                      "classifier": "TE: E_z = 0; TM: H_z = 0; m from the phi dependence. TE011 and TM111 are exactly "
+                                    "degenerate (x'01 = x11, J0' = -J1): identify TE011 by m = 0 and E_z = 0"}},
+        [dref("RF-21", f"f_{k}", f"f {k}",
+              (lambda md: f"{md['family']}, m = {md['m']}, n = {md['n']}, p = {md['p']}, multiplicity "
+                          f"{md['multiplicity']}, 3D ascending index {md['index_3d_first']}-{md['index_3d_last']}"
+                          + (f", degenerate with {', '.join(md['degenerate_with'])}" if md['degenerate_with'] else ""))
+              (evt("RF-21", f"f_{k}")["mode"]),
+              "Hz", {"rel": 1.0e-5, "after": "richardson"}, "closed form (Pozar ch. 6)", GE + "::rf21")
          for k in ["TM010", "TE111", "TM011", "TM110", "TE211", "TE011"]]
         + [dref("RF-21", "Q_dielectric", "Q_d", "1/tan(delta)", "1", {"rel": 1.0e-3}, "closed form", GE + "::rf21")],
         speed(2.0, "by analogy with R3 RF-01 2D browser est. < 2 s"),
@@ -453,11 +527,15 @@ def build() -> list[dict[str, Any]]:
         "WO-03", "Mie scattering by a sphere: efficiencies and near field", ["optics-scattering"], "3D",
         {"kind": "analytic", "spec": {"dielectric": {"radius_m": 0.525e-6, "wavelength_m": 0.6328e-6,
                                                      "size_parameter": x_bh},
-                                      "absorbing": {"size_parameter": 1.0, "note": "only x matters"},
+                                      "absorbing": {"size_parameter": 1.0, "wavelength_m": 0.6328e-6,
+                                                    "radius_m": 0.6328e-6 / (2 * math.pi),
+                                                    "note": "synthetic radius a = lambda/(2 pi) so x = 1; same "
+                                                            "frequency as the dielectric sub-case"},
                                       "background": "vacuum, n = 1"},
          "symmetry": "two mirror planes (x = 0, y = 0) for x-polarized incidence"},
         {"sphere_dielectric": {"m": "1.55", "source": "BH appendix example via miepython test_03_bh_dielectric"},
          "sphere_absorbing": {"m": "1.5 + 1i (BH sign; miepython writes 1.5 - 1j)",
+                              "eps_r": "(1.5 + 1i)^2 = 1.25 + 3i under exp(-i w t); 1.25 - 3j under exp(+j w t)",
                               "source": "Wiscombe MIEV0 case 14 via miepython test_07"}},
         [{"selection": "incident", "type": "plane_wave", "polarization": "x", "direction": "+z", "amplitude": 1.0},
          {"selection": "outer boundary", "type": "pml"}],
@@ -468,9 +546,9 @@ def build() -> list[dict[str, Any]]:
                 "Bohren-Huffman", GO + "::wo03")]
         + [dref("WO-03", f"absorbing.{q}", q, f"{q} efficiency", "1", {"rel": 1.0e-3}, "Bohren-Huffman",
                 GO + "::wo03") for q in ["qext", "qsca", "qabs", "g"]]
-        + [dref("WO-03", f"dielectric.near.|E|^2[{p}]", f"|E|^2 at {p}", "near-field probe", "E0^2",
+        + [dref("WO-03", f"dielectric.near.E2.{p}", f"|E|^2 at {p}", "near-field probe", "E0^2",
                 {"rel": 5.0e-3}, "BH vector harmonics (this lane)", GO + "::wo03")
-           for p in ["z=+1.5a", "z=-1.5a", "centre", "x=+1.5a"]],
+           for p in ["zp1.5a", "zm1.5a", "centre", "xp1.5a"]],
         speed(60.0, "R3 s.3.5 browser est. 3D FEM 10-60 s; series < 0.1 s"),
         {"source_license": "formulas textbook (BH); reference digits from miepython tests (MIT)",
          "allowed": ["cite_values", "re_derive_setup", "copy_with_attribution"], "forbidden": ["copy_text"]},
@@ -508,7 +586,8 @@ def build() -> list[dict[str, Any]]:
         {"kind": "analytic", "spec": {"box_m": [1.0, 0.8, 0.6]}, "symmetry": "none"},
         {"air": {"c": 343.0, "rho": 1.2, "source": "synthetic (R3 s.3.6); rho does not enter frequencies"}},
         [{"selection": "walls", "type": "rigid"}],
-        {"type": "eigen", "n": 11, "shift": 0.0},
+        {"type": "eigen", "n": 11, "shift": -1.0,
+         "settings": {"shift_unit": "(rad/s)^2; avoids the constant-pressure null space"}},
         [dref("AC-02", f"f_mode{i}", f"f mode {i}", "non-zero mode, ascending", "Hz",
               {"rel": 1.0e-4, "after": "richardson"}, "closed form (Morse-Ingard / Kinsler)", GM + "::ac02")
          for i in range(1, 11)],
@@ -529,7 +608,9 @@ def build() -> list[dict[str, Any]]:
         [dref("AC-03", f"sigma_over_pia2_ka{ka}", f"sigma_s/(pi a^2), ka = {ka}", "total scattering cross-section",
               "1", {"rel": 2.0e-3}, "partial-wave series (Morse-Ingard; not fetched)", GM + "::ac03")
          for ka in [0.5, 1.0, 2.0, 5.0, 10.0]]
-        + [dref("AC-03", f"abs_f_back_ka{ka}", f"|f(pi)|, ka = {ka}", "backscatter form function", "1",
+        + [dref("AC-03", f"abs_f_back_ka{ka}", f"|f(pi)|, ka = {ka}",
+                "backscatter form function 2/(ka) |sum_n (-1)^n (2n+1) j_n'(ka)/h_n'(ka)|, p_s -> p0 (a/2r) f e^{ikr}",
+                "1",
                 {"rel": 5.0e-3}, "partial-wave series", GM + "::ac03") for ka in [0.5, 1.0, 2.0, 5.0, 10.0]],
         speed(5.0, "R3 s.3.6 browser est. 1-5 s"), TEXTBOOK_RIGHTS, NOHERO, "rigid-sphere-scattering",
         assumptions=["ka list chosen by this lane within R3's range 0.5-10."],
@@ -547,20 +628,25 @@ def build() -> list[dict[str, Any]]:
          {"selection": "poiseuille: y = 0, y = 1", "type": "no_slip"},
          {"selection": "poiseuille: x = 0", "type": "pressure", "value": 8.0},
          {"selection": "poiseuille: x = 1", "type": "pressure", "value": 0.0}],
-        {"type": "stationary"},
+        {"type": "stationary", "settings": {"element_assumed_by_tolerances": "Taylor-Hood P2/P1 (velocity L2 rate "
+                                                                    "3, H1 rate 2; Poiseuille exact)"}},
         [dref("FL-01", "kovasznay.field_rel_L2_u", "velocity field error", "relative L2 velocity error", "1",
               {"abs": 1.0e-4, "norm": "l2",
                "rule": {"type": "rate", "min": 2.0,
                         "note": "velocity L2 rate p+1 (3 for Taylor-Hood P2/P1); min 2.0 is a proposal"}},
               "Kovasznay 1948",
               "validation/a/fields.py FL-01"),
-         dref("FL-01", "kovasznay.v(0.5,0.25)", "v(0.5, 0.25)", "probe", "m/s", rel3, "Kovasznay 1948",
+         dref("FL-01", "kovasznay.v.x0.5_y0.25", "v(0.5, 0.25)", "probe", "m/s", rel3, "Kovasznay 1948",
               GM + "::fl01"),
-         dref("FL-01", "kovasznay.p(1.0,0.5)", "p(1.0, 0.5)", "probe, zero-mean pressure", "Pa", {"rel": 1.0e-2},
+         dref("FL-01", "kovasznay.p.x1.0_y0.5", "p(1.0, 0.5)", "probe, zero-mean pressure", "Pa", {"rel": 1.0e-2},
               "Kovasznay 1948", GM + "::fl01"),
-         dref("FL-01", "poiseuille.u_max", "u_max", "centreline velocity", "m/s", {"rel": 1.0e-6},
+         dref("FL-01", "poiseuille.u_max", "u_max", "centreline velocity", "m/s",
+              {"rel": 1.0e-6, "after": "finest",
+               "note": "Taylor-Hood P2/P1 contains the exact field; other elements: rel 1e-3 after richardson"},
               "Poiseuille (P2 velocity is exact)", GM + "::fl01"),
-         dref("FL-01", "poiseuille.flow_rate", "Q", "flow rate per unit depth", "m^2/s", {"rel": 1.0e-6},
+         dref("FL-01", "poiseuille.flow_rate", "Q", "flow rate per unit depth", "m^2/s",
+              {"rel": 1.0e-6, "after": "finest",
+               "note": "Taylor-Hood P2/P1 contains the exact field; other elements: rel 1e-3 after richardson"},
               "Poiseuille", GM + "::fl01")],
         speed(2.0, "R3 s.3.7 browser est. < 2 s"),
         {"source_license": "exact solutions (facts); set-ups as in deal.II step-55 "
@@ -596,29 +682,35 @@ def build() -> list[dict[str, Any]]:
         {"kind": "analytic", "spec": {"length_m": 1.0e-6, "junction_at_m": 0.5e-6,
                                       "note": "length >> W = 50 nm; synthetic"}, "symmetry": "none"},
         {"Si": {"N_A": 1.0e24, "N_D": 1.0e24, "n_i": 1.0e16, "eps_r": 11.7, "T": 300.0,
-                "source": "R3 s.3.9 (doping 1e18 cm^-3, n_i 1e10 cm^-3); eps_r 11.7 per R3, source to verify"}},
+                "source": "doping 1e18 cm^-3 and n_i 1e10 cm^-3: R3 s.3.9 (textbook inputs, synthetic); eps_r 11.7: "
+                          "assumption (commonly quoted 300 K static value; primary table not fetched)"}},
         [{"selection": "x = 0", "type": "ohmic", "bias": 0.0}, {"selection": "x = L", "type": "ohmic", "bias": 0.0}],
         {"type": "stationary", "settings": {"statistics": "Boltzmann", "ionization": "full"}},
         [dref("SC-01", "V_bi", "V_bi", "(kT/q) ln(N_A N_D/n_i^2)", "V", {"rel": 1.0e-5}, "Hu eq. 4.1.2",
               GM + "::sc01"),
-         dref("SC-01", "E_max_PB_0V[eps_r=11.7]", "E_max", "peak field, exact Poisson-Boltzmann first integral", "V/m",
+         dref("SC-01", "E_max_PB_0V.epsr11.7", "E_max", "peak field, exact Poisson-Boltzmann first integral", "V/m",
               {"rel": 1.0e-3, "after": "richardson"}, "first integral (this lane)", GM + "::sc01"),
-         dref("SC-01", "W_0V[eps_r=11.7]", "W", "depletion width, depletion approximation", "m", {"rel": 5.0e-2},
+         dref("SC-01", "W_0V.epsr11.7", "W", "depletion width, depletion approximation", "m", {"rel": 5.0e-2},
               "Hu eq. 4.2.8", GM + "::sc01", gate=False,
               note="depletion approximation; a drift-diffusion solve has no sharp edge")],
         speed(0.5, "R3 s.3.9 browser est. < 0.5 s"),
         {"source_license": "Hu textbook free author PDF, all rights reserved; formulas only",
          "allowed": ["cite_values", "re_derive_setup"], "forbidden": ["copy_text", "copy_figures"]},
         NOHERO, "pn-junction",
-        missing=["Source for eps_r of Si (R3 lists 11.7 and 11.1; 11.1 has no source)."]))
+        missing=["Primary source for eps_r of Si (R3 lists 11.7 and 11.1; 11.1 has no source; the Ioffe NSM page "
+                 "failed TLS on 2026-11-06)."],
+        assumptions=["eps_r = 11.7 is an input of the test, not a measured target. Sensitivity: E_max scales as "
+                     "eps_r^-1/2, so 11.9 gives -0.84 % (eval/expected/SC-01.json E_max_PB_0V.epsr11.9); V_bi does "
+                     "not depend on eps_r."]))
 
     C.append(case(
         "CP-05", "Electro-osmotic flow in a slit (Debye-Hueckel + Stokes)", ["coupled-eof", "electrostatics", "stokes"],
         "2D",
         {"kind": "analytic", "spec": {"half_gap_m": 100e-9, "length_m": 1.0e-6, "note": "periodic in x"},
          "symmetry": "mirror about y = 0"},
-        {"electrolyte": {"eps_r": 80.0, "eta": 1.0e-3, "c0": 1.0, "valence": 1, "T": 298.15,
-                         "source": "eps_r, eta per R3 s.3.10; c0, T, half gap synthetic (this lane)"}},
+        {"electrolyte": {"eps_r": 80.0, "eta": 1.0e-3, "c0": 1.0, "c0_unit": "mol/m^3", "valence": 1, "T": 298.15,
+                         "source": "synthetic: eps_r 80, eta 1e-3 Pa s, zeta, E as R3 s.3.10 lists them (R3: "
+                                   "Wikipedia re-tab, not fetched); c0, T, half gap chosen by this lane"}},
         [{"selection": "walls y = +-h", "type": "zeta_potential", "value": -0.050},
          {"selection": "walls", "type": "no_slip"},
          {"selection": "x ends", "type": "periodic"},
@@ -710,8 +802,9 @@ def build() -> list[dict[str, Any]]:
         [ref("sigma_yy(D)", "sigma_yy_D", "direct stress at D = (2.0, 0, 0.3) m", -5.38e6, "Pa",
              {"rel": 1.0e-2, "after": "richardson"}, "P", "benchmark",
              "NAFEMS TNSB Rev. 3 LE10 via Altair OS-V 0060 (target 5.38 MPa, compressive)",
-             "help.altair.com/hwsolvers/os/topics/solvers/os/nafems_test_problem_le10_r.htm ('All results are "
-             "normalized with the target value (5.38 MPa)'); sign from FeenoX -5.37968 MPa")],
+             "2021.help.altair.com/2021/hwsolvers/os/topics/solvers/os/nafems_test_problem_le10_r.htm (versioned "
+             "copy of the page fetched unversioned on 2026-11-06; the page normalizes its results by a 5.38 MPa "
+             "target); sign from FeenoX -5.37968 MPa")],
         speed(20.0, "by analogy with R3 CP-02 5-20 s"), NAFEMS_RIGHTS, NOHERO, "nafems-le10",
         reference_results=[{"solver": "FeenoX", "value_MPa": -5.37968},
                            {"solver": "advanced-packaging-atlas L5 scikit-fem P2 tets", "value_MPa": -5.3847}],
@@ -745,7 +838,9 @@ def build() -> list[dict[str, Any]]:
               bounds=[ev("CP-21", "sigma_yy_D_infinite"), ev("CP-21", "sigma_yy_D_free_disk_R10")])],
         speed(2.0, "by analogy with R3 SM-02 < 2 s"), NAFEMS_RIGHTS, NOHERO, "nafems-t1",
         reference_results=[{"solver": "advanced-packaging-atlas L5 scikit-fem P2 Richardson", "value_MPa": 50.4475}],
-        missing=["Membrane geometry from the Abaqus deck, now unreachable at its MIT URL; no live public page "
+        missing=["Hot-spot radius 1.0: from the Abaqus deck via advanced-packaging-atlas; no live public page "
+                 "states it (Altair OS-V 0100 omits geometry).",
+                 "Membrane geometry from the Abaqus deck, now unreachable at its MIT URL; no live public page "
                  "states the 10 x 10 quarter size (Altair page omits geometry)."]))
     return C
 

@@ -5,7 +5,7 @@
   "generator": "validation/a/gen_heat.py",
   "command": "cd validation && uv run python a/gen_heat.py",
   "method": "Root of k (T_A - T_B)/L = eps sigma (T_B^4 - T_inf^4), 1D, no other loss. Both sigma values shown: the NAFEMS booklet's sigma is not public (missing).",
-  "generated_at": "2026-11-06T15:32:52-08:00",
+  "generated_at": "2026-11-06T16:00:51-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -21,7 +21,7 @@
   },
   "targets": [
     {
-      "metric_id": "T_B[k = 55.6 W/(m K); sigma CODATA]",
+      "metric_id": "T_B.k55.6.sigma_codata",
       "value": 927.0039504502631,
       "unit": "K",
       "precision": {
@@ -35,14 +35,14 @@
         "agreement": "agree",
         "note": "compared at R3's 6 significant digits"
       },
-      "locator": "end B, x = L",
+      "locator": "end B, x = L; k = 55.6 W/(m K), sigma = codata",
       "inputs": {
         "k": 55.6,
         "sigma": 5.6703744191844314e-08
       }
     },
     {
-      "metric_id": "T_B[k = 55.6 W/(m K); sigma 5.67e-8]",
+      "metric_id": "T_B.k55.6.sigma_5.67e-8",
       "value": 927.0076062462459,
       "unit": "K",
       "precision": {
@@ -50,14 +50,14 @@
         "xtol_K": 1e-13,
         "residual_W_m2": -1.4551915228366852e-11
       },
-      "locator": "end B, x = L",
+      "locator": "end B, x = L; k = 55.6 W/(m K), sigma = 5.67e-8",
       "inputs": {
         "k": 55.6,
         "sigma": 5.67e-08
       }
     },
     {
-      "metric_id": "T_B[k = 55.563 W/(m K) (FEATool); sigma CODATA]",
+      "metric_id": "T_B.k55.563.sigma_codata",
       "value": 926.9670882090236,
       "unit": "K",
       "precision": {
@@ -71,14 +71,14 @@
         "agreement": "agree",
         "note": "compared at R3's 6 significant digits"
       },
-      "locator": "end B, x = L",
+      "locator": "end B, x = L; k = 55.563 W/(m K), sigma = codata",
       "inputs": {
         "k": 55.563,
         "sigma": 5.6703744191844314e-08
       }
     },
     {
-      "metric_id": "T_B[k = 55.563 W/(m K) (FEATool); sigma 5.67e-8]",
+      "metric_id": "T_B.k55.563.sigma_5.67e-8",
       "value": 926.970745368368,
       "unit": "K",
       "precision": {
@@ -86,7 +86,7 @@
         "xtol_K": 1e-13,
         "residual_W_m2": -2.1827872842550278e-11
       },
-      "locator": "end B, x = L",
+      "locator": "end B, x = L; k = 55.563 W/(m K), sigma = 5.67e-8",
       "inputs": {
         "k": 55.563,
         "sigma": 5.67e-08

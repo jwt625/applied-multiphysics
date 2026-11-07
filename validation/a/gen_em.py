@@ -88,6 +88,20 @@ def em04() -> None:
     Brs, Bzs = helmholtz_field(0.1 * R * np.sin(th), 0.1 * R * np.cos(th), R, I, N)
     dev = float(np.max(np.abs(np.hypot(Brs, Bzs) - B0)) / B0)
     cf = {"method": "closed form"}
+    # Truncation of the open domain by a sphere of radius R_b centred on the coil. The pair's far field is a dipole
+    # m = 2 pi R^2 N I (the quadrupole cancels by symmetry). Its regular image is a uniform field at the centre:
+    # A_phi = 0 on R_b (B.n = 0): B_img = -2 mu0 m / (4 pi R_b^3); H_t = 0 on R_b: B_img = +mu0 m / (4 pi R_b^3).
+    # The next image term (l = 3) vanishes at the centre. Values relative to B0:
+    m_dip = 2 * math.pi * R**2 * N * I
+    trunc = []
+    for rb in (10, 20, 30, 100):
+        Rb = rb * R
+        trunc.append(target(f"truncation.dirichlet_A.Rb{rb}R", -2 * MU0 * m_dip / (4 * math.pi * Rb**3) / B0, "1",
+                            {"method": "closed form, leading (dipole) image"},
+                            locator=f"(B_fem(0) - B0)/B0 from A_phi = 0 on a sphere R_b = {rb} R"))
+        trunc.append(target(f"truncation.neumann_A.Rb{rb}R", MU0 * m_dip / (4 * math.pi * Rb**3) / B0, "1",
+                            {"method": "closed form, leading (dipole) image"},
+                            locator=f"(B_fem(0) - B0)/B0 from H_t = 0 on a sphere R_b = {rb} R"))
     write_expected(
         "EM-04",
         [target("B_center", B0, "T", {"method": "closed form", "elliptic_integral_value": float(Bz_e[0]),
@@ -99,7 +113,8 @@ def em04() -> None:
                 locator="on axis at the centre; leading non-uniformity term"),
          target("Br_probe", float(Br_p[0]), "T", cf, locator="(rho, z) = (0.02, 0.01) m"),
          target("Bz_probe", float(Bz_p[0]), "T", cf, locator="(rho, z) = (0.02, 0.01) m"),
-         target("uniformity_sphere_0.1R", dev, "1", cf, locator="max | |B| - B0 | / B0 on a sphere radius 0.1 R")],
+         target("uniformity_sphere_0.1R", dev, "1", cf, locator="max | |B| - B0 | / B0 on a sphere radius 0.1 R")]
+        + trunc,
         GEN,
         "Helmholtz pair of filament loops, radius R, spacing R. B0 = (4/5)^(3/2) mu0 N I / R; off-axis field from "
         "the elliptic-integral loop formula (Smythe 1950 / Jackson 5.37 form).",
@@ -145,12 +160,31 @@ def rf04() -> None:
     Xm = float(mp.mpf(ETA0) / (4 * mp.pi) * mp.si(2 * mp.pi))
     R30 = 30 * cin
     X30 = 30 * si
+    # Finite-radius reference: Hallen MoM input conductance at L = lambda/2 (h = lambda/4)
+    mom = []
+    levels = [200, 400, 800]
+    for name, a_l in [("lambda_over_100", 1e-2), ("lambda_over_300", 1 / 300), ("lambda_over_1000", 1e-3)]:
+        Zs = [hallen_dipole(0.25, a_l, N) for N in levels]
+        G = [1e3 / z for z in Zs]
+        g_ext, pord = richardson3(G[0].real, G[1].real, G[2].real)
+        g_fine_q = (1e3 / hallen_dipole(0.25, a_l, levels[-1], nphi=96, nq=16)).real
+        mom.append(target(
+            f"G_in.a_{name}", g_ext * 1e-3, "S",
+            {"method": "Hallen MoM, exact kernel, triangle basis, delta gap; Richardson over N = 200/400/800",
+             "levels_N": levels, "G_mS": [g.real for g in G], "B_mS": [g.imag for g in G],
+             "observed_order": pord, "richardson_minus_finest_rel": abs(g_ext - G[-1].real) / g_ext,
+             "quadrature_check_finest_rel": abs(g_fine_q - G[-1].real) / G[-1].real,
+             "B_note": "B grows ~ ln N (zero-width-gap capacitance): not converged, never gated"},
+            locator=f"input conductance Re(1/Z_in), L = lambda/2, radius a = {a_l:g} lambda",
+            Z_in_finest_Ohm=[Zs[-1].real, Zs[-1].imag]))
     write_expected(
         "RF-04",
         [target("R_in", R, "Ohm", {"method": "closed form", "mpmath_30digit": Rm, "diff": abs(R - Rm)},
                 r3=r3_compare(R, "73.079")),
          target("X_in", X, "Ohm", {"method": "closed form", "mpmath_30digit": Xm, "diff": abs(X - Xm)},
-                r3=r3_compare(X, "42.515"))],
+                r3=r3_compare(X, "42.515")),
+         target("G_in.thin_limit", (1 / complex(R, X)).real,
+                "S", {"method": "closed form, 1/(R + jX) of the thin-wire values"})] + mom,
         GEN,
         "Infinitely thin centre-fed half-wave dipole, sinusoidal current (induced-EMF method). Balanis eq. 4-79 with "
         "kl = pi: cos(kl) = -1, sin(kl) = 0, so X_m = (eta0/4pi) Si(2 pi) (the radius term multiplies sin(kl) and "
@@ -159,8 +193,67 @@ def rf04() -> None:
                "flag_resolution": {"dipole": f"Z_in = {R:.6f} + j{X:.6f} Ohm with eta0 = {ETA0:.9f} Ohm (CODATA "
                                              f"mu0); with the eta0 ~ 120 pi = 30 * 4 pi convention: {R30:.6f} + "
                                              f"j{X30:.6f} Ohm. Textbook 73 + j42.5 is the rounded form. Independent "
-                                             f"of wire radius only in the thin limit; FEM gates on the trend."}},
+                                             f"of wire radius only in the thin limit; the finite-radius gate is the "
+                                             f"Hallen MoM input conductance."}},
     )
+
+
+# ---------------------------------------------------------------- RF-04 finite-radius reference: Hallen MoM
+def hallen_dipole(h: float, a: float, N: int, lam: float = 1.0, nphi: int = 48, nq: int = 8) -> complex:
+    """Input impedance (Ohm) of a centre-fed tubular PEC dipole, half-length h, radius a, delta-gap feed, V = 1 V.
+
+    Hallen's equation, exact (tube) kernel, symmetric triangle basis centred at z_n = n dz (n = 0..N-1, dz = h/N,
+    so I(h) = 0 and the full length carries current), point matching at z_m = m dz (m = 0..N), plus the
+    homogeneous constant C:
+      sum_n I_n int Lambda_n(z') K(z_m - z') dz' + (j/eta0) C cos(k z_m) = -(j/eta0) (V/2) sin(k z_m),
+      K = (1/2pi) int_0^2pi exp(-j k R)/(4 pi R) dphi, R^2 = (z - z')^2 + 4 a^2 sin^2(phi/2).
+    Static part 1/R integrated in z' analytically, in phi by Gauss-Legendre with phi = pi t^2 (removes the log
+    singularity); dynamic part (exp(-jkR) - 1)/R with the reduced kernel (difference O(k^2 a^2)).
+    exp(+j omega t). Known property of the delta gap with the exact kernel: the input susceptance grows like ln N
+    (gap capacitance of a zero-width gap), so only the input conductance converges; it is the gated quantity.
+    """
+    k = 2 * math.pi / lam
+    dz = h / N
+    zn = np.arange(N) * dz
+    zm = np.arange(N + 1) * dz
+    tg, tw = np.polynomial.legendre.leggauss(nphi)
+    t = 0.5 * (tg + 1)
+    wphi = 0.5 * tw * 2 * t  # (1/2pi) int_0^2pi dphi = (1/pi) int_0^pi dphi, dphi = 2 pi t dt
+    b = 2 * a * np.sin(math.pi * t**2 / 2)
+    xq, wq = np.polynomial.legendre.leggauss(nq)
+
+    def seg(z, p, q, al, be):
+        """int_p^q (al + be z') K(z - z') dz' for segment arrays p, q, al, be and match points z."""
+        Z = z[:, None, None]
+        B = b[None, None, :]
+        u2, u1 = q[None, :, None] - Z, p[None, :, None] - Z
+        A0 = al[None, :, None] + be[None, :, None] * Z
+        st = A0 * (np.arcsinh(u2 / B) - np.arcsinh(u1 / B)) + be[None, :, None] * (
+            np.sqrt(u2**2 + B**2) - np.sqrt(u1**2 + B**2))
+        stat = np.sum(st * wphi[None, None, :], axis=2) / (4 * math.pi)
+        zz = 0.5 * (p + q)[None, :, None] + 0.5 * (q - p)[None, :, None] * xq[None, None, :]
+        R = np.sqrt((zz - Z) ** 2 + a * a)
+        w = al[None, :, None] + be[None, :, None] * zz
+        dyn = np.sum(w * (np.exp(-1j * k * R) - 1) / R * wq[None, None, :], axis=2) * 0.5 * (q - p)[None, :]
+        return stat + dyn / (4 * math.pi)
+
+    p1, q1, al1, be1 = zn - dz, zn, -(zn - dz) / dz, np.full(N, 1 / dz)   # rising ramp
+    p2, q2, al2, be2 = zn, zn + dz, (zn + dz) / dz, np.full(N, -1 / dz)   # falling ramp
+    cols = seg(zm, p1, q1, al1, be1) + seg(zm, p2, q2, al2, be2)
+    mirror = seg(zm, -q1, -p1, al1, -be1) + seg(zm, -q2, -p2, al2, -be2)
+    mirror[:, 0] = 0.0  # the n = 0 triangle spans [-dz, dz] already
+    A = np.zeros((N + 1, N + 1), dtype=complex)
+    A[:, :N] = cols + mirror
+    A[:, N] = 1j / ETA0 * np.cos(k * zm)
+    rhs = -1j / ETA0 * 0.5 * np.sin(k * zm)
+    return complex(1.0 / np.linalg.solve(A, rhs)[0])
+
+
+def richardson3(f1: float, f2: float, f3: float, r: float = 2.0) -> tuple[float, float]:
+    """Extrapolate from three levels (coarse to fine, ratio r); returns (f_ext, observed order)."""
+    e1, e2 = f2 - f1, f3 - f2
+    pord = math.log(abs(e1 / e2)) / math.log(r)
+    return f3 + e2 / (r**pord - 1), pord
 
 
 # ---------------------------------------------------------------- RF-21 cylindrical cavity
@@ -174,6 +267,34 @@ def cavity_modes(a: float, d: float, er: float) -> tuple[dict[str, float], dict[
 
     return {"TM010": f(x["TM01"], 0), "TE111": f(x["TE11"], 1), "TM011": f(x["TM01"], 1), "TM110": f(x["TM11"], 0),
             "TE211": f(x["TE21"], 1), "TE011": f(x["TE01"], 1)}, x
+
+
+def cavity_mode_table(a: float, d: float, er: float, f_max: float) -> list[dict]:
+    """All TE_mnp / TM_mnp modes of a PEC cylinder cavity below f_max, sorted, with multiplicity (2 for m > 0:
+    cos/sin m phi) and their index range in a 3D eigenvalue list (1-based, ascending, degenerate modes adjacent)."""
+    pref = C0 / (2 * math.pi * math.sqrt(er))
+    rows = []
+    for m in range(0, 8):
+        xs_tm = jn_zeros(m, 6)
+        xs_te = jnp_zeros(m, 6)
+        for n in range(1, 7):
+            for p in range(0, 8):
+                for fam, xx in (("TM", xs_tm[n - 1]), ("TE", xs_te[n - 1])):
+                    if fam == "TE" and p == 0:
+                        continue  # TE_mn0 does not exist
+                    f = pref * math.sqrt((xx / a) ** 2 + (p * math.pi / d) ** 2)
+                    if f <= f_max:
+                        rows.append({"label": f"{fam}{m}{n}{p}", "family": fam, "m": m, "n": n, "p": p, "f_Hz": f,
+                                     "multiplicity": 1 if m == 0 else 2})
+    rows.sort(key=lambda r: (r["f_Hz"], r["family"], r["m"]))
+    idx = 1
+    for r in rows:
+        r["index_3d_first"], r["index_3d_last"] = idx, idx + r["multiplicity"] - 1
+        idx += r["multiplicity"]
+    for r in rows:
+        r["degenerate_with"] = [q["label"] for q in rows
+                                if q is not r and abs(q["f_Hz"] - r["f_Hz"]) <= 1e-12 * r["f_Hz"]]
+    return rows
 
 
 def rf21() -> None:
@@ -195,12 +316,17 @@ def rf21() -> None:
            "TM110": fm(xm["TM11"], 0), "TE211": fm(xm["TE21"], 1), "TE011": fm(xm["TE01"], 1)}
     palace = {"TM010": "2.903605", "TE111": "2.922212", "TM011": "3.468149", "TM110": "4.626474",
               "TE211": "4.146842", "TE011": "5.000140"}
+    table = cavity_mode_table(a, d, er, f_max=5.3e9)
+    ident = {row["label"]: row for row in table}
     targets = []
     for k, v in fr.items():
+        row = ident[k]
         targets.append(target(f"f_{k}", v, "Hz", {"method": "closed form", "mpmath_30digit": float(fmp[k]),
                                                     "diff": abs(v - float(fmp[k]))},
                               r3=r3_compare(v / 1e9, palace[k], "vs Palace cylinder.md analytic table, in GHz"),
-                              ten_digits_GHz=mp.nstr(fmp[k] / 1e9, 10)))
+                              ten_digits_GHz=mp.nstr(fmp[k] / 1e9, 10),
+                              mode={kk: row[kk] for kk in ("family", "m", "n", "p", "multiplicity",
+                                                           "index_3d_first", "index_3d_last", "degenerate_with")}))
     # Palace table hypothesis: Bessel zeros rounded to 4 decimals
     r4 = {k: round(float(v), 4) for k, v in xm.items()}
     pref = C0 / (2 * math.pi * math.sqrt(er))
@@ -217,6 +343,10 @@ def rf21() -> None:
         "PEC circular cylinder cavity filled with eps_r: f = c/(2 pi sqrt(eps_r)) sqrt((x/a)^2 + (p pi/d)^2), "
         "x = Bessel zero (TM) or derivative zero (TE).",
         extra={"inputs": {"a_m": a, "d_m": d, "eps_r": er, "tan_delta": 4e-4},
+               "mode_table_to_5.3GHz": table,
+               "classifier": "TE: E_z = 0 everywhere; TM: H_z = 0. Azimuthal order m from the phi dependence "
+                             "cos(m phi) or the 2D-axisym harmonic. TE011 and TM111 are exactly degenerate "
+                             "(x'01 = x11 because J0' = -J1); separate them by m (0 vs 1) or E_z = 0.",
                "bessel_zeros": {k: float(v) for k, v in xm.items()},
                "flag_resolution": {
                    "TM010": f"x01 c/(2 pi a sqrt(eps_r)) = {mp.nstr(fmp['TM010'] / 1e9, 10)} GHz (x01 = "

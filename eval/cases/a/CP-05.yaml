@@ -14,8 +14,9 @@ geometry:
   spec: {half_gap_m: 1.0e-07, length_m: 1.0e-06, note: periodic in x}
   symmetry: mirror about y = 0
 materials:
-  electrolyte: {eps_r: 80.0, eta: 0.001, c0: 1.0, valence: 1, T: 298.15, source: 'eps_r, eta per R3 s.3.10; c0, T, half
-      gap synthetic (this lane)'}
+  electrolyte: {eps_r: 80.0, eta: 0.001, c0: 1.0, c0_unit: mol/m^3, valence: 1, T: 298.15, source: 'synthetic: eps_r 80,
+      eta 1e-3 Pa s, zeta, E as R3 s.3.10 lists them (R3: Wikipedia re-tab, not fetched); c0, T, half gap chosen by this
+      lane'}
 bcs:
 - {selection: walls y = +-h, type: zeta_potential, value: -0.05}
 - {selection: walls, type: no_slip}

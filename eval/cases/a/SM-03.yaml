@@ -14,7 +14,7 @@ geometry:
   spec: {length_m: 5.08, square_section_side_m: 0.0127, note: '200 in, 0.5 in square (Ansys VM127)'}
   symmetry: none
 materials:
-  steel: {E: 206842718795.0508, source: 'Ansys VM127 (E = 30e6 psi), exact unit conversion'}
+  steel: {E: 206842718795.0508, source: 'Ansys VM127 (E = 30e6 psi), exact unit conversion, ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM127.html'}
 bcs:
 - selection: end 0
   type: pinned
@@ -28,7 +28,7 @@ study:
   type: eigen
   n: 3
   shift: 0.0
-  settings: {kind: linear_buckling}
+  settings: {kind: linear_buckling, shift_note: buckling eigenproblem has no null space}
 references:
 - quantity: F_cr
   metric_id: F_cr

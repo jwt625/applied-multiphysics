@@ -25,9 +25,10 @@ initial: null
 study:
   type: eigen
   n: 4
-  shift: 0.0
+  shift: 5000000000.0
   settings:
     kind: 2D cross-section cutoff
+    shift_unit: Hz, below the TE10 cutoff; a curl-curl form has a gradient null space at 0
     frequency_variant_f_list: [10000000000.0]
 references:
 - quantity: f_c TE10
@@ -114,4 +115,5 @@ hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, ref: sims/wr90-guide.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
     proposal}
 missing: []
-assumptions: []
+assumptions: [S21/S11 targets belong to a 3D variant; split into its own case or sub-spec when the L2 models land (audit
+    M10).]
