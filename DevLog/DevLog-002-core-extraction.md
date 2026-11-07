@@ -229,3 +229,58 @@ Audit `DevLog/audits/2026-11-06-L1-core-audit.md` (no blocking findings). Follow
 
 Gates after the follow-up: core suite 67 / 67; EO redirect suite unchanged at 334 tests, 331 pass, 0 fail, 2 skipped, 1 todo (109.4 s, `logs/core-redirect-eo-20261106T155618.log`); tsc clean; all 13 probes are compile errors. No file in either atlas is newer than the new test file (find -newer), so nothing was written there. Not done (out of the asked scope): M1, M2, M4, M5, M8, M9; S4 belongs to L4 (proposals 4 and 5 in section 7 remain L1 candidates if the coordinator assigns them).
 
+
+## 10. detmath moved into core (coordinator request, 2026-11-06 17:00-17:11 PST)
+
+Request: L3 found that Node v23.7.0 and Chrome 156 differ in the last ulp of Math.sin / cos / atan2 / log / exp / pow (DevLog-004 s.9) and wrote `detmath` (IEEE + - * / and sqrt only) in packages/geom. Move it to `@amp/core/detmath`, make `@amp/core/expr` use it, re-export it from geom (one-time geom edit granted), add a cross-runtime fixture test, and rerun core, geom, mesh and `packages/mesh/test/xplat.test.ts`.
+
+Done:
+- `packages/core/src/detmath.ts`: L3's file, body byte-identical (`diff` of the bodies empty), 2 header lines added. TypeScript (new code per C1), exported as `@amp/core/detmath` (package.json `exports`) and as the `detmath` namespace of `index.mjs`; core tsconfig now includes `src/**/*.ts`.
+- `packages/geom/src/detmath.ts` (the one granted geom edit; backup of L3's version in the session scratchpad): now `export * from '../../core/src/detmath.ts';`. **Deviation:** a relative path, not the bare `@amp/core/detmath`. The bare specifier would need two edits outside the grant: `@amp/core` in geom's package.json dependencies plus `pnpm install`, and an `@amp/core/detmath` entry in the browser import map of `packages/mesh/test/xplat.test.ts`. Both modules resolve to the same file (pnpm links resolve to the real path). The coordinator can switch to the bare specifier with those two edits.
+- `src/expr.mjs` changes (port header updated):
+  - Through detmath: sin, cos, tan (as sin/cos from `sinCos`), atan2, exp, log and log10, plus the complex exp/log paths.
+  - Real `^` with a non-constant or non-integer exponent uses a new `detPow`:
+    - 0 and 1 cases handled first;
+    - `b = 0.5` by sqrt;
+    - integer `|b| <= 1024` by repeated squaring;
+    - otherwise `exp(b log a)`.
+  - Constant integer exponents still go through `powInt` (multiplications only); `10^-4` = 1e-4 exactly.
+  - Not changed (documented): Math.cosh / sinh in the imaginary part of complex sin / cos, and Math.hypot (L3 measured hypot equal across engines).
+  - Accuracy against Math on the fixture inputs:
+
+| Function | Max error vs Math (measured, fixture inputs) |
+|---|---|
+| sin, cos | 1.1e-16 absolute |
+| atan2 | 8.9e-16 absolute |
+| log, exp | 2.2e-16 relative |
+| tan | 1.5e-15 relative |
+| pow | 7.5e-15 relative (`exp(b log a)` amplification, \|b log a\| <= 46) |
+
+- Cross-runtime fixture:
+  - Inputs: `test/helpers/detmath-xplat.mjs` gives 4000 fixed inputs each for sin/cos, atan2, log, exp and pow (an LCG, IEEE arithmetic only). It records output bits for detmath, Math and `@amp/core/expr` (array evaluation over field variables).
+  - Generator: `test/fixtures/gen-detmath-xplat.mjs` runs the same source files in Node and in every Chromium it finds, through Playwright request interception with types stripped (as xplat.test.ts). It takes playwright-core from packages/mesh.
+  - Output: `test/fixtures/detmath-xplat.json` (5 KB) holds the SHA-256 of each output set.
+  - Result at generation: headless shell Chromium 151.0.7922.34 and Chrome 156.0.8078.80 each match Node on all det.* and expr.* digests. Both differ from Node on all six Math.* digests (sin, cos, atan2, log, exp, pow).
+- `test/detmath.test.mjs` (4 tests):
+  - accuracy bounds;
+  - special values, plus ldexp / frexp / roundLog2;
+  - Node reproduces every Chromium det.* and expr.* digest, and the fixture records the Math.* disagreement;
+  - `^` exactness (`10^-4`, `(-8)^3`, `2^0.5` = Math.SQRT2, integer field exponents) and pow within 1e-14 of Math.
+- Check that the test bites: with `Math.sin` restored in expr's real sin path, the cross-runtime test fails on `expr.sin`. With the detmath path it passes.
+- `core-coverage` index test updated for the `detmath` namespace.
+
+Results:
+
+| Run | Result | Log (`logs/`) |
+|---|---|---|
+| core suite | 71 / 71 pass, 17 files | `core-test-20261106T170911.log` |
+| core tsc | exit 0 (empty log) | `core-tsc-20261106T170911.log` |
+| geom tests | 37 / 37 | `core-detmath-geom-test-20261106T170925.log` |
+| mesh tests | 14 / 14 | `core-detmath-mesh-test-20261106T170925.log` |
+| geom tsc, mesh tsc | exit 0 | same stamp |
+| `packages/mesh/test/xplat.test.ts`, alone | 1 / 1, 3.7 s; not skipped, so the browser loaded the core file through the relative re-export | `core-detmath-xplat-20261106T171006.log` |
+| EO expression tests via the redirect (postproc, postproc-refine, params-expressions) | 34 / 34 | `core-redirect-eo-postproc-20261106T171019.log` |
+
+Open:
+- `units.mjs` computes `u.factor ** p` for unit exponents, e.g. `um^2`. JS `**` is implementation-approximated for non-trivial cases (`10 ** -4` differs between Node and Chrome, DevLog-004 s.9). Exponent 1, the usual case for lengths, is exact. Making unit powers go through repeated multiplication is a small follow-up that was not requested.
+- The bare-specifier re-export from geom (see Deviation above).

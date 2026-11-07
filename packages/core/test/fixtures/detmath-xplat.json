@@ -1,0 +1,106 @@
+{
+ "generator": "packages/core/test/fixtures/gen-detmath-xplat.mjs",
+ "generated": "2026-11-07T01:08:36.905Z",
+ "inputs": {
+  "sin": 4000,
+  "atan2": 4000,
+  "log": 4000,
+  "exp": 4000,
+  "pow": 4000
+ },
+ "chromium": [
+  {
+   "version": "151.0.7922.34",
+   "digests": {
+    "det.sin": "4ef3133063ca0a353b62115de24404963a0c2513d249edcf36e6e2fdeb566bea",
+    "det.cos": "322c6edd476fd677914435d57f5bac85b84cf052eb1664b6a9a5666cc7c58693",
+    "det.atan2": "617a3d7cac83097601922e1bbf8f6f26c6f5f6d63b5ffe59b7aee6e6273e147a",
+    "det.log": "bd4e2282ff500761561b360561f7cf06b0e2561a23f0ebe27da308992e4a6425",
+    "det.exp": "bf551c03e3c97f795449bc398a0f960e086cf3a2e92f7a49dd6683ff661c997f",
+    "math.sin": "e3d2f4f519902bf7efec6b4a88a8af7be3278bfcfd1c0defea7c035de3f48e14",
+    "math.cos": "dac42f5ec2cd0ab7602e04cc0ff15f074dc0834a848db072c70353582cb5825d",
+    "math.atan2": "63fcf488aba47ef291790ecc2ff42283e3db4c4796fa4ed6e68b8ec0307ee664",
+    "math.log": "dc33db47ad13a7ebe54ddc16439f84d7b265f60cff890be21bd6ea0c791edd6b",
+    "math.exp": "1a236f789e00a89b5d2cbc7db7bcf7e89eddc3aae22fe5de15e7e876f81ebe0f",
+    "math.pow": "7f18f5130b8887fbb8a57d3ad5b3ff63ef0a9697f68b3fce391331cee6e6cdbc",
+    "expr.sin": "4ef3133063ca0a353b62115de24404963a0c2513d249edcf36e6e2fdeb566bea",
+    "expr.cos": "322c6edd476fd677914435d57f5bac85b84cf052eb1664b6a9a5666cc7c58693",
+    "expr.tan": "bf68a3853710c8bf1fabf5340f1e3fad8371efc02c9787794cf42e4e37594749",
+    "expr.atan2": "617a3d7cac83097601922e1bbf8f6f26c6f5f6d63b5ffe59b7aee6e6273e147a",
+    "expr.log": "bd4e2282ff500761561b360561f7cf06b0e2561a23f0ebe27da308992e4a6425",
+    "expr.exp": "bf551c03e3c97f795449bc398a0f960e086cf3a2e92f7a49dd6683ff661c997f",
+    "expr.pow": "1c56b8a907e84207846d25858d912a85f069ceebf40cab24a9f2781b3df73157"
+   }
+  },
+  {
+   "version": "156.0.8078.80",
+   "digests": {
+    "det.sin": "4ef3133063ca0a353b62115de24404963a0c2513d249edcf36e6e2fdeb566bea",
+    "det.cos": "322c6edd476fd677914435d57f5bac85b84cf052eb1664b6a9a5666cc7c58693",
+    "det.atan2": "617a3d7cac83097601922e1bbf8f6f26c6f5f6d63b5ffe59b7aee6e6273e147a",
+    "det.log": "bd4e2282ff500761561b360561f7cf06b0e2561a23f0ebe27da308992e4a6425",
+    "det.exp": "bf551c03e3c97f795449bc398a0f960e086cf3a2e92f7a49dd6683ff661c997f",
+    "math.sin": "e3d2f4f519902bf7efec6b4a88a8af7be3278bfcfd1c0defea7c035de3f48e14",
+    "math.cos": "dac42f5ec2cd0ab7602e04cc0ff15f074dc0834a848db072c70353582cb5825d",
+    "math.atan2": "63fcf488aba47ef291790ecc2ff42283e3db4c4796fa4ed6e68b8ec0307ee664",
+    "math.log": "dc33db47ad13a7ebe54ddc16439f84d7b265f60cff890be21bd6ea0c791edd6b",
+    "math.exp": "1a236f789e00a89b5d2cbc7db7bcf7e89eddc3aae22fe5de15e7e876f81ebe0f",
+    "math.pow": "7f18f5130b8887fbb8a57d3ad5b3ff63ef0a9697f68b3fce391331cee6e6cdbc",
+    "expr.sin": "4ef3133063ca0a353b62115de24404963a0c2513d249edcf36e6e2fdeb566bea",
+    "expr.cos": "322c6edd476fd677914435d57f5bac85b84cf052eb1664b6a9a5666cc7c58693",
+    "expr.tan": "bf68a3853710c8bf1fabf5340f1e3fad8371efc02c9787794cf42e4e37594749",
+    "expr.atan2": "617a3d7cac83097601922e1bbf8f6f26c6f5f6d63b5ffe59b7aee6e6273e147a",
+    "expr.log": "bd4e2282ff500761561b360561f7cf06b0e2561a23f0ebe27da308992e4a6425",
+    "expr.exp": "bf551c03e3c97f795449bc398a0f960e086cf3a2e92f7a49dd6683ff661c997f",
+    "expr.pow": "1c56b8a907e84207846d25858d912a85f069ceebf40cab24a9f2781b3df73157"
+   }
+  }
+ ],
+ "node": {
+  "version": "v23.7.0",
+  "digests": {
+   "det.sin": "4ef3133063ca0a353b62115de24404963a0c2513d249edcf36e6e2fdeb566bea",
+   "det.cos": "322c6edd476fd677914435d57f5bac85b84cf052eb1664b6a9a5666cc7c58693",
+   "det.atan2": "617a3d7cac83097601922e1bbf8f6f26c6f5f6d63b5ffe59b7aee6e6273e147a",
+   "det.log": "bd4e2282ff500761561b360561f7cf06b0e2561a23f0ebe27da308992e4a6425",
+   "det.exp": "bf551c03e3c97f795449bc398a0f960e086cf3a2e92f7a49dd6683ff661c997f",
+   "math.sin": "c82891df4f937d55598cba0c06e8098d2c294474fefa3e468f0e8d80823b22ff",
+   "math.cos": "ae7f7678fa2ee99dc39a94831c9201b2db9e1cb19a519e2badd4e818ff7daaf9",
+   "math.atan2": "2af50689aae3c1ca86c8780362cc4f66096803c33fd6b6f7d3df1b9b0f207690",
+   "math.log": "56a18c923ff2e88cae64edaffc3866b69199e97b50691f80faf1ac63ced58ed8",
+   "math.exp": "2e680aed774cb45d58ca44e99e09e5bc0bbf1735ee2da9c3654956a5b2d8ec0e",
+   "math.pow": "a759625431d76a37fe5d2957b88f239697a16838e6d5860ddd5d3e5c7842c270",
+   "expr.sin": "4ef3133063ca0a353b62115de24404963a0c2513d249edcf36e6e2fdeb566bea",
+   "expr.cos": "322c6edd476fd677914435d57f5bac85b84cf052eb1664b6a9a5666cc7c58693",
+   "expr.tan": "bf68a3853710c8bf1fabf5340f1e3fad8371efc02c9787794cf42e4e37594749",
+   "expr.atan2": "617a3d7cac83097601922e1bbf8f6f26c6f5f6d63b5ffe59b7aee6e6273e147a",
+   "expr.log": "bd4e2282ff500761561b360561f7cf06b0e2561a23f0ebe27da308992e4a6425",
+   "expr.exp": "bf551c03e3c97f795449bc398a0f960e086cf3a2e92f7a49dd6683ff661c997f",
+   "expr.pow": "1c56b8a907e84207846d25858d912a85f069ceebf40cab24a9f2781b3df73157"
+  }
+ },
+ "differFromNode": [
+  {
+   "version": "151.0.7922.34",
+   "keys": [
+    "math.sin",
+    "math.cos",
+    "math.atan2",
+    "math.log",
+    "math.exp",
+    "math.pow"
+   ]
+  },
+  {
+   "version": "156.0.8078.80",
+   "keys": [
+    "math.sin",
+    "math.cos",
+    "math.atan2",
+    "math.log",
+    "math.exp",
+    "math.pow"
+   ]
+  }
+ ]
+}

@@ -6,16 +6,48 @@
   "license": "GPL-3.0-or-later",
   "description": "Generic numerics of applied-multiphysics: sparse direct (supernodal Cholesky, LDL^T real/complex), Krylov (PCG, GMRES), multigrid (GMG, block MG, p-MG, AMG), Arnoldi, FEM bases (P1/P2 triangles, H1/Nedelec order 1-2), expressions, units, params, sweeps. Ported from eo-modulator-atlas and advanced-packaging-atlas (see DevLog-002).",
   "exports": {
-    ".": { "types": "./src/index.d.mts", "default": "./src/index.mjs" },
-    "./units": { "types": "./src/units.d.mts", "default": "./src/units.mjs" },
-    "./expr": { "types": "./src/expr.d.mts", "default": "./src/expr.mjs" },
-    "./params": { "types": "./src/params.d.mts", "default": "./src/params.mjs" },
-    "./sweep": { "types": "./src/sweep.d.mts", "default": "./src/sweep.mjs" },
-    "./la/wasm/*": { "types": "./src/la/wasm/*.d.mts", "default": "./src/la/wasm/*.mjs" },
-    "./la/*": { "types": "./src/la/*.d.mts", "default": "./src/la/*.mjs" },
-    "./fem/*": { "types": "./src/fem/*.d.mts", "default": "./src/fem/*.mjs" }
+    ".": {
+      "types": "./src/index.d.mts",
+      "default": "./src/index.mjs"
+    },
+    "./units": {
+      "types": "./src/units.d.mts",
+      "default": "./src/units.mjs"
+    },
+    "./expr": {
+      "types": "./src/expr.d.mts",
+      "default": "./src/expr.mjs"
+    },
+    "./params": {
+      "types": "./src/params.d.mts",
+      "default": "./src/params.mjs"
+    },
+    "./sweep": {
+      "types": "./src/sweep.d.mts",
+      "default": "./src/sweep.mjs"
+    },
+    "./detmath": {
+      "types": "./src/detmath.ts",
+      "default": "./src/detmath.ts"
+    },
+    "./la/wasm/*": {
+      "types": "./src/la/wasm/*.d.mts",
+      "default": "./src/la/wasm/*.mjs"
+    },
+    "./la/*": {
+      "types": "./src/la/*.d.mts",
+      "default": "./src/la/*.mjs"
+    },
+    "./fem/*": {
+      "types": "./src/fem/*.d.mts",
+      "default": "./src/fem/*.mjs"
+    }
   },
-  "files": ["src", "NOTICE", "LICENSE-APACHE-2.0"],
+  "files": [
+    "src",
+    "NOTICE",
+    "LICENSE-APACHE-2.0"
+  ],
   "scripts": {
     "test": "node --max-old-space-size=1536 --test --test-concurrency=1 \"test/*.test.mjs\"",
     "check": "tsc -p . --noEmit",

@@ -43,6 +43,7 @@ test('cross-platform: Node and headless Chromium build bit-identical meshes', { 
     const page = await browser.newPage();
     const imports = {
       '@amp/geom': '/packages/geom/src/index.ts',
+      '@amp/core/detmath': '/packages/core/src/detmath.ts',
       'robust-predicates': '/packages/mesh/node_modules/robust-predicates/index.js',
     };
     await page.route('http://amp.test/**', async (route) => {

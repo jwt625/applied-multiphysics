@@ -198,7 +198,7 @@ test('wasm kernels: the 27-point apply kernel equals the JS stencil apply (scala
 
 // ---- index ----
 test('index: one namespace per module, the same bindings as the module files', () => {
-  const names = ['units', 'expr', 'params', 'sweep', 'sparse', 'ldlt', 'ldltBlocked', 'ldltWasm', 'ldltSelect', 'complex', 'dense', 'vectorDense', 'arnoldi',
+  const names = ['units', 'expr', 'params', 'sweep', 'detmath', 'sparse', 'ldlt', 'ldltBlocked', 'ldltWasm', 'ldltSelect', 'complex', 'dense', 'vectorDense', 'arnoldi',
     'gmresReal', 'krylov', 'stencil', 'mg', 'block', 'halfmg', 'pcg', 'amg', 'ams', 'pmg', 'order3d', 'wasmEncoder', 'wasmKernels', 'wasmAccel',
     'femTri', 'femTriFe', 'femQ1Grid', 'hcurl', 'nedelec1', 'hcurlSpace', 'quadrature'];
   assert.deepEqual(Object.keys(core).sort(), [...names].sort());

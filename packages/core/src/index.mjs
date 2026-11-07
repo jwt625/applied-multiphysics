@@ -5,6 +5,7 @@ export * as units from './units.mjs';
 export * as expr from './expr.mjs';
 export * as params from './params.mjs';
 export * as sweep from './sweep.mjs';
+export * as detmath from './detmath.ts';
 export * as sparse from './la/sparse.mjs';
 export * as ldlt from './la/ldlt.mjs';
 export * as ldltBlocked from './la/ldlt-blocked.mjs';

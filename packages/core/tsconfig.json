@@ -2,8 +2,15 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": [],
-    "lib": ["ES2023", "WebWorker"],
+    "lib": [
+      "ES2023",
+      "WebWorker"
+    ],
     "skipLibCheck": false
   },
-  "include": ["src/**/*.d.mts", "test/**/*.ts"]
+  "include": [
+    "src/**/*.d.mts",
+    "src/**/*.ts",
+    "test/**/*.ts"
+  ]
 }

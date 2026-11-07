@@ -1,4 +1,4 @@
-// Ported from eo-modulator-atlas/engine/src/postproc/expr.mjs at 0546007 (GPL-3.0-or-later). Changes: none (its import ./units.mjs now resolves to the APA units superset with K).
+// Ported from eo-modulator-atlas/engine/src/postproc/expr.mjs at 0546007 (GPL-3.0-or-later). Changes: its import ./units.mjs resolves to the APA units superset with K; 2026-11-06 (DevLog-002 s.10): sin, cos, tan, atan2, exp, log (and log10) and real ^ with a non-constant or non-integer exponent evaluate through ./detmath.ts (IEEE + - * / and sqrt only, identical bits in every engine) instead of Math.*, so spec expressions that feed geometry are engine independent; the complex-argument sin / cos still use Math.cosh / Math.sinh for the imaginary part.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Expression language of the postprocessing engine (DevLog-030 P2, DevLog-031): own recursive-descent parser (no
 // eval, no Function, no property access), unit inference over SI dimension vectors, complex-aware evaluation over
@@ -14,6 +14,23 @@
 // Names: letters, digits, underscore, dot-separated segments (es.normE, armA.Ex, eo.integrand_r33).
 
 import { parseUnit, dimMul, dimDiv, dimPow, dimEq, isDimless, formatUnit, DIMLESS, UnitError } from './units.mjs';
+import * as D from './detmath.ts';
+
+/** Real a^b through detmath: 0 and 1 cases, b = 0.5 by sqrt, integer exponents |b| <= 1024 by repeated squaring, else
+ * exp(b log |a|) (relative error grows with |b log a|: <= 7.6e-15 on the test inputs, |b log a| <= 46). */
+function detPow(a, b) {
+  if (Number.isNaN(a) || Number.isNaN(b)) return NaN;
+  if (b === 0 || a === 1) return 1;
+  if (a === 0) return b > 0 ? 0 : Infinity;
+  if (b === 0.5 && a > 0) return Math.sqrt(a);
+  if (Number.isInteger(b) && Math.abs(b) <= 1024) {
+    let base = a, e = Math.abs(b), acc = 1;
+    while (e > 0) { if (e & 1) acc *= base; e = Math.floor(e / 2); if (e) base *= base; }
+    return b < 0 ? 1 / acc : acc;
+  }
+  if (a < 0) return Number.isInteger(b) ? (b % 2 === 0 ? 1 : -1) * D.exp(b * D.log(-a)) : NaN;
+  return D.exp(b * D.log(a));
+}
 
 export const MAX_EXPRESSION_LENGTH = 2000;
 const MAX_DEPTH = 64;
@@ -277,20 +294,20 @@ const K = {
   },
   exp([a], n) {
     const re = f64(n);
-    if (!a.im) { for (let i = 0; i < n; i++) re[i] = Math.exp(a.re[i]); return { re, im: null }; }
+    if (!a.im) { for (let i = 0; i < n; i++) re[i] = D.exp(a.re[i]); return { re, im: null }; }
     const im = f64(n);
-    for (let i = 0; i < n; i++) { const e = Math.exp(a.re[i]); re[i] = e * Math.cos(a.im[i]); im[i] = e * Math.sin(a.im[i]); }
+    for (let i = 0; i < n; i++) { const e = D.exp(a.re[i]), [sn, cs] = D.sinCos(a.im[i]); re[i] = e * cs; im[i] = e * sn; }
     return { re, im };
   },
   log([a], n) {
     const re = f64(n);
     let neg = false;
     if (!a.im) {
-      for (let i = 0; i < n; i++) { if (a.re[i] < 0) { neg = true; break; } re[i] = Math.log(a.re[i]); }
+      for (let i = 0; i < n; i++) { if (a.re[i] < 0) { neg = true; break; } re[i] = D.log(a.re[i]); }
       if (!neg) return { re, im: null };
     }
     const ai = imOf(a, n), im = f64(n);
-    for (let i = 0; i < n; i++) { re[i] = Math.log(Math.hypot(a.re[i], ai[i])); im[i] = Math.atan2(ai[i], a.re[i]); }
+    for (let i = 0; i < n; i++) { re[i] = D.log(Math.hypot(a.re[i], ai[i])); im[i] = D.atan2(ai[i], a.re[i]); }
     return { re, im };
   },
   log10(args, n) {
@@ -301,23 +318,23 @@ const K = {
   },
   sin([a], n) {
     const re = f64(n);
-    if (!a.im) { for (let i = 0; i < n; i++) re[i] = Math.sin(a.re[i]); return { re, im: null }; }
+    if (!a.im) { for (let i = 0; i < n; i++) re[i] = D.sin(a.re[i]); return { re, im: null }; }
     const im = f64(n);
-    for (let i = 0; i < n; i++) { re[i] = Math.sin(a.re[i]) * Math.cosh(a.im[i]); im[i] = Math.cos(a.re[i]) * Math.sinh(a.im[i]); }
+    for (let i = 0; i < n; i++) { const [sn, cs] = D.sinCos(a.re[i]); re[i] = sn * Math.cosh(a.im[i]); im[i] = cs * Math.sinh(a.im[i]); }
     return { re, im };
   },
   cos([a], n) {
     const re = f64(n);
-    if (!a.im) { for (let i = 0; i < n; i++) re[i] = Math.cos(a.re[i]); return { re, im: null }; }
+    if (!a.im) { for (let i = 0; i < n; i++) re[i] = D.cos(a.re[i]); return { re, im: null }; }
     const im = f64(n);
-    for (let i = 0; i < n; i++) { re[i] = Math.cos(a.re[i]) * Math.cosh(a.im[i]); im[i] = -Math.sin(a.re[i]) * Math.sinh(a.im[i]); }
+    for (let i = 0; i < n; i++) { const [sn, cs] = D.sinCos(a.re[i]); re[i] = cs * Math.cosh(a.im[i]); im[i] = -sn * Math.sinh(a.im[i]); }
     return { re, im };
   },
   tan(args, n) {
-    if (!args[0].im) { const re = f64(n); for (let i = 0; i < n; i++) re[i] = Math.tan(args[0].re[i]); return { re, im: null }; }
+    if (!args[0].im) { const re = f64(n); for (let i = 0; i < n; i++) { const [sn, cs] = D.sinCos(args[0].re[i]); re[i] = sn / cs; } return { re, im: null }; }
     return K.div([K.sin(args, n), K.cos(args, n)], n);
   },
-  atan2([a, b], n) { const re = f64(n); for (let i = 0; i < n; i++) re[i] = Math.atan2(a.re[i], b.re[i]); return { re, im: null }; },
+  atan2([a, b], n) { const re = f64(n); for (let i = 0; i < n; i++) re[i] = D.atan2(a.re[i], b.re[i]); return { re, im: null }; },
   min(args, n) {
     const re = Float64Array.from(args[0].re.subarray(0, n));
     for (let k = 1; k < args.length; k++) { const b = args[k].re; for (let i = 0; i < n; i++) if (b[i] < re[i] || Number.isNaN(b[i])) re[i] = b[i]; }
@@ -355,7 +372,7 @@ const K = {
       const re = f64(n);
       let neg = false;
       for (let i = 0; i < n; i++) {
-        re[i] = a.re[i] ** b.re[i];
+        re[i] = detPow(a.re[i], b.re[i]);
         if (a.re[i] < 0 && !Number.isInteger(b.re[i])) neg = true;
       }
       if (!neg) return { re, im: null };

@@ -119,6 +119,9 @@ importers:
 
   packages/geom:
     dependencies:
+      '@amp/core':
+        specifier: workspace:*
+        version: link:../core
       '@amp/spec':
         specifier: workspace:*
         version: link:../spec
