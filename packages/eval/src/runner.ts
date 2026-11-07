@@ -22,7 +22,7 @@ export interface CaseResult {
   run: Record<string, unknown> | null;
   issues: LoadIssue[];
   speed?: SpeedRecord & { time_to_accuracy?: Record<string, TimeToAccuracy> };
-  levelRuns?: Array<{ level: number; dof: number; meshHash: string; wall_ms: number }>;
+  levelRuns?: Array<{ level: number; dof: number; meshHash: string; wall_ms: number; spec?: string }>;
 }
 
 export interface RunOptions extends ObserveOptions { dryRun?: boolean; exactField?: typeof evaluateExactField }
@@ -39,7 +39,8 @@ export function caseStatus(targets: TargetResult[], loaderErrors: number): CaseS
 function samplesFor(lc: LoadedCase, key: string | undefined): number[] | undefined {
   if (!key) return undefined;
   const s = getPath(lc.expected, key) as { values?: unknown } | undefined;
-  return Array.isArray(s?.values) ? (s!.values as number[]) : undefined;
+  // flat, or one array per component (concatenated component-major)
+  return Array.isArray(s?.values) ? (s!.values as Array<number | number[]>).flat() : undefined;
 }
 
 export async function runCase(lc: LoadedCase, source: Source, opts: RunOptions = {}): Promise<CaseResult> {
@@ -73,14 +74,23 @@ export async function runCase(lc: LoadedCase, source: Source, opts: RunOptions =
     if (!o) return pendingTarget(r, ref, `${source.name} returned nothing for this target`);
     if ('pending' in o) return pendingTarget(r, ref, o.pending);
     if ('error' in o) return pendingTarget(r, ref, o.error, 'error');
+    if ('timeout' in o) return pendingTarget(r, ref, o.timeout, 'timeout');
     let rs = samplesFor(lc, r.extract?.samples_key);
     if (!rs && r.extract?.kind === 'field' && r.extract.evaluator && r.extract.points) {
       try {
         const exact = opts.exactField ?? (await import('./adapters/fields.ts')).evaluateExactField; // Node only, loaded lazily
-        const ef = await exact(r.extract.evaluator, r.extract.evaluator_case ?? c.id, (r.extract.field ?? r.extract.name)!, r.extract.points, { ...(r.extract.params ? { params: r.extract.params } : {}) });
-        if (ef.unit !== undefined && ef.unit !== r.unit) return pendingTarget(r, ref, `evaluator unit '${ef.unit}' vs reference unit '${r.unit}'`, 'error');
-        // complex fields: re and im concatenated, so the L2 norm is the complex L2 norm
-        rs = Array.isArray(ef.values) ? ef.values : [...ef.values.re, ...ef.values.im];
+        // tensor / vector targets: one evaluator field per engine component, concatenated in the same order
+        const ex = r.extract;
+        const n = ex.fields?.length ?? ex.components?.length ?? 1;
+        const names = ex.evaluator_fields ?? ex.fields ?? (n > 1 ? null : [(ex.field ?? ex.name)!]);
+        if (!names) return pendingTarget(r, ref, 'vector field target needs evaluator_fields (one per component)', 'error');
+        rs = [];
+        for (const name of names) {
+          const ef = await exact(ex.evaluator!, ex.evaluator_case ?? c.id, name, ex.points!, { ...(ex.params ? { params: ex.params } : {}) });
+          if (ef.unit !== undefined && ef.unit !== r.unit) return pendingTarget(r, ref, `evaluator unit '${ef.unit}' (${name}) vs reference unit '${r.unit}'`, 'error');
+          // complex fields: re and im concatenated, so the L2 norm is the complex L2 norm
+          rs.push(...(Array.isArray(ef.values) ? ef.values : [...ef.values.re, ...ef.values.im]));
+        }
       } catch (e) { return pendingTarget(r, ref, `exact-field evaluator: ${(e as Error).message}`, 'error'); }
     }
     return evaluateTarget(r, ref, o as TargetObservation, {

@@ -6,7 +6,7 @@
 | Lane | L8 (evaluation harness) |
 | Owns | `packages/eval/**`, `eval/schema/**`, `eval/README.md`, this file |
 | Reads | DevLog-001 (A5, A12, targets, M1), CONTRACTS-v0 (C1, C4, C5, C8), R3 s.2 and s.5, `eval/cases/**`, `eval/expected/**`, sibling `validation/` dirs (read-only) |
-| Status | Audit pass 2026-11-06 16:28 PST (section 9); engine path wired, no case runnable yet (all specs pending) |
+| Status | Follow-up 3 done 2026-11-06 16:58 PST (section 10); first real engine run: 9 class-a cases, 7 pass, 2 fail |
 
 ## 1. Plan (written 2026-11-06 15:13 PST, before code)
 
@@ -319,3 +319,21 @@ How to resume: read sections 3, 6, 7; run `node packages/eval/src/cli.ts --dry-r
 | `bench/fields-crosscheck.ts` | 26/26 fields within 1e-12 | `logs/fields-crosscheck-20261106T162841.jsonl` |
 | `cli.ts --bench all --sizes 8,16,32,64,96` | BP1-style r_max 50.87 MDOF/s (all = free, no Dirichlet), BP3-style 52.25 all nodes (n_0.8 4,913) / 45.63 free (n_0.8 29,791); rates 2.007 / 2.004; T_tol(1e-3) 711.5 / 756.4 ms single (shared machine, 7 lanes) | `logs/bench-poisson-20261106T162848.jsonl` |
 | scratch engine smoke (AC-02 -> `sims/box-acoustics.yaml`) | worker ran 3 levels on the real `@amp/physics`; targets pending on metric names | scratchpad only |
+
+## 10. Follow-up 3 (I1 hero integration, DevLog-014; 2026-11-06 16:35-16:58 PST)
+
+| # | Request | Done | Where / tests |
+|---|---|---|---|
+| 1 | Derived extracts | `extract.kind: reduce` (`op` max / min / mean / absmax / absmin of a field over `points`, via `@amp/post` `sample`) and `kind: expr` (`expr` over named `terms`: scalar by name, probe, reduce, nested expr, constant `{value, unit}`), evaluated with `@amp/core/expr` `compileExpression` (dimension-checked: `a + L` with Pa and m is an error), result dimension compared with the target unit and converted to it (`@amp/spec` units). The worker loads `@amp/core/expr` when a target uses `expr` | `registry.ts` `termSI`; schema `extract.op / expr / terms`, `$defs/constTerm`; loader checks; `test/derived.test.ts` item 1 (K_t = max(stt) / s_inf = 3 with s_inf as a scalar in MPa and as a constant in Pa; MPa output 300; dimension error; incompatible-units error; missing field pending) |
+| 2 | Tensor / vector field extracts | `extract.fields: [sxx, syy, sxy]` (several fields) or `field: u, components: [0, 1]`; engine samples and evaluator fields (`evaluator_fields`, default = `fields`) are concatenated component-major; `samples_key` values may be one array per component; L2 / max norms over all components; length mismatch is an error | `extractFromSolution`, `runner.ts`; tests item 2 (concatenation order; runner calls the evaluator once per component, pass at equal values, fail at a 0.5 % change in one component) |
+| 3 | More than one spec per case | `references[].spec` (same forms as the case `spec`) overrides the case default; targets are grouped by effective spec, each group runs in its own worker with its own mesh levels; a group's pending / error / timeout applies to its targets only; `levelRuns` carry the group label; `--speed` times the first group (stated in `budget_note`) | `EngineSource.groups / observeGroup`; schema `reference.spec`; test item 3 (two embedded specs, 6 levels, both targets pass) |
+| 4 | Shared Richardson rule | `richardsonRule(f, h, {expectedOrder, band, fs, allowAssumed})` and `RICHARDSON_ORDER_BAND = 0.25`, exported from `@amp/eval/metrics` (and the package index). Available only when `|p_obs / p_theory - 1| <= band`; otherwise (and for oscillatory, flat or fewer than 3 levels) `available: false` with the reason, and the caller gates on the finest level. `evaluate.ts` now uses it for scalars, element-wise arrays and eigen clusters: unavailable -> finest within the budget + non-increasing |error| (`richardson_fallback`). This replaces the S3 behaviour "order outside the band = fail" (section 9) with "unavailable, gated on the finest level", per the coordinator's rule for L4. Band documented in `eval/README.md` | `metrics.ts`; test "richardsonRule (shared with L4)" (ratio 1.3 rejected, 1.2 accepted, oscillatory and 2-level unavailable, `allowAssumed` 2-level fs 3) |
+
+Re-runs (16:56-16:58 PST):
+- `node --test` 71/71 (loader 17, metrics 22, speed 5, cli 10, engine 9, fields 4, derived 4); `tsc --noEmit` clean.
+- Engine run `logs/eval-20261106T165637.jsonl` (real `@amp/physics`; cases now reference L2 sims): **first real engine results**. Per class: a 7 pass / 2 fail / 19 pending / 1 error (SM-06 loader); b 0 / 0 / 20 / 0; c 0 / 0 / 36 / 0. Targets 30 pass, 5 fail, 282 pending, 3 info. Passing cases: AC-02, EM-01, EM-04, HT-01, HT-02, HT-03, HT-04 (HT-01 now passes through the fallback, L4's DevLog-010 s.5 item 3). Misses (for L4):
+  - RF-21 `f_TE111`, `f_TM110`, `f_TE211`, `f_TE011`: all 3 levels give the same value (`no_change`: the 3D cavity mesh does not change with `hFactor`), finest 6e-5 to 1.2e-4 relative off vs a 1e-5 budget.
+  - SM-02 `sigma_yy_D` (NAFEMS LE1): finest 9.26564e7 vs 9.27e7 Pa, within the 1 % budget, but the sequence oscillates and |error| is not monotone (non-nested levels): fail by the fallback rule.
+- Dry run `logs/eval-20261106T165705.jsonl`: 85 cases, 320 targets, 14 loader errors (all SM-06, section 6), 92 warnings (targets without `metric_id`); exit 1.
+- `--adapter expected` `logs/eval-20261106T165719.jsonl`: 35 pass, 0 fail, 49 pending, 1 error (SM-06); targets 139 pass, 0 fail, 158 pending, 23 info.
+- Field gate `logs/fields-crosscheck-20261106T165706.jsonl`: 26/26 within 1e-12.

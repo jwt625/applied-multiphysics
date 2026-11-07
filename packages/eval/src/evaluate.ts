@@ -5,7 +5,8 @@
 import type { Reference } from './loader.ts';
 import { targetId } from './loader.ts';
 import {
-  checkField, checkScalar, convergenceRateFit, evalRule, fieldError, hFromDof, matchEigen, richardson, selectEigen,
+  checkField, checkScalar, convergenceRateFit, evalRule, fieldError, hFromDof, matchEigen, richardson, richardsonRule, selectEigen,
+  RICHARDSON_ORDER_BAND, type RichardsonRuleResult,
   type EigenMatch, type FieldError, type RateFit, type Richardson, type RuleResult, type ScalarCheck,
 } from './metrics.ts';
 
@@ -76,7 +77,7 @@ export interface EvaluateOptions {
   refSamples?: number[];
   expectedOrder?: number;
   safetyFactor?: number;
-  /** allowed relative departure |p_obs / expected_order - 1| (audit S3); default 0.25 */
+  /** allowed relative departure |p_obs / expected_order - 1| (shared rule, metrics.richardsonRule); default 0.25 */
   orderBand?: number;
   /** false: do not gate the observed order (convergence.order_check) */
   orderCheck?: boolean;
@@ -86,29 +87,9 @@ const finiteVal = (v: ObservedValue): boolean =>
   typeof v === 'number' ? Number.isFinite(v) : Array.isArray(v) ? v.every((x) => Number.isFinite(x)) : true;
 
 /**
- * Richardson gate (audit S3): pass needs (1) |f_ext - ref| within the budget, (2) the finest level within the budget
- * (never pass on an unconverged mesh, R3 s.5.3 item 5) and (3) the observed order within `orderBand` of the expected
- * order when one is stated and the check is on.
- */
-function richardsonGate(ri: Richardson, ref: number, tol: Reference['tolerance'], opts: EvaluateOptions): { ext: ScalarCheck; fine: ScalarCheck; orderOk: boolean; ratio: number | null; reasons: string[] } {
-  const ext = checkScalar(ri.f_ext ?? NaN, ref, tol);
-  const fine = checkScalar(ri.f_fine, ref, tol);
-  const band = opts.orderBand ?? 0.25;
-  const ratio = opts.expectedOrder !== undefined && ri.p_obs !== null ? ri.p_obs / opts.expectedOrder : null;
-  const reasons: string[] = [];
-  let orderOk = true;
-  if (opts.orderCheck !== false && opts.expectedOrder !== undefined) {
-    if (ratio === null) reasons.push(`order not observed (${ri.p_obs_reason ?? 'fewer than 3 levels'}); assumed ${opts.expectedOrder}`);
-    else if (Math.abs(ratio - 1) > band) { orderOk = false; reasons.push(`observed order ${ri.p_obs!.toPrecision(3)} vs expected ${opts.expectedOrder} (band ${band}): not asymptotic`); }
-  } else if (opts.expectedOrder === undefined) reasons.push('no expected_order: order not gated');
-  if (!fine.pass) reasons.push(`finest level ${ri.f_fine.toPrecision(6)} outside the budget (|diff| ${fine.abs_err.toPrecision(3)} > ${fine.limit.toPrecision(3)})`);
-  return { ext, fine, orderOk, ratio, reasons };
-}
-
-/**
- * Fallback when Richardson is unavailable (oscillatory or non-converging sequence, e.g. non-nested meshes; L4
- * DevLog-010 s.5 item 3): gate on the finest value against the budget plus a monotone error, |e_k| non-increasing
- * over the levels. Richardson is reported as unavailable with the reason; this is not a fail by itself.
+ * Fallback when the shared rule declares Richardson unavailable (oscillatory or non-nested sequence, order outside
+ * the band, flat or too few levels; L4 DevLog-010 s.5 item 3): gate on the finest value against the budget plus a
+ * monotone error, |e_k| non-increasing over the levels. Richardson is reported unavailable with the reason.
  */
 function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], why: string): { fine: ScalarCheck; monotone: boolean; reason: string } {
   const fine = checkScalar(vals[vals.length - 1]!, ref, tol);
@@ -119,7 +100,19 @@ function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], 
   return { fine, monotone, reason };
 }
 
-const FALLBACK_REASONS = new Set(['oscillatory', 'not_converged']);
+/** One sequence through the shared rule: extrapolated value, verdict parts and reason. */
+function richardsonVerdict(vals: number[], hs: number[], ref: number, tol: Reference['tolerance'], opts: EvaluateOptions): { ri: RichardsonRuleResult; value: number; check: ScalarCheck; pass: boolean; fallback: boolean; reason?: string } {
+  const band = opts.orderCheck === false ? Infinity : (opts.orderBand ?? RICHARDSON_ORDER_BAND);
+  const ri = richardsonRule(vals, hs, { ...(opts.expectedOrder !== undefined ? { expectedOrder: opts.expectedOrder } : {}), band, ...(opts.safetyFactor !== undefined ? { fs: opts.safetyFactor } : {}) });
+  if (!ri.available) {
+    const fb = fallbackGate(vals, ref, tol, ri.reason ?? 'unavailable');
+    return { ri, value: fb.fine.value, check: fb.fine, pass: fb.fine.pass && fb.monotone, fallback: true, reason: fb.reason };
+  }
+  const ext = checkScalar(ri.f_ext!, ref, tol);
+  const fine = checkScalar(ri.f_fine, ref, tol);
+  const reasons = [ri.reason, !fine.pass ? `finest level ${ri.f_fine.toPrecision(6)} outside the budget (|diff| ${fine.abs_err.toPrecision(3)} > ${fine.limit.toPrecision(3)})` : undefined].filter((x): x is string => !!x);
+  return { ri, value: ri.f_ext!, check: ext, pass: ext.pass && fine.pass, fallback: false, ...(reasons.length ? { reason: reasons.join('; ') } : {}) };
+}
 
 /**
  * ref: reference value (scalar or array). refSamples: reference field samples for extract.kind = field.
@@ -147,6 +140,7 @@ export function evaluateTarget(r: Reference, ref: number | number[] | undefined,
     if (!rs) return pendingTarget(r, ref, 'no reference samples', 'error');
     if (!isSamples(fine.value)) return pendingTarget(r, ref, 'observation is not field samples', 'error');
     if (rs.some((x) => !Number.isFinite(x))) return pendingTarget(r, ref, 'reference samples contain NaN / Inf', 'error');
+    if (lv.some((l) => isSamples(l.value) && l.value.values.length !== rs.length)) return pendingTarget(r, ref, `field samples: engine gives ${(fine.value as FieldSamples).values.length} values, reference ${rs.length} (components x points must match)`, 'error');
     const fe = fieldError(fine.value.values, rs);
     const isRate = tol.rule?.type === 'rate';
     if (isRate && lv.length < 2) return pendingTarget(r, ref, `rule 'rate' needs >= 2 mesh levels, got ${lv.length}`);
@@ -225,24 +219,16 @@ export function evaluateTarget(r: Reference, ref: number | number[] | undefined,
     const reasons: string[] = [];
     let extraOk = true;
     if (after === 'richardson') {
-      // element-wise Richardson over the levels (each level must give the same number of values)
+      // element-wise, each element through the shared rule (stations where the levels agree exactly have no
+      // order: unavailable, finest value with a non-increasing error)
       if (!hs.every(Number.isFinite)) return pendingTarget(r, ref, 'richardson needs h or dof per level', 'error');
       if (lv.some((l) => !Array.isArray(l.value) || (l.value as number[]).length !== ref.length)) return pendingTarget(r, ref, 'richardson on arrays needs the same length on every level', 'error');
-      riEl = ref.map((_, i) => richardson(lv.map((l) => (l.value as number[])[i]!), hs, { ...(opts.expectedOrder !== undefined ? { assumedOrder: opts.expectedOrder } : {}) }))
-        .map((x) => (x.p_obs === null && FALLBACK_REASONS.has(x.p_obs_reason ?? '') ? { ...x, f_ext: null } : x));
-      const unavailable = riEl.findIndex((x) => x.f_ext === null && x.p_obs_reason !== 'no_change' && !FALLBACK_REASONS.has(x.p_obs_reason ?? ''));
-      if (unavailable >= 0) return verdict(false, { value: fv, ref, reason: `richardson unavailable at element ${unavailable} (${riEl[unavailable]!.p_obs_reason ?? '?'})` });
-      cmp = riEl.map((x, i) => x.f_ext ?? fv[i]!);
-      riEl.forEach((x, i) => {
-        if (x.f_ext !== null || !FALLBACK_REASONS.has(x.p_obs_reason ?? '')) return;
-        const fb = fallbackGate(lv.map((l) => (l.value as number[])[i]!), ref[i]!, tol, x.p_obs_reason!);
-        if (!fb.monotone) { extraOk = false; reasons.push(`element ${i}: ${fb.reason}`); } else reasons.push(`element ${i}: ${fb.reason}`);
-      });
-      // stations where the levels agree exactly (boundary values) have no order: their finest value is compared
-      riEl.forEach((x, i) => {
-        if (x.f_ext === null) return;
-        const g = richardsonGate(x, ref[i]!, tol, opts);
-        if (!g.orderOk || !g.fine.pass) { extraOk = false; reasons.push(`element ${i}: ${g.reasons.join('; ')}`); }
+      const rv = ref.map((rf, i) => richardsonVerdict(lv.map((l) => (l.value as number[])[i]!), hs, rf, tol, opts));
+      riEl = rv.map((x) => x.ri);
+      cmp = rv.map((x) => x.value);
+      rv.forEach((x, i) => {
+        if (!x.pass) extraOk = false;
+        if (x.reason && (x.fallback || !x.pass)) reasons.push(`element ${i}: ${x.reason}`);
       });
     }
     const els = cmp.map((v, i) => checkScalar(v, ref[i]!, tol));
@@ -261,20 +247,11 @@ export function evaluateTarget(r: Reference, ref: number | number[] | undefined,
   const rate = lv.length >= 2 && hs.every(Number.isFinite) ? convergenceRateFit(hs, vals.map((v) => v - ref)) : undefined;
   if (after === 'richardson') {
     if (!hs.every(Number.isFinite)) return pendingTarget(r, ref, 'richardson needs h or dof per level', 'error');
-    const ri = richardson(vals, hs, { ...(opts.expectedOrder !== undefined ? { assumedOrder: opts.expectedOrder } : {}), ...(opts.safetyFactor !== undefined ? { fs: opts.safetyFactor } : {}) });
-    if (ri.f_ext === null || (ri.p_obs === null && FALLBACK_REASONS.has(ri.p_obs_reason ?? ''))) {
-      // an assumed order never extrapolates an oscillatory / non-converging sequence (only a 2-level study)
-      if (ri.p_obs_reason && FALLBACK_REASONS.has(ri.p_obs_reason)) {
-        const fb = fallbackGate(vals, ref, tol, ri.p_obs_reason);
-        return verdict(fb.fine.pass && fb.monotone, { value: fb.fine.value, ref, diff: fb.fine.diff, err_abs: fb.fine.abs_err, err_rel: fb.fine.rel_err, limit: fb.fine.limit, limit_basis: fb.fine.limit_basis, richardson: ri, richardson_fallback: 'finest+monotone', levels, ...(rate ? { rate } : {}), reason: fb.reason });
-      }
-      return verdict(false, { value: vals[vals.length - 1]!, ref, richardson: ri, levels, ...(rate ? { rate } : {}), reason: `richardson unavailable (${ri.p_obs_reason ?? 'fewer than 2 levels'})` });
-    }
-    const g = richardsonGate(ri, ref, tol, opts);
-    return verdict(g.ext.pass && g.fine.pass && g.orderOk, {
-      value: ri.f_ext, ref, diff: g.ext.diff, err_abs: g.ext.abs_err, err_rel: g.ext.rel_err, limit: g.ext.limit, limit_basis: g.ext.limit_basis,
-      u_num: ri.u_abs, richardson: ri, levels, ...(rate ? { rate } : {}), ...(g.ratio !== null ? { order_ratio: g.ratio } : {}),
-      ...(g.reasons.length ? { reason: g.reasons.join('; ') } : {}),
+    const v = richardsonVerdict(vals, hs, ref, tol, opts);
+    return verdict(v.pass, {
+      value: v.value, ref, diff: v.check.diff, err_abs: v.check.abs_err, err_rel: v.check.rel_err, limit: v.check.limit, limit_basis: v.check.limit_basis,
+      u_num: v.fallback ? null : v.ri.u_abs, richardson: v.ri, levels, ...(rate ? { rate } : {}), ...(v.ri.order_ratio !== null ? { order_ratio: v.ri.order_ratio } : {}),
+      ...(v.fallback ? { richardson_fallback: 'finest+monotone' as const } : {}), ...(v.reason ? { reason: v.reason } : {}),
     });
   }
   const c = checkScalar(vals[vals.length - 1]!, ref, tol);
@@ -317,23 +294,12 @@ function evaluateEigenArray(
     const idx = order.slice(k, e).map((o) => o.i);
     const sortedPerLevel = matched.map((v) => idx.map((i) => v[i]!).sort((a, b) => a - b));
     const means = sortedPerLevel.map((s) => s.reduce((a, b) => a + b, 0) / s.length);
-    const ri0 = richardson(means, hs, { ...(opts.expectedOrder !== undefined ? { assumedOrder: opts.expectedOrder } : {}) });
-    const ri = ri0.p_obs === null && FALLBACK_REASONS.has(ri0.p_obs_reason ?? '') ? { ...ri0, f_ext: null } : ri0;
-    ris.push(ri);
-    if (ri.f_ext === null) {
-      idx.forEach((i) => { ext[i] = matched[matched.length - 1]![i]!; });
-      if (ri.p_obs_reason && FALLBACK_REASONS.has(ri.p_obs_reason)) {
-        const fb = fallbackGate(means, order[k]!.v, tol, ri.p_obs_reason);
-        if (!fb.monotone) ok = false;
-        reasons.push(`mode(s) ${idx.join(',')}: ${fb.reason}`);
-      } else { ok = false; reasons.push(`mode(s) ${idx.join(',')}: richardson unavailable (${ri.p_obs_reason ?? '?'})`); }
-    }
-    else {
-      const g = richardsonGate(ri, order[k]!.v, tol, opts);
-      if (!g.orderOk || !g.fine.pass) { ok = false; reasons.push(`mode(s) ${idx.join(',')}: ${g.reasons.join('; ')}`); }
-      const fineSorted = sortedPerLevel[sortedPerLevel.length - 1]!, fineMean = means[means.length - 1]!;
-      idx.forEach((i, j) => { ext[i] = ri.f_ext! + (fineSorted[j]! - fineMean); });
-    }
+    const fineSorted = sortedPerLevel[sortedPerLevel.length - 1]!, fineMean = means[means.length - 1]!;
+    const v = richardsonVerdict(means, hs, order[k]!.v, tol, opts);
+    ris.push(v.ri);
+    if (!v.pass) ok = false;
+    if (v.reason && (v.fallback || !v.pass)) reasons.push(`mode(s) ${idx.join(',')}: ${v.reason}`);
+    idx.forEach((i, j) => { ext[i] = v.value + (fineSorted[j]! - fineMean); });
     k = e;
   }
   const els = ext.map((v, i) => checkScalar(v, ref[i]!, tol));

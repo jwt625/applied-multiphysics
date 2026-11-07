@@ -28,8 +28,15 @@ export interface Rule {
   of?: 'value' | 'error';
   note?: string;
 }
+export interface ConstTerm { value: number; unit: string; source?: string }
 export interface Extract {
-  kind: 'scalar' | 'probe' | 'field' | 'eigen' | 'steps';
+  kind: 'scalar' | 'probe' | 'field' | 'eigen' | 'steps' | 'reduce' | 'expr';
+  op?: 'max' | 'min' | 'mean' | 'absmax' | 'absmin';
+  expr?: string;
+  terms?: Record<string, Extract | ConstTerm>;
+  fields?: string[];
+  components?: number[];
+  evaluator_fields?: string[];
   name?: string;
   field?: string;
   component?: number;
@@ -62,6 +69,7 @@ export interface Reference {
   form: 'closed_form' | 'benchmark' | 'paper_sim' | 'paper_measured' | 'solver_ref' | 'dataset';
   provenance: { citation: string; locator: string; accessed: string | null; [k: string]: unknown };
   extract?: Extract;
+  spec?: SpecRef;
   gate?: boolean;
   note?: string;
 }
@@ -302,7 +310,25 @@ function semanticChecks(
     if (r.extract?.kind === 'field' && !r.extract.samples_key && !(r.extract.evaluator && r.extract.points)) {
       at(`${p}/extract`, 'extract-field', `extract kind 'field' needs samples_key, or evaluator + points`);
     }
-    if (r.extract?.kind === 'field' && !(r.extract.field ?? r.extract.name)) at(`${p}/extract`, 'extract-field', `extract kind 'field' needs field`);
+    if (r.extract?.kind === 'field' && !(r.extract.field ?? r.extract.name ?? r.extract.fields)) at(`${p}/extract`, 'extract-field', `extract kind 'field' needs field or fields`);
+    if (r.extract?.kind === 'field' && r.extract.fields && r.extract.components) at(`${p}/extract`, 'extract-field', `use fields (several fields) or components (one vector field), not both`);
+    if (r.extract?.kind === 'field' && r.extract.evaluator_fields) {
+      const n = r.extract.fields?.length ?? r.extract.components?.length ?? 1;
+      if (r.extract.evaluator_fields.length !== n) at(`${p}/extract/evaluator_fields`, 'extract-field', `evaluator_fields has ${r.extract.evaluator_fields.length} names for ${n} engine components`);
+    }
+    const checkTerms = (ex: Extract | undefined, path: string) => {
+      if (!ex) return;
+      if (ex.kind === 'reduce' && (!ex.op || !(ex.field ?? ex.name) || !ex.points)) at(path, 'extract-reduce', `extract kind 'reduce' needs op, field and points`);
+      if (ex.kind === 'expr') {
+        if (!ex.expr || !ex.terms) { at(path, 'extract-expr', `extract kind 'expr' needs expr and terms`); return; }
+        for (const [k, t] of Object.entries(ex.terms)) if (t && typeof t === 'object' && 'kind' in t) {
+          if (!['scalar', 'probe', 'reduce', 'expr'].includes(t.kind)) at(`${path}/terms/${k}`, 'extract-expr', `term kind '${t.kind}' must be scalar, probe, reduce or expr`);
+          if (t.kind === 'scalar' && !t.name) at(`${path}/terms/${k}`, 'extract-expr', `scalar term needs name`);
+          checkTerms(t, `${path}/terms/${k}`);
+        }
+      }
+    };
+    checkTerms(r.extract, `${p}/extract`);
     if (r.extract?.kind === 'probe' && (!r.extract.point || !(r.extract.field ?? r.extract.name))) {
       at(`${p}/extract`, 'extract-probe', `extract kind 'probe' needs field and point`);
     }
@@ -334,8 +360,9 @@ function semanticChecks(
       const s = getPath(out.expected, r.extract.samples_key) as { points?: unknown; values?: unknown } | undefined;
       if (!s || !Array.isArray(s.points) || !Array.isArray(s.values)) {
         at(`${p}/extract/samples_key`, 'samples', `'${r.extract.samples_key}' in ${out.expectedFile} is not {points: [...], values: [...]}`);
-      } else if (s.points.length !== s.values.length) {
-        at(`${p}/extract/samples_key`, 'samples', `samples have ${s.points.length} points and ${s.values.length} values`);
+      } else {
+        const comps = (s.values as unknown[]).every((v) => Array.isArray(v)) ? (s.values as unknown[][]) : [s.values as unknown[]];
+        for (const [k, cv] of comps.entries()) if (cv.length !== s.points.length) at(`${p}/extract/samples_key`, 'samples', `samples component ${k}: ${s.points.length} points and ${cv.length} values`);
       }
     }
   });

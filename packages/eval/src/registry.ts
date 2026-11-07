@@ -11,7 +11,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PhysicsModule, RunContext, Solution } from './contract-shim.ts';
 import type { Spec } from './contract-shim.ts';
-import type { EvalCase, LoadedCase, Reference } from './loader.ts';
+import type { EvalCase, Extract, LoadedCase, Reference, SpecRef } from './loader.ts';
 import { targetId } from './loader.ts';
 import type { LevelObservation, TargetObservation } from './evaluate.ts';
 import { REPO_ROOT } from './node-io.ts';
@@ -151,20 +151,92 @@ export function extractFromSolution(
     for (const v of sol.steps.values) { const c = conv(v, sol.steps.unit); if (typeof c !== 'number') return c; out.push(c); }
     return { value: out };
   }
+  if (ex.kind === 'reduce' || ex.kind === 'expr') {
+    const t = termSI(sol, ex, o);
+    if ('pending' in t || 'error' in t) return t;
+    if (!unitsApi) return { error: `extract kind '${ex.kind}' needs the units API (@amp/spec)` };
+    let tu;
+    try { tu = unitsApi.parseUnit(DIMLESS.has(r.unit.trim()) ? '1' : r.unit); } catch (e) { return { error: `target unit '${r.unit}': ${(e as Error).message}` }; }
+    if (!unitsApi.dimEq(t.dim, tu.dim)) return { error: `${ex.kind} result has dimension [${t.dim.join(',')}], target unit '${r.unit}' has [${tu.dim.join(',')}]` };
+    return { value: (t.si - tu.offset) / tu.factor };
+  }
   // probe / field: values at points from @amp/post, with the level's mesh
   if (!o.sample) return { pending: `extract kind '${ex.kind}' needs @amp/post sample (not available)` };
-  const field = ex.field ?? ex.name;
-  if (!field) return { error: `extract kind '${ex.kind}' needs field` };
   const pts = ex.kind === 'probe' ? (ex.point ? [ex.point] : null) : (o.points ?? ex.points ?? null);
   if (!pts) return { error: `extract kind '${ex.kind}' has no sample points` };
-  const fd = sol.fields?.find((f) => f.name === field);
-  if (!fd) return { pending: `module produced no field '${field}' (has: ${(sol.fields ?? []).map((f) => f.name).join(', ') || 'none'})` };
-  let vals: ArrayLike<number>;
-  try { vals = o.sample(sol, field, pts, { ...(o.mesh !== undefined ? { mesh: o.mesh } : {}), ...(ex.component !== undefined ? { component: ex.component } : {}) }); }
-  catch (e) { return { error: `sample(${field}): ${(e as Error).message}` }; }
+  // several fields (tensor components) or several components of one vector field, concatenated component-major
+  const parts: Array<{ field: string; component?: number }> = ex.fields
+    ? ex.fields.map((f) => ({ field: f, ...(ex.component !== undefined ? { component: ex.component } : {}) }))
+    : ex.components ? ex.components.map((k) => ({ field: (ex.field ?? ex.name)!, component: k }))
+      : [{ field: (ex.field ?? ex.name)!, ...(ex.component !== undefined ? { component: ex.component } : {}) }];
   const out: number[] = [];
-  for (const v of Array.from(vals)) { const c = Number.isFinite(v) ? conv(v, fd.unit) : v; if (typeof c !== 'number') return c; out.push(c); }
+  for (const part of parts) {
+    if (!part.field) return { error: `extract kind '${ex.kind}' needs field` };
+    const fd = sol.fields?.find((f) => f.name === part.field);
+    if (!fd) return { pending: `module produced no field '${part.field}' (has: ${(sol.fields ?? []).map((f) => f.name).join(', ') || 'none'})` };
+    let vals: ArrayLike<number>;
+    try { vals = o.sample(sol, part.field, pts, { ...(o.mesh !== undefined ? { mesh: o.mesh } : {}), ...(part.component !== undefined ? { component: part.component } : {}) }); }
+    catch (e) { return { error: `sample(${part.field}): ${(e as Error).message}` }; }
+    for (const v of Array.from(vals)) { const c = Number.isFinite(v) ? conv(v, fd.unit) : v; if (typeof c !== 'number') return c; out.push(c); }
+  }
   return ex.kind === 'probe' ? { value: out[0]! } : { value: { values: out } };
+}
+
+type TermResult = { si: number; dim: number[] } | { pending: string } | { error: string };
+let compileExpr: ((src: string, scope: { resolve(n: string): unknown }) => { dim: number[]; constant: { re: number; im: number } | null }) | null = null;
+/** @amp/core/expr compileExpression, set by the worker (or tests) before expr extracts are evaluated. */
+export function setExpressionCompiler(f: typeof compileExpr): void { compileExpr = f; }
+
+/** SI value and dimension of a term: constant {value, unit}, scalar, probe, reduce or a nested expr. */
+function termSI(sol: Solution, t: Extract | { value: number; unit: string }, o: { mesh?: unknown; sample?: SampleFn }): TermResult {
+  if (!unitsApi) return { error: 'derived extracts need the units API (@amp/spec)' };
+  const si = (v: number, unit: string | undefined): TermResult => {
+    try { const u = unitsApi!.parseUnit(DIMLESS.has((unit ?? '').trim()) ? '1' : unit!); return { si: v * u.factor + u.offset, dim: u.dim }; }
+    catch (e) { return { error: `unit '${unit}': ${(e as Error).message}` }; }
+  };
+  if (!('kind' in t)) return si(t.value, t.unit);
+  if (t.kind === 'scalar') {
+    const s = t.name ? sol.scalars?.[t.name] : undefined;
+    if (!s) return { pending: `module produced no metric '${t.name}' (has: ${Object.keys(sol.scalars ?? {}).join(', ') || 'none'})` };
+    return si(s.value, s.unit);
+  }
+  if (t.kind === 'probe' || t.kind === 'reduce') {
+    if (!o.sample) return { pending: `term kind '${t.kind}' needs @amp/post sample (not available)` };
+    const field = t.field ?? t.name;
+    const fd = field ? sol.fields?.find((f) => f.name === field) : undefined;
+    if (!field || !fd) return { pending: `module produced no field '${field}'` };
+    const pts = t.kind === 'probe' ? (t.point ? [t.point] : null) : (t.points ?? null);
+    if (!pts) return { error: `term kind '${t.kind}' has no points` };
+    let vals: number[];
+    try { vals = Array.from(o.sample(sol, field, pts, { ...(o.mesh !== undefined ? { mesh: o.mesh } : {}), ...(t.component !== undefined ? { component: t.component } : {}) })); }
+    catch (e) { return { error: `sample(${field}): ${(e as Error).message}` }; }
+    let v: number;
+    if (t.kind === 'probe') v = vals[0]!;
+    else if (vals.some((x) => !Number.isFinite(x))) v = NaN;   // fails downstream (audit S1)
+    else {
+      const op = t.op ?? 'max';
+      v = op === 'max' ? Math.max(...vals) : op === 'min' ? Math.min(...vals) : op === 'absmax' ? Math.max(...vals.map(Math.abs))
+        : op === 'absmin' ? Math.min(...vals.map(Math.abs)) : vals.reduce((a, b) => a + b, 0) / vals.length;
+    }
+    return si(v, fd.unit);
+  }
+  if (t.kind === 'expr') {
+    if (!compileExpr) return { error: 'expr extracts need @amp/core/expr (not loaded)' };
+    if (!t.expr || !t.terms) return { error: 'expr needs expr and terms' };
+    const scope = new Map<string, { si: number; dim: number[] }>();
+    for (const [k, sub] of Object.entries(t.terms)) {
+      const r = termSI(sol, sub, o);
+      if ('pending' in r || 'error' in r) return 'pending' in r ? { pending: `term ${k}: ${r.pending}` } : { error: `term ${k}: ${r.error}` };
+      scope.set(k, r);
+    }
+    try {
+      const c = compileExpr(t.expr, { resolve: (n: string) => { const v = scope.get(n); return v ? { kind: 'const', re: v.si, dim: v.dim } : null; } });
+      if (!c.constant) return { error: `expr "${t.expr}" is not constant over its terms` };
+      if (c.constant.im !== 0) return { error: `expr "${t.expr}" is complex` };
+      return { si: c.constant.re, dim: c.dim };
+    } catch (e) { return { error: `expr "${t.expr}": ${(e as Error).message}` }; }
+  }
+  return { error: `term kind '${t.kind}' not supported (scalar, probe, reduce, expr)` };
 }
 
 const ISO_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)$/;
@@ -248,12 +320,13 @@ export class EngineSource implements Source {
     return `engine: ${this.reg.origin}; modules: ${types.join(', ') || 'none'}${this.regReason !== 'ok' ? ` (${this.regReason})` : ''}; prepare: ${this.reg.prepare ? 'yes' : 'no'}; sample: ${this.reg.sample ? 'yes' : 'no'}; isolation: worker per case`;
   }
 
-  private async select(lc: LoadedCase): Promise<{ module: PhysicsModule; spec: Spec; physicsId: string } | { pending: string } | { error: string }> {
+  private async select(lc: LoadedCase, specRef?: SpecRef): Promise<{ module: PhysicsModule; spec: Spec; physicsId: string } | { pending: string } | { error: string }> {
     const c = lc.data!;
+    const sp = specRef ?? c.spec;
     if (this.reg.loadError) return { error: `engine load failed: ${this.reg.loadError}` };
-    if (c.spec && typeof c.spec === 'object' && 'status' in c.spec && c.spec.status === 'pending') return { pending: `spec pending: ${c.spec.reason}` };
+    if (sp && typeof sp === 'object' && 'status' in sp && sp.status === 'pending') return { pending: `spec pending: ${sp.reason}` };
     if (!this.reg.modules.size) return { pending: `no physics modules registered (${this.regReason})` };
-    const rs = await resolveSpec(c, this.root, this.reg.specRegistry);
+    const rs = await resolveSpec({ ...c, spec: sp }, this.root, this.reg.specRegistry);
     if (!('spec' in rs)) return rs;
     const entries = physicsEntries(rs.spec);
     if (!entries.length) return { error: 'spec has no physics entries' };
@@ -267,15 +340,57 @@ export class EngineSource implements Source {
     return { module: m, spec: rs.spec, physicsId: e.id };
   }
 
+  /** Targets grouped by their effective spec (target `spec`, else the case-level one; Follow-up 3 item 3). */
+  private groups(lc: LoadedCase): Array<{ spec: SpecRef; refs: Reference[]; label: string }> {
+    const c = lc.data!;
+    const m = new Map<string, { spec: SpecRef; refs: Reference[]; label: string }>();
+    for (const r of c.references) {
+      const sp = r.spec ?? c.spec;
+      const key = JSON.stringify(sp);
+      const g = m.get(key) ?? { spec: sp, refs: [], label: typeof sp === 'string' ? sp : r.spec ? `target spec of ${targetId(r)}` : 'case spec' };
+      g.refs.push(r);
+      m.set(key, g);
+    }
+    return [...m.values()];
+  }
+
   async plan(lc: LoadedCase): Promise<{ runnable: boolean; reason: string; error?: boolean }> {
-    const s = await this.select(lc);
-    if ('module' in s) return { runnable: true, reason: `run '${s.module.type}' on ${hFactorsFor(lc.data!).length} level(s) in a worker` };
-    return 'pending' in s ? { runnable: false, reason: s.pending } : { runnable: false, reason: s.error, error: true };
+    const gs = this.groups(lc);
+    const parts: Array<{ runnable: boolean; reason: string; error?: boolean }> = [];
+    for (const g of gs) {
+      const s = await this.select(lc, g.spec);
+      parts.push('module' in s ? { runnable: true, reason: `run '${s.module.type}' on ${hFactorsFor(lc.data!).length} level(s) in a worker` } : 'pending' in s ? { runnable: false, reason: s.pending } : { runnable: false, reason: s.error, error: true });
+    }
+    if (gs.length === 1) return parts[0]!;
+    return { runnable: parts.some((p) => p.runnable), reason: parts.map((p, i) => `[${gs[i]!.label}] ${p.reason}`).join('; '), ...(parts.some((p) => p.error) ? { error: true } : {}) };
   }
 
   async observe(lc: LoadedCase, opts: ObserveOptions): Promise<CaseObservation> {
+    const gs = this.groups(lc);
+    if (gs.length === 1) return this.observeGroup(lc, gs[0]!.spec, gs[0]!.refs, opts);
+    // several specs: one worker run per spec; a group's pending / error / timeout applies to its targets only
+    const targets: Record<string, TargetObservation | { pending: string } | { error: string } | { timeout: string }> = {};
+    const levelRuns: Array<{ level: number; dof: number; meshHash: string; wall_ms: number; spec?: string }> = [];
+    let run: Record<string, unknown> | null = null, speed: SpeedRecord | undefined, dim: number | undefined;
+    for (const g of gs) {
+      const o = await this.observeGroup(lc, g.spec, g.refs, opts);
+      if (o.kind === 'observed') {
+        Object.assign(targets, o.targets);
+        for (const l of o.levelRuns ?? []) levelRuns.push({ ...l, spec: g.label });
+        run ??= o.run as Record<string, unknown>;
+        if (!speed && o.speed) speed = { ...o.speed, budget_note: [o.speed.budget_note, `speed timed on ${g.label} (first spec group)`].filter(Boolean).join('; ') };
+        dim ??= o.dim;
+      } else {
+        const v = o.kind === 'pending' ? { pending: `[${g.label}] ${o.reason}` } : o.kind === 'timeout' ? { timeout: `[${g.label}] ${o.reason}` } : { error: `[${g.label}] ${o.reason}` };
+        for (const r of g.refs) targets[targetId(r)] = v;
+      }
+    }
+    return { kind: 'observed', targets, run: run ?? { engine: 'none', note: 'no spec group ran' }, levelRuns, ...(dim !== undefined ? { dim } : {}), ...(speed ? { speed } : {}) };
+  }
+
+  private async observeGroup(lc: LoadedCase, specRef: SpecRef, refs: Reference[], opts: ObserveOptions): Promise<CaseObservation> {
     const c = lc.data!;
-    const s = await this.select(lc);
+    const s = await this.select(lc, specRef);
     if ('pending' in s) return { kind: 'pending', reason: s.pending };
     if ('error' in s) return { kind: 'error', reason: s.error };
     const factors = hFactorsFor(c);
@@ -283,7 +398,7 @@ export class EngineSource implements Source {
     const pre: Record<string, { pending: string }> = {};
     const rn = this.reg.resultNames?.[s.module.type];
     const known = (names: string[], x: string) => names.some((n) => new RegExp(`^${n.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/<[^>]+>/g, '[^_]+')}$`).test(x));
-    for (const r of c.references) {
+    for (const r of refs) {
       if (!r.metric_id && !r.extract?.name) { pre[targetId(r)] = { pending: 'no metric_id: targets are looked up by metric_id only' }; continue; }
       // B3: the metric must be one the module declares (RESULT_NAMES), else pending with the reason
       const kind = r.extract?.kind ?? 'scalar';

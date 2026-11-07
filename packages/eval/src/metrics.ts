@@ -302,3 +302,48 @@ export function evalRule(
     }
   }
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Shared Richardson acceptance rule (Follow-up 3 item 4; imported by L4's gate scripts from '@amp/eval/metrics')
+
+export const RICHARDSON_ORDER_BAND = 0.25;
+
+export interface RichardsonRuleOptions {
+  /** theoretical order of the discretization (e.g. 2 for P1 nodal values, 3 for P2 L2) */
+  expectedOrder?: number;
+  /** accepted relative departure |p_obs / expectedOrder - 1|; default RICHARDSON_ORDER_BAND = 0.25 */
+  band?: number;
+  /** GCI safety factor; default 1.25 (observed order) */
+  fs?: number;
+  /** allow a 2-level study extrapolated with the expected order (fs 3.0); default false */
+  allowAssumed?: boolean;
+}
+export interface RichardsonRuleResult extends Richardson { available: boolean; reason?: string; order_ratio: number | null; band: number }
+
+/**
+ * Richardson extrapolation accepted only when the observed order (three finest levels, Celik et al. 2008) lies
+ * within `band` of the theoretical order: |p_obs / p_theory - 1| <= band (default 0.25, i.e. p_obs in [1.5, 2.5]
+ * for p_theory = 2). Otherwise, and for oscillatory, non-converging or flat sequences, the result is
+ * `available: false` with the reason, and the caller gates on the finest level instead (never on f_ext). Without a
+ * theoretical order the observed order is accepted and the reason says it was not checked.
+ * values f and sizes h ordered coarse -> fine.
+ */
+export function richardsonRule(f: number[], h: number[], opts: RichardsonRuleOptions = {}): RichardsonRuleResult {
+  const band = opts.band ?? RICHARDSON_ORDER_BAND;
+  const oo = observedOrder(f, h);
+  if (oo.p === null) {
+    if (opts.allowAssumed && oo.reason === 'too_few_levels' && f.length === 2 && opts.expectedOrder !== undefined) {
+      const ri = richardson(f, h, { assumedOrder: opts.expectedOrder, ...(opts.fs !== undefined ? { fs: opts.fs } : {}) });
+      return { ...ri, available: ri.f_ext !== null, reason: `2 levels: order assumed ${opts.expectedOrder}, not observed`, order_ratio: null, band };
+    }
+    const ri = richardson(f, h, { ...(opts.fs !== undefined ? { fs: opts.fs } : {}) });
+    return { ...ri, available: false, reason: `order not observed (${oo.reason})`, order_ratio: null, band };
+  }
+  const ri = richardson(f, h, { ...(opts.fs !== undefined ? { fs: opts.fs } : {}) });
+  if (opts.expectedOrder === undefined) return { ...ri, available: ri.f_ext !== null, reason: 'no theoretical order: observed order not checked', order_ratio: null, band };
+  const ratio = oo.p / opts.expectedOrder;
+  if (Math.abs(ratio - 1) > band) {
+    return { ...ri, available: false, reason: `observed order ${oo.p.toPrecision(3)} outside the band ${band} of the theoretical order ${opts.expectedOrder}`, order_ratio: ratio, band };
+  }
+  return { ...ri, available: ri.f_ext !== null, order_ratio: ratio, band };
+}

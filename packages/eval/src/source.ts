@@ -33,9 +33,9 @@ export type CaseObservation =
   | { kind: 'timeout'; reason: string }
   | {
       kind: 'observed';
-      targets: Record<string, TargetObservation | { pending: string } | { error: string }>;
+      targets: Record<string, TargetObservation | { pending: string } | { error: string } | { timeout: string }>;
       run: RunRecord | Record<string, unknown>;
-      levelRuns?: Array<{ level: number; dof: number; meshHash: string; wall_ms: number }>;
+      levelRuns?: Array<{ level: number; dof: number; meshHash: string; wall_ms: number; spec?: string }>;
       dim?: number;
       speed?: SpeedRecord;
     };

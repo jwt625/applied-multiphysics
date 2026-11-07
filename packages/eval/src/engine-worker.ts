@@ -9,7 +9,8 @@ import type { EvalCase } from './loader.ts';
 import type { LevelObservation, TargetObservation } from './evaluate.ts';
 import type { Solution } from './contract-shim.ts';
 import type { Spec } from './contract-shim.ts';
-import { callPrepare, extractFromSolution, loadDefaultRegistry, setUnitsApi, specRuntime, type WorkerResult, type WorkerTarget } from './registry.ts';
+import { callPrepare, extractFromSolution, loadDefaultRegistry, setExpressionCompiler, setUnitsApi, specRuntime, type WorkerResult, type WorkerTarget } from './registry.ts';
+import { importWorkspace } from './workspace.ts';
 import { timeRuns } from './speed.ts';
 import type { LevelTimingSummary } from './source.ts';
 
@@ -22,6 +23,10 @@ async function main(d: Data): Promise<WorkerResult> {
   if (!mod || !registry.prepare) throw new Error(`module '${d.type}' or prepareRun missing in the worker`);
   const sr = await specRuntime(d.root, registry.specRegistry);
   setUnitsApi(sr.rt?.units ?? null);
+  if (d.targets.some((t) => JSON.stringify(t.ref.extract ?? {}).includes('"expr"'))) {
+    const ce = await importWorkspace<{ compileExpression?: Parameters<typeof setExpressionCompiler>[0] }>('@amp/core/expr', d.root);
+    setExpressionCompiler(ce.mod?.compileExpression ?? null);
+  }
   const signal = AbortSignal.timeout(d.timeoutMs);
   const once = async (level: number) => {
     const t0 = performance.now();

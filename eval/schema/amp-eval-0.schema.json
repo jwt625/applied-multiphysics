@@ -829,6 +829,10 @@
             }
           ],
           "description": "how the reference value was taken from the source: tabulated, digitized (with protocol), text, ..."
+        },
+        "spec": {
+          "$ref": "#/$defs/specRef",
+          "description": "model for this target when it differs from the case-level spec (default)"
         }
       },
       "additionalProperties": false
@@ -1006,7 +1010,9 @@
             "probe",
             "field",
             "eigen",
-            "steps"
+            "steps",
+            "reduce",
+            "expr"
           ]
         },
         "name": {
@@ -1083,6 +1089,62 @@
           "type": "integer",
           "minimum": 0,
           "description": "field: non-finite samples allowed per level (default 0)"
+        },
+        "op": {
+          "enum": [
+            "max",
+            "min",
+            "mean",
+            "absmax",
+            "absmin"
+          ],
+          "description": "reduce: reduction of a field over the sample points"
+        },
+        "expr": {
+          "type": "string",
+          "minLength": 1,
+          "description": "expr: expression over the named terms (@amp/core/expr, dimension-checked; result converted to the target unit)"
+        },
+        "terms": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/extract"
+              },
+              {
+                "$ref": "#/$defs/constTerm"
+              }
+            ]
+          },
+          "description": "expr: name -> sub-extract (scalar, probe, reduce, expr) or a constant {value, unit}"
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "field: several fields (tensor / vector components) sampled at the same points and compared together"
+        },
+        "components": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "field: components of one vector field, e.g. [0, 1] of u"
+        },
+        "evaluator_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "field: evaluator field names in the same order (default = fields)"
         }
       },
       "additionalProperties": false
@@ -1411,6 +1473,25 @@
           "type": "boolean"
         },
         "note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "constTerm": {
+      "type": "object",
+      "required": [
+        "value",
+        "unit"
+      ],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "source": {
           "type": "string"
         }
       },

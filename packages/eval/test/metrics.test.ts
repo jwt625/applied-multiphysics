@@ -111,17 +111,22 @@ test('evaluateTarget: Richardson gate (audit S3): extrapolated and finest in bud
   // finest level 1.005 outside a 1e-3 budget: fail although f_ext is exact
   const fin = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: lv }, { expectedOrder: 2 });
   assert.equal(fin.status, 'fail'); assert.match(fin.reason!, /finest level/);
-  // observed order 1 vs expected 2 (ratio 0.5, band 0.25): fail; with order_check false: pass
+  // observed order 1 vs theoretical 2 (ratio 0.5, band 0.25): Richardson unavailable (shared rule), gated on the
+  // finest value + monotone error (Follow-up 3 item 4)
   const lo = h.map((x) => ({ value: 1 + 0.01 * x, h: x }));
   const o = evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lo }, { expectedOrder: 2 });
-  assert.equal(o.status, 'fail'); close(o.order_ratio!, 0.5, 1e-9); assert.match(o.reason!, /not asymptotic/);
-  assert.equal(evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lo }, { expectedOrder: 2, orderCheck: false }).status, 'pass');
-  assert.equal(evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lo }, { expectedOrder: 2, orderBand: 0.6 }).status, 'pass');
+  assert.equal(o.status, 'pass'); assert.equal(o.richardson_fallback, 'finest+monotone'); assert.match(o.reason!, /outside the band 0.25 of the theoretical order 2/);
+  close(o.value as number, 1.001, 1e-12);
+  const loFar = h.map((x) => ({ value: 1 + 0.05 * x, h: x }));   // finest 1.005: outside a 1e-3 budget
+  assert.equal(evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: loFar }, { expectedOrder: 2 }).status, 'fail');
+  const wide = evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lo }, { expectedOrder: 2, orderBand: 0.6 });
+  assert.equal(wide.status, 'pass'); assert.equal(wide.richardson_fallback, undefined); close(wide.value as number, 1, 1e-12);
+  assert.equal(evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lo }, { expectedOrder: 2, orderCheck: false }).richardson_fallback, undefined);
   // oscillatory (non-nested meshes): fallback = finest within budget + |error| non-increasing (L4 DevLog-010 s.5)
   const osc = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1, 0.9, 1.05].map((v, i) => ({ value: v, h: h[i]! })) });
   assert.equal(osc.status, 'fail'); assert.match(osc.reason!, /oscillatory.*fallback/);
   const fb = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-3, 1 - 2e-4, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) }, { expectedOrder: 2 });
-  assert.equal(fb.status, 'pass'); assert.equal(fb.richardson_fallback, 'finest+monotone'); assert.match(fb.reason!, /richardson unavailable \(oscillatory\)/);
+  assert.equal(fb.status, 'pass'); assert.equal(fb.richardson_fallback, 'finest+monotone'); assert.match(fb.reason!, /richardson unavailable \(order not observed \(oscillatory\)\)/);
   const nm = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-4, 1 - 2e-4, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) });
   assert.equal(nm.status, 'fail'); assert.match(nm.reason!, /not monotone/);
   const f = evaluateTarget(ref({ rel: 1e-3 }), 1, { levels: lv });
@@ -224,5 +229,22 @@ test('S2: eigen Richardson after matching; degenerate pair extrapolated as a sub
 test('M11: subsequence matching with fewer computed than reference values keeps the partial assignment', () => {
   const m = matchEigen([1.0001, 3.0002], [1, 2, 3], { rel: 1e-3 }, { match: 'subsequence' });
   assert.equal(m.pairs.length, 2); assert.deepEqual(m.unmatched_refs, [1]); assert.equal(m.pass, false);
+});
+
+test('richardsonRule (shared with L4): band of the theoretical order, unavailable outside it', async () => {
+  const { richardsonRule, RICHARDSON_ORDER_BAND } = await import('../src/metrics.ts');
+  assert.equal(RICHARDSON_ORDER_BAND, 0.25);
+  const h = [0.4, 0.2, 0.1];
+  const q = richardsonRule(h.map((x) => 1 + x * x), h, { expectedOrder: 2 });
+  assert.equal(q.available, true); close(q.f_ext!, 1, 1e-13); close(q.order_ratio!, 1, 1e-9);
+  const p26 = richardsonRule(h.map((x) => 1 + x ** 2.6), h, { expectedOrder: 2 });   // ratio 1.3 > 1.25
+  assert.equal(p26.available, false); assert.match(p26.reason!, /outside the band/);
+  assert.equal(richardsonRule(h.map((x) => 1 + x ** 2.4), h, { expectedOrder: 2 }).available, true);   // 1.2 inside
+  assert.equal(richardsonRule([1, 0.9, 1.05], h, { expectedOrder: 2 }).available, false);
+  assert.equal(richardsonRule([1.02, 1.005], [0.2, 0.1], { expectedOrder: 2 }).available, false);
+  const two = richardsonRule([1.02, 1.005], [0.2, 0.1], { expectedOrder: 2, allowAssumed: true });
+  assert.equal(two.available, true); close(two.f_ext!, 1, 1e-12); assert.equal(two.fs, 3);
+  const none = richardsonRule(h.map((x) => 1 + x * x), h);
+  assert.equal(none.available, true); assert.match(none.reason!, /not checked/);
 });
 
