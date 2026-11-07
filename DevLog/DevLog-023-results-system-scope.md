@@ -465,6 +465,16 @@ Order and dependencies:
 4. **Priority.** Is R0-R3 (2D + 1D + evaluations) before R4 (3D) the right order? And may polar, Smith and far field wait until a physics module produces far fields or S-parameters?
 5. **Animation export.** Is MP4 export of step / phase animations in scope (browser encoder; H.264 yuv420p, faststart per your media defaults), or is a later stage fine?
 
+
+### 5.1 Answers (Wentao, 2026-11-06 22:30 PST)
+1. Grouped `results` object mirroring the tree, with a one-pass migration of every sim and eval-embedded spec: yes (recommendation).
+2. Tables and evaluation values in session memory only: yes. No export of any kind for now (no CSV, PNG, VTU, MP4): logged as TODO, removed from R3.
+3. One graphics pane with an optional split: yes.
+4. R0-R3 (2D, 1D, evaluations) before R4 (3D); polar, Smith and far field wait for a physics need: yes.
+5. MP4 / animation export: later (TODO).
+
+Go: R0-R3 started 2026-11-06 22:30 PST. Lanes: R0 schema + contracts + migration (DevLog-025), R1 `@amp/post` kernels (DevLog-026) in parallel; then R2 Results tree + 2D/1D plot groups (DevLog-027) and R3 evaluations + tables + agent tools, no export (DevLog-028).
+
 ## 6. TODO
 
 - [x] Read current state (spec, post, web, agent, W2 plan)
@@ -473,6 +483,8 @@ Order and dependencies:
 - [x] Design, stages, gates, questions
 - [ ] Coordinator: assign R0..R5; relay Q1-Q5
 - [ ] Contract requests to the coordinator: C3 results shape, new C10, C6 results messages, C8 `extract` by results id
+
+- [ ] Export (later, Wentao 2026-11-06): data / table CSV, image PNG, mesh + fields VTU, MP4 of steps / phase; agent `export` tool.
 
 ## 7. Progress
 
