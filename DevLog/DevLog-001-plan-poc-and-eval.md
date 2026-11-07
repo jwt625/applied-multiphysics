@@ -220,3 +220,11 @@ Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope f
 - 2026-11-06 15:47 PST: L1 audit: no blocking findings; S1 (tri-fe assumes micrometre coordinates) sent to L4, and L1 resumed to fix S1-S3. Audit committed (79f9e87). Timestamps in the contract changelog corrected to commit times (the earlier entries had guessed times). The L7b audit is queued because of the 10-agent cap.
 - 2026-11-06 16:27 PST: Wave 1 status. Done and committed: L1 core, L2 spec + oplog v1, L3 geom/mesh, L6 rt, L7a/L7b/L7c eval (85 cases: 29 a, 20 b, 36 c), L8 harness, L10 materials (13 materials), L4 physics (H1, H2, H3, H4, H6 pass their gates at 1e-5..1e-9 rel; H5 4/6 modes, TM110/TE011 pre-asymptotic, 22 s for 6 modes; correction from the L4 audit B1: the reported 2.2 s for the three hero RF modes relied on Richardson over N = 2-4 with observed order 5.48 > theoretical 4. With order 4, TM010 fails at -1.41e-5. A robust pass needs N = 4-6, which takes 22 s, so H5 does NOT meet <5 s at 1e-5 yet). Fresh-context audits done for L1, L2, L3, L6, L7a, L7b, L7c, L8; corrections applied for L1, L2, L3, L7a, L7b; L6, L7c and L8 fixes in progress. L4 and L10 audits running. L5 web and L9 agent in progress. Contracts-v1 items assigned to L2 (spec) and L3 (refineUniform, tet10).
 
+- 2026-11-06 17:24 PST: M2 engine half reached, per I1 (DevLog-014, commit ef3cc9b; fresh-context M2 audit running). All six heroes pass their eval gates on the real engine through the harness (spec -> geometry -> mesh -> solve -> extract -> gate, nested levels [1, 0.5, 0.25]), Node end-to-end:
+  - H1 SM-01 5/5, worst -2.8e-6, 0.83 s.
+  - H2 HT-01/02/03, worst -1.6e-6, 0.02-0.42 s.
+  - H3 EM-04 -3.0e-6, 1.18 s.
+  - H4 WO-01 TE0/TM0, 4.5e-9, 0.92 s.
+  - H5 RF-21 7/7 via emw-axisym, 2.14 s.
+  - H6 AC-02 10/10, 4.5e-7, 6.25 s (misses <5 s).
+  Class a: 9 pass, 2 fail (SM-02 and HT-04, on the fallback rule only; L8 is relaxing it), 18 pending (non-hero). Browser (L5): first paint 36-38 ms, coarse previews 17-396 ms, full solves 0.22 s (2D heroes, box), 2.7 s (cavity, before the axisym switch), 3.8 s (rib). The browser path's mesh hashes equal Node's. Open for M2: H6 speed, the WO-02 sweep target, chat panel mount (L5 pass 2), the M2 audit.
