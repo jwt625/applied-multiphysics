@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { createOpLog, replayJSONL, verifyChain, hashRecord, type Operation } from '../src/oplog.ts';
 import { invalidationsFor } from '../src/invalidation.ts';
 import { wave1Registry } from '../src/provisional/wave1.ts';

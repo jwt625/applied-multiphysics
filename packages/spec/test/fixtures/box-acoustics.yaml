@@ -1,0 +1,47 @@
+# FROZEN TEST FIXTURE (@amp/spec tests and gates; DevLog-003 s.10). Copy of sims/box-acoustics.yaml as written by L2
+# on 2026-11-06, before I1 took over sims/. Not maintained; the live file is sims/box-acoustics.yaml.
+# H6 Room acoustics, box modes (DevLog-001 s.8). Eval gate AC-02 (R3): rigid box 1.0 x 0.8 x 0.6 m, c 343 m/s;
+# lowest modes 171.500, 214.375, 274.534, 285.833 Hz from f = (c/2) sqrt((l/Lx)^2 + (m/Ly)^2 + (n/Lz)^2).
+# The driven-room variant is not defined yet (see missing).
+schema: amp-spec/0
+id: box-acoustics
+title: Room acoustics, box modes
+description: Standing-wave modes of a rigid rectangular room.
+params:
+  Lx: {value: 1.0, unit: m}
+  Ly: {value: 0.8, unit: m}
+  Lz: {value: 0.6, unit: m}
+geometry:
+  dim: 3
+  features:
+    - {id: room, type: box, settings: {size: ["Lx", "Ly", "Lz"], center: ["Lx/2", "Ly/2", "Lz/2"]}}
+materials:
+  - {id: air, override: {c: {value: N/A, unit: m/s}, rho: {value: N/A, unit: kg/m^3}}, select: ["dom:room"]}
+physics:
+  - id: ac
+    type: acoustics
+    select: ["dom:room"]
+    bcs:
+      - id: walls
+        type: sound-hard
+        select: ["bnd:room.xmin", "bnd:room.xmax", "bnd:room.ymin", "bnd:room.ymax", "bnd:room.zmin", "bnd:room.zmax"]
+mesh:
+  size: {hmax: "Lz/8"}
+studies:
+  - {id: eig, type: eigen, physics: [ac], settings: {nModes: 5}}
+results:
+  - {id: freqs, type: table, data: eig, expr: ac.freq, unit: Hz}
+  - {id: p_mode, type: plot3d, data: eig, expr: ac.p, unit: Pa, step: 1}
+provenance:
+  values:
+    params.Lx: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}
+    params.Ly: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}
+    params.Lz: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}
+    studies.eig.settings.nModes: {basis: user, date: 2026-11-06, note: "the four AC-02 modes plus the zero-frequency constant-pressure mode of an all-rigid room"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
+assumptions:
+  - {text: "Box corner at the origin; position does not affect the eigenfrequencies", paths: [geometry.features.room]}
+missing:
+  - {path: materials.air.override.c, what: "speed of sound; R3 AC-02 gives c = 343 m/s", needed_for: [solution]}
+  - {path: materials.air.override.rho, what: "air density: not needed for the rigid-wall eigenfrequencies, needed for pressure amplitudes and the driven variant", needed_for: [solution]}
+  - {what: "driven-room variant (source position, strength, frequency range): not defined", needed_for: [solution]}

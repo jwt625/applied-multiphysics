@@ -36,7 +36,7 @@ test('EO: changes only the edited value and quotes strings safely', () => {
   assert.deepEqual(getIn(deleteIn(src, ['a', 'unit']), ['a']), { value: 738 });
 });
 
-const SPEC = readFileSync(new URL('../../../sims/kirsch-plate.yaml', import.meta.url), 'utf8');
+const SPEC = readFileSync(new URL('./fixtures/kirsch-plate.yaml', import.meta.url), 'utf8');
 
 test('round trip on a hero spec: one changed line, inserted key deleted restores the bytes, comments kept', () => {
   for (const [path, value] of [

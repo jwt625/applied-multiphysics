@@ -1,0 +1,42 @@
+# FROZEN TEST FIXTURE (@amp/spec tests and gates; DevLog-003 s.10). Copy of sims/cylinder-cavity.yaml as written by L2
+# on 2026-11-06, before I1 took over sims/. Not maintained; the live file is sims/cylinder-cavity.yaml.
+# H5 Cylindrical cavity eigenmodes (DevLog-001 s.8). Eval gate RF-01 (R3; Palace docs cylinder.md): PEC cylinder,
+# a = 2.74 cm, d = 2a, filled with eps_r 2.08, tan d 4e-4; TM010 2.903605, TE111 2.922212, TM011 3.468149,
+# TE211 4.146842, TM110 4.626474, TE011 5.000140 GHz.
+schema: amp-spec/0
+id: cylinder-cavity
+title: Cylindrical cavity eigenmodes
+description: Resonant modes of a dielectric-filled PEC cylinder; animate E and H of each mode.
+params:
+  a: {value: 2.74, unit: cm, description: cavity radius}
+  d: {value: "2*a", description: cavity length}
+geometry:
+  dim: 3
+  features:
+    - {id: cav, type: cylinder, settings: {radius: "a", height: "d", base: {value: [0, 0, 0], unit: m}, axis: z}}
+materials:
+  - {id: fill, override: {eps_r: N/A, tan_delta: N/A}, select: ["dom:cav"]}
+physics:
+  - id: rf
+    type: emw
+    select: ["dom:cav"]
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:cav.side", "bnd:cav.top", "bnd:cav.bottom"]}
+mesh:
+  size: {hmax: "a/4"}
+studies:
+  - {id: eig, type: eigen, physics: [rf], settings: {nModes: 16}}
+results:
+  - {id: freqs, type: table, data: eig, expr: rf.freq, unit: GHz}
+  - {id: E_mode, type: plot3d, data: eig, expr: rf.normE, unit: V/m, step: 0}
+provenance:
+  values:
+    params.a: {basis: benchmark, source: "R3 RF-01 (Palace docs cylinder.md L26-28)", date: 2026-11-06}
+    params.d: {basis: benchmark, source: "R3 RF-01: d = 2a", date: 2026-11-06}
+    studies.eig.settings.nModes: {basis: user, date: 2026-11-06, note: "modelling choice with margin: below 5.0 GHz the analytic spectrum has degenerate pairs (azimuthal index > 0) and modes not listed in RF-01, so more than six eigenvalues are needed"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
+assumptions:
+  - {text: "Walls are PEC; the copper-wall Q variant of RF-01 (Rs 0.0184 Ohm) is not modelled here", paths: [physics.rf.bcs.walls]}
+missing:
+  - {path: materials.fill.override.eps_r, what: "relative permittivity of the fill; R3 RF-01 gives 2.08 (Palace docs cylinder.md)", needed_for: [solution]}
+  - {path: materials.fill.override.tan_delta, what: "loss tangent of the fill; R3 RF-01 gives 4e-4 (needed for Q_d only)", needed_for: [solution]}

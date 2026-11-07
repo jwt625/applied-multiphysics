@@ -1,0 +1,51 @@
+# FROZEN TEST FIXTURE (@amp/spec tests and gates; DevLog-003 s.10). Copy of sims/kirsch-plate.yaml as written by L2
+# on 2026-11-06, before I1 took over sims/. Not maintained; the live file is sims/kirsch-plate.yaml.
+# H1 Plate with a hole (DevLog-001 s.8). Eval gate SM-01 (R3): Kirsch, K_t = sigma_theta,max / sigma_inf = 3 for an
+# infinite plate under uniaxial tension, plane stress, W/D >= 20. Quarter model with symmetry rollers.
+schema: amp-spec/0
+id: kirsch-plate
+title: Plate with a hole
+description: Uniaxial tension of a wide plate with a circular hole; drag the hole diameter and watch the stress concentration.
+params:
+  D: {value: 10, unit: mm, range: [1, 10], description: hole diameter}
+  W: {value: 200, unit: mm, description: full plate width (quarter model is W/2 x W/2)}
+  sigma_inf: {value: 1, unit: MPa, description: remote uniaxial tension}
+geometry:
+  dim: 2
+  features:
+    - {id: quarter, type: rect, settings: {size: ["W/2", "W/2"], center: ["W/4", "W/4"]}}
+    - {id: hole, type: circle, settings: {center: {value: [0, 0], unit: mm}, radius: "D/2"}}
+    - {id: plate, type: difference, settings: {base: quarter, tools: [hole]}}
+materials:
+  - {id: steel, ref: materials/structural-steel, select: ["dom:plate"]}
+physics:
+  - id: solid
+    type: elastic
+    select: ["dom:plate"]
+    settings: {model: plane-stress}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:quarter.left"]}   # x = 0 symmetry plane
+      - {id: sym_y, type: roller, select: ["bnd:quarter.bottom"]} # y = 0 symmetry plane
+      - {id: tension, type: boundary-load, select: ["bnd:quarter.right"], settings: {traction: ["sigma_inf", "0 Pa"]}}
+      - {id: open, type: free, select: ["bnd:quarter.top", "bnd:hole.edge"]}
+mesh:
+  size: {hmax: "W/40"}
+  refine:
+    - {select: ["bnd:hole.edge"], h: "D/40"}
+studies:
+  - {id: std1, type: stationary, physics: [solid]}
+results:
+  - {id: sxx, type: plot2d, data: std1, expr: solid.sxx, unit: MPa}
+  - {id: kt, type: scalar, data: std1, expr: "max(solid.sxx)/sigma_inf", unit: "1", select: ["bnd:hole.edge"]}
+provenance:
+  values:
+    params.W: {basis: user, date: 2026-11-06, note: "modelling choice: W/D = 20 meets the SM-01 condition W/D >= 20 (R3)"}
+    params.D: {basis: user, date: 2026-11-06, note: "modelling choice; the range keeps W/D >= 20"}
+    params.sigma_inf: {basis: user, date: 2026-11-06, note: "modelling choice; the problem is linear and K_t does not depend on the load level"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
+assumptions:
+  - {text: "Finite quarter plate with W/D = 20 approximates the infinite-plate Kirsch solution (SM-01 gate condition)", paths: [params.W]}
+  - {text: "Boundary entity names (quarter.left/right/top/bottom, hole.edge) follow the provisional L3 naming", paths: [geometry.features]}
+missing:
+  - {path: materials.steel.ref, what: "materials/structural-steel is not authored yet (materials/ empty on 2026-11-06); the Kirsch closed form contains no elastic constants (R3 SM-01)", needed_for: [solution]}

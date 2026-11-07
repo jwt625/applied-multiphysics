@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
 import * as z from 'zod';
 import { parseSpecText, formatIssues } from '../src/yaml.ts';
 import { validateSpec, resolveDotted } from '../src/validate.ts';
 import { specJsonSchema, quantity, SpecSchema, schemaAt, type Spec } from '../src/schema.ts';
 import { createRegistry } from '../src/registry.ts';
 import { wave1Registry, WAVE1 } from '../src/provisional/wave1.ts';
-import { HEROES, readHero, readSim } from './heroes.ts';
+import { HEROES, readHero, fixtureIds } from './heroes.ts';
 import { resolveQuantity, classifyString } from '../src/quantity.ts';
 import { checkSelections, type EntityResolver } from '../src/selection.ts';
 import { parseEntityId, entityOverlaps } from '../src/ids.ts';
 
-const SIMS = new URL('../../../sims/', import.meta.url);
 const reg = wave1Registry();
 const read = readHero;
 const KIRSCH = read('kirsch-plate');
@@ -26,11 +24,8 @@ function edit(text: string, from: string, to: string): string {
 }
 const codes = (text: string) => parseSpecText(text, reg).issues.map((i) => `${i.code} ${i.dotted}`);
 
-test('all six hero examples validate (si-rib-waveguide via the pending I1 port, see DevLog-003 s.9)', () => {
-  const files = readdirSync(SIMS).filter((f) => f.endsWith('.yaml')).map((f) => f.slice(0, -5)).sort();
-  assert.ok(HEROES.every((h) => files.includes(h)), 'hero files present');
-  const raw = parseSpecText(readSim('si-rib-waveguide'), reg);
-  if (!raw.ok) assert.deepEqual(raw.issues.map((i) => i.code).sort(), ['check', 'param_reserved'], 'the only break is the reserved param name t');
+test('all six hero fixtures validate (frozen copies, test/fixtures)', () => {
+  assert.deepEqual(fixtureIds(), [...HEROES].sort());
   for (const id of HEROES) {
     const r = parseSpecText(read(id), reg);
     assert.ok(r.ok, `${id}:\n${formatIssues(r.issues)}`);
@@ -56,7 +51,7 @@ test('unknown keys are rejected at every level, with line and column', () => {
   assert.equal(top.ok, false);
   const i0 = top.issues.find((i) => i.code === 'unknown_key');
   assert.equal(i0?.dotted, 'colour');
-  assert.equal(i0?.line, 6);
+  assert.equal(i0?.line, 8);
   assert.equal(i0?.col, 1);
   assert.match(i0!.message, /unknown key 'colour' \(allowed: schema, id, title/);
   assert.deepEqual(codes(edit(KIRSCH, 'settings: {model: plane-stress}', 'settings: {model: plane-stress, thikness: "1 mm"}')), ['unknown_key physics.0.settings.thikness']);
@@ -123,7 +118,7 @@ test('registry: unknown types are named, physics vs geometry dimension checked, 
 test('YAML level: syntax errors, duplicate keys, anchors and aliases carry positions', () => {
   const dup = parseSpecText(edit(KIRSCH, 'id: kirsch-plate', 'id: kirsch-plate\nid: again'), reg);
   assert.equal(dup.issues[0]?.code, 'yaml');
-  assert.equal(dup.issues[0]?.line, 5);
+  assert.equal(dup.issues[0]?.line, 7);
   const alias = parseSpecText(edit(KIRSCH, 'W: {value: 200, unit: mm,', 'W: &w {value: 200, unit: mm,').replace('sigma_inf: {value: 1, unit: MPa, description: remote uniaxial tension}', 'sigma_inf: *w'), reg);
   assert.ok(alias.issues.some((i) => /anchors are not allowed/.test(i.message)));
   assert.ok(alias.issues.some((i) => /aliases are not allowed/.test(i.message)));

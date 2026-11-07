@@ -1,0 +1,48 @@
+# FROZEN TEST FIXTURE (@amp/spec tests and gates; DevLog-003 s.10). Copy of sims/heat-plate-fin.yaml as written by L2
+# on 2026-11-06, before I1 took over sims/. Not maintained; the live file is sims/heat-plate-fin.yaml.
+# H2 Heat-spreading plate (DevLog-001 s.8). Base model = NAFEMS T4 as defined in R3 HT-01: 0.6 x 1.0 m plate,
+# bottom 100 C, left insulated, right + top convection h 750 W/m2 K to 0 C; target T(E = 0.6, 0.2 m) = 18.3 C.
+# The fin and the transient variant are not defined by a sourced case yet (see missing).
+schema: amp-spec/0
+id: heat-plate-fin
+title: Heat-spreading plate
+description: Steady conduction in a plate with a fixed-temperature base and convective edges (NAFEMS T4 geometry and loads).
+params:
+  Lx: {value: 0.6, unit: m, description: plate width}
+  Ly: {value: 1.0, unit: m, description: plate height}
+geometry:
+  dim: 2
+  features:
+    - {id: plate, type: rect, settings: {size: ["Lx", "Ly"], center: ["Lx/2", "Ly/2"]}}
+materials:
+  - {id: solid, override: {k: {value: N/A, unit: W/(m*K)}}, select: ["dom:plate"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:plate"]
+    bcs:
+      - {id: base, type: temperature, select: ["bnd:plate.bottom"], settings: {T: "100 degC"}}
+      - {id: adiabatic, type: insulation, select: ["bnd:plate.left"]}
+      - {id: film, type: convection, select: ["bnd:plate.right", "bnd:plate.top"], settings: {h: "750 W/(m^2*K)", T_ext: "0 degC"}}
+mesh:
+  size: {hmax: "Ly/50"}
+studies:
+  - {id: std1, type: stationary, physics: [ht]}
+results:
+  - {id: T_E, type: probe, data: std1, expr: T, unit: degC, at: ["0.6 m", "0.2 m"]}
+  - {id: T_map, type: plot2d, data: std1, expr: T, unit: degC}
+provenance:
+  values:
+    params.Lx: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01 (Altair OS-V 0120; FEATool ex_heattransfer4.m L127)", date: 2026-11-06}
+    params.Ly: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
+    physics.ht.bcs.base.settings.T: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
+    physics.ht.bcs.film.settings.h: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
+    physics.ht.bcs.film.settings.T_ext: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
+    results.T_E.at: {basis: benchmark, source: "NAFEMS T4 point E as given in R3 HT-01", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
+assumptions:
+  - {text: "2D conduction per unit depth; no internal heat source", paths: [physics.ht]}
+missing:
+  - {path: materials.solid.override.k, what: "thermal conductivity; NAFEMS T4 defines k = 52 W/(m K) (R3 HT-01); to be authored as a materials/ entry", needed_for: [solution]}
+  - {what: "fin geometry of the plate-and-fin hero: no sourced case defines it", needed_for: [geometry]}
+  - {what: "transient variant (rho, cp, initial state, time window): not defined; NAFEMS T3 (R3 HT-02) is a separate 1D case", needed_for: [solution]}

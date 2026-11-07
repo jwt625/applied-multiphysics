@@ -355,3 +355,14 @@ At 16:34 PST I renamed `t` to `t_slab` in `sims/si-rib-waveguide.yaml`. The coor
    - In `registerMaterialProperties`, pass `scalar: d.scalar` and `tensor: Object.fromEntries(d.tensor.map((s) => [s, SYMMETRY_COMPONENTS[s]]))`. Without them the spec cannot know the tensor forms; with them it validates `{symmetry, unit?, components}`.
    - Pass `createLibrary(...)` (it has `ids()`) as `materials` in `parseSpecText` / `validateSpec` / `OpLogOptions.validateOptions`.
 4. **L3:** a 1D interval feature for HT-02/HT-03 (geometry dim 1).
+
+## 10. Tests independent of the live sims/ (coordinator 2026-11-06 ~17:20 PST, after I1 commit ef3cc9b)
+
+- Done 2026-11-06 17:27 PST:
+  - Frozen fixtures `packages/spec/test/fixtures/<hero>.yaml` (6 files). Each is the last L2 version of the hero spec (s.4-9), with a header marking it as a frozen fixture. The rib fixture has the `t_slab` rename built in, which replaces the in-memory port of s.9.3.
+  - `test/heroes.ts` reads only the fixtures. The schema, oplog, contracts-v1 and yaml-edit tests and `scripts/gates.ts` use them.
+  - Two line-number assertions moved by +2 (fixture header).
+- New `test/sims-live.test.ts`: the only test that reads `sims/`. Every `sims/*.yaml` must validate against the full registry: the spec seed, then `@amp/physics` `physicsRegistry()`, `@amp/geom/spec` `registerGeomFeatures`, and `@amp/materials` `registerMaterialProperties`. These are loaded by relative path at test time (no package dependency, because they depend on `@amp/spec`), and the test is skipped with the reason if a package is absent.
+- Result: 20/20 live sims files validate.
+- `pnpm test` 53/53 (0 skipped), `pnpm check` clean (`logs/L2-test-20261106T172703.log`).
+- Gate smoke: 100 sequences, 3a 100/100, 3b 100/100, schema budget pass (`logs/L2-gates-20261106T172713.*`). The full 1000-sequence gates of s.9.2 used the same fixture texts, apart from the in-memory rename, which is now in the rib fixture.
