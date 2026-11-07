@@ -371,3 +371,42 @@ Tests 2026-11-06 17:20 PST: physics 42/42 (followup3: 3), post 4/4; tsc clean (p
   - Shift: a positive in-band shift would need LDL^T instead of Cholesky.
   Proposal, unchanged accuracy: h_factors [1, 2/3, 1/2] for AC-02 (L7a). The L4 gate's s = 1, 2, 3 levels (4,641 and 14,725 DOF at the two finer levels) pass all ten modes at 1e-4 with p 3.66-3.87 in 1.75 s. A non-power-of-2 hFactor re-meshes the structured box (self-similar, not nested), and the shared rule accepts that sequence.
 - Tests: physics 43/43; tsc clean.
+
+### 9.1 H6 finest-level factor and eigen solve (2026-11-06 17:30-17:45 PST; coordinator: case stays h_factors [1, 0.5, 0.25])
+
+Experiments on the AC-02 finest level (tet10 P2, 33,825 DOF, nnzA 476,001; same matrices as the harness level; Node, load 3.6-4.8). Ad-hoc scripts, deleted after the run; numbers below are from their console output.
+
+| Variant | Factor ms | Arnoldi + refine ms | Operator applications / restarts | f_mode10 (Hz) | Total ms |
+|---|---|---|---|---|---|
+| baseline: sigma below the spectrum, Cholesky (AMD), block 1, maxBasis 34 | 2,677 | 1,369 + 340 | 52 / 1 | 428.756797720 | 4,388 |
+| block size 2 | 2,660 | 1,857 + 352 | 67 / 2 | same | 4,875 |
+| block size 4 | 2,704 | 2,586 + 345 | 93 / 4 | same | 5,646 |
+| maxBasis 50 | 2,608 | 1,301 + 340 | 52 / 0 | same | 4,255 |
+| in-band shift 250 Hz (LDL^T) | 3,972 | 1,398 + 381 | 46 / 1 | same | 5,760 |
+| geometric nested dissection (3D median bisection, vertex separators; leaf 32 / 128 / 512) instead of AMD | 2,802 / 2,833 / 3,009 (nnzL 1.89e7 / 1.95e7 / 2.18e7 vs AMD 1.65e7; 2.40e10 / 2.41e10 / 2.53e10 flops vs AMD 2.17e10) | - | - | - | - |
+
+Findings:
+- Symbolic reuse across levels is not possible here, because each level's pattern is different. Within a level the pattern is analysed once.
+- The AMD Cholesky runs at about 8 GFlop/s (2.17e10 flops in 2.6 s), close to what the in-JS supernodal kernel reaches.
+- No variant beats the baseline by more than the run-to-run noise (maxBasis 50: -3 %). Every variant gives the same eigenvalues to all printed digits.
+- Nothing was changed in the code. The remaining levers are:
+  - the WASM SIMD factor kernel (R1/R2: est. 2.2x end to end, opt-in in @amp/core, not measured on this matrix);
+  - an iterative or LOBPCG solve with an AMG preconditioner (not implemented; estimate, not measured: 52 AMG-PCG solves of order 20 iterations each would likely cost more than the direct factor + 52 triangular solves at this size).
+
+H6 stays at about 5.5 s end to end in Node at the case's levels; the finest level alone takes 4.3-5.1 s.
+
+WASM SIMD factor measurement (2026-11-06 17:50 PST, coordinator request; same AC-02 finest-level matrix K + 0.01 lambda_scale M, 33,825 DOF, shared AMD symbolic analysis, Node v23.7.0, nice 10, 3 runs; ad-hoc script deleted after the run):
+
+| Factor | Run 1 / 2 / 3 (ms) | max abs(dx) / max abs(x) vs real Cholesky (one solve) |
+|---|---|---|
+| real supernodal Cholesky (`SparseCholesky`, current) | 2,565 / 2,592 / 2,573 | reference |
+| complex LDL^T `blocked` (`makeFactor('blocked')`, imaginary part 0) | 7,147 / 7,065 / 7,193 | 1.95e-14 |
+| complex LDL^T `wasm` SIMD (`makeFactor('wasm')`, imaginary part 0; `wasmLdltSupported()` true) | 3,672 / 3,667 / 3,805 | 4.13e-12 |
+
+Result:
+- The @amp/core WASM SIMD kernel exists only for the complex-symmetric LDL^T (`WasmComplexLDLT`; the front update is complex).
+- It is 1.9x faster than the complex `blocked` kernel, but 1.43-1.48x slower than the real Cholesky that acoustics already uses: on a real matrix it does complex arithmetic on a zero imaginary part.
+- End to end it cannot beat 5 s here, so it is not wired as a run option; the default is unchanged. A real-valued f64x2 front update (the same encoder, half the work of the complex kernel) is the item that could pay off; it is a core change (L1), not done here.
+- The eigenvalue check at 1e-12 was not run because the kernel is not adopted. The one-solve difference is 4.1e-12 relative.
+
+Browser worker: the kernel builds its module bytes at run time (`new WebAssembly.Module(bytes)` in `la/ldlt-wasm.mjs`), so the worker needs CSP `script-src 'wasm-unsafe-eval'`. `apps/web` already grants it: `static/_headers` for `/_app/*` (worker scripts get their CSP from their own response), and `vite.config.ts` kit csp `script-src: ['self', 'wasm-unsafe-eval']` for pages. This is checked by reading the configuration only. The kernel was not loaded in a browser here: no browser run, no server started.
