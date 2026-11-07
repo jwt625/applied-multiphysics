@@ -40,6 +40,7 @@ references:
   note: exact; Palace's table entry 2.903605 GHz uses a rounded Bessel zero (L7a RF-21 resolution); equals RF-21; duplicate
     of class-a RF-21 (same closed form); gated there, kept here for traceability
   extract: {kind: eigen, floor: 1000000.0, index: 0}
+  spec: sims/cylinder-cavity-axisym.yaml
 - quantity: f TE111
   metric_id: f_TE111
   value: 2922197191.014636
@@ -54,6 +55,7 @@ references:
     source_accessed: '2026-11-06'}
   note: duplicate of class-a RF-21 (same closed form); gated there, kept here for traceability
   extract: {kind: eigen, floor: 1000000.0, index: 1}
+  spec: sims/cylinder-cavity-axisym.yaml
 - quantity: f TE011
   metric_id: f_TE011
   value: 5000146299.18556
@@ -67,7 +69,8 @@ references:
   provenance: {citation: Pozar via Palace docs, locator: palace docs/src/examples/cylinder.md L118, accessed: null, generator: validation/c/gen_palace.py,
     source_accessed: '2026-11-06'}
   note: degenerate with TM111; duplicate of class-a RF-21 (same closed form); gated there, kept here for traceability
-  extract: {kind: eigen, floor: 1000000.0, index: 11}
+  extract: {kind: eigen, floor: 1000000.0, index: 8}
+  spec: sims/cylinder-cavity-axisym.yaml
 - quantity: Q_c TE011 (R_s 0.0184 Ohm)
   metric_id: Q_c_TE011
   value: 29395.11665316677
@@ -76,10 +79,12 @@ references:
   bounds: null
   basis: D
   form: closed_form
-  gate: true
+  gate: false
   expected: {file: eval/expected/RF-01.json, metric_id: Q_c_TE011}
   provenance: {citation: Pozar Ex. 6.4 formula as printed in Palace docs, locator: 'palace docs/src/examples/cylinder.md L53-65,
       L150-159', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
+  note: 'not gated: needs a surface-impedance (R_s) wall BC, not in the engine; the 3D hero levels may not be run within the
+    2 s budget (coordinator 2026-11-06)'
 - quantity: Q TE011 copper walls
   metric_id: Q_TE011_copper
   value: 2304.045237772176
@@ -88,10 +93,12 @@ references:
   bounds: null
   basis: D
   form: closed_form
-  gate: true
+  gate: false
   expected: {file: eval/expected/RF-01.json, metric_id: Q_TE011_copper}
   provenance: {citation: 1/Q = 1/Q_c + 1/Q_d, locator: palace docs/src/examples/cylinder.md L150-156, accessed: null, generator: validation/c/gen_palace.py,
     source_accessed: '2026-11-06'}
+  note: 'not gated: needs a surface-impedance (R_s) wall BC, not in the engine; the 3D hero levels may not be run within the
+    2 s budget (coordinator 2026-11-06)'
 - quantity: Q_d
   metric_id: Q_d
   value: 2500.0
@@ -106,13 +113,21 @@ references:
     source_accessed: '2026-11-06'}
   note: duplicate of class-a RF-21 (same closed form); gated there, kept here for traceability
   extract: {kind: scalar, name: Q_0}
+  spec: sims/cylinder-cavity-qd.yaml
 reference_results:
 - solver: Palace v0.19.0 regression gold cavity_pec (coarse CI mesh)
   f_GHz_first4: [2.904769618774, 2.922855211084, 2.922855211091, 3.469124240109]
   locator: test/data/regression/ref/cylinder/cavity_pec/eig.csv rows 1-4
 - {source: Palace docs analytic table (rounded Bessel zeros), f_TM010_GHz: 2.903605, f_TE111_GHz: 2.922212, locator: palace
     docs/src/examples/cylinder.md L113-123}
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+convergence:
+  levels_min: 3
+  ratio_min: 1.5
+  method: richardson_gci
+  safety_factor: 1.25
+  h_factors: [1, 0.5, 0.25]
+  expected_order: 4
+  note: same levels as RF-21 (axisymmetric spec)
 speed:
   budget_s: {browser: 2.0, native: null}
   budget_basis: 'R3 s.3.4: 2D-axisym < 2 s, 3D 5-30 s; est.'
@@ -127,12 +142,12 @@ hero:
   suitable: true
   why: animated E/H of cavity modes; R3 hero RF-01
   visual: [E_field, H_field]
-spec: sims/cylinder-cavity.yaml
+spec: sims/cylinder-cavity-axisym.yaml
 missing: []
 assumptions: []
 source_case: {suite: Palace examples, file: docs/src/examples/cylinder.md, url: github.com/awslabs/palace tag v0.19.0 (ca9a6a2d1e64a410229c3d7538507e5eae975cc6),
   accessed: '2026-11-06', note: cache/eval-c/sources/palace/cylinder.md sha256 d8fb5dc34542bdc89d126133f0f7a8abceb04e853a26526eaed6485a9211ad7e}
 lane: L7c
 created: '2026-11-06'
-notes: ['Q_c_TE011 and Q_TE011_copper need a surface-impedance BC, not yet in the engine: these targets stay pending (DevLog-014
-    s.5 item 8).']
+notes: ['Engine wiring: frequencies on sims/cylinder-cavity-axisym.yaml (emw-axisym), Q_d on sims/cylinder-cavity-qd.yaml,
+    as RF-21; Q_c_TE011 and Q_TE011_copper not gated (no surface-impedance BC). Budget kept at 2 s.']

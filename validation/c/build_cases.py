@@ -2944,10 +2944,11 @@ def apply_audit(d: dict) -> dict:
                                                "M_ab": {"kind": "scalar", "name": "L_ra_rb"},
                                                "L_aa": {"kind": "scalar", "name": "L_ra_ra"},
                                                "L_bb": {"kind": "scalar", "name": "L_rb_rb"}}),
-        "RF-01": ("sims/cylinder-cavity.yaml", {"f_TM010": {"kind": "eigen", "floor": 1.0e6, "index": 0},
-                                                "f_TE111": {"kind": "eigen", "floor": 1.0e6, "index": 1},
-                                                "f_TE011": {"kind": "eigen", "floor": 1.0e6, "index": 11},
-                                                "Q_d": {"kind": "scalar", "name": "Q_0"}}),
+        # coordinator 17:3x: frequencies on the axisymmetric spec (emw-axisym) as RF-21; no 3D hero levels
+        "RF-01": ("sims/cylinder-cavity-axisym.yaml", {"f_TM010": {"kind": "eigen", "floor": 1.0e6, "index": 0},
+                                                       "f_TE111": {"kind": "eigen", "floor": 1.0e6, "index": 1},
+                                                       "f_TE011": {"kind": "eigen", "floor": 1.0e6, "index": 8},
+                                                       "Q_d": {"kind": "scalar", "name": "Q_0"}}),
     }
     if cid in wiring:
         d["spec"], ex = wiring[cid]
@@ -2955,8 +2956,22 @@ def apply_audit(d: dict) -> dict:
             if r.get("metric_id") in ex:
                 r["extract"] = ex[r["metric_id"]]
         if cid == "RF-01":
-            d["notes"] = (d.get("notes") or []) + ["Q_c_TE011 and Q_TE011_copper need a surface-impedance BC, not yet "
-                                                   "in the engine: these targets stay pending (DevLog-014 s.5 item 8)."]
+            for r in d["references"]:
+                if r.get("metric_id") in ("f_TM010", "f_TE111", "f_TE011"):
+                    r["spec"] = "sims/cylinder-cavity-axisym.yaml"
+                if r.get("metric_id") == "Q_d":
+                    r["spec"] = "sims/cylinder-cavity-qd.yaml"  # coarse 3D levels, as RF-21 Q_dielectric
+                if r.get("metric_id") in ("Q_c_TE011", "Q_TE011_copper"):
+                    r["gate"] = False
+                    r["note"] = (r.get("note", "") + "; " if r.get("note") else "") + (
+                        "not gated: needs a surface-impedance (R_s) wall BC, not in the engine; the 3D hero levels "
+                        "may not be run within the 2 s budget (coordinator 2026-11-06)")
+            d["convergence"] = {"levels_min": 3, "ratio_min": 1.5, "method": "richardson_gci", "safety_factor": 1.25,
+                                "h_factors": [1, 0.5, 0.25], "expected_order": 4,
+                                "note": "same levels as RF-21 (axisymmetric spec)"}
+            d["notes"] = (d.get("notes") or []) + ["Engine wiring: frequencies on sims/cylinder-cavity-axisym.yaml "
+                "(emw-axisym), Q_d on sims/cylinder-cavity-qd.yaml, as RF-21; Q_c_TE011 and Q_TE011_copper not gated "
+                "(no surface-impedance BC). Budget kept at 2 s."]
     # every target gets an explicit, unique metric_id (L8 loader: engine looks targets up by metric_id)
     used = {r["metric_id"] for r in d["references"] if r.get("metric_id")}
     prefix = {"WO-05": "meep_", "WO-04": "mpb_", "WO-61": "mpb_"}.get(cid, "")

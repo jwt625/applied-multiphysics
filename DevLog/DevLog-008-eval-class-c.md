@@ -236,3 +236,23 @@ All corrections live in `validation/c/build_cases.py::apply_audit()` (keyed by c
 - RF-01 next step (coordinator or I1 decision):
   - point the frequencies at `sims/cylinder-cavity-axisym.yaml`, as RF-21 does (they are informative duplicates anyway), and keep 3D only for the impedance-wall Q once that BC exists; or
   - raise RF-01's `speed.budget_s.browser` (now 2 s) so the worker limit covers the 3D levels.
+
+### RF-01 rewired per coordinator decision (2026-11-06 17:28 PST)
+
+- Wiring (in `build_cases.py`):
+  - case-level `spec: sims/cylinder-cavity-axisym.yaml` (emw-axisym); the frequencies carry the same per-target spec, eigen indices 0 / 1 / 8 as in RF-21.
+  - Q_d uses per-target `spec: sims/cylinder-cavity-qd.yaml` (coarse 3D, as RF-21 Q_dielectric).
+  - convergence: h_factors [1, 0.5, 0.25], expected_order 4 (as RF-21). Budget stays 2 s; the 3D hero levels were not run.
+- Q_c_TE011 and Q_TE011_copper are `gate: false`: they need a surface-impedance wall BC that the engine lacks, and no in-budget spec produces them.
+- Engine run (`logs/eval-20261106T172749.jsonl`, 3 levels, no timeout), all reported as info because they are not gated:
+
+| Target | Engine | Reference | Rel. diff |
+|---|---|---|---|
+| f_TM010 | 2903636071.56 Hz | 2903636072.33 Hz | 2.7e-10 |
+| f_TE111 | 2922197217.14 Hz | 2922197191.01 Hz | 8.9e-9 |
+| f_TE011 | 5000146167.30 Hz | 5000146299.19 Hz | 2.6e-8 |
+| Q_d | 2500.0000000000196 | 2500 | 7.8e-18 |
+| Q_c_TE011, Q_TE011_copper | pending (no scalar from emw-axisym) | 29395.1, 2304.0 | - |
+
+- Why info: the frequency and Q_d targets were set `gate: false` after audit S1, because they duplicate class-a RF-21, which gates them. RF-01 therefore has no gated target until the impedance BC exists.
+- Case status from the harness: pending (0 fail, 0 error). validate_cases.py: 0 errors.
