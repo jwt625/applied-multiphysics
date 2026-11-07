@@ -54,7 +54,7 @@ def evt(case_id: str, metric_id: str) -> dict[str, Any]:
 def ref(quantity: str, metric_id: str, definition: str, value: float, unit: str, tolerance: dict[str, Any],
         basis: str, form: str, citation: str, locator: str, *, case: str | None = None, bounds=None,
         gate: bool = True, accessed: str | None = ACC, note: str | None = None,
-        extract: dict[str, Any] | None = None) -> dict[str, Any]:
+        extract: dict[str, Any] | None = None, levels: list[int] | None = None) -> dict[str, Any]:
     r: dict[str, Any] = {"quantity": quantity, "metric_id": metric_id, "definition": definition, "value": value,
                          "unit": unit, "tolerance": tolerance, "bounds": bounds, "basis": basis, "form": form,
                          "gate": gate,
@@ -66,6 +66,8 @@ def ref(quantity: str, metric_id: str, definition: str, value: float, unit: str,
         r["note"] = note
     if extract:
         r["extract"] = extract
+    if levels is not None:
+        r["levels"] = levels
     return r
 
 
@@ -505,10 +507,10 @@ def build() -> list[dict[str, Any]]:
               "Hz", {"rel": 1.0e-5, "after": "richardson"}, "closed form (Pozar ch. 6)", GE + "::rf21")
          for k in ["TM010", "TE111", "TM011", "TM110", "TE211", "TE011"]]
         + [dref("RF-21", "Q_dielectric", "Q_d", "1/tan(delta)", "1", {"rel": 1.0e-3}, "closed form", GE + "::rf21",
-                gate=False,
+                gate=False, levels=[0],
                 note="identity, not a solver test: for a homogeneous fill Q_d^-1 = tan(delta) on any mesh and mode "
                      "(M2 audit: 2500 +- 2e-11 on every level, 13.1 s of the 15.2 s case on the 3D path). Kept as an "
-                     "informative check; a single coarse level suffices once the harness supports per-target levels")],
+                     "informative check on the coarsest level only (levels: [0])")],
         speed(2.0, "by analogy with R3 RF-01 2D browser est. < 2 s"),
         {"source_license": "formula textbook; set-up from Palace docs (Apache-2.0)",
          "allowed": ["cite_values", "re_derive_setup", "copy_with_attribution"],
@@ -861,7 +863,7 @@ def build() -> list[dict[str, Any]]:
 # verbatim and never regenerated. References are matched by position; the quantity must agree or the build stops.
 PRESERVE_TOP = ["spec"]
 PRESERVE_CONVERGENCE = ["h_factors", "expected_order"]
-PRESERVE_REFERENCE = ["extract", "metric_id", "spec"]  # references[].spec: per-target model (I1)
+PRESERVE_REFERENCE = ["extract", "metric_id", "spec", "levels"]  # references[].spec: per-target model (I1)
 
 
 def merge_preserved(new: dict[str, Any], old: dict[str, Any]) -> list[str]:

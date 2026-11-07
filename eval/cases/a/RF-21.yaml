@@ -125,8 +125,9 @@ references:
     accessed: null}
   expected: {file: eval/expected/RF-21.json, metric_id: Q_dielectric}
   note: 'identity, not a solver test: for a homogeneous fill Q_d^-1 = tan(delta) on any mesh and mode (M2 audit: 2500 +-
-    2e-11 on every level, 13.1 s of the 15.2 s case on the 3D path). Kept as an informative check; a single coarse level
-    suffices once the harness supports per-target levels'
+    2e-11 on every level, 13.1 s of the 15.2 s case on the 3D path). Kept as an informative check on the coarsest level
+    only (levels: [0])'
+  levels: [0]
   extract: {kind: scalar, name: Q_0}
   spec: sims/cylinder-cavity-qd.yaml
 reference_results: []
