@@ -2,7 +2,9 @@
 // One open model: the YAML text is owned by the @amp/spec operation log (A4). Every UI edit (forms, sliders, drags,
 // YAML tab, presets, share URLs) becomes an RFC 6902 patch applied with `log.apply` (comment-preserving splice); undo,
 // redo and revert append operations. Nothing else writes the text.
-import { applyPatch, createOpLog, parseSpecText, parseYaml, type OpLog, type ParseResult, type Registry } from '@amp/spec';
+// Actors are bound here, not taken from callers (audit S10): `apply` is always `user`; `applyAgent` binds
+// `agent:<session>` for the agent panel (L9) and requires a reason. The log is a true private field (#log).
+import { applyPatch, createOpLog, isValidActor, parseSpecText, parseYaml, type OpLog, type ParseResult, type Registry } from '@amp/spec';
 import type { JsonPatchOp, Operation } from '@amp/spec/types';
 import { diffPatch, encodeShare } from './diff';
 
@@ -12,7 +14,7 @@ export class ModelState {
 	readonly id: string;
 	readonly original: string;
 	readonly reg: Registry;
-	private log!: OpLog;
+	#log!: OpLog;
 	originalData: unknown = null;
 	text = $state('');
 	data = $state.raw<unknown>(null);
@@ -21,6 +23,8 @@ export class ModelState {
 	canUndo = $state(false);
 	canRedo = $state(false);
 	parseMs = $state(0);
+	/** Spec hash after the newest op (genesis hash before any op): results are tagged with it (audit B1). */
+	specHash = $state('');
 	private listeners = new Set<EditListener>();
 
 	private constructor(id: string, text: string, reg: Registry) {
@@ -31,21 +35,22 @@ export class ModelState {
 
 	static async open(id: string, text: string, reg: Registry): Promise<ModelState> {
 		const m = new ModelState(id, text, reg);
-		m.log = await createOpLog(text, { registry: reg });
-		m.originalData = m.log.data;
+		m.#log = await createOpLog(text, { registry: reg });
+		m.originalData = m.#log.data;
 		m.refresh();
 		return m;
 	}
 
 	private refresh(): void {
 		const t0 = performance.now();
-		this.text = this.log.text;
-		this.data = this.log.data;
-		this.parsed = parseSpecText(this.log.text, this.reg);
+		this.text = this.#log.text;
+		this.data = this.#log.data;
+		this.parsed = parseSpecText(this.#log.text, this.reg);
 		this.parseMs = performance.now() - t0;
-		this.ops = [...this.log.ops];
-		this.canUndo = this.log.canUndo;
-		this.canRedo = this.log.canRedo;
+		this.ops = [...this.#log.ops];
+		this.canUndo = this.#log.canUndo;
+		this.canRedo = this.#log.canRedo;
+		this.specHash = this.#log.ops.at(-1)?.after ?? this.#log.genesis.specHash;
 	}
 
 	onEdit(fn: EditListener): () => void {
@@ -59,6 +64,14 @@ export class ModelState {
 		return op;
 	}
 
+	/** Agent edit (L9 panel): the actor is bound to `agent:<session>`, a reason is required (op log rule). */
+	async applyAgent(session: string, patch: JsonPatchOp[], reason: string): Promise<Operation | null> {
+		const actor = `agent:${session}`;
+		if (!isValidActor(actor)) throw new Error(`invalid agent session id '${session}'`);
+		if (!patch.length) return null;
+		return this.done(await this.#log.apply(patch, { actor, reason }));
+	}
+
 	/** A drag or slider gesture is live: its steps coalesce into one op (amp-oplog/1 `coalesce`). */
 	dragging = $state(false);
 	/** Reverts refused by the op log guards, with the reason (shown in the timeline). */
@@ -66,7 +79,7 @@ export class ModelState {
 
 	async apply(patch: JsonPatchOp[], reason?: string, opts: { coalesce?: boolean } = {}): Promise<Operation | null> {
 		if (!patch.length) return null;
-		const op = await this.log.apply(patch, { actor: 'user', ...(reason ? { reason } : {}) }, opts.coalesce ? { coalesce: { windowMs: 1500 } } : undefined);
+		const op = await this.#log.apply(patch, { actor: 'user', ...(reason ? { reason } : {}) }, opts.coalesce ? { coalesce: { windowMs: 1500 } } : undefined);
 		return this.done(op);
 	}
 
@@ -83,21 +96,21 @@ export class ModelState {
 	}
 
 	effectOf(seq: number): 'applied' | 'undone' | 'reverted' | null {
-		return this.log.effectOf(seq);
+		return this.#log.effectOf(seq);
 	}
 
 	async undo(): Promise<Operation | null> {
-		return this.done(await this.log.undo({ actor: 'user' }));
+		return this.done(await this.#log.undo({ actor: 'user' }));
 	}
 
 	async redo(): Promise<Operation | null> {
-		return this.done(await this.log.redo({ actor: 'user' }));
+		return this.done(await this.#log.redo({ actor: 'user' }));
 	}
 
 	/** Revert an op; a refusal by the guards is recorded with its reason and returns null. */
 	async revert(seq: number): Promise<Operation | null> {
 		try {
-			const op = await this.log.revert(seq, { actor: 'user', reason: `revert #${seq}` });
+			const op = await this.#log.revert(seq, { actor: 'user', reason: `revert #${seq}` });
 			delete this.refused[seq];
 			return this.done(op);
 		} catch (e) {
@@ -130,7 +143,7 @@ export class ModelState {
 	}
 
 	jsonl(): string {
-		return this.log.toJSONL();
+		return this.#log.toJSONL();
 	}
 
 	/** Data of the model with a patch applied, without logging (drag previews). */

@@ -50,7 +50,7 @@
 	.spin { width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: r 0.8s linear infinite; }
 	@keyframes r { to { transform: rotate(360deg); } }
 	@media (max-width: 760px) {
-		.shell { grid-template-rows: 54px minmax(0, 1fr) 0 0; }
+		.shell { grid-template-rows: 84px minmax(0, 1fr) 0 0; }
 		.main { grid-template-columns: minmax(0, 1fr); }
 		.main > .p, .main > .sp { display: none; }
 	}

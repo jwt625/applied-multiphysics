@@ -9,6 +9,8 @@ import { readFile, stat, mkdir, writeFile } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { extname, join, normalize } from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
+import { createOpLog } from '@amp/spec';
+import { prepareRun } from '@amp/physics';
 
 const out = process.argv[2] ?? 'shots';
 const port = Number(process.argv[3] ?? 47391);
@@ -20,21 +22,36 @@ const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 try { execSync(`lsof -iTCP:${port} -sTCP:LISTEN -n -P`, { stdio: 'pipe' }); console.error(`port ${port} busy`); process.exit(2); } catch { /* free */ }
 
 const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.wasm': 'application/wasm' };
-const HEAD = { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp', 'Cross-Origin-Resource-Policy': 'same-origin' };
+// headers from build/_headers (Cloudflare Pages syntax: a path pattern line, then indented `Name: value` lines;
+// `*` matches any suffix; every matching block applies, as on Pages)
+const rules: Array<{ re: RegExp; h: Array<[string, string]> }> = [];
+for (const line of (await readFile(join(root, '_headers'), 'utf8')).split('\n')) {
+	if (!line.trim() || line.trim().startsWith('#')) continue;
+	if (!/^\s/.test(line)) rules.push({ re: new RegExp('^' + line.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$'), h: [] });
+	else { const i = line.indexOf(':'); rules.at(-1)?.h.push([line.slice(0, i).trim(), line.slice(i + 1).trim()]); }
+}
+const headersFor = (path: string) => {
+	const out: Record<string, string> = {};
+	for (const r of rules) if (r.re.test(path)) for (const [k, v] of r.h) out[k] = out[k] ? `${out[k]}, ${v}` : v;
+	return out;
+};
+const HEAD = headersFor('/404');
 const file = async (p: string) => { try { return (await stat(p)).isFile() ? p : null; } catch { return null; } };
 const server = createServer(async (req, res) => {
 	const url = new URL(req.url ?? '/', 'http://x');
 	const base = join(root, normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, ''));
 	const hit = (await file(base)) ?? (await file(base + '.html')) ?? (await file(join(base, 'index.html')));
 	if (!hit) { res.writeHead(404, HEAD); res.end(); return; }
-	res.writeHead(200, { ...HEAD, 'Content-Type': TYPES[extname(hit)] ?? 'application/octet-stream', 'Cache-Control': hit.includes('/_app/immutable/') ? 'public, max-age=31536000, immutable' : 'no-cache' });
+	res.writeHead(200, { ...headersFor(url.pathname), 'Content-Type': TYPES[extname(hit)] ?? 'application/octet-stream', 'Cache-Control': hit.includes('/_app/immutable/') ? 'public, max-age=31536000, immutable' : 'no-cache' });
 	res.end(await readFile(hit));
 });
 await new Promise<void>((r) => server.listen(port, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${port}`;
 await mkdir(out, { recursive: true });
 
-const SIMS = ['kirsch-plate', 'heat-plate-fin', 'helmholtz-coil', 'si-rib-waveguide', 'cylinder-cavity', 'box-acoustics'];
+const ONLY = process.env.ONLY ?? '';
+const SIMS_ALL = ['kirsch-plate', 'heat-plate-fin', 'helmholtz-coil', 'si-rib-waveguide', 'cylinder-cavity', 'box-acoustics'];
+const SIMS = ONLY ? SIMS_ALL.filter((x) => x === ONLY) : SIMS_ALL;
 const RT = ['lbm-d2q9', 'fdtd-tmz', 'gray-scott'];
 const VIEWS = [{ w: 1440, h: 900, tag: '1440' }, { w: 390, h: 844, tag: '390' }];
 const result: Record<string, unknown> = { ts, origin, browser: {} };
@@ -45,6 +62,11 @@ const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y); return
 async function newPage(b: Browser, w: number, h: number): Promise<Page> {
 	const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, serviceWorkers: 'block' });
 	const p = await ctx.newPage();
+	await p.addInitScript(() => {
+		const w = window as unknown as { __lt: number[] };
+		w.__lt = [];
+		try { new PerformanceObserver((l) => { for (const e of l.getEntries()) w.__lt.push(e.duration); }).observe({ type: 'longtask', buffered: true }); } catch { /* not supported */ }
+	});
 	p.on('pageerror', (e) => errors.push(`${p.url()}: ${e.message}`));
 	p.on('console', (m) => { if (m.type() === 'error') errors.push(`${p.url()}: console ${m.text()}`); });
 	return p;
@@ -57,9 +79,19 @@ async function ready(p: Page, kind: 'wb' | 'play') {
 }
 /** Wait until a run has finished (solved, unavailable, error or only meshed). */
 async function settled(p: Page, hook: string) {
-	await p.waitForFunction((h) => { const s = (window as unknown as Record<string, { session?: { status?: string } }>)[h]?.session; return !!s && ['solved', 'unavailable', 'error', 'meshed'].includes(s.status ?? ''); }, hook, { timeout: 60000 });
+	await p.waitForTimeout(150);
+	await p.waitForFunction((h) => { const s = (window as unknown as Record<string, { session?: { status?: string; fresh?: boolean; solution?: unknown } }>)[h]?.session; return !!s && ['solved', 'unavailable', 'error', 'meshed'].includes(s.status ?? '') && (s.status !== 'solved' || !!s.fresh); }, hook, { timeout: 90000 });
 }
-const status = (p: Page, hook: string) => p.evaluate((h) => { const s = (window as unknown as Record<string, { session: { status: string; reasons: string[]; error: string; lastOutcomeMs: number; solution: { stats: unknown } | null } }>)[h]!.session; return { status: s.status, reasons: s.reasons, error: s.error, ms: s.lastOutcomeMs, stats: s.solution?.stats ?? null }; }, hook);
+const longTasks = (p: Page) => p.evaluate(() => { const a = (window as unknown as { __lt: number[] }).__lt.splice(0); return { n: a.length, max: a.length ? Math.max(...a) : 0, over100: a.filter((x) => x > 100).length }; });
+const scalar = (p: Page, k: string) => p.evaluate((kk) => (window as unknown as { __ampPlay: { session: { solution: { scalars: Record<string, { value: number }> } | null } } }).__ampPlay.session.solution?.scalars[kk]?.value ?? null, k);
+const status = (p: Page, hook: string) => p.evaluate((h) => { const s = (window as unknown as Record<string, { session: { status: string; reasons: string[]; error: string; lastOutcomeMs: number; fresh: boolean; meshInfo: { hash: string; cells: number } | null; solution: { stats: unknown } | null } }>)[h]!.session; return { status: s.status, fresh: s.fresh, reasons: s.reasons, error: s.error, ms: s.lastOutcomeMs, stats: s.solution?.stats ?? null, meshHash: s.meshInfo?.hash ?? null, cells: s.meshInfo?.cells ?? null }; }, hook);
+/** Mesh hash of the solve mesh in Node (@amp/physics prepareRun) for the exact spec text the browser holds, audit S3. */
+async function nodeMeshHash(text: string): Promise<string | null> {
+	try {
+		const data = (await createOpLog(text)).data as Record<string, unknown>;
+		return (await prepareRun({ spec: data, hFactor: 1 })).mesh.hash;
+	} catch (e) { return `error: ${(e as Error).message.slice(0, 120)}`; }
+}
 const fcp = (p: Page) => p.evaluate(() => new Promise<number>((res) => {
 	const hit = performance.getEntriesByType('paint').find((e) => e.name === 'first-contentful-paint');
 	if (hit) return res(hit.startTime);
@@ -72,7 +104,7 @@ result.browser = { shell: shell.version() };
 
 // ---- first paint (fresh context each load, no service worker)
 const paints: Record<string, number[]> = {};
-for (const path of ['/', '/play/kirsch-plate', '/play/rt/lbm-d2q9']) {
+for (const path of ONLY ? [] : ['/', '/play/kirsch-plate', '/play/rt/lbm-d2q9']) {
 	paints[path] = [];
 	for (let i = 0; i < 5; i++) {
 		const p = await newPage(shell, 1440, 900);
@@ -85,17 +117,23 @@ result.fcp = Object.fromEntries(Object.entries(paints).map(([k, v]) => [k, { med
 
 // ---- workbench: screenshots, tab switch, op-log round trip
 const wbShots: string[] = [];
-for (const v of VIEWS) for (const sim of ['kirsch-plate', 'box-acoustics']) {
+for (const v of VIEWS) for (const sim of ONLY ? [] : ['kirsch-plate', 'box-acoustics']) {
 	const p = await newPage(shell, v.w, v.h);
 	await p.goto(`${origin}/?sim=${sim}`);
 	await ready(p, 'wb');
 	const f = `${out}/L5-workbench-${sim}-${v.tag}-${ts}.png`;
 	await p.screenshot({ path: f });
 	wbShots.push(f);
+	if (v.w === 390 && sim === 'kirsch-plate') {
+		// B2: after opening the log pane every pane-switcher button is still the element under its own centre
+		await p.locator('.mob button', { hasText: 'log' }).click();
+		await p.waitForTimeout(200);
+		result.mobileSwitcher = await p.evaluate(() => [...document.querySelectorAll('.mob button')].map((b) => { const r = b.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === b; }));
+		await p.screenshot({ path: `${out}/L5-workbench-${sim}-log-${v.tag}-${ts}.png` });
+	}
 	if (v.w === 1440) {
 		// Compute (materials from the paired eval case), then the Results view
 		await p.locator('.tb button', { hasText: 'Compute' }).click();
-		await p.waitForTimeout(200);
 		await settled(p, '__ampWorkbench');
 		(result.compute ??= {} as Record<string, unknown>);
 		(result.compute as Record<string, unknown>)[sim] = await status(p, '__ampWorkbench');
@@ -112,7 +150,7 @@ for (const v of VIEWS) for (const sim of ['kirsch-plate', 'box-acoustics']) {
 			await top.locator('button', { hasText: 'Slice' }).click();
 			await top.locator('button', { hasText: 'Iso' }).click();
 			await top.locator('button', { hasText: 'Section' }).click();
-			await top.locator('button', { hasText: 'Play' }).click();
+			await top.locator('button', { hasText: 'Animate' }).click();
 			await p.waitForTimeout(700);
 			await p.screenshot({ path: `${out}/L5-workbench-${sim}-section-anim-${v.tag}-${ts}.png` });
 		}
@@ -146,13 +184,11 @@ for (const v of VIEWS) for (const sim of ['kirsch-plate', 'box-acoustics']) {
 		for (let i = 0; i < 20; i++) { await undo.click(); await p.waitForTimeout(20); }
 		const t1 = await p.evaluate(() => (window as unknown as { __ampWorkbench: { session: { model: { text: string; ops: unknown[] } } } }).__ampWorkbench.session.model.text);
 		result.oplogRoundTrip = { edits: nOps, identical: t0 === t1, bytes: t0.length };
+		// one agent operation through the bound agent path (S11 rendering)
+		await p.evaluate(() => (window as unknown as { __ampWorkbench: { session: { model: { applyAgent(sess: string, patch: unknown[], reason: string): Promise<unknown> } } } }).__ampWorkbench.session.model.applyAgent('demo', [{ op: 'replace', path: '/params/D/value', value: 8 }], 'verification: agent row rendering (shots.ts)'));
 		await p.evaluate(() => (window as unknown as { __ampWorkbench: { setTab(t: string): void } }).__ampWorkbench.setTab('timeline'));
 		await p.waitForTimeout(200);
 		await p.screenshot({ path: `${out}/L5-workbench-timeline-1440-${ts}.png` });
-		// YAML tab view
-		await p.locator('.ph.tabs button', { hasText: 'YAML' }).click();
-		await p.waitForTimeout(150);
-		await p.screenshot({ path: `${out}/L5-workbench-yaml-1440-${ts}.png` });
 	}
 	await p.context().close();
 }
@@ -163,7 +199,25 @@ for (const v of VIEWS) for (const sim of SIMS) {
 	const p = await newPage(shell, v.w, v.h);
 	await p.goto(`${origin}/play/${sim}`);
 	await ready(p, 'play');
+	await p.waitForTimeout(500);
+	await p.screenshot({ path: `${out}/L5-play-${sim}-${v.tag}-${ts}.png` });
 	if (v.w === 1440) {
+		(result.playStatus ??= {} as Record<string, unknown>);
+		const st = await status(p, '__ampPlay');
+		const nh = await nodeMeshHash(await p.evaluate(() => (window as unknown as { __ampPlay: { session: { model: { original: string } } } }).__ampPlay.session.model.original));
+		(result.playStatus as Record<string, unknown>)[sim] = { ...st, nodeMeshHash: nh, hashMatch: st.meshHash === nh, longTasksLoad: await longTasks(p) };
+		if (sim === 'helmholtz-coil') {
+			// B1: exact-field edit of a solution-only parameter re-solves; W_m scales with I^2
+			const w1 = await scalar(p, 'W_m');
+			const field = p.locator('.ps', { hasText: 'I' }).first().locator('input:not([type=range])');
+			await field.click(); await field.fill('2'); await field.press('Enter');
+			await settled(p, '__ampPlay');
+			const w2 = await scalar(p, 'W_m');
+			await p.locator('header button', { hasText: 'Undo' }).click();
+			await settled(p, '__ampPlay');
+			const w3 = await scalar(p, 'W_m');
+			result.b1 = { W_m_1A: w1, W_m_2A: w2, ratio: w1 && w2 ? w2 / w1 : null, pass: !!(w1 && w2 && Math.abs(w2 / w1 - 4) < 1e-9), afterUndo: w3, undoRestores: w3 === w1 };
+		}
 		const before = await p.evaluate(() => (window as unknown as { __ampPlay: { session: { model: { ops: unknown[] } } } }).__ampPlay.session.model.ops.length);
 		const slider = p.locator('aside input[type=range]').nth(sim === 'si-rib-waveguide' ? 3 : 0);
 		if (await slider.count()) {
@@ -175,9 +229,9 @@ for (const v of VIEWS) for (const sim of SIMS) {
 				times.push(await p.evaluate(() => (window as unknown as { __ampPlay: { session: { dragMs: number } } }).__ampPlay.session.dragMs));
 			}
 			await slider.evaluate((el: HTMLInputElement) => el.dispatchEvent(new Event('change', { bubbles: true })));
-			await p.waitForTimeout(600);
+			await settled(p, '__ampPlay');
 			const after = await p.evaluate(() => { const m = (window as unknown as { __ampPlay: { session: { model: { ops: Array<{ coalesced?: number }> } } } }).__ampPlay.session.model; return { n: m.ops.length, coalesced: m.ops.at(-1)?.coalesced ?? 1 }; });
-			drags[sim] = { sliderSteps: 12, opsAdded: after.n - before, coalesced: after.coalesced, dragRemeshMs: { median: median(times.filter((x) => x > 0)), max: Math.max(...times) } };
+			drags[sim] = { sliderSteps: 12, opsAdded: after.n - before, coalesced: after.coalesced, dragMs: { median: median(times.filter((x) => x > 0)), max: Math.max(...times) }, longTasks: await longTasks(p), afterRelease: await status(p, '__ampPlay') };
 		}
 		const hd = p.locator('svg.ov rect.hd').first();
 		if (await hd.count()) {
@@ -193,9 +247,6 @@ for (const v of VIEWS) for (const sim of SIMS) {
 			(drags[sim] as Record<string, unknown>).handle = { opsAdded: n1.n - n0, coalesced: n1.last?.coalesced ?? 1, reason: n1.last?.reason };
 		}
 	}
-	if (v.w === 1440) { await settled(p, '__ampPlay'); (result.playStatus ??= {} as Record<string, unknown>); (result.playStatus as Record<string, unknown>)[sim] = await status(p, '__ampPlay'); }
-	await p.waitForTimeout(300);
-	await p.screenshot({ path: `${out}/L5-play-${sim}-${v.tag}-${ts}.png` });
 	await p.context().close();
 }
 result.drags = drags;
@@ -206,7 +257,7 @@ let chrome: Browser | null = null;
 try {
 	chrome = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal'] });
 	(result.browser as Record<string, string>).chrome = chrome.version();
-	for (const v of VIEWS) for (const k of RT) {
+	for (const v of VIEWS) for (const k of ONLY ? [] : RT) {
 		const p = await newPage(chrome, v.w, v.h);
 		await p.goto(`${origin}/play/rt/${k}`);
 		await p.waitForTimeout(4000);

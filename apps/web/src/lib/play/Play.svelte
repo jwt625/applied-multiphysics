@@ -18,6 +18,9 @@
 	import ParamSlider from '../ui/ParamSlider.svelte';
 	import Tip from '../ui/Tip.svelte';
 	import { FOCUS, HANDLES, presetsFor } from './heroes';
+	import Headlines from '../ui/Headlines.svelte';
+	import { unitLabel } from '../gfx/units';
+	import { HOOKS } from '../shell/hooks';
 
 	let { simId, share = '' }: { simId: string; share?: string } = $props();
 	let s = $state.raw<Session | null>(null);
@@ -40,12 +43,12 @@
 					try { await sess.model.apply(decodeShare(share), 'from share URL'); } catch (e) { appLog.error(`share URL: ${(e as Error).message}`); }
 				}
 				s = sess;
-				if (hasPhysics) { mode = 'results'; void sess.compute(); } else void sess.buildMesh();
+				if (hasPhysics) { mode = 'results'; sess.requestCompute(); } else void sess.buildMesh();
 			} catch (e) {
 				failed = (e as Error).message;
 			}
 		})();
-		(window as unknown as { __ampPlay?: unknown }).__ampPlay = { get session() { return s; } };
+		if (HOOKS) (window as unknown as { __ampPlay?: unknown }).__ampPlay = { get session() { return s; } };
 		return () => { alive = false; s?.dispose(); };
 	});
 
@@ -72,11 +75,24 @@
 
 	const factor = (u: string) => { try { return units.parseUnit(u || '1').factor; } catch { return 1; } };
 
+	// B1 (audit): every drag step goes through the op log; the gesture ends only after its last op has landed, and the
+	// exact field commits one op that re-solves through the session (autoCompute on every op that invalidates results)
+	let lastStep: Promise<unknown> = Promise.resolve();
+	function patchFor(p: ParamView, v: number) {
+		const pi = info?.get(p.name);
+		return pi ? paramPatchSI(data?.params as Record<string, unknown>, p.name, v * factor(p.unit), pi.dim) : [];
+	}
 	function stepParam(p: ParamView, v: number) {
 		if (!s) return;
-		const pi = info?.get(p.name);
-		if (!pi) return;
-		void s.model.dragStep(paramPatchSI(data?.params as Record<string, unknown>, p.name, v * factor(p.unit), pi.dim), `drag ${p.name}`);
+		lastStep = s.model.dragStep(patchFor(p, v), `drag ${p.name}`);
+	}
+	async function endDrag() {
+		await lastStep;
+		s?.finishDrag();
+	}
+	async function commitParam(p: ParamView, v: number) {
+		if (!s) return;
+		await s.model.apply(patchFor(p, v), `set ${p.name}`);
 	}
 
 	function onhandle(id: string, x: number, y: number, phase: 'move' | 'end') {
@@ -88,7 +104,8 @@
 		let v = d.value(x, y, info);
 		if (pv?.span) { const f = factor(pv.unit); v = Math.min(pv.span[1] * f, Math.max(pv.span[0] * f, v)); }
 		if (!(v > 0)) return;
-		void s.model.dragStep(paramPatchSI(data?.params as Record<string, unknown>, d.param, v, pi.dim), `drag ${d.param} on the canvas`).then(() => { if (phase === 'end') s?.finishDrag(); });
+		lastStep = s.model.dragStep(paramPatchSI(data?.params as Record<string, unknown>, d.param, v, pi.dim), `drag ${d.param} on the canvas`);
+		if (phase === 'end') void endDrag();
 	}
 
 	async function preset(values: Record<string, number>, name: string) {
@@ -113,7 +130,14 @@
 		try { await navigator.clipboard.writeText(url); shareMsg = `copied (${url.length} chars)`; } catch { shareMsg = url; }
 	}
 
-	const scalars = $derived(s?.solution ? Object.entries(s.solution.scalars) : []);
+	// module scalars except the per-mode lists (shown as the mode list); SI with display symbols; dimensionless without "1"
+	const scalars = $derived(s?.solution ? Object.entries(s.solution.scalars).filter(([k]) => !/^(f|Q)_\d+$/.test(k)) : []);
+	const modes = $derived(s?.solution?.steps?.kind === 'eigen' ? Array.from(s.solution.steps.values) : []);
+	const modeUnit = $derived(s?.solution?.steps?.unit ?? '');
+	let step = $state(0);
+	let playing = $state(false);
+	const ranges: Record<string, 'full' | 'robust'> = { 'helmholtz-coil': 'robust' };
+	const solState = $derived(!s?.solution ? '' : s.staleSolution ? 'stale' : s.solutionCoarse ? 'coarse' : '');
 </script>
 
 <Tip />
@@ -125,35 +149,45 @@
 			<a href="/?sim={simId}" data-sveltekit-reload class="dim" data-tip="Open this model in the workbench (same op log format)">workbench</a>
 			<span class="t">{title}</span>
 			<span class="sp"></span>
+			<button disabled={!s || s.status === 'solving'} onclick={() => s?.requestCompute()} data-tip="Compute at full resolution">Compute</button>
 			<button disabled={!s?.model.canUndo} onclick={() => s?.model.undo()} data-tip="Undo">Undo</button>
 			<button disabled={!s?.model.canRedo} onclick={() => s?.model.redo()} data-tip="Redo">Redo</button>
 			<button disabled={!s} onclick={copyShare} data-tip="Copy a link holding the spec diff from the original model">Share</button>
 			{#if shareMsg}<span class="dim msg">{shareMsg}</span>{/if}
 		</header>
 		<div class="cv">
-			{#if s}<Graphics {s} bind:mode {handles} {onhandle} {focus} compact clipDefault />{/if}
+			{#if s}<Graphics {s} bind:mode bind:step bind:playing {handles} {onhandle} {focus} compact rangeDefault={ranges[simId] ?? 'full'} contoursDefault={simId !== 'helmholtz-coil'} fieldLinesDefault autoAnimate />{/if}
 		</div>
 		<aside>
 			<div class="h">parameters</div>
 			{#each params as p (p.name)}
 				{@const pi = info?.get(p.name)}
-				<ParamSlider {p} resolved={pi ? `= ${fmt(pi.si, 6)} ${units.formatUnit(pi.dim)} (SI)` : ''} onpreview={(v) => stepParam(p, v)} ondragend={() => s?.finishDrag()} oncommit={(v) => { stepParam(p, v); s?.finishDrag(); }} />
+				<ParamSlider {p} resolved={pi ? `= ${fmt(pi.si, 6)} ${units.formatUnit(pi.dim)} (SI)` : ''} onpreview={(v) => stepParam(p, v)} ondragend={() => void endDrag()} oncommit={(v) => void commitParam(p, v)} />
 			{/each}
 			{#if presets.length}
 				<div class="h">presets</div>
 				<div class="pre">{#each presets as pr}<button data-tip={pr.tip} onclick={() => preset(pr.values, pr.name)}>{pr.name}</button>{/each}</div>
 			{/if}
-			<div class="h">results</div>
-			{#if s?.caseInfo}
-				<label class="case" data-tip={`Material values for properties that are N/A in the model, from eval case ${s.caseInfo.id}:\n${s.caseInfo.materials}`}><input type="checkbox" checked={s.useCase} onchange={(e) => { if (s) { s.useCase = (e.currentTarget as HTMLInputElement).checked; void s.compute(); } }} /> materials from eval case {s.caseInfo.id}</label>
+			<div class="h">results{#if solState}<span class="warn"> {solState}</span>{/if}</div>
+			{#if s}<Headlines {s} big />{/if}
+			{#if modes.length}
+				<div class="modes">
+					{#each modes as f, i}<button class:on={i === step} data-tip={`mode ${i}: ${fmt(f, 6)} ${unitLabel(modeUnit)}; click to show, the animation starts`} onclick={() => { step = i; playing = true; mode = 'results'; }}>{fmt(f, 4)} {unitLabel(modeUnit)}</button>{/each}
+				</div>
 			{/if}
 			{#if scalars.length}
-				{#each scalars as [k, q]}<div class="kv mono"><span>{k}</span><span>{fmt(q.value)} {q.unit}</span></div>{/each}
-			{:else}
-				<div class="na">unavailable{s?.status === 'unavailable' ? `: ${s.reasons[0] ?? ''}` : hasPhysics ? '' : ': no @amp/physics module registered yet'}</div>
+				<div class="sc" class:dimv={!!solState}>
+					{#each scalars as [k, q]}<div class="kv mono"><span>{k}</span><span>{fmt(q.value)} {unitLabel(q.unit)}</span></div>{/each}
+				</div>
+			{:else if !modes.length}
+				<div class="na">{s?.status === 'solving' ? 'computing...' : s?.status === 'unavailable' ? `unavailable: ${s.reasons[0] ?? ''}` : hasPhysics ? 'not computed' : 'unavailable: no @amp/physics module registered'}</div>
+			{/if}
+			{#if s?.caseInfo}
+				<label class="case" data-tip={`Fill properties that are N/A in the model with the sourced inputs of eval case ${s.caseInfo.id}:\n${s.caseInfo.materials}`}><input type="checkbox" checked={s.useCase} onchange={(e) => { if (s) { s.useCase = (e.currentTarget as HTMLInputElement).checked; s.requestCompute(); } }} /> N/A inputs from eval case {s.caseInfo.id}</label>
+				<div class="dim small">{s.caseFilled.length ? `case values used: ${s.caseFilled.join(', ')}` : 'materials: from the model'}</div>
 			{/if}
 			<div class="h">timing</div>
-			<div class="kv mono" data-tip="input to mesh arrival of the last drag step (coarse mesh, sizes x2), before the next frame"><span>drag re-mesh</span><span>{s?.dragMs ? fmtMs(s.dragMs) : '-'}</span></div>
+			<div class="kv mono" data-tip="input to result arrival of the last drag step (coarse mesh, sizes x2), before the next frame"><span>drag preview</span><span>{s?.dragMs ? fmtMs(s.dragMs) : '-'}</span></div>
 			<div class="kv mono" data-tip="worker round trip of the last full mesh"><span>mesh</span><span>{s?.meshInfo ? `${fmtMs(s.meshInfo.roundTripMs)}, ${s.meshInfo.cells} cells` : '-'}</span></div>
 			<div class="kv mono"><span>ops</span><span>{s?.model.ops.length ?? 0}</span></div>
 		</aside>
@@ -172,11 +206,19 @@
 	.h { margin-top: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); }
 	.pre { display: flex; flex-wrap: wrap; gap: 3px; }
 	.kv { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; }
-	.na { font-size: 11px; }
+	.na { font-size: 11px; color: var(--ink-2); }
+	.small { font-size: 10px; }
+	.modes { display: flex; flex-wrap: wrap; gap: 3px; }
+	.modes button { font-size: 11px; }
+	.dimv { opacity: 0.55; }
 	.case { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-2); }
 	@media (max-width: 760px) {
 		.play { grid-template-columns: minmax(0, 1fr); grid-template-rows: 34px minmax(0, 1fr) 240px; }
 		header { grid-column: 1; }
 		aside { border-left: 0; border-top: 1px solid var(--line); }
+		/* touch-sized controls on phones (audit M3, top-10 #9) */
+		aside :global(button), aside :global(input:not([type='checkbox'])), header button { min-height: 36px; }
+		aside :global(input[type='range']) { height: 36px; }
+		header > a.dim { display: none; }
 	}
 </style>

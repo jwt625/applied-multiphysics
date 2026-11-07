@@ -5,6 +5,7 @@
 	// its container absolutely, so nothing in the page can shift or resize it except the container itself.
 	import { onMount, untrack } from 'svelte';
 	import { Renderer2D, type Layer2D, type View2D } from './renderer2d';
+	import { grabCanvas, registerCapture } from './capture';
 
 	export interface Handle {
 		id: string;
@@ -31,8 +32,11 @@
 		onframe,
 		lines = null,
 		hiLines = null,
+		markers = [],
 		padRight = 80
 	}: {
+		/** labelled point markers (e.g. the peak of the drawn field), world coordinates */
+		markers?: Array<{ x: number; y: number; label: string; tip: string }>;
 		layers: Layer2D[];
 		/** segments x0, y0, x1, y1 (m) drawn as an outline overlay (geometry boundaries) */
 		lines?: Float64Array | null;
@@ -62,7 +66,9 @@
 	function fit() {
 		if (!bbox) return;
 		const [x0, y0, x1, y1] = bbox;
-		const pr = w > 2 * padRight ? padRight : 0, pt = 34, pb = 20;
+		// desktop: colorbar on the right; phones (<= 760 px): horizontal colorbar at the bottom
+		const narrow = typeof window !== 'undefined' && window.innerWidth <= 760;
+		const pr = !narrow && w > 2 * padRight ? padRight : 0, pt = narrow ? 64 : 34, pb = narrow ? 64 : 20;
 		const aw = Math.max(1, w - pr - 8), ah = Math.max(1, h - pt - pb);
 		const scale = Math.min((0.94 * aw) / Math.max(1e-30, x1 - x0), (0.94 * ah) / Math.max(1e-30, y1 - y0));
 		// centre of the free area (left of the colorbar, below the toolbar)
@@ -74,6 +80,9 @@
 
 	const toWorld = (px: number, py: number) => ({ x: view.cx + (px - w / 2) / view.scale, y: view.cy - (py - h / 2) / view.scale });
 	const toPx = (x: number, y: number) => ({ px: w / 2 + (x - view.cx) * view.scale, py: h / 2 - (y - view.cy) * view.scale });
+
+	// handle size: 12 px with a mouse, 26 px on touch-sized screens (audit M3)
+	const hs = $derived(typeof window !== 'undefined' && window.innerWidth <= 760 ? 26 : 12);
 
 	const pathOf = (L: Float64Array | null) => {
 		if (!L || !L.length) return '';
@@ -111,7 +120,9 @@
 			h = Math.max(1, b.height);
 		});
 		ro.observe(host);
+		const unreg = registerCapture(() => (r ? grabCanvas(canvas, () => r!.draw({ view, background, layers })) : null));
 		return () => {
+			unreg();
 			ro.disconnect();
 			cancelAnimationFrame(raf);
 			r?.dispose();
@@ -183,7 +194,11 @@
 				{@const c = toPx(hd.cx, hd.cy)}
 				<circle class="ring" cx={c.px} cy={c.py} r={hd.ring * view.scale} />
 			{/if}
-			<rect class="hd" x={p.px - 6} y={p.py - 6} width="12" height="12" data-tip={hd.tip} role="slider" aria-valuenow={0} tabindex="-1" onpointerdown={(e) => handleDown(e, hd)} />
+			<rect class="hd" x={p.px - hs / 2} y={p.py - hs / 2} width={hs} height={hs} data-tip={hd.tip} role="slider" aria-valuenow={0} tabindex="-1" onpointerdown={(e) => handleDown(e, hd)} />
+		{/each}
+		{#each markers as mk}
+			{@const p = toPx(mk.x, mk.y)}
+			<g class="mk" data-tip={mk.tip}><circle cx={p.px} cy={p.py} r="5" /><text x={p.px + 8} y={p.py - 8}>{mk.label}</text></g>
 		{/each}
 	</svg>
 	{#if failed}<div class="fail">{failed}</div>{/if}
@@ -197,6 +212,9 @@
 	.hd:hover { fill: rgba(57, 135, 229, 0.6); }
 	.ln { fill: none; stroke: #e8e8e8; stroke-width: 1; opacity: 0.85; }
 	.hl { fill: none; stroke: #e0a526; stroke-width: 3; }
+	.mk circle { fill: none; stroke: #f2f1ec; stroke-width: 1.5; }
+	.mk text { fill: #f2f1ec; font: 11px var(--mono); paint-order: stroke; stroke: rgba(13, 13, 13, 0.85); stroke-width: 3px; }
+	.mk { pointer-events: all; }
 	.ring { fill: none; stroke: #8ab8f0; stroke-width: 1; stroke-dasharray: 4 3; }
 	.fail { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
 </style>

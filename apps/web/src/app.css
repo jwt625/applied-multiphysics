@@ -17,7 +17,7 @@
 	--good: #2fa84f;
 	--warn: #e0a526;
 	--crit: #d84a4a;
-	--na: #6f6d68;
+	--na: #8f8c86;
 	--sel: rgba(57, 135, 229, 0.22);
 	--mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 	--sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -51,7 +51,8 @@ button {
 }
 button:hover:not(:disabled) { background: #30302d; }
 button:disabled { color: var(--ink-3); cursor: default; opacity: 0.6; }
-button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+/* active state: white on #2462b5 is 5.3:1 (audit M2) */
+button.on { background: #2462b5; color: #ffffff; border-color: #2462b5; }
 
 input, select, textarea {
 	font: inherit;

@@ -5,7 +5,7 @@
 	// changes size when a splitter or the window does.
 	import { onMount } from 'svelte';
 	import { specJsonSchema } from '@amp/spec';
-	import { SIM_IDS, loadSimText } from '../sims';
+	import { HEROES, SIM_IDS, loadSimText } from '../sims';
 	import { loadPhysics } from '../engine/physics';
 	import { appRegistry } from '../engine/registry';
 	import { Session } from './session.svelte';
@@ -20,6 +20,8 @@
 	import Bottom, { type BottomTab } from './Bottom.svelte';
 	import Graphics, { type Mode } from '../gfx/Graphics.svelte';
 	import { captureGraphics } from '../gfx/capture';
+	import { HOOKS } from '../shell/hooks';
+	import Headlines from '../ui/Headlines.svelte';
 	import { navTrail, resolvePointer, type CameraRequest, type NavigationHost, type NavResult, type ViewMode } from '../state/nav.svelte';
 	import Splitter from '../ui/Splitter.svelte';
 	import Tip from '../ui/Tip.svelte';
@@ -95,7 +97,7 @@
 			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && s) { e.preventDefault(); void (e.shiftKey ? s.model.redo() : s.model.undo()); }
 		};
 		window.addEventListener('keydown', key);
-		(window as unknown as { __ampWorkbench?: unknown }).__ampWorkbench = { get session() { return s; }, setTab: (t: BottomTab) => (bottomTab = t), setMode: (m: Mode) => (mode = m), nav: navHost };
+		if (HOOKS) (window as unknown as { __ampWorkbench?: unknown }).__ampWorkbench = { get session() { return s; }, setTab: (t: BottomTab) => (bottomTab = t), setMode: (m: Mode) => (mode = m), nav: navHost };
 		return () => { alive = false; window.removeEventListener('keydown', key); s?.dispose(); };
 	});
 
@@ -132,17 +134,17 @@
 				{#each SIM_IDS as id}<option value={id}>{id}</option>{/each}
 			</select>
 			<button disabled={!s} onclick={() => s?.buildMesh()} data-tip="Build the mesh (geometry and mesh edits re-mesh automatically)">Mesh</button>
-			<button disabled={!s || s.status === 'solving'} onclick={() => s?.compute()} data-tip="Mesh and run the registered physics module of the first study">Compute</button>
+			<button disabled={!s || s.status === 'solving'} onclick={() => s?.requestCompute()} data-tip="Mesh and run the registered physics module of the first study">Compute</button>
 			<button disabled={!s || (s.status !== 'solving' && s.status !== 'meshing')} onclick={() => s?.cancel()} data-tip="Cancel the run">Cancel</button>
 			{#if s?.caseInfo}
-				<label class="case" data-tip={`Material values for properties that are N/A in the model, from eval case ${s.caseInfo.id}:\n${s.caseInfo.materials}`}><input type="checkbox" bind:checked={s.useCase} /> materials: case {s.caseInfo.id}</label>
+				<label class="case" data-tip={`Fill properties that are N/A in the model with the sourced inputs of eval case ${s.caseInfo.id}:\n${s.caseInfo.materials}\n${s.caseFilled.length ? `last run used: ${s.caseFilled.join(', ')}` : 'last run used no case value (materials from the model)'}`}><input type="checkbox" bind:checked={s.useCase} /> N/A from {s.caseInfo.id}{s.caseFilled.length ? ` (${s.caseFilled.length} used)` : ''}</label>
 			{/if}
 			<span class="gap"></span>
 			<button disabled={!s?.model.canUndo} onclick={() => s?.model.undo()} data-tip="Undo (Ctrl/Cmd+Z)">Undo</button>
 			<button disabled={!s?.model.canRedo} onclick={() => s?.model.redo()} data-tip="Redo (Shift+Ctrl/Cmd+Z)">Redo</button>
 			<button disabled={!s} onclick={copyShare} data-tip="Copy a link that holds the spec diff from the original model">Share</button>
-			<a class="btn" href="/play/{simId}" data-sveltekit-reload data-tip="Play view of this model">Play</a>
-			<button class:on={agentOpen} onclick={() => (agentOpen = !agentOpen)} data-tip="Agent panel (lane L9, DevLog-012): space reserved; the chat is not connected yet">Agent</button>
+			{#if HEROES.includes(simId)}<a class="btn" href="/play/{simId}" data-sveltekit-reload data-tip="Play view of this model">Play</a>{/if}
+			<button class="agentb" class:on={agentOpen} onclick={() => (agentOpen = !agentOpen)} data-tip="Agent panel (lane L9, DevLog-012): space reserved; the chat is not connected yet">Agent</button>
 			{#if highlight.length}<button onclick={() => (highlight = [])} data-tip={`Clear the highlight: ${highlight.join(' ')}`}>Clear highlight</button>{/if}
 			<span class="st" class:warn={s?.status === 'unavailable'} class:crit={s?.status === 'error'}>{statusText}</span>
 			<div class="mob">
@@ -168,7 +170,7 @@
 			</section>
 			<Splitter dir="col" label="resize Settings" onmove={(d) => { sizes.settings = clamp(sizes.settings + d, 220, 720); save(); }} />
 			<section class="pane graphics" class:mshow={mobilePane === 'graphics'}>
-				{#if s}<Graphics {s} bind:mode {fitKey} {highlight} />{:else}<div class="loading dim">Loading model...</div>{/if}
+				{#if s}<Graphics {s} bind:mode {fitKey} {highlight} />{#if mode === 'results'}<Headlines {s} boxed />{/if}{:else}<div class="loading dim">Loading model...</div>{/if}
 			</section>
 			<section class="pane agent" class:hidden={!agentOpen}>
 				<div class="ph">Agent</div>
@@ -208,7 +210,9 @@
 	.bottom { position: relative; min-height: 0; }
 	@media (max-width: 760px) {
 		.wb { grid-template-rows: auto minmax(0, 1fr) 0 0; }
-		.tb { flex-wrap: wrap; padding: 3px 6px; height: auto; row-gap: 3px; }
+		/* fixed height (same in the route shell) so the page does not shift after mount (audit M1) */
+		.tb { flex-wrap: wrap; align-content: flex-start; padding: 3px 6px; height: 84px; row-gap: 3px; }
+		.tb .case, .tb .agentb { display: none; }
 		.tb select { width: 120px; }
 		.mob { display: flex; margin-left: 0; width: 100%; }
 		.mob button { flex: 1; }
@@ -219,7 +223,9 @@
 		.pane.mshow { display: grid; }
 		.graphics.mshow { display: block; }
 		.bottom { display: none; }
-		.bottom.mshow { display: block; position: fixed; left: 0; right: 0; bottom: 0; top: 76px; background: var(--surface); z-index: 5; }
+		/* the log pane takes the main grid row (row 2): the toolbar and pane switcher above stay reachable (audit B2) */
+		.bottom.mshow { display: block; grid-row: 2; grid-column: 1; }
+		.wb:has(.bottom.mshow) .main { display: none; }
 		.wb > :global(.sp) { display: none; }
 	}
 </style>

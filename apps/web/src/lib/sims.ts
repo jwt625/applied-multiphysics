@@ -13,3 +13,6 @@ export async function loadSimText(id: string): Promise<string> {
 	if (!load) throw new Error(`unknown model '${id}'`);
 	return load();
 }
+
+/** Heroes with a Play view (DevLog-001 s.8 wave 1); the other sims files are eval models, opened in the workbench. */
+export const HEROES = ['kirsch-plate', 'heat-plate-fin', 'helmholtz-coil', 'si-rib-waveguide', 'cylinder-cavity', 'box-acoustics'].filter((id) => SIM_IDS.includes(id));

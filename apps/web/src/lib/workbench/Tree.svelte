@@ -22,7 +22,7 @@
 
 <div class="tree" role="tree" tabindex="0" onkeydown={key}>
 	{#each flat as { n, depth } (n.key)}
-		<div class="row" class:sel={n.pointer === selected} role="treeitem" aria-selected={n.pointer === selected} tabindex="-1" style="padding-left: {4 + depth * 12}px" data-tip={tipOf(n)} onclick={() => onselect(n.pointer)} onkeydown={() => {}}>
+		<div class="row" class:sel={n.pointer === selected} role="treeitem" aria-selected={n.pointer === selected} tabindex="-1" style="padding-left: {4 + depth * 12}px" data-tip={tipOf(n)} onclick={() => onselect(n.pointer)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onselect(n.pointer); } }}>
 			{#if n.children.length}
 				<button class="tw" tabindex="-1" aria-label="toggle" onclick={(e) => { e.stopPropagation(); closed[n.key] = !closed[n.key]; }}>{closed[n.key] ? '+' : '-'}</button>
 			{:else}<span class="tw"></span>{/if}

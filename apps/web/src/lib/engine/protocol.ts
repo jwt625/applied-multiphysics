@@ -16,7 +16,7 @@ export interface RunOptions {
 export type ToRunner = ToWorker;
 export type FromRunner =
 	| FromWorker
-	| { type: 'mesh'; id: string; mesh: Mesh; ms: { parse: number; geometry: number; mesh: number }; source: string; ts: string }
+	| { type: 'mesh'; id: string; mesh: Mesh; quality: Float64Array; ms: { parse: number; geometry: number; mesh: number }; source: string; ts: string }
 	| { type: 'unavailable'; id: string; reasons: string[]; ts: string };
 
 export const nowIso = (): string => {

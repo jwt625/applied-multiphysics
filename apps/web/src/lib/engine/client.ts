@@ -7,7 +7,7 @@ import { nowIso, type FromRunner, type RunOptions } from './protocol';
 
 export interface RunHandlers {
 	progress?: (stage: string, frac: number, msg: string | undefined, ts: string) => void;
-	mesh?: (mesh: Mesh, ms: { parse: number; geometry: number; mesh: number }, source: string) => void;
+	mesh?: (mesh: Mesh, quality: Float64Array, ms: { parse: number; geometry: number; mesh: number }, source: string) => void;
 }
 
 export type RunOutcome =
@@ -42,7 +42,7 @@ export class EngineClient {
 		if (m.type === 'progress') c.h.progress?.(m.stage, m.frac, m.msg, m.ts);
 		else if (m.type === 'mesh') {
 			c.meshed = true;
-			c.h.mesh?.(m.mesh, m.ms, m.source);
+			c.h.mesh?.(m.mesh, m.quality, m.ms, m.source);
 			if (c.meshOnly) { this.current = null; c.done({ kind: 'meshed', ms }); }
 		} else {
 			this.current = null;

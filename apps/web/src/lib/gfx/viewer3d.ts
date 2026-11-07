@@ -9,6 +9,7 @@ import { WebGLNodesHandler } from 'three/addons/tsl/WebGLNodesHandler.js';
 import { fieldMaterial, lineMaterial, lutTexture, makeUniforms, type FieldUniforms } from './field-material';
 import { colormapLut, type ColormapName } from './colormaps';
 import { hexToRgb } from './renderer2d';
+import { grabCanvas } from './capture';
 
 export interface Drawable { pos: Float32Array; val: Float32Array; disp: Float32Array | null }
 
@@ -33,7 +34,7 @@ export class Viewer3D {
 	diag = 1;
 
 	constructor(canvas: HTMLCanvasElement) {
-		this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+		this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: false });
 		(this.renderer as unknown as { setNodesHandler(h: unknown): void }).setNodesHandler(new WebGLNodesHandler());
 		this.renderer.setClearColor(0x0d0d0d, 1);
 		this.camera = new THREE.PerspectiveCamera(35, 1, 1e-6, 1e6);
@@ -58,34 +59,65 @@ export class Viewer3D {
 		g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
 		g.setAttribute('value', new THREE.BufferAttribute(val, 1));
 		g.setAttribute('disp', new THREE.BufferAttribute(disp ?? new Float32Array(pos.length), 3));
-		g.computeBoundingSphere();
+		if (pos.length) g.computeBoundingSphere();
 		return g;
 	}
 
-	/** Exterior surface with per-vertex values; `regionColors` switches to the categorical domain LUT. */
+	/** Replace the data of a persistent geometry (same object, same attribute names). */
+	private fill(g: THREE.BufferGeometry, pos: Float32Array, val: Float32Array, disp: Float32Array | null) {
+		const put = (name: string, arr: Float32Array, size: number) => {
+			const a = g.getAttribute(name) as THREE.BufferAttribute | undefined;
+			if (a && a.array.length === arr.length) { (a.array as Float32Array).set(arr); a.needsUpdate = true; }
+			else g.setAttribute(name, new THREE.BufferAttribute(arr, size));
+		};
+		put('position', pos, 3);
+		put('value', val, 1);
+		put('disp', disp ?? new Float32Array(pos.length), 3);
+		g.setDrawRange(0, pos.length / 3);
+	}
+
+	// materials are built once and reused: a TSL material compiles to GLSL on first use, which costs 100+ ms (audit S6)
+	private matField: THREE.Material | null = null;
+	private matRegion: THREE.Material | null = null;
+	private matCut: THREE.Material | null = null;
+	private matLine: THREE.Material | null = null;
+	private materials() {
+		this.regionLut ??= lutTexture(new Uint8Array(1024), true);
+		this.matField ??= fieldMaterial(this.lut, this.u, { shade: true });
+		this.matRegion ??= fieldMaterial(this.regionLut, this.ur, { shade: true });
+		this.matCut ??= fieldMaterial(this.lut, this.u, { shade: true, clip: false });
+		this.matLine ??= lineMaterial(this.u, 0xe8e8e8, 0.28);
+	}
+	/** region view: domain index i maps to texel i of a 256-entry categorical LUT (own uniforms, range 0..255) */
+	readonly ur: FieldUniforms = makeUniforms();
+
+	/**
+	 * Exterior surface with per-vertex values; `regionColors` switches to the categorical domain LUT. The Mesh and
+	 * LineSegments objects persist and only their geometry is swapped: under WebGLNodesHandler a new render object
+	 * rebuilds its node program (about 130 ms per object, measured as long tasks during drags; audit S6).
+	 */
 	setSurface(d: Drawable, regionColors: string[] | null, edges: Float32Array | null, edgeDisp: Float32Array | null) {
-		this.clearSurface();
-		let tex = this.lut;
+		this.materials();
 		if (regionColors) {
-			const n = Math.max(1, regionColors.length);
-			const bytes = new Uint8Array(4 * n);
-			regionColors.forEach((c, i) => bytes.set([...hexToRgb(c), 255], 4 * i));
-			this.regionLut?.dispose();
-			this.regionLut = lutTexture(bytes, true);
-			tex = this.regionLut;
+			const bytes = this.regionLut!.image.data as Uint8Array;
+			bytes.fill(90);
+			regionColors.slice(0, 256).forEach((c, i) => bytes.set([...hexToRgb(c), 255], 4 * i));
+			for (let i = 3; i < bytes.length; i += 4) bytes[i] = 255;
+			this.regionLut!.needsUpdate = true;
+			// clip and deformation follow the field uniforms
+			this.ur.vmin.value = 0; this.ur.vmax.value = 255;
+			this.ur.clipOn.value = this.u.clipOn.value; this.ur.clipN.value.copy(this.u.clipN.value); this.ur.clipD.value = this.u.clipD.value;
+			this.ur.dscale.value = this.u.dscale.value;
 		}
-		this.surf = new THREE.Mesh(this.geom(d.pos, d.val, d.disp), fieldMaterial(tex, this.u, { shade: true }));
-		this.surf.visible = this.surfOn;
-		this.group.add(this.surf);
-		if (edges) {
-			const g = new THREE.BufferGeometry();
-			g.setAttribute('position', new THREE.BufferAttribute(edges, 3));
-			g.setAttribute('value', new THREE.BufferAttribute(new Float32Array(edges.length / 3), 1));
-			g.setAttribute('disp', new THREE.BufferAttribute(edgeDisp ?? new Float32Array(edges.length), 3));
-			this.wire = new THREE.LineSegments(g, lineMaterial(this.u, 0xe8e8e8, 0.28));
-			this.wire.visible = this.wireOn;
-			this.group.add(this.wire);
-		}
+		const mat = regionColors ? this.matRegion! : this.matField!;
+		if (!this.surf) { this.surf = new THREE.Mesh(new THREE.BufferGeometry(), mat); this.surf.frustumCulled = false; this.group.add(this.surf); }
+		this.surf.material = mat;
+		this.fill(this.surf.geometry, d.pos, d.val, d.disp);
+		this.surf.visible = this.surfOn && d.pos.length > 0;
+		const E = edges ?? new Float32Array(0);
+		if (!this.wire) { this.wire = new THREE.LineSegments(new THREE.BufferGeometry(), this.matLine!); this.wire.frustumCulled = false; this.group.add(this.wire); }
+		this.fill(this.wire.geometry, E, new Float32Array(E.length / 3), edgeDisp);
+		this.wire.visible = this.wireOn && E.length > 0;
 		this.request();
 	}
 
@@ -99,15 +131,21 @@ export class Viewer3D {
 	}
 
 	setCuts(list: Drawable[]) {
-		for (const c of this.cuts) { this.group.remove(c); c.geometry.dispose(); (c.material as THREE.Material).dispose(); }
-		this.cuts = list.filter((d) => d.pos.length).map((d) => new THREE.Mesh(this.geom(d.pos, d.val, d.disp), fieldMaterial(this.lut, this.u, { shade: true, clip: false })));
-		for (const c of this.cuts) this.group.add(c);
+		// pooled cut meshes (same reason as setSurface)
+		this.materials();
+		const L = list.filter((d) => d.pos.length);
+		while (this.cuts.length < L.length) { const m = new THREE.Mesh(new THREE.BufferGeometry(), this.matCut!); m.frustumCulled = false; this.cuts.push(m); this.group.add(m); }
+		this.cuts.forEach((c, i) => {
+			c.geometry.dispose();
+			c.geometry = i < L.length ? this.geom(L[i]!.pos, L[i]!.val, L[i]!.disp) : new THREE.BufferGeometry();
+			c.visible = i < L.length;
+		});
 		this.request();
 	}
 
 	private surfOn = true;
 	private wireOn = true;
-	showSurface(on: boolean) { this.surfOn = on; if (this.surf) this.surf.visible = on; this.request(); }
+	showSurface(on: boolean) { this.surfOn = on; if (this.surf) this.surf.visible = on && this.surf.geometry.getAttribute('position').count > 0; this.request(); }
 	showWire(on: boolean) { this.wireOn = on; if (this.wire) this.wire.visible = on; this.request(); }
 
 	setRange(min: number, max: number, logScale: boolean) {
@@ -122,10 +160,13 @@ export class Viewer3D {
 		this.u.clipOn.value = on ? 1 : 0;
 		this.u.clipN.value.set(n[0], n[1], n[2]);
 		this.u.clipD.value = d;
+		this.ur.clipOn.value = on ? 1 : 0;
+		this.ur.clipN.value.set(n[0], n[1], n[2]);
+		this.ur.clipD.value = d;
 		this.request();
 	}
 
-	setDeform(scale: number) { this.u.dscale.value = scale; this.request(); }
+	setDeform(scale: number) { this.u.dscale.value = scale; this.ur.dscale.value = scale; this.request(); }
 
 	setPhase(phase: number, animValue: boolean) {
 		this.u.amp.value = Math.cos(phase);
@@ -170,7 +211,13 @@ export class Viewer3D {
 	}
 
 	private padRight(): number {
-		return this.w > 240 ? 80 : 0;
+		// phones use a horizontal colorbar at the bottom (no right offset)
+		return this.w > 240 && window.innerWidth > 760 ? 80 : 0;
+	}
+
+	/** Render now and read the canvas back (screenshot tool). */
+	grab(): { base64: string; width: number; height: number } | null {
+		return grabCanvas(this.renderer.domElement, () => this.renderer.render(this.scene, this.camera));
 	}
 
 	request() {
@@ -186,7 +233,7 @@ export class Viewer3D {
 	}
 
 	private clearSurface() {
-		for (const o of [this.surf, this.wire]) if (o) { this.group.remove(o); o.geometry.dispose(); (o.material as THREE.Material).dispose(); }
+		for (const o of [this.surf, this.wire]) if (o) { this.group.remove(o); o.geometry.dispose(); }
 		this.surf = null;
 		this.wire = null;
 	}
@@ -196,6 +243,7 @@ export class Viewer3D {
 		this.clearSurface();
 		this.setCuts([]);
 		this.controls.dispose();
+		for (const m of [this.matField, this.matRegion, this.matCut, this.matLine]) m?.dispose();
 		this.lut.dispose();
 		this.regionLut?.dispose();
 		this.renderer.dispose();

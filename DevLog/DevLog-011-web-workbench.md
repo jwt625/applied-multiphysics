@@ -23,7 +23,7 @@
 | `vite` | 8.3.2 | EO/APA |
 | `typescript` | 5.9.3 | root pin |
 | `three` | 0.187.0 | A10 (r187 WebGLRenderer) |
-| `playwright-core` | 1.65.0 | verification screenshots (same pin as `@amp/rt`); uses the local Chromium in `~/Library/Caches/ms-playwright` |
+| `playwright-core` | 1.63.0 | verification screenshots (EO's pin; corrected from 1.65.0, audit S12); uses the local Chromium in `~/Library/Caches/ms-playwright` |
 
 Engine packages are `link:` dependencies (`../../packages/*`). Install with `pnpm install --ignore-workspace` inside `apps/web` so the root lockfile (coordinator) is not touched (same as L3).
 
@@ -106,7 +106,7 @@ Large canvas, at most about 5 sliders (with exact fields and units) bound to spe
 - [x] Playwright screenshots, inspect, fix; timings
 - [x] `pnpm check`, `pnpm build`
 - [x] Hand-off
-- [ ] Fresh-context audit (coordinator)
+- [x] Fresh-context audit (coordinator) and its corrections (s.7)
 
 ## 3. Progress log
 
@@ -138,53 +138,59 @@ Probe: `apps/web/test/tsl-probe/` (stand-alone Vite build, not part of the app),
 Decision: the field material is written in TSL and runs through `WebGLNodesHandler`; clipping uses the manual `Discard` node, not three's clipping planes.
 
 
-### 4.2 Gates (final run `logs/L5-shots-20261107T003504.json`; build `logs/L5-build-20261106T163254.log`; tests `logs/L5-test-20261106T163254.log`)
+### 4.2 Gates (rerun after the audit fixes, I1 sims edits and L3 detmath; `logs/L5-shots-20261107T011938.json`, tests `logs/L5-test-20261106T171927.log`, production build `logs/L5-build-20261106T172122.log`)
 
-Machine: M4 Pro laptop shared with other lanes; static build served by `scripts/shots.ts` (in-process server on 127.0.0.1:47391 with the `_headers` COOP/COEP, port checked free, closed at exit). Browsers: chrome-headless-shell 151.0.7922.34 (WebGL via ANGLE SwiftShader, i.e. software rendering) for workbench and Play; installed Google Chrome 156.0.8078.80 headless with `--enable-unsafe-webgpu` for the RT panels (the headless shell has no WebGPU adapter).
+Machine and browsers as before: M4 Pro shared with other lanes; chrome-headless-shell 151.0.7922.34 (SwiftShader WebGL) for the workbench and Play; Google Chrome 156.0.8078.80 headless with WebGPU for RT. The static build is served by `scripts/shots.ts` on 127.0.0.1:47391 with the headers parsed from `build/_headers` (port checked free, closed at exit). The verification build sets `VITE_AMP_HOOKS=1`; the production build has no `__amp*` hooks (grep: 0 files).
 
 | Gate | Result |
 |---|---|
-| `pnpm check` (svelte-check) | 0 errors, 0 warnings, 1085 files |
-| `pnpm build` (adapter-static) | ok; 10 prerendered pages (`/`, 6 Play, 3 RT) |
-| `pnpm test` (node --test) | 6/6: refine pattern, P2 lattice and probe exact for a quadratic (lattice 1e-5 float32, probe < 1e-12), curved tri6 probe 400/400 located, marching tets (sphere isosurface area of \|x - c\| on a 0.04 hex grid within 1 % of 4 pi r^2, slice area exact to 1e-9, exterior area 6 to 1e-5), patch diff + op log + share code round trip, schema walker widgets |
-| First paint (FCP), fresh context, no service worker, 5 loads | `/` median 36.5 ms (first load 508 ms: cold browser process, then 36.4-36.7); `/play/kirsch-plate` 38.1 ms (37.2-38.6); `/play/rt/lbm-d2q9` 36.1 ms. Target < 100 ms: pass |
-| Tab switch (click to the next animation frame), 3 rounds | Log 15.1, Progress 15.8, Timeline 16.4, Messages 16.0 ms median (one frame at 60 Hz); mode switch G/M/R 19.1 ms median, 30.1 max. Target < 100 ms: pass |
-| Op log round trip through the UI | 20 edits of D in the Settings form, 20 Undo clicks: text byte-identical (2969 B) |
-| Drag coalescing | every Play slider gesture of 12 steps = 1 op (`coalesced` 13 incl. release); every canvas handle drag of 10 moves = 1 new op (`coalesced` 11) |
-| Coarse re-solve during a drag (input to mesh/result arrival, sizes x2) | kirsch 36 ms median (85 max), heat 36 (45), helmholtz 31 (46), rib 10 (30, mesh only: no result, see below), cavity 192 (215), box 70 (75). Target < 1 s: pass |
-| Full solve in the browser (Play load, eval-case materials) | kirsch 83 ms (11,090 DOF), heat 121 ms (26,021), helmholtz 75 ms (14,799), cavity 2,009 ms (13,192 DOF, NED2 eigen), box 78 ms (2,700); rib unavailable (`material 'core': n is N/A`, see s.5). Workbench Compute: kirsch 177 ms, box 202 ms (round trip incl. mesh) |
-| Page errors / console errors during the run | none |
+| `pnpm check` | 0 errors, 0 warnings, 1132 files |
+| `pnpm build` | ok; 10 prerendered pages (`/`, 6 hero Play views, 3 RT); CSP meta with the bootstrap hash on every page |
+| `pnpm test` | 6/6 |
+| First paint (FCP), 5 fresh loads | `/` 37.5 ms median (first cold load 464 ms), `/play/kirsch-plate` 37.5 ms, `/play/rt/lbm-d2q9` 35.6 ms |
+| Tab switch (click to next frame) / mode switch | 15.6-16.3 ms / 18.2 ms median, 29.5 ms max |
+| Op log round trip through the Settings form | 20 edits + 20 Undo clicks: byte-identical (3304 B) |
+| **B1** Helmholtz Play, exact field I 1 A -> 2 A | W_m 7.38915e-7 J -> 2.95566e-6 J, ratio 4 (to 1e-9); Undo restores 7.38915e-7 J; result fresh after each |
+| **B2** workbench 390 px, log pane open | all 4 pane-switcher buttons are the element under their own centre |
+| **S3** browser mesh hash = Node `prepareRun` mesh hash for the same spec text | 6/6 heroes equal (kirsch `f3b9575e`, 2647 tri6; heat `454090a7`; helmholtz `f2bad9a3`; rib `6b1bc947`; cavity `caf0e859`; box `272246fc`) |
+| Play load to fresh result | kirsch 216 ms (10,810 DOF), heat 226 ms (15,339), helmholtz 232 ms (14,645), box 221 ms (693), cavity 2,668 ms (14,882), rib 3,804 ms (328,754) |
+| Drag gestures (12 slider steps, 10 handle moves) | 1 op each (`coalesced` 13 / 11); fresh full result after release in all six |
+| Coarse preview during drags (input to result, sizes x2) | kirsch 42 ms median (100 max), heat 29 (45), helmholtz 43 (75), box 17 (24), rib 330 (696), cavity 396 (402). Target < 1 s: pass |
+| Main-thread long tasks during the 12-step drags | 0 in all six (before the fixes: box 18-26 tasks of 58-141 ms, cavity 14) |
+| Long tasks at load | one per view, 71-139 ms (first TSL/GLSL compile and first upload) |
+| Page and console errors | none |
 
 ### 4.3 Bundles (gzip -9)
 
-`index.html` 24.3 kB (inline CSS). Workbench code preloaded by the shell: 185 kB gz (includes zod, yaml, @amp/spec). three.js + TSL chunk 219 kB gz, loaded only for 3D models. Runner worker 122 kB gz (+ 53 kB gz shared chunk): @amp/physics, @amp/mesh, @amp/geom, @amp/core.
+Production build: `index.html` 24 kB with inline CSS and CSP meta. Unchanged structure: workbench code preloaded by the shell, three.js chunk only for 3D models, runner worker with the engine packages.
 
-### 4.4 Screenshots kept (`logs/`, timestamp 20261107T003504)
+### 4.4 Screenshots kept (`logs/`, timestamp 20261107T011938, one per view)
 
-Workbench: `L5-workbench-kirsch-plate-results-1440`, `-kirsch-plate-390`, `-box-acoustics-slice-iso-1440`, `-box-acoustics-section-anim-1440`, `-box-acoustics-390`, `-timeline-1440`. Play: `L5-play-<sim>-{1440,390}` for the six heroes. RT: `L5-rt-{lbm-d2q9,fdtd-tmz,gray-scott}-{1440,390}`. Inspected: kirsch sxx peaks at the hole top (about 3x sigma_inf, mises_max 3.00e6 Pa for sigma_inf 1 MPa); box mode at 172 Hz is the (1,0,0) shape with planar isosurfaces normal to x; helmholtz Bz has the two-loop pattern; LBM shows the vortex street.
+Workbench: `L5-workbench-kirsch-plate-results-1440`, `-kirsch-plate-390`, `-kirsch-plate-log-390` (B2), `-box-acoustics-slice-iso-1440`, `-box-acoustics-section-anim-1440`, `-box-acoustics-390`, `-timeline-1440` (agent row). Play: `L5-play-<hero>-{1440,390}`. RT: `L5-rt-<kernel>-{1440,390}`. Inspected: kirsch K_t headline 3.021 with the peak marker 3.02 MPa at the hole top; helmholtz B_center 8.983 uT with field lines (r A_phi contours) around the coils; heat T_E 18.25 degC; box 171.5 Hz (1,0,0) mode normalized with planar isosurfaces; cavity TM010 2.904 GHz from `E_nodal` (L4's H1 projection), maximum on the axis; rib mode 0 normalized |E|, DG0 cell values (no contours on DG0); RT panels start paused with a hint.
 
 ### 4.5 Known limits
 
-- No Canvas 2D fallback (WebGL2 required for the 2D view); WebGPU required for RT panels (shows the probe and "not available" otherwise).
-- 3D deformation is implemented (vertex displacement x scale, auto 10 % of the diagonal, editable) but no hero has a 3D displacement field yet, so it is not visually verified. 2D deformation is not implemented.
-- Nedelec fields (cavity E, rib modes) have no display: `@amp/post` evaluateField supports H1/DG0 only.
-- Service worker and `_headers` were exercised only by the local server; not yet on Cloudflare Pages.
-- Navigation host: `set_camera` supports `fit` only (presets and look_at return a failure message); `screenshot` returns the graphics canvas only.
-- Playwright verification ran in software WebGL (SwiftShader); GPU timings in a real browser are not measured.
+- No Canvas 2D fallback; WebGPU required for the RT panels.
+- 3D deformation implemented but not visually verified (no 3D displacement hero).
+- Nedelec `E` fields still have no display of their own; the cavity view uses L4's `E_nodal` projection.
+- `_headers` and CSP exercised on the local server only, not on Cloudflare Pages. zod probes `new Function` once and falls back under the CSP (no console error was recorded).
+- `set_camera` supports `fit` only; `screenshot` returns the graphics canvas.
+- Module scalars (`mises_max`, `T_max`, ...) are listed in SI with display symbols; the spec's own results (headlines) are in their spec units.
+- Verification in software WebGL; GPU timings in a real browser not measured.
 
 ## 5. Contract requests
 
 1. **C6 (coordinator)**: add the worker messages `{type:'mesh', id, mesh, ms, source, ts}` (mesh before the solve) and `{type:'unavailable', id, reasons, ts}` (no module, not ready, or the module cannot run with its inputs); `options` keys `meshScale`, `meshOnly`, `case` (`apps/web/src/lib/engine/protocol.ts`).
 2. **Root lockfile (coordinator)**: `pnpm-lock.yaml` now lists the `apps/web` importer (s.3, 15:52). Either keep it (apps/* is a workspace member; a root `pnpm install` will keep it in sync with `apps/web/package.json`) or decide on per-package `--ignore-workspace` installs; `apps/web/pnpm-lock.yaml` exists as well.
 3. **C1 (coordinator)**: runtime dependency `three` 0.187.0 in `apps/web` (A10). Dev: SvelteKit 3.0.0, adapter-static 4.0.0, vite-plugin-svelte 7.3.1, svelte 5.57.1, svelte-check 4.7.6, vite 8.3.2, `@types/three` 0.187.0, `@webgpu/types` 0.1.74, playwright-core 1.63.0 (exact pins).
-4. **L4**: (a) an H1 (nodal) projection of Nedelec fields (`E` of emw and em-modes) in the Solution, or Nedelec evaluation in `@amp/post`, so the viewer can draw them; (b) `prepareRun` uses `@amp/materials/node` (fs); please accept an injected library (`prepareRun({..., library})`) so the browser does not need the alias in `apps/web/vite.config.ts`; (c) `si-rib-waveguide` materials `core/sub/cov` do not match the WO-02 case keys `core/substrate/cover`, so the browser run reports `n is N/A`; (d) eigenmode amplitudes carry the field unit (Pa, V/m) though their scale is a normalization: state the normalization in the Solution (e.g. `steps.normalization`).
+4. **L4**: (a) [done by L4: `E_nodal` is drawn for the cavity] an H1 (nodal) projection of Nedelec fields (`E` of emw and em-modes) in the Solution, or Nedelec evaluation in `@amp/post`, so the viewer can draw them; (b) `prepareRun` uses `@amp/materials/node` (fs); please accept an injected library (`prepareRun({..., library})`) so the browser does not need the alias in `apps/web/vite.config.ts`; (c) [obsolete: the rib now carries its own n values] case key mismatch for the rib; (d) eigenmode amplitudes carry the field unit (Pa, V/m) though their scale is a normalization: state the normalization in the Solution (e.g. `steps.normalization`).
 5. **L2 / sims owner**: the six heroes have their material values N/A (`missing` entries); the browser can only solve them with the paired eval case's values. A `sims`-level reference to the case (e.g. `provenance` or a `validation: {case: SM-01}` key) would replace the `SIM_CASE` table in `apps/web/src/lib/cases.ts`. The kirsch `missing` text still says `materials/` is empty (it is not since DevLog-013).
 6. **L9**: `@amp/agent` has no `src/index.ts` yet; the workbench implements `NavigationHost` structurally (`apps/web/src/lib/state/nav.svelte.ts`, exposed as `window.__ampWorkbench.nav(actor)`) and will import the interface once it is exported. The Agent column is reserved (300 px, toggled in the toolbar).
 7. **C9 (coordinator)**: confirms L6's optional members are sufficient for the RT panel; no change needed.
 
 ## 6. Hand-off
 
-State: workbench, six Play views and three RT panels build, check and run; physics results display for five of six heroes (rib waiting on L4 item 4c); all gates in s.4.2 pass.
+State (2026-11-06 17:21 PST, after the audit corrections in s.7): workbench, six hero Play views and three RT panels build, check and run; all six heroes solve in the browser with fresh, hash-tagged results; all gates in s.4.2 pass. Production builds carry no `window.__amp*` hooks; verification builds use `VITE_AMP_HOOKS=1 pnpm build`. The L9 chat panel is not mounted (waiting for DevLog-012 notes); `ModelState.applyAgent` and `window.__ampWorkbench.nav(actor)` (dev/verification builds) are ready for it.
 
 Run (from `apps/web`, Node 23, pnpm 10):
 
@@ -211,3 +217,60 @@ Layout (`apps/web/src`):
 Hooks for agents and tests: `window.__ampWorkbench` (`session`, `setTab`, `setMode`, `nav(actor)`), `window.__ampPlay` (`session`).
 
 Open: s.4.5 limits; contract requests s.5; fresh-context audit.
+
+## 7. Audit corrections (audit `DevLog/audits/2026-11-06-L5-web-audit.md`, coordinator order 2026-11-06 ~16:58 PST)
+
+| # | Disposition | Change | Evidence |
+|---|---|---|---|
+| B1 | fixed | Session tags every solution with the spec hash it was computed from (`ModelState.specHash` = op `after`) and whether it was coarse; `fresh` / `staleSolution` are derived, never set. With physics present (Play) every op that invalidates geometry, mesh or solution schedules a run (one in flight, latest wins), so undo, redo, presets and exact-field edits re-solve. Drag ends await the last op before the full run. Stale results are drawn desaturated with a "stale: earlier spec" badge; scalars and headlines are dimmed and marked. Play has a Compute button | s.4.2 B1 row (W_m x4 exact, Undo restores) |
+| B2 | fixed | the phone log pane takes the main grid row instead of `position: fixed; top: 76px`; toolbar height fixed at 84 px (same in the shell) | s.4.2 B2 row; `L5-workbench-kirsch-plate-log-390` |
+| S1 | fixed | a run that ends unavailable or in an error clears the solution; "computing" (pending) is distinct from "unavailable"; a solution on another mesh shows "Results out of date" | code `session.svelte.ts` handle() |
+| S2 | fixed | the eval case is off by default (the heroes carry their own materials since I1); it is credited only for the properties `prepareRun` notes report as filled ("case values used: ..." or "materials: from the model"); headlines carry a "case" marker when case values were used; the pairing comes from the `# eval: [...]` line of the sims file (the SIM_CASE table is gone); an unavailable run with N/A inputs offers "use eval case X values" | Play aside, workbench toolbar tooltip |
+| S3 | fixed (with L3 detmath) | gate compares the browser solve-mesh hash with Node `prepareRun` on the exact text the browser holds; mesh hash in the footer tooltip | 6/6 equal (s.4.2) |
+| S4 | fixed | eigen fields drawn normalized (max abs = 1), no unit, colorbar "norm." with the reason in the tooltip; the phase animation is offered only for signed components (a magnitude does not change sign) | box, rib, cavity screenshots |
+| S5 | fixed | range rule stated in the colorbar tooltip: full or area-weighted p1-99, over the view box when there is one; diverging map only when both signs carry >= 5 % of the range; peak marker (value and location) on 2D results; Play defaults: kirsch full over the hole box (0..3.02 MPa, peak 3.02 at the hole top), helmholtz p1-99 over the coil box (B_center visible) | kirsch, helmholtz screenshots |
+| S6 | fixed | refined lattice, value scaling, ranges and peaks run in the post worker (typed arrays transferred); element quality in the runner worker; 3D materials and render objects are reused and only geometry data is replaced; the 3D canvas stays mounted while a remesh is in flight (a CPU profile showed the canvas being recreated: `setSize` + `forceContextLoss` + `getContext`, 1.5 s over 8 drag steps) | long tasks during drags: 0 in all six (s.4.2) |
+| S7 | fixed | coarse re-solve (sizes x2) during every drag, geometry or not; "coarse preview" badge; progress bar after 1 s with the worker stage | rib lambda0/t drags: 330 ms median previews |
+| S8 | fixed | field controls only for drawable fields; colormap select shows "auto (<map in use>)"; log toggle only when the range spans > 2 decades and the unit is not affine | screenshots |
+| S9 | fixed | log toggle (see S8); symlog not offered (no tick rule for it yet) | - |
+| S10 | fixed | CSP: SvelteKit hash mode meta on pages (`default-src 'self'`, `script-src 'self' 'wasm-unsafe-eval'` + bootstrap hash, `connect-src 'self' https://api.anthropic.com`, `worker-src 'self' blob:`, `object-src 'none'`, `base-uri`/`form-action 'self'`); `_headers`: `frame-ancestors 'none'` for all, a script CSP for `/_app/*` (workers). Hooks only in dev or `VITE_AMP_HOOKS=1` builds. The op log is a true private field; `apply` binds `user`, `applyAgent(session, patch, reason)` binds `agent:<session>` | production bundle: 0 hook references |
+| S11 | fixed | agent rows: amber left bar and an "agent" label (no icon), actor filter (all / user / agent), revert per op; `applyAgent` is the apply path for L9 | `L5-workbench-timeline-1440` |
+| S12 | fixed | s.4 rerun; playwright-core pin is 1.63.0 (s.1.1 corrected below) | s.4.2 |
+| M1 | fixed | fixed phone toolbar height in workbench and shell | - |
+| M2 | fixed | active buttons white on #2462b5 (5.3:1); `--na` #8f8c86 | - |
+| M3 | partly | Play controls 36 px and canvas handles 26 px on phones; workbench controls stay 22 px (dense pro layout) | - |
+| M4 | fixed | pending shows "computing", not "unavailable" | - |
+| M5 | partly | display symbols (micro, degree, no trailing "1"); the spec's `kt` and probes are computed and shown in spec units (headlines); module scalars stay SI | - |
+| M6 | fixed | opens on the spec's plot result field | helmholtz opens on normB |
+| M7 | fixed | colorbar labels both ends plus interior nice ticks | - |
+| M8 | fixed | tooltip near the bottom edge is placed above its element using its measured height | - |
+| M9 | fixed | RT panels start paused with a hint; title ellipsis keeps the badge visible at 390 px | RT screenshots |
+| M10 | fixed | JSONL tooltip says amp-oplog/1; redo rows say why they have no revert; tree rows and message rows act on Enter | - |
+| M11 | fixed | `preserveDrawingBuffer: false`; the screenshot tool redraws and reads back in the same task | - |
+| M12 | fixed | horizontal colorbar along the bottom at <= 760 px | 390 screenshots |
+
+Top-10 improvements:
+
+| # | Disposition |
+|---|---|
+| 1 range + peak marker | done (S5) |
+| 2 headline numbers | done: spec `scalar` results of the form max/min(field) over a selection with a param expression, and `probe` results (2D, exact FE evaluation), in spec units; other forms say "not evaluated" |
+| 3 field lines / contours | done for 2D: contours on by default in Play; magnetic field lines as contours of r A_phi (axisymmetric). Streamlines and LIC skipped: no velocity field in the wave-1 heroes |
+| 4 3D shading | partly: feature edges (dihedral > 30 deg) outline the solid in geometry and results views; derivative-based shading kept. Ground plane and smooth tet10 faces skipped (tet10 faces drawn by corners) |
+| 5 eigen interaction | done: mode list in the Play aside selects the mode and starts the animation; the animation starts on the first canvas interaction |
+| 6 live coarse feedback + progress | done (S7) |
+| 7 units and symbols | done (display only) |
+| 8 timeline badges and filter | done (S11); hover diff kept as the expand row |
+| 9 mobile | partly: horizontal colorbar, 36 px controls in Play, fixed toolbar; bottom sheet skipped |
+| 10 worker offload | done (S6) |
+
+Not mounted: the L9 chat panel (coordinator: wait for DevLog-012 mount and CSP notes).
+
+### 7.1 Progress
+
+- 2026-11-06 16:58 PST: audit read; plan = audit fix order (B1, B2, S1, S2, S4, S5, S3, S10, then the rest).
+- 2026-11-06 17:05 PST: ModelState (private log, specHash, applyAgent), Session rewrite (freshness, scheduling, progress, truthful case use), post worker lattice/display/evalAt jobs, headline evaluator, Graphics rewrite.
+- 2026-11-06 17:10 PST: CSP, hooks gate, timeline agent rows, phone layout, contrast, RT calm start; shots script gains the B1, B2, S3 and long-task checks and parses `_headers`.
+- 2026-11-06 17:12-17:19 PST: verification runs found: a `$state` proxy posted to the worker (focus box; fixed by copying), the 3D canvas remounting on every remesh (CPU profile; fixed), per-object TSL rebuilds (render objects pooled). Coordinator note: L3 detmath, hashes now equal across Node and Chrome (S3 gate added).
+- 2026-11-06 17:21 PST: final run, production build without hooks, 25 screenshots kept.
+

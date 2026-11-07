@@ -24,7 +24,8 @@
 	let lo = $state(0);
 	let hi = $state(1);
 	let auto = $state(def.autoRange);
-	let running = $state(true);
+	// calm start (R5 lesson 3, audit M9): the kernel is set up and drawn, it runs on Run or the first paint stroke
+	let running = $state(false);
 	let tool = $state(def.tools[0]![0]);
 	let unavailable = $state('');
 	let probe = $state('');
@@ -159,9 +160,10 @@
 	</header>
 	<div class="cv" bind:this={box}>
 		<canvas bind:this={canvas} class:hide={!!unavailable && !k}
-			onpointerdown={(e) => { if (!k) return; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); drag = cell(e); paint(drag, drag); }}
+			onpointerdown={(e) => { if (!k) return; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); drag = cell(e); paint(drag, drag); running = true; }}
 			onpointermove={(e) => { hoverAt(e); if (drag) { const c = cell(e); paint(drag, c); drag = c; } }}
 			onpointerup={() => (drag = null)}></canvas>
+		{#if k && !running && k.info().steps === 0 && !unavailable}<div class="hint">Run, or draw on the field to start</div>{/if}
 		{#if unavailable}<div class="unav"><div class="na">{unavailable}</div>{#if probe}<div class="dim mono">{probe}</div>{/if}</div>{/if}
 		{#if spec}
 			<div class="cb"><span class="mono">{spec.unit}</span><div class="bar" style="background: {cssGradient(spec.map)}"></div><span class="mono hi">{fmt(hi)}</span><span class="mono lo">{fmt(lo)}</span></div>
@@ -196,7 +198,8 @@
 <style>
 	.rt { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: 34px minmax(0, 1fr); background: var(--bg); }
 	header { grid-column: 1 / 3; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-bottom: 1px solid var(--line); background: var(--surface); min-width: 0; overflow: hidden; white-space: nowrap; }
-	.t { font-weight: 600; }
+	.t { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+	.badge { flex: none; }
 	.badge { border: 1px solid var(--warn); color: var(--warn); font-size: 10px; padding: 0 4px; }
 	.sp { flex: 1; }
 	.btn { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--border); color: var(--ink-2); font-size: 11px; }
@@ -204,6 +207,7 @@
 	.cv { position: relative; min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; padding-right: 84px; background: #0d0d0d; overflow: hidden; }
 	canvas { display: block; touch-action: none; cursor: crosshair; }
 	.hide { visibility: hidden; }
+	.hint { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(13, 13, 13, 0.85); border: 1px solid var(--border); padding: 6px 10px; font-size: 12px; pointer-events: none; }
 	.unav { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; padding: 20px; text-align: center; font-size: 11px; overflow-wrap: anywhere; }
 	.cb { position: absolute; right: 8px; top: 30px; bottom: 34px; width: 50px; display: flex; flex-direction: column; font-size: 10px; color: var(--ink-2); }
 	.cb .bar { flex: 1; width: 12px; border: 1px solid var(--border); margin: 3px 0; }
@@ -222,7 +226,7 @@
 	@media (max-width: 760px) {
 		.rt { grid-template-columns: minmax(0, 1fr); grid-template-rows: 34px minmax(0, 1fr) 240px; }
 		header { grid-column: 1; }
-		header .btn { display: none; }
+		header .btn, header > a.dim { display: none; }
 		aside { border-left: 0; border-top: 1px solid var(--line); }
 	}
 </style>

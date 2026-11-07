@@ -8,6 +8,8 @@ import type { Mesh, PhysicsModule, RunContext, Solution } from '@amp/spec/types'
 import { buildMesh } from './spec-adapter';
 import { preloadMaterials } from './materials-node-shim';
 import { meshFromSpec } from '@amp/mesh/spec';
+import { toMesh2D, triShapeQuality } from '../post/field2d';
+import { cellQuality } from '../post/solid3d';
 import { findModule, loadPhysics } from './physics';
 import { appRegistry } from './registry';
 import { nowIso, type FromRunner, type RunOptions, type ToRunner } from './protocol';
@@ -82,7 +84,9 @@ async function run(id: string, specText: string, opts: RunOptions) {
 		ms = { parse: tParse, geometry: 0, mesh: performance.now() - tm };
 		progress('mesh', 1, `${mesh.cells.domain.length} ${mesh.cells.type} cells, ${meshSource}`);
 		// structured clone (no transfer): the worker still needs the mesh for the solve
-		post({ type: 'mesh', id, mesh, ms, source: meshSource, ts: nowIso() });
+		// element quality computed here, off the main thread (audit S6)
+		const quality = mesh.dim === 2 ? triShapeQuality(toMesh2D(mesh)) : cellQuality(mesh);
+		post({ type: 'mesh', id, mesh, quality, ms, source: meshSource, ts: nowIso() }, [quality.buffer]);
 		if (opts.meshOnly || ac.signal.aborted) return;
 		if (!solve || !prep) {
 			post({ type: 'unavailable', id, reasons: reasons.length ? reasons : ['nothing to run'], ts: nowIso() });

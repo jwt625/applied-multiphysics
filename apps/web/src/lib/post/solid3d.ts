@@ -48,6 +48,8 @@ export interface Surface {
 	cell: Int32Array;
 	/** wireframe segments: pairs of node indices */
 	edges: Int32Array;
+	/** feature edges (dihedral angle between the adjacent exterior faces above 30 deg): pairs of node indices */
+	features: Int32Array;
 	c0: V3;
 }
 
@@ -65,19 +67,37 @@ export function exterior(m: Mesh): Surface {
 		}
 	const c0 = bbox3(N).c;
 	const pos: number[] = [], node: number[] = [], cell: number[] = [], edges: number[] = [];
-	const ekeys = new Set<string>();
+	const enorm = new Map<string, { a: number; b: number; n: number[][] }>();
+	const fnormal = (f: number[]): number[] => {
+		const P = (i: number, k: number) => N[3 * f[i]! + k]!;
+		const u = [P(1, 0) - P(0, 0), P(1, 1) - P(0, 1), P(1, 2) - P(0, 2)], w = [P(2, 0) - P(0, 0), P(2, 1) - P(0, 1), P(2, 2) - P(0, 2)];
+		const c = [u[1]! * w[2]! - u[2]! * w[1]!, u[2]! * w[0]! - u[0]! * w[2]!, u[0]! * w[1]! - u[1]! * w[0]!];
+		const l = Math.hypot(c[0]!, c[1]!, c[2]!) || 1;
+		return [c[0]! / l, c[1]! / l, c[2]! / l];
+	};
+	let curNormal: number[] = [0, 0, 1];
 	const edge = (a: number, b: number) => {
 		const k = a < b ? `${a},${b}` : `${b},${a}`;
-		if (!ekeys.has(k)) { ekeys.add(k); edges.push(a, b); }
+		const e = enorm.get(k);
+		if (!e) { enorm.set(k, { a, b, n: [curNormal] }); edges.push(a, b); }
+		else e.n.push(curNormal);
 	};
 	const vert = (n: number, e: number) => { pos.push(N[3 * n]! - c0[0], N[3 * n + 1]! - c0[1], N[3 * n + 2]! - c0[2]); node.push(n); cell.push(e); };
 	for (const v of seen.values()) {
 		if (!v) continue;
 		const f = v.f;
+		curNormal = fnormal(f);
 		for (let k = 1; k + 1 < f.length; k++) { vert(f[0]!, v.cell); vert(f[k]!, v.cell); vert(f[k + 1]!, v.cell); }
 		for (let k = 0; k < f.length; k++) edge(f[k]!, f[(k + 1) % f.length]!);
 	}
-	return { pos: Float32Array.from(pos), node: Int32Array.from(node), cell: Int32Array.from(cell), edges: Int32Array.from(edges), c0 };
+	const feat: number[] = [];
+	const cos30 = Math.cos(Math.PI / 6);
+	for (const e of enorm.values()) {
+		const [n0, n1] = e.n;
+		// orientation of polygon faces is not consistent across cells: compare |cos|
+		if (!n1 || Math.abs(n0![0]! * n1[0]! + n0![1]! * n1[1]! + n0![2]! * n1[2]!) < cos30) feat.push(e.a, e.b);
+	}
+	return { pos: Float32Array.from(pos), node: Int32Array.from(node), cell: Int32Array.from(cell), edges: Int32Array.from(edges), features: Int32Array.from(feat), c0 };
 }
 
 export interface Cut {

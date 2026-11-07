@@ -11,3 +11,9 @@ const PALETTE = ['#5b7fa6', '#8a6e9e', '#5f9a7f', '#a68b5b', '#9e6e6e', '#6e8f9e
 export function domainColors(n: number): string[] {
 	return Array.from({ length: n }, (_, i) => PALETTE[i % PALETTE.length]!);
 }
+
+/** Display form of a unit string (display only; the spec keeps ASCII): micro sign, degree sign, no unit for "1". */
+export function unitLabel(u: string | null | undefined): string {
+	if (!u || u === '1') return '';
+	return u.replace(/^u(?=[A-Za-z])/, 'µ').replace(/\bdegC\b/, '°C').replace(/\*/g, '·');
+}

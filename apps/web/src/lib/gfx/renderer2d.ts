@@ -178,7 +178,7 @@ export class Renderer2D {
 	private cssH = 1;
 
 	static create(canvas: HTMLCanvasElement): Renderer2D | null {
-		const gl = canvas.getContext('webgl2', { antialias: true, preserveDrawingBuffer: true, alpha: false });
+		const gl = canvas.getContext('webgl2', { antialias: true, preserveDrawingBuffer: false, alpha: false });
 		if (!gl) return null;
 		try {
 			return new Renderer2D(gl);

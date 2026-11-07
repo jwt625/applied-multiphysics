@@ -1,18 +1,27 @@
 <script lang="ts">
 	// SPDX-License-Identifier: GPL-3.0-or-later
 	// Graphics panel: Geometry / Mesh / Results modes (keys G, M, R; W wireframe, F fit, Space animation), the 2D
-	// WebGL2 field renderer or the 3D three.js viewer, colorbar in absolute units, exact hover probe (2D, post worker),
-	// slices / isosurfaces / section / deformation / animation (3D). Results that do not exist are shown as unavailable.
+	// WebGL2 field renderer or the 3D three.js viewer, colorbar in absolute units, exact hover probe (post worker),
+	// slices / isosurfaces / section / deformation / animation (3D).
+	// Honesty rules (audit B1, S1, S4, S8): a result is drawn only for the mesh it was computed on; a result whose spec
+	// hash differs from the model's is drawn desaturated with a "stale" badge; a coarse drag result is badged; a pending
+	// run is "computing", not "unavailable"; eigenmodes are drawn normalized (max |.| = 1, no unit: their amplitude is
+	// arbitrary); only fields the viewer can draw exactly (H1P1, H1P2, DG0) get field controls.
+	// Colour range rule (audit S5), stated in the colorbar tooltip: "full" = min..max, "robust" = area-weighted 1st-99th
+	// percentile; both over the focus box when the view has one (Play), else over the whole mesh. A field is drawn with
+	// the diverging map, symmetric about zero, when both signs carry at least 5 % of the range; else sequentially.
+	// Heavy per-element work (refined lattice, values, ranges, element quality) runs in the workers (audit S6).
 	import { onMount, untrack } from 'svelte';
 	import type { FieldData } from '@amp/spec/types';
 	import type { Session } from '../workbench/session.svelte';
 	import { displayScale } from '../workbench/session.svelte';
-	import { latticeValues, perElement, refinedDisplay, type Field2D, type Space } from '../post/field2d';
+	import { perElement, type RefinedDisplay, type Space } from '../post/field2d';
+	import type { LatticeOut, RangeRule } from '../post/post.worker';
 	import { autoDeformScale, bbox3 } from '../post/solid3d';
-	import type { Layer2D } from './renderer2d';
+	import type { Layer2D, ScaleMode } from './renderer2d';
 	import type { Drawable } from './viewer3d';
-	import { COLORMAPS, DIVERGING, type ColormapName } from './colormaps';
-	import { domainColors, lengthUnit } from './units';
+	import { COLORMAPS, type ColormapName } from './colormaps';
+	import { domainColors, lengthUnit, unitLabel } from './units';
 	import { fmt, fmtMs, niceTicks } from './ticks';
 	import Canvas2D, { type Handle } from './Canvas2D.svelte';
 	import Colorbar from './Colorbar.svelte';
@@ -21,25 +30,34 @@
 	let {
 		s,
 		mode = $bindable('mesh'),
+		step = $bindable(0),
+		playing = $bindable(false),
 		handles = [],
 		onhandle,
 		compact = false,
 		fitKey = 0,
 		focus = null,
 		highlight = [],
-		clipDefault = false
-	}: { s: Session; mode?: Mode; handles?: Handle[]; onhandle?: (id: string, x: number, y: number, phase: 'move' | 'end') => void; compact?: boolean; fitKey?: number; focus?: [number, number, number, number] | null; highlight?: string[]; clipDefault?: boolean } = $props();
+		rangeDefault = 'full',
+		contoursDefault = false,
+		fieldLinesDefault = false,
+		autoAnimate = false
+	}: {
+		s: Session; mode?: Mode; step?: number; playing?: boolean; handles?: Handle[];
+		onhandle?: (id: string, x: number, y: number, phase: 'move' | 'end') => void; compact?: boolean; fitKey?: number;
+		focus?: [number, number, number, number] | null; highlight?: string[]; rangeDefault?: RangeRule; contoursDefault?: boolean;
+		fieldLinesDefault?: boolean; autoAnimate?: boolean;
+	} = $props();
 
 	let wireUser = $state(false);
-	// colour range: full data range, or the 1st-99th percentile (near-singular peaks saturate; the colorbar says so)
-	let clipRange = $state(untrack(() => clipDefault));
-	const wire = $derived(mode === 'mesh' || wireUser);
-	let colormap = $state<ColormapName>('viridis');
+	let rule = $state<RangeRule>(untrack(() => rangeDefault));
+	let scaleUser = $state<ScaleMode>('linear');
+	let cmUser = $state<'auto' | ColormapName>('auto');
 	let level = $state(3);
-	let contours = $state(false);
+	let contours = $state(untrack(() => contoursDefault));
+	let fieldLines = $state(untrack(() => fieldLinesDefault));
 	let fieldKey = $state('');
 	let comp = $state(-1);
-	let step = $state(0);
 	let deformUser = $state<number | null>(null);
 	let deformOn = $state(true);
 	let clipOn = $state(false);
@@ -50,21 +68,27 @@
 	let sliceFrac = $state(0.5);
 	let isoOn = $state(false);
 	let isoN = $state(5);
-	let playing = $state(false);
 	let phase = $state(0);
 	let frameMs = $state(0);
 	let fit = $state(0);
+	let now = $state(0);
 	let probe = $state<{ x: number; y: number; v: number | null; dom: string } | null>(null);
 	let Canvas3D = $state.raw<typeof import('./Canvas3D.svelte').default | null>(null);
-	let ext = $state.raw<{ pos: Float32Array; node: Int32Array; cell: Int32Array; edges: Int32Array; c0: [number, number, number] } | null>(null);
+	let ext = $state.raw<{ mesh: unknown; pos: Float32Array; node: Int32Array; cell: Int32Array; edges: Int32Array; features: Int32Array; c0: [number, number, number] } | null>(null);
 	let cuts = $state.raw<Drawable[]>([]);
+	let d1 = $state.raw<RefinedDisplay | null>(null);
+	let lat = $state.raw<{ key: string; d: RefinedDisplay; out: LatticeOut } | null>(null);
+	let psi = $state.raw<{ key: string; d: RefinedDisplay; out: LatticeOut } | null>(null);
 
+	const wire = $derived(mode === 'mesh' || wireUser);
 	const mesh = $derived(s.mesh);
 	const m2 = $derived(s.m2);
 	const is3d = $derived(!!mesh && mesh.dim === 3);
+	/** the solution is drawn only on the mesh it was computed on */
 	const sol = $derived(s.solution && mesh && s.solution.meshHash === mesh.hash ? s.solution : null);
+	const stale = $derived(!!sol && s.staleSolution);
+	const coarse = $derived(!!sol && !stale && s.solutionCoarse);
 	const domains = $derived(mesh?.entities.domains ?? []);
-	// navigation highlight (UI state only): highlighted domains in amber, the others dimmed; boundaries drawn in amber
 	const hiSet = $derived(new Set(highlight));
 	const regionColors = $derived(hiSet.size ? domains.map((d) => (hiSet.has(d.id) || [...hiSet].some((h) => d.parent?.includes(h)) ? '#e0a526' : '#3a3a37')) : domainColors(domains.length));
 	const hiLines = $derived.by(() => {
@@ -76,102 +100,129 @@
 		return Float64Array.from(seg);
 	});
 
-	// fields: name + step, one entry per (name, step)
-	const fieldList = $derived((sol?.fields ?? []).map((f, i) => ({ key: `${f.name}@${f.step ?? 0}`, f, i })));
+	// ---------------------------------------------------------------- field choice
+	const fieldList = $derived((sol?.fields ?? []).map((f, i) => ({ f, i })));
 	const names = $derived([...new Set(fieldList.map((x) => x.f.name))]);
-	/** A results[].expr names a field as `<field>` or `<physics id>.<field>`. */
 	const exprIs = (expr: string | undefined, name: string | undefined) => !!expr && !!name && (expr === name || expr.endsWith(`.${name}`));
-	const resultsSpec = $derived(((s.model.data as { results?: Array<{ expr?: string; unit?: string }> } | null)?.results ?? []));
+	type ResultNode = { id: string; type: string; expr?: string; unit?: string; step?: number };
+	const resultsSpec = $derived(((s.model.data as { results?: ResultNode[] } | null)?.results ?? []));
+	/** the spec's own plot result names the field to open on (audit M6) */
+	const plotResult = $derived(resultsSpec.find((r) => (r.type === 'plot2d' || r.type === 'plot3d') && names.some((n) => exprIs(r.expr, n))) ?? null);
+	const drawableSpace = (f: FieldData | null | undefined) => !!f && (f.space === 'H1P1' || f.space === 'H1P2' || f.space === 'DG0');
 	const field = $derived.by((): FieldData | null => {
 		if (!fieldList.length) return null;
-		const name = fieldKey && names.includes(fieldKey) ? fieldKey : (names.find((n) => resultsSpec.some((r) => exprIs(r.expr, n))) ?? names[0]!);
+		const name = fieldKey && names.includes(fieldKey) ? fieldKey
+			: (names.find((n) => exprIs(plotResult?.expr, n)) ?? names.find((n) => drawableSpace(fieldList.find((x) => x.f.name === n)?.f)) ?? names[0]!);
 		const steps = fieldList.filter((x) => x.f.name === name);
 		return (steps[Math.min(step, steps.length - 1)] ?? steps[0])!.f;
 	});
 	const nSteps = $derived(field ? fieldList.filter((x) => x.f.name === field.name).length : 0);
-	const disp = $derived.by(() => {
-		const sc = displayScale(resultsSpec.find((r) => exprIs(r.expr, field?.name))?.unit ?? field?.unit);
-		return sc;
+	const drawable = $derived(drawableSpace(field));
+	const eigen = $derived(sol?.steps?.kind === 'eigen');
+	/** the phase animation Re(u e^(i phase)) is meaningful for a signed component, not for a magnitude */
+	const signedField = $derived.by(() => {
+		if (!field || (field.components > 1 && comp < 0)) return false;
+		const c = field.components > 1 ? comp : 0, n = field.data.length / field.components;
+		for (let i = 0; i < n; i++) if (field.data[field.components * i + c]! < 0) return true;
+		return false;
 	});
-	/** spaces the viewer can draw exactly: nodal H1 (P1/P2 basis) and per-cell DG0 */
-	const drawable2d = $derived(!!field && (field.space === 'H1P1' || field.space === 'H1P2' || field.space === 'DG0'));
+	const scalarAt = (f: FieldData, n: number, c: number) => {
+		if (f.components === 1) return f.data[n]!;
+		if (c >= 0) return f.data[f.components * n + c]!;
+		let q = 0;
+		for (let k = 0; k < f.components; k++) q += f.data[f.components * n + k]! ** 2;
+		return Math.sqrt(q);
+	};
+	/** display affine: spec unit, or normalization to max |.| = 1 for eigenmodes (audit S4) */
+	const disp = $derived.by(() => {
+		if (field && eigen) {
+			let mx = 0;
+			const n = field.data.length / field.components;
+			for (let i = 0; i < n; i++) mx = Math.max(mx, Math.abs(scalarAt(field, i, field.components > 1 ? comp : 0)));
+			return { a: mx > 0 ? 1 / mx : 1, b: 0, unit: '', note: `normalized eigenmode: max |${field.name}| = 1 (the amplitude of an eigenmode is arbitrary)` };
+		}
+		const u = resultsSpec.find((r) => exprIs(r.expr, field?.name))?.unit ?? field?.unit;
+		return { ...displayScale(u), note: '' };
+	});
 	const lu = $derived(lengthUnit(m2 ? Math.max(m2.bbox[2] - m2.bbox[0], m2.bbox[3] - m2.bbox[1]) : mesh ? bbox3(mesh.nodes).diag : 1));
 
-	/**
-	 * 1st and 99th percentile of the drawn values, weighted (2D: element area / lattice points, so refined regions do
-	 * not dominate; 3D: per vertex). Strided sample of at most 40000 values.
-	 */
-	function pct(a: ArrayLike<number>, w: ((i: number) => number) | null = null): { lo: number; hi: number } {
-		const st = Math.max(1, Math.floor(a.length / 40000)), x: Array<[number, number]> = [];
-		let W = 0;
-		for (let i = 0; i < a.length; i += st) if (Number.isFinite(a[i]!)) { const wi = w ? w(i) : 1; x.push([a[i]!, wi]); W += wi; }
-		x.sort((p, q) => p[0] - q[0]);
-		let acc = 0, lo = x[0]?.[0] ?? 0, hi = x.at(-1)?.[0] ?? 1, gotLo = false;
-		for (const [v, wi] of x) {
-			acc += wi;
-			if (!gotLo && acc >= 0.01 * W) { lo = v; gotLo = true; }
-			if (acc >= 0.99 * W) { hi = v; break; }
-		}
-		return { lo, hi };
-	}
-	const areas = $derived.by(() => {
-		if (!m2) return null;
-		const out = new Float64Array(m2.nT), N = m2.nodes, c = m2.conn;
-		for (let t = 0; t < m2.nT; t++) {
-			const o = m2.npe * t, a = c[o]!, b = c[o + 1]!, d = c[o + 2]!;
-			out[t] = 0.5 * Math.abs((N[2 * b]! - N[2 * a]!) * (N[2 * d + 1]! - N[2 * a + 1]!) - (N[2 * d]! - N[2 * a]!) * (N[2 * b + 1]! - N[2 * a + 1]!));
-		}
-		return out;
-	});
-	/** A near-constant field gets a symmetric 1 % band so float noise is not stretched over the colormap. */
-	function guard(lo: number, hi: number): { min: number; max: number } {
+	/** colour mapping from a value range: diverging when both signs carry >= 5 % of it */
+	function mapping(lo: number, hi: number) {
 		const m = Math.max(Math.abs(lo), Math.abs(hi));
-		if (hi - lo > 1e-6 * m && hi > lo) return { min: lo, max: hi };
-		const d = m > 0 ? 0.01 * m : 1;
-		return { min: lo - d, max: hi + d };
+		if (!(hi - lo > 1e-6 * m && hi > lo)) { const d = m > 0 ? 0.01 * m : 1; lo -= d; hi += d; }
+		const both = lo < 0 && hi > 0 && Math.min(-lo, hi) / (hi - lo) >= 0.05;
+		const range = both ? { min: -Math.max(-lo, hi), max: Math.max(-lo, hi) } : { min: lo, max: hi };
+		// log only for ratio-scale quantities: not for affine units (degC) or zero-crossing data
+		const logOk = !both && range.min > 0 && range.max / range.min >= 100 && !/degC/.test(disp.unit);
+		const scale: ScaleMode = logOk && scaleUser === 'log' ? 'log' : 'linear';
+		const cm: ColormapName = cmUser !== 'auto' ? cmUser : both ? 'balance' : 'viridis';
+		return { range, both, logOk, scale, cm };
 	}
+
+	// ---------------------------------------------------------------- 2D (displays and lattices from the post worker)
+	$effect(() => {
+		const m = m2;
+		if (!m) { d1 = null; return; }
+		void s.post.display(1).then((d) => { if (s.m2 === m) d1 = d; });
+	});
+	const fkey = $derived(field && m2 ? `${m2.nT}:${sol?.run.startedAt}:${field.name}:${field.step ?? 0}:${comp}:${level}:${rule}:${disp.a}:${focus?.join(',')}` : '');
+	$effect(() => {
+		const f = field, m = m2, key = fkey;
+		if (!f || !m || mode !== 'results' || !drawable) return;
+		const r = f.space === 'DG0' ? 1 : level;
+		// plain copies: $state proxies cannot be posted to a worker
+		const a = disp.a, b = disp.b, c = f.components > 1 ? comp : 0, rl = rule, fc: [number, number, number, number] | null = focus ? [focus[0], focus[1], focus[2], focus[3]] : null;
+		void Promise.all([s.post.display(r), s.post.call<'lattice'>({ type: 'lattice', field: { space: f.space as Space, data: f.data, components: f.components }, comp: c, r, a, b, psi: false, rule: rl, focus: fc })])
+			.then(([d, out]) => { if (s.m2 === m && fkey === key) lat = { key, d, out }; });
+	});
+	// field lines of an axisymmetric magnetic field: contours of the flux function r A_phi (top-10 #3)
+	const aphi = $derived(sol && m2 && mesh?.axisym ? (sol.fields.find((f) => f.name === 'A_phi' && (f.space === 'H1P1' || f.space === 'H1P2')) ?? null) : null);
+	$effect(() => {
+		const f = aphi, m = m2;
+		if (!f || !m || !fieldLines || mode !== 'results') { psi = null; return; }
+		const key = `${sol?.run.startedAt}:${level}`;
+		void Promise.all([s.post.display(level), s.post.call<'lattice'>({ type: 'lattice', field: { space: f.space as Space, data: f.data, components: 1 }, comp: 0, r: level, a: 1, b: 0, psi: true, rule: 'full', focus: null })])
+			.then(([d, out]) => { if (s.m2 === m) psi = { key, d, out }; });
+	});
+
+	const view2d = $derived.by(() => {
+		type CB = { min: number; max: number; label: string; unit: string; cm: ColormapName; scale: ScaleMode; note: string };
+		const none = { layers: [] as Layer2D[], cb: null as CB | null, map: null as ReturnType<typeof mapping> | null, peak: null as LatticeOut['peak'] };
+		if (!m2 || !d1) return none;
+		if (mode === 'geometry' || (mode === 'results' && !(sol && drawable && lat))) return { ...none, layers: [{ kind: 'region', disp: d1, regionColors, wire: mode !== 'geometry' && wire } as Layer2D] };
+		if (mode === 'mesh') {
+			const q = s.quality;
+			if (!q || q.length !== m2.nT) return { ...none, layers: [{ kind: 'region', disp: d1, regionColors, wire: true } as Layer2D] };
+			let lo = Infinity, hi = -Infinity;
+			for (const v of q) { if (v < lo) lo = v; if (v > hi) hi = v; }
+			const mp = mapping(lo, hi);
+			return { ...none, map: mp, layers: [{ kind: 'surface', disp: d1, values: perElement(q), range: mp.range, colormap: cmUser === 'auto' ? 'viridis' : cmUser, wire: true } as Layer2D], cb: { ...mp.range, label: 'element shape quality q = 4 sqrt(3) A / sum(l^2), 1 = equilateral', unit: '1', cm: cmUser === 'auto' ? 'viridis' : cmUser, scale: 'linear' as ScaleMode, note: '' } };
+		}
+		const L = lat!;
+		const mp = mapping(L.out.lo, L.out.hi);
+		const layers: Layer2D[] = [{ kind: 'surface', disp: L.d, values: L.out.values, range: mp.range, scale: mp.scale, colormap: mp.cm, wire }];
+		if (contours && field!.space !== 'DG0') layers.push({ kind: 'contour', disp: L.d, values: L.out.values, range: mp.range, scale: mp.scale, colormap: mp.cm, levels: mp.scale === 'log' ? [] : niceTicks(mp.range.min, mp.range.max, 12), uniform: '#0d0d0d' });
+		if (psi && fieldLines) {
+			const P = psi.out, n = 18, lv = Array.from({ length: n }, (_, i) => P.dataLo + ((i + 0.5) * (P.dataHi - P.dataLo)) / n);
+			layers.push({ kind: 'contour', disp: psi.d, values: P.values, range: { min: P.dataLo, max: P.dataHi }, colormap: mp.cm, levels: lv, uniform: '#f2f1ec' });
+		}
+		const label = field!.name + (field!.components > 1 ? (comp < 0 ? ' magnitude' : ` component ${comp}`) : '');
+		return { layers, map: mp, peak: L.out.peak, cb: { ...mp.range, label, unit: disp.unit, cm: mp.cm, scale: mp.scale, note: disp.note } };
+	});
+	const markers = $derived(mode === 'results' && view2d.peak && !stale ? [{ x: view2d.peak.x, y: view2d.peak.y, label: `${fmt(view2d.peak.v)}${disp.unit ? ` ${unitLabel(disp.unit)}` : ''}`, tip: `largest |${field?.name}| ${focus ? 'in the view box' : 'on the mesh'} (lattice point of the drawn field)` }] : []);
 	const boundaryLines = $derived.by(() => {
-		if (!mesh || mesh.dim !== 2 || (mode !== 'geometry' && !compact)) return null;
+		if (!mesh || mesh.dim !== 2 || mode === 'mesh') return null;
 		const f = mesh.facets, npf = f.type === 'line3' ? 3 : 2, n = f.conn.length / npf, N = mesh.nodes;
 		const out = new Float64Array(4 * n);
 		for (let i = 0; i < n; i++) { const a = f.conn[npf * i]!, b = f.conn[npf * i + 1]!; out.set([N[2 * a]!, N[2 * a + 1]!, N[2 * b]!, N[2 * b + 1]!], 4 * i); }
 		return out;
 	});
 
-	// ---------------------------------------------------------------- 2D layers
-	const view2d = $derived.by(() => {
-		if (!m2) return { layers: [] as Layer2D[], cb: null as null | { min: number; max: number; label: string; unit: string } };
-		if (mode === 'geometry') return { layers: [{ kind: 'region', disp: refinedDisplay(m2, 1), regionColors, wire: false } as Layer2D], cb: null };
-		if (mode === 'mesh' || !sol) {
-			const q = s.quality;
-			if (mode === 'results' || !q) return { layers: [{ kind: 'region', disp: refinedDisplay(m2, 1), regionColors, wire: mode === 'mesh' && wire } as Layer2D], cb: null };
-			const vals = perElement(q);
-			let lo = Infinity, hi = -Infinity;
-			for (const v of q) { if (v < lo) lo = v; if (v > hi) hi = v; }
-			const rg = guard(lo, hi);
-			return { layers: [{ kind: 'surface', disp: refinedDisplay(m2, 1), values: vals, range: rg, colormap, wire } as Layer2D], cb: { ...rg, label: 'element shape quality q = 4 sqrt(3) A / sum(l^2)', unit: '1' } };
-		}
-		if (!field || !drawable2d) return { layers: [{ kind: 'region', disp: refinedDisplay(m2, 1), regionColors, wire } as Layer2D], cb: null };
-		const r = field.space === 'DG0' ? 1 : level;
-		const fd: Field2D = { space: field.space as Space, data: field.data, components: field.components };
-		const lv = latticeValues(m2, fd, r, field.components > 1 ? comp : 0);
-		let lo = Infinity, hi = -Infinity;
-		for (let i = 0; i < lv.length; i++) { const v = disp.a * lv[i]! + disp.b; lv[i] = v; if (v < lo) lo = v; if (v > hi) hi = v; }
-		if (clipRange) { const np = refinedDisplay(m2, r).np, A = areas; ({ lo, hi } = pct(lv, A ? (i) => A[Math.floor(i / np)]! : null)); }
-		const signed = lo < 0 && hi > 0;
-		const cm: ColormapName = signed && !DIVERGING.has(colormap) ? 'balance' : colormap;
-		const range = signed ? { min: -Math.max(-lo, hi), max: Math.max(-lo, hi) } : guard(lo, hi);
-		const d = refinedDisplay(m2, r);
-		const layers: Layer2D[] = [{ kind: 'surface', disp: d, values: lv, range, colormap: cm, wire }];
-		if (contours) layers.push({ kind: 'contour', disp: d, values: lv, range, colormap: cm, levels: niceTicks(range.min, range.max, 10), uniform: '#f2f1ec' });
-		return { layers, cb: { ...range, label: field.name + (field.components > 1 ? (comp < 0 ? ' |.|' : `[${comp}]`) : ''), unit: disp.unit, cm } };
-	});
-
 	// ---------------------------------------------------------------- 3D
 	$effect(() => {
 		if (!is3d || !mesh) { ext = null; return; }
 		const m = mesh;
-		void s.post.call<'exterior'>({ type: 'exterior' }).then((r) => { if (s.mesh === m) ext = { pos: r.pos, node: r.node, cell: r.cell, edges: r.edges, c0: r.c0 }; });
+		void s.post.call<'exterior'>({ type: 'exterior' }).then((r) => { if (s.mesh === m) ext = { mesh: m, pos: r.pos, node: r.node, cell: r.cell, edges: r.edges, features: r.features, c0: r.c0 }; });
 		if (!Canvas3D) void import('./Canvas3D.svelte').then((mod) => (Canvas3D = mod.default));
 	});
 	const half = $derived.by((): [number, number, number] => {
@@ -181,56 +232,62 @@
 	});
 	const nodal3 = $derived(is3d && sol && field && (field.space === 'H1P1' || field.space === 'H1P2') ? field : null);
 	const dispField = $derived(is3d && sol ? (sol.fields.find((f) => f.components === 3 && f.unit === 'm' && (f.space === 'H1P1' || f.space === 'H1P2') && (f.step ?? 0) === (field?.step ?? 0)) ?? null) : null);
+	const canAnimate = $derived(drawable && ((eigen && (signedField || !!dispField)) || (!eigen && nSteps > 1)));
 	const autoScale = $derived(dispField && mesh ? autoDeformScale(bbox3(mesh.nodes).diag, dispField.data) : 0);
 	const deform = $derived(dispField && deformOn ? (deformUser ?? autoScale) : 0);
-	const eigen = $derived(sol?.steps?.kind === 'eigen');
-	const scalarAt = (f: FieldData, n: number) => {
-		if (f.components === 1) return f.data[n]!;
-		if (comp >= 0) return f.data[f.components * n + comp]!;
-		let q = 0;
-		for (let k = 0; k < f.components; k++) q += f.data[f.components * n + k]! ** 2;
-		return Math.sqrt(q);
-	};
+	function pct(a: Float32Array): { lo: number; hi: number } {
+		const st = Math.max(1, Math.floor(a.length / 40000)), x: number[] = [];
+		for (let i = 0; i < a.length; i += st) if (Number.isFinite(a[i]!)) x.push(a[i]!);
+		x.sort((p, q) => p - q);
+		return { lo: x[Math.floor(0.01 * (x.length - 1))] ?? 0, hi: x[Math.ceil(0.99 * (x.length - 1))] ?? 1 };
+	}
 	const view3d = $derived.by(() => {
-		if (!ext || !mesh) return null;
+		// the exterior must belong to the current mesh (a remesh may be in flight)
+		if (!ext || !mesh || ext.mesh !== mesh) return null;
 		const nv = ext.node.length;
 		const val = new Float32Array(nv);
-		let cb: { min: number; max: number; label: string; unit: string } | null = null;
-		let region = false;
-		if (mode === 'geometry' || (mode === 'results' && !(sol && field && drawable2d))) {
+		let lo = Infinity, hi = -Infinity, region = false, label = '', unit = '', note = '';
+		if (mode === 'geometry' || (mode === 'results' && !(sol && drawable))) {
 			for (let i = 0; i < nv; i++) val[i] = mesh.cells.domain[ext.cell[i]!]!;
 			region = true;
 		} else if (mode === 'mesh') {
-			const q = s.quality!;
-			let lo = Infinity, hi = -Infinity;
-			for (let i = 0; i < nv; i++) { const v = q[ext.cell[i]!]!; val[i] = v; if (v < lo) lo = v; if (v > hi) hi = v; }
-			cb = { min: lo, max: hi, label: 'cell quality: min mean ratio over the tet split (1 = regular tet)', unit: '1' };
-		} else if (field && drawable2d) {
-			let lo = Infinity, hi = -Infinity;
+			const q = s.quality;
+			if (q) for (let i = 0; i < nv; i++) { const v = q[ext.cell[i]!]!; val[i] = v; if (v < lo) lo = v; if (v > hi) hi = v; }
+			label = 'cell quality: min mean ratio over the tet split (1 = regular tet)';
+			unit = '1';
+		} else if (field) {
+			const c = field.components > 1 ? comp : 0;
 			for (let i = 0; i < nv; i++) {
-				const vv = disp.a * (field.space === 'DG0' ? scalarAt(field, ext.cell[i]!) : scalarAt(field, ext.node[i]!)) + disp.b;
+				const vv = disp.a * (field.space === 'DG0' ? scalarAt(field, ext.cell[i]!, c) : scalarAt(field, ext.node[i]!, c)) + disp.b;
 				val[i] = vv; if (vv < lo) lo = vv; if (vv > hi) hi = vv;
 			}
-			if (clipRange) ({ lo, hi } = pct(val));
-			cb = { min: lo, max: hi, label: field.name, unit: disp.unit };
+			if (rule === 'robust') ({ lo, hi } = pct(val));
+			label = field.name;
+			unit = disp.unit;
+			note = disp.note;
 		}
+		const E = mode === 'mesh' || wire ? ext.edges : ext.features, N = mesh.nodes, c0 = ext.c0;
+		const edges = new Float32Array(3 * E.length);
+		for (let i = 0; i < E.length; i++) for (let k = 0; k < 3; k++) edges[3 * i + k] = N[3 * E[i]! + k]! - c0[k]!;
 		let dv: Float32Array | null = null, ed: Float32Array | null = null;
 		if (dispField) {
 			dv = new Float32Array(3 * nv);
 			for (let i = 0; i < nv; i++) for (let k = 0; k < 3; k++) dv[3 * i + k] = dispField.data[3 * ext.node[i]! + k]!;
-		}
-		const E = ext.edges, N = mesh.nodes, c0 = ext.c0;
-		const edges = new Float32Array(3 * E.length);
-		for (let i = 0; i < E.length; i++) for (let k = 0; k < 3; k++) edges[3 * i + k] = N[3 * E[i]! + k]! - c0[k]!;
-		if (dispField) {
 			ed = new Float32Array(3 * E.length);
 			for (let i = 0; i < E.length; i++) for (let k = 0; k < 3; k++) ed[3 * i + k] = dispField.data[3 * E[i]! + k]!;
 		}
-		const signed = !!cb && cb.min < 0 && cb.max > 0;
-		const range = region ? { min: 0, max: Math.max(1, domains.length - 1) } : cb ? (signed ? { min: -Math.max(-cb.min, cb.max), max: Math.max(-cb.min, cb.max) } : guard(cb.min, cb.max)) : { min: 0, max: 1 };
-		return { surface: { pos: ext.pos, val, disp: dv } as Drawable, region, cb: cb ? { ...cb, ...range } : null, range, edges, ed, signed };
+		if (region) return { surface: { pos: ext.pos, val, disp: dv } as Drawable, region, cb: null, map: null, range: { min: 0, max: Math.max(1, domains.length - 1) }, edges, ed };
+		const mp = mapping(lo, hi);
+		return { surface: { pos: ext.pos, val, disp: dv } as Drawable, region, map: mp, range: mp.range, edges, ed, cb: { ...mp.range, label, unit, cm: mp.cm, scale: mp.scale, note } };
 	});
-	const cm3 = $derived<ColormapName>(view3d?.signed && !DIVERGING.has(colormap) ? 'balance' : colormap);
+	// keep the last complete 3D view while a remesh is in flight: unmounting the canvas would recreate the WebGL
+	// context (setSize + context loss measured at 100-400 ms per drag step; audit S6)
+	let last3d: NonNullable<typeof view3d> | null = null;
+	const shown3d = $derived.by(() => {
+		const v = view3d;
+		if (v) last3d = v;
+		return v ?? (is3d ? last3d : null);
+	});
 	const clip3 = $derived.by(() => {
 		if (!clipOn || !mesh || !is3d) return null;
 		const b = bbox3(mesh.nodes);
@@ -238,13 +295,12 @@
 		n[clipAxis] = 1;
 		return { n, d: b.lo[clipAxis]! + clipFrac * (b.hi[clipAxis]! - b.lo[clipAxis]!) - b.c[clipAxis]! };
 	});
-	// slices and isosurfaces of nodal fields (post worker); displacement carried for deformed display
 	$effect(() => {
 		const f = nodal3, m = mesh;
 		if (!f || !m || (!sliceOn && !isoOn) || mode !== 'results') { cuts = []; return; }
-		const nn = m.nodes.length / 3;
+		const nn = m.nodes.length / 3, c = f.components > 1 ? comp : 0;
 		const nodal = new Float64Array(nn);
-		for (let i = 0; i < nn; i++) nodal[i] = disp.a * scalarAt(f, i) + disp.b;
+		for (let i = 0; i < nn; i++) nodal[i] = disp.a * scalarAt(f, i, c) + disp.b;
 		const dsp = dispField ? Float64Array.from(dispField.data) : null;
 		const b = bbox3(m.nodes);
 		const jobs: Promise<Drawable>[] = [];
@@ -261,21 +317,24 @@
 		void Promise.all(jobs).then((d) => { if (s.mesh === m) cuts = d; });
 	});
 
+	// eigen solutions open on their first non-zero mode, or the spec's plot result step
 	let solSeen: unknown = null;
 	$effect(() => {
 		if (sol && sol !== solSeen) {
+			const first = solSeen === null;
 			solSeen = sol;
+			if (!first && untrack(() => step) < (sol.steps?.values.length ?? 0)) return;
 			const v = sol.steps?.kind === 'eigen' ? sol.steps.values : null;
-			const first = v ? v.findIndex((x) => x > 0) : 0;
-			step = first > 0 ? first : 0;
+			const want = plotResult?.step ?? (v ? v.findIndex((x) => x > 0) : 0);
+			step = want > 0 ? want : 0;
 		}
 	});
 
-	// animation: eigen phase (cos) or time steps, render on demand only while playing
 	onMount(() => {
 		let raf = 0, last = performance.now();
 		const tick = (t: number) => {
 			raf = requestAnimationFrame(tick);
+			if (s.status === 'solving') now = t;
 			if (!playing) { last = t; return; }
 			const dt = (t - last) / 1000;
 			last = t;
@@ -293,39 +352,50 @@
 			else if (k === 'r') mode = 'results';
 			else if (k === 'w') wireUser = !wireUser;
 			else if (k === 'f') fit++;
-			else if (k === ' ' && (eigen || nSteps > 1)) { e.preventDefault(); playing = !playing; }
-			else return;
+			else if (k === ' ' && canAnimate) { e.preventDefault(); playing = !playing; }
 		};
 		window.addEventListener('keydown', key);
 		return () => { cancelAnimationFrame(raf); window.removeEventListener('keydown', key); };
 	});
 
+	let interacted = false;
+	function firstTouch() {
+		// calm start: the mode animation begins on the first interaction with the canvas (R5 lesson 3)
+		if (autoAnimate && !interacted && eigen && canAnimate) playing = true;
+		interacted = true;
+	}
+
 	function hover(p: { x: number; y: number } | null) {
 		if (!p) { probe = null; return; }
+		const a = disp.a, b = disp.b;
 		s.post.probe(p.x, p.y, (h) => {
-			probe = h.hit ? { x: h.x, y: h.y, v: h.hit.value === null ? null : disp.a * h.hit.value + disp.b, dom: domains[h.hit.domain]?.id ?? String(h.hit.domain) } : null;
+			probe = h.hit ? { x: h.x, y: h.y, v: h.hit.value === null ? null : a * h.hit.value + b, dom: domains[h.hit.domain]?.id ?? String(h.hit.domain) } : null;
 		});
 	}
-	// the post worker evaluates the same field the renderer draws
 	$effect(() => {
 		if (!m2) return;
-		if (mode === 'results' && field && drawable2d) s.post.setField({ space: field.space as Space, data: field.data, components: field.components, comp: field.components > 1 ? comp : 0 });
+		if (mode === 'results' && field && drawable) s.post.setField({ space: field.space as Space, data: field.data, components: field.components, comp: field.components > 1 ? comp : 0 });
 		else s.post.setField(null);
 	});
 
-	const unavailable = $derived(mode === 'results' && !sol);
+	const running = $derived(s.status === 'solving');
+	const longRun = $derived(running && s.runStart > 0 && now - s.runStart > 1000);
+	const cb = $derived(m2 ? view2d.cb : (shown3d?.cb ?? null));
+	const map = $derived(m2 ? view2d.map : (shown3d?.map ?? null));
 	const modeTip: Record<Mode, string> = { geometry: 'Geometry: domains by colour (G)', mesh: 'Mesh: element quality and wireframe (M)', results: 'Results: solution fields (R)' };
+	const meshChanged = $derived(!!s.solution && !!mesh && s.solution.meshHash !== mesh.hash);
 </script>
 
-<div class="gfx">
+<div class="gfx" class:stale role="presentation" onpointerdown={firstTouch}>
 	{#if m2}
-		<Canvas2D layers={view2d.layers} bbox={focus ?? m2.bbox} fitKey={fitKey + fit} {handles} {onhandle} onhover={hover} onframe={(ms) => (frameMs = ms)} lines={boundaryLines} hiLines={hiLines} />
-	{:else if is3d && Canvas3D && view3d}
-		<Canvas3D surface={view3d.surface} regionColors={view3d.region ? regionColors : null} edges={view3d.edges} edgeDisp={view3d.ed} colormap={cm3} range={view3d.range} {wire}
-			showSurface={!(sliceOn || isoOn) || clipOn || mode !== 'results'} deform={deform} clip={clip3} {cuts} phase={eigen && playing ? phase : null} animValue={eigen} {half} fitKey={fitKey + fit} onframe={(ms) => (frameMs = ms)} />
+		<Canvas2D layers={view2d.layers} bbox={focus ?? m2.bbox} fitKey={fitKey + fit} {handles} {onhandle} onhover={hover} onframe={(ms) => (frameMs = ms)} lines={boundaryLines} {hiLines} {markers} />
+	{:else if is3d && Canvas3D && shown3d}
+		<Canvas3D surface={shown3d.surface} regionColors={shown3d.region ? regionColors : null} edges={shown3d.edges} edgeDisp={shown3d.ed} colormap={shown3d.map?.cm ?? 'viridis'} range={shown3d.range} logScale={shown3d.map?.scale === 'log'} wire={true}
+			showSurface={!(sliceOn || isoOn) || clipOn || mode !== 'results'} {deform} clip={clip3} {cuts} phase={eigen && playing && canAnimate ? phase : null} animValue={eigen && signedField} {half} fitKey={fitKey + fit} onframe={(ms) => (frameMs = ms)} />
 	{:else}
 		<div class="empty dim">{s.status === 'meshing' ? 'Meshing...' : s.status === 'error' ? 'No mesh: see Messages' : 'No mesh yet'}</div>
 	{/if}
+	{#if longRun}<div class="prog" data-tip={`${s.progress?.stage ?? 'run'} ${s.progress?.msg ?? ''}`}><span style="width: {Math.round(100 * (s.progress?.frac ?? 0))}%" class:ind={!s.progress || s.progress.frac <= 0 || s.progress.frac >= 1}></span></div>{/if}
 
 	<div class="top">
 		<div class="modes" role="tablist">
@@ -336,30 +406,42 @@
 		{#if !compact}
 			<button class:on={wire} data-tip="Wireframe (W)" onclick={() => (wireUser = !wireUser)} disabled={mode === 'mesh'}>Wire</button>
 			<button data-tip="Zoom extents (F)" onclick={() => fit++}>Fit</button>
-			<select bind:value={colormap} data-tip="Colormap (perceptual; signed fields switch to the diverging balance map)">
-				{#each COLORMAPS as c}<option value={c}>{c}</option>{/each}
-			</select>
+			{#if cb}
+				<select value={cmUser} data-tip="Colormap. auto: viridis, or the diverging balance map (symmetric about zero) when both signs carry at least 5 % of the range" onchange={(e) => (cmUser = (e.currentTarget as HTMLSelectElement).value as 'auto' | ColormapName)}>
+					<option value="auto">auto ({map?.cm ?? 'viridis'})</option>
+					{#each COLORMAPS as c}<option value={c}>{c}</option>{/each}
+				</select>
+			{/if}
 		{/if}
-		{#if mode === 'results' && sol}
+		{#if mode === 'results' && sol && names.length}
 			{#if names.length > 1}<select value={field?.name} onchange={(e) => (fieldKey = (e.currentTarget as HTMLSelectElement).value)} data-tip="Field">{#each names as n}<option value={n}>{n}</option>{/each}</select>{/if}
-			{#if field && field.components > 1}
-				<select bind:value={comp} data-tip="Component">
-					<option value={-1}>|.|</option>
-					{#each Array.from({ length: field.components }, (_, i) => i) as i}<option value={i}>{i}</option>{/each}
+			{#if drawable}
+				{#if field && field.components > 1}
+					<select bind:value={comp} data-tip="Component">
+						<option value={-1}>magnitude</option>
+						{#each Array.from({ length: field.components }, (_, i) => i) as i}<option value={i}>{i}</option>{/each}
+					</select>
+				{/if}
+				{#if nSteps > 1}
+					<select bind:value={step} data-tip={sol.steps ? `${sol.steps.kind} step` : 'step'}>
+						{#each Array.from({ length: nSteps }, (_, i) => i) as i}<option value={i}>{sol.steps ? `${fmt(sol.steps.values[i] ?? i)} ${unitLabel(sol.steps.unit)}` : i}</option>{/each}
+					</select>
+				{/if}
+				<select bind:value={rule} data-tip="Colour range rule: full = min to max; robust = area-weighted 1st-99th percentile (values outside saturate). Over the view box when the view has one, else the whole mesh">
+					<option value="full">range: full</option>
+					<option value="robust">range: p1-99</option>
 				</select>
-			{/if}
-			{#if nSteps > 1}
-				<select bind:value={step} data-tip={sol.steps ? `${sol.steps.kind} step` : 'step'}>
-					{#each Array.from({ length: nSteps }, (_, i) => i) as i}<option value={i}>{sol.steps ? `${fmt(sol.steps.values[i] ?? i)} ${sol.steps.unit}` : i}</option>{/each}
-				</select>
-			{/if}
-			<button class:on={clipRange} data-tip="Colour range: 1st-99th percentile of the drawn values (on) or the full data range (off); values outside saturate" onclick={() => (clipRange = !clipRange)}>p1-99</button>
-			{#if eigen || nSteps > 1}<button class:on={playing} data-tip={eigen ? 'Animate the mode phase (Space)' : 'Play the steps (Space)'} onclick={() => (playing = !playing)}>{playing ? 'Pause' : 'Play'}</button>{/if}
-			{#if m2 && !compact}
-				<button class:on={contours} data-tip="Contour lines at nice levels" onclick={() => (contours = !contours)}>Contours</button>
-				<select bind:value={level} data-tip="Smoothing: refined lattice level r (r^2 sub-triangles per element, exact FE values at the lattice points)">
-					{#each [1, 2, 3, 4, 6] as l}<option value={l}>r {l}</option>{/each}
-				</select>
+				{#if map?.logOk}<button class:on={scaleUser === 'log'} data-tip="Logarithmic colour scale (the data span more than two decades)" onclick={() => (scaleUser = scaleUser === 'log' ? 'linear' : 'log')}>log</button>{/if}
+				{#if canAnimate}<button class:on={playing} data-tip={eigen ? 'Animate the mode: Re(u e^(i phase)) (Space)' : 'Play the steps (Space)'} onclick={() => (playing = !playing)}>{playing ? 'Pause' : 'Animate'}</button>{/if}
+				{#if m2}
+					{#if field?.space !== 'DG0'}<button class:on={contours} data-tip="Contour lines at the colorbar ticks" onclick={() => (contours = !contours)}>Contours</button>{/if}
+					{#if aphi}<button class:on={fieldLines} data-tip="Magnetic field lines: contours of the flux function r A_phi at equal flux steps (line density follows |B|)" onclick={() => (fieldLines = !fieldLines)}>Field lines</button>{/if}
+					{#if !compact}
+						<select bind:value={level} data-tip="Smoothing: refined lattice level r (r^2 sub-triangles per element, exact FE values at the lattice points)">
+							{#each [1, 2, 3, 4, 6] as l}<option value={l}>r {l}</option>{/each}
+						</select>
+					{/if}
+				{/if}
 			{/if}
 		{/if}
 		{#if is3d && !compact}
@@ -385,47 +467,68 @@
 		{/if}
 	</div>
 
-	{#if unavailable}
+	{#if stale}<div class="badge st" data-tip="This result was computed for an earlier version of the model; recompute for the current one">stale: earlier spec</div>
+	{:else if coarse}<div class="badge co" data-tip="Coarse preview while dragging (mesh sizes x2); the full-resolution run follows on release">coarse preview</div>{/if}
+
+	{#if mode === 'results' && !sol}
 		<div class="unav">
-			<div class="na">Results unavailable</div>
-			{#if s.status === 'unavailable'}{#each s.reasons as r}<div class="dim">{r}</div>{/each}
-			{:else if s.status === 'solving'}<div class="dim">computing...</div>
-			{:else}<div class="dim">not computed: Compute runs the registered physics module</div>{/if}
+			{#if running}
+				<div>computing{longRun ? ` ${fmtMs(now - s.runStart)}` : ''}...</div>
+			{:else if s.status === 'unavailable'}
+				<div class="na">Results unavailable</div>
+				{#each s.reasons as r}<div class="dim">{r}</div>{/each}
+				{#if s.caseInfo && !s.useCase && s.reasons.some((r) => /N\/A|no value/.test(r))}
+					<button onclick={() => { s.useCase = true; s.requestCompute(); }} data-tip={`Fill N/A material properties with the sourced inputs of eval case ${s.caseInfo.id}:\n${s.caseInfo.materials}`}>use eval case {s.caseInfo.id} values</button>
+				{/if}
+			{:else if meshChanged}
+				<div class="na">Results out of date</div><div class="dim">the geometry or mesh changed since the last solve: Compute</div>
+			{:else}
+				<div class="dim">not computed: Compute runs the registered physics module</div>
+			{/if}
 		</div>
-	{:else if mode === 'results' && sol && field && !drawable2d}
+	{:else if mode === 'results' && sol && field && !drawable}
 		<div class="unav"><div class="na">Field {field.name} ({field.space}): no display yet</div><div class="dim">the viewer draws nodal (H1) and per-cell (DG0) fields; {field.space} needs an H1 projection from @amp/physics or Nedelec evaluation in @amp/post (DevLog-011 s.5)</div></div>
 	{/if}
 
-	{#if m2 ? view2d.cb : view3d?.cb}
-		{@const cb = (m2 ? view2d.cb : view3d?.cb)!}
-		<Colorbar colormap={m2 ? ((cb as { cm?: ColormapName }).cm ?? colormap) : cm3} min={cb.min} max={cb.max} label={cb.label} unit={cb.unit} clipped={clipRange && mode === 'results'} />
+	{#if cb}
+		<Colorbar colormap={cb.cm} min={cb.min} max={cb.max} scale={cb.scale} label={cb.label} unit={cb.unit} note={cb.note} rule={mode === 'results' ? rule : 'full'} scoped={mode === 'results' && !!focus} />
 	{/if}
 
 	<div class="foot mono">
 		{#if probe}
-			<span data-tip="exact evaluation of the FE field at the cursor (post worker)">x {fmt(probe.x * lu.f)} {lu.unit}, y {fmt(probe.y * lu.f)} {lu.unit}</span>
+			<span data-tip="exact evaluation of the FE field at the cursor (post worker)">x {fmt(probe.x * lu.f)} {unitLabel(lu.unit)}, y {fmt(probe.y * lu.f)} {unitLabel(lu.unit)}</span>
 			<span>{probe.dom}</span>
-			{#if probe.v !== null}<span>{field?.name ?? ''} = {fmt(probe.v)} {disp.unit}</span>{/if}
+			{#if probe.v !== null}<span>{field?.name ?? ''} = {fmt(probe.v)} {unitLabel(disp.unit)}</span>{/if}
 		{/if}
 		<span class="sp"></span>
-		{#if s.meshInfo}<span data-tip={`mesher: ${s.meshInfo.source}; parse ${fmtMs(s.meshInfo.ms.parse)}, geometry ${fmtMs(s.meshInfo.ms.geometry)}, mesh ${fmtMs(s.meshInfo.ms.mesh)}; min quality ${fmt(s.meshInfo.qmin)}, mean ${fmt(s.meshInfo.qmean)}`}>{s.meshInfo.cells} {s.meshInfo.type}, {s.meshInfo.nodes} nodes</span>{/if}
-		{#if s.staleMesh}<span class="warn">mesh stale</span>{/if}
-		{#if s.staleSolution}<span class="warn">solution stale</span>{/if}
-		<span data-tip="last frame draw time (CPU side)">{fmtMs(frameMs)}</span>
+		{#if s.meshInfo}<span data-tip={`mesh hash ${s.meshInfo.hash.slice(0, 16)}; mesher: ${s.meshInfo.source}; parse ${fmtMs(s.meshInfo.ms.parse)}, mesh ${fmtMs(s.meshInfo.ms.mesh)}; min quality ${fmt(s.meshInfo.qmin)}, mean ${fmt(s.meshInfo.qmean)}`}>{s.meshInfo.cells} {s.meshInfo.type}, {s.meshInfo.nodes} nodes</span>{/if}
+		{#if !compact}<span data-tip="last frame draw time (CPU side)">{fmtMs(frameMs)}</span>{/if}
 	</div>
 </div>
 
 <style>
 	.gfx { position: absolute; inset: 0; background: #0d0d0d; overflow: hidden; user-select: none; -webkit-user-select: none; }
+	.gfx.stale :global(canvas) { filter: saturate(0.2) brightness(0.65); }
 	.empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-	.top { position: absolute; left: 6px; top: 6px; right: 80px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; pointer-events: none; }
+	.top { position: absolute; left: 6px; top: 6px; right: 84px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; pointer-events: none; }
 	.top > * { pointer-events: auto; }
 	.modes { display: flex; }
 	.modes button + button { border-left: 0; }
 	.n { width: 56px; }
-	.unav { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(13, 13, 13, 0.85); border: 1px solid var(--border); padding: 8px 12px; max-width: 70%; font-size: 11px; display: flex; flex-direction: column; gap: 2px; }
+	.prog { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: rgba(57, 135, 229, 0.15); }
+	.prog span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); transition: width 0.2s; }
+	.prog span.ind { width: 30% !important; animation: slide 1.2s linear infinite; }
+	@keyframes slide { from { left: -30%; } to { left: 100%; } }
+	.badge { position: absolute; right: 84px; top: 36px; font-size: 11px; padding: 1px 6px; border: 1px solid; background: rgba(13, 13, 13, 0.85); }
+	.badge.st { color: var(--warn); border-color: var(--warn); }
+	.badge.co { color: var(--ink-2); border-color: var(--border); }
+	.unav { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(13, 13, 13, 0.88); border: 1px solid var(--border); padding: 8px 12px; max-width: 70%; font-size: 11px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
 	.unav .na { font-size: 12px; }
 	.foot { position: absolute; left: 6px; right: 6px; bottom: 4px; display: flex; gap: 12px; font-size: 11px; color: var(--ink-2); pointer-events: none; white-space: nowrap; overflow: hidden; }
 	.foot > span:not(.sp) { pointer-events: auto; background: rgba(13, 13, 13, 0.75); padding: 0 3px; }
 	.sp { flex: 1; }
+	@media (max-width: 760px) {
+		.top { right: 6px; }
+		.badge { right: 6px; top: 64px; }
+	}
 </style>

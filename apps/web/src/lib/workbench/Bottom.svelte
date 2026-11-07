@@ -30,7 +30,7 @@
 			<div class="scroll">
 				{#if s.status === 'error'}<div class="m crit">{s.error}</div>{/if}
 				{#each issues as i}
-					<div class="m" role="button" tabindex="0" data-tip={`${i.pointer} (${i.code})`} onclick={() => onjump?.(i.pointer)} onkeydown={() => {}}><span class="crit">error</span> <span class="mono dim">{i.line ? `${i.line}:${i.col}` : ''}</span> {i.dotted || '(root)'}: {i.message}</div>
+					<div class="m" role="button" tabindex="0" data-tip={`${i.pointer} (${i.code})`} onclick={() => onjump?.(i.pointer)} onkeydown={(e) => { if (e.key === 'Enter') onjump?.(i.pointer); }}><span class="crit">error</span> <span class="mono dim">{i.line ? `${i.line}:${i.col}` : ''}</span> {i.dotted || '(root)'}: {i.message}</div>
 				{/each}
 				{#if s.status === 'unavailable'}
 					{#each s.reasons as r}<div class="m"><span class="na">unavailable</span> {r}</div>{/each}

@@ -16,6 +16,23 @@ export default defineConfig({
 			adapter: adapter({ pages: 'build', assets: 'build', fallback: undefined, precompress: false, strict: true }),
 			paths: { relative: false },
 			prerender: { handleHttpError: 'fail' },
+			// Content-Security-Policy (audit S10, before the BYO-key agent panel): hashes for the inline bootstrap script;
+			// connect-src limited to this origin and the LLM provider (DevLog-012); WASM compile allowed for the opt-in
+			// solvers and meshers ('wasm-unsafe-eval' permits WebAssembly compilation only, not eval)
+			csp: {
+				mode: 'hash',
+				directives: {
+					'default-src': ['self'],
+					'script-src': ['self', 'wasm-unsafe-eval'],
+					'style-src': ['self', 'unsafe-inline'],
+					'img-src': ['self', 'data:', 'blob:'],
+					'connect-src': ['self', 'https://api.anthropic.com'],
+					'worker-src': ['self', 'blob:'],
+					'object-src': ['none'],
+					'base-uri': ['self'],
+					'form-action': ['self']
+				}
+			},
 			// CSS in the HTML: first paint needs no second request
 			inlineStyleThreshold: 64 * 1024,
 			// no service worker on the dev server: it would cache code under development

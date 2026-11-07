@@ -3,6 +3,7 @@
 	// 3D canvas around Viewer3D: the canvas fills its container absolutely; props map onto uniforms and drawables.
 	import { onMount } from 'svelte';
 	import { Viewer3D, type Drawable } from './viewer3d';
+	import { registerCapture } from './capture';
 	import type { ColormapName } from './colormaps';
 
 	let {
@@ -65,7 +66,9 @@
 			v?.resize(b.width, b.height, devicePixelRatio || 1);
 		});
 		ro.observe(host);
+		const unreg = registerCapture(() => v?.grab() ?? null);
 		return () => {
+			unreg();
 			ro.disconnect();
 			v?.dispose();
 			v = null;
