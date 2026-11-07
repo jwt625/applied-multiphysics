@@ -354,3 +354,20 @@ I1 bug (folded in): for the emw cylinder, `prepareRun` read hmax from the valida
 | < 5 s | yes (Node) | no |
 
 Tests 2026-11-06 17:20 PST: physics 42/42 (followup3: 3), post 4/4; tsc clean (physics, post). `gates/run-all.ts` includes `rf-axisym.ts`.
+
+## 9. Follow-up 4: dtFactor and the AC-02 end-to-end time (2026-11-06 17:20-17:30 PST)
+
+- **dtFactor** (L8 `convergence.dt_with_h`): `prepareRun({..., dtFactor})` scales the time study's dt by dtFactor and rounds it so that (stop - start) / dt is an integer (the step count is rounded; a note records the original and the rounded dt). Test `test/followup3.test.ts`: dt 1 s with dtFactor 0.25 gives 0.25 s and 32 steps.
+- **AC-02 profile** (`gates/ac-profile.ts`: prepareRun + acoustics run at the case h_factors [1, 0.5, 0.25] on sims/box-acoustics.yaml, Node, load average 3.6-4.8):
+
+| | hFactor 0.25 level (33,825 DOF): geometry_mesh / assemble / factor / eigen (Arnoldi + refine) | End to end, 3 levels |
+|---|---|---|
+| Before | 1,527 / 688 / 3,489 / 1,972 ms (Arnoldi 1,544, refine 417; 52 operator applications, 1 restart; nnzL 1.85e7) | 8,335 ms |
+| After | 20 / 659 / 2,665 / 1,741 ms (Arnoldi 1,351, refine 381; 52 operator applications; nnzL 1.65e7) | 5,534 ms |
+
+  Fix applied: the nested tet10 box levels are built directly as the Kuhn split of the doubled grid instead of `refineUniform` (the doubled Kuhn grid is a nested refinement: every fine tet lies in exactly one coarse tet, checked on a 2x2x2 -> 4x4x4 box, 384 of 384). The mesh stage drops from 1.53 s to 0.02 s. The refined chain's refine closure is now cached with the chain (a first version rebuilt the base closure and returned level 1 twice; caught in the profile, fixed before any result). Accuracy is unchanged: same nested P2 spaces, same eigen tolerance. The factor time differs between runs because the doubled-grid node order gives a different AMD ordering (nnzL 1.65e7 vs 1.85e7).
+  The run is still about 0.5 s over 5 s at this load. The finest level is fixed by the case (h_factors [1, 0.5, 0.25]): factor 2.7 s plus eigen 1.7 s at 33.8k DOF. Not done here:
+  - Quadrature: a 64-point collapsed rule integrates P2 mass on affine tets exactly. tetRule(3) is exact only through degree 3, so a smaller exact rule needs a published 14/15-point degree-5 rule (not taken from memory, no source read).
+  - Shift: a positive in-band shift would need LDL^T instead of Cholesky.
+  Proposal, unchanged accuracy: h_factors [1, 2/3, 1/2] for AC-02 (L7a). The L4 gate's s = 1, 2, 3 levels (4,641 and 14,725 DOF at the two finer levels) pass all ten modes at 1e-4 with p 3.66-3.87 in 1.75 s. A non-power-of-2 hFactor re-meshes the structured box (self-similar, not nested), and the shared rule accepts that sequence.
+- Tests: physics 43/43; tsc clean.

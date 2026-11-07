@@ -52,3 +52,23 @@ test('prepareRun: a non-power-of-2 hFactor really re-meshes the emw cylinder (I1
   assert.ok(n(c2) > n(c1) && n(c3) > n(c1), `${n(c1)} ${n(c2)} ${n(c3)}`);
   assert.notEqual(c1.mesh.hash, c2.mesh.hash);
 });
+
+test('prepareRun: dtFactor scales the transient time step (L8 dt_with_h)', async () => {
+  const sp = {
+    schema: 'amp-spec/0', id: 'tr', title: 'dt test', params: {},
+    geometry: { dim: 2, features: [{ id: 'bar', type: 'rect', settings: { size: ['1 m', '0.1 m'], center: ['0.5 m', '0.05 m'] } }] },
+    materials: [{ id: 'm1', override: { k: { value: 1, unit: 'W/(m*K)' }, rho: { value: 1, unit: 'kg/m^3' }, cp: { value: 1, unit: 'J/(kg*K)' } }, select: ['dom:bar'] }],
+    physics: [{ id: 'ht', type: 'heat', select: ['dom:bar'], settings: { T0: '300 K' }, bcs: [{ id: 'l', type: 'temperature', select: ['bnd:bar.left'], settings: { T: '310 K' } }] }],
+    mesh: { size: { hmax: '0.1 m' } },
+    studies: [{ id: 's', type: 'time', physics: ['ht'], settings: { start: '0 s', stop: '8 s', dt: '1 s', method: 'bdf2' } }],
+  };
+  const dtOf = (c: { study: { settings?: unknown } }) => (c.study.settings as { dt: unknown }).dt;
+  const c1 = await prepareRun({ spec: sp, hFactor: 1 });
+  const c2 = await prepareRun({ spec: sp, hFactor: 0.5, dtFactor: 0.25 });
+  assert.deepEqual(dtOf(c2), { value: 0.25, unit: 's' });
+  assert.equal(dtOf(c1), '1 s');
+  const s2 = await heatModuleRun(c2);
+  assert.equal(s2, 33);   // 32 steps + the initial state saved
+});
+import { heatModule } from '../src/index.ts';
+async function heatModuleRun(c: Parameters<typeof heatModule.run>[0]) { const s = await heatModule.run(c); return s.steps!.values.length; }

@@ -30,6 +30,8 @@ export interface MaterialLibrary { getProperty(id: string, prop: string, o?: { T
 
 export interface CaseCtx {
   case?: Record<string, unknown>; physicsId?: string; level?: number; hFactor?: number; signal?: AbortSignal;
+  /** time-step factor of this level (L8 convergence.dt_with_h: hFactor^(space_order / time_order)) */
+  dtFactor?: number;
   /** temperature for T-dependent material tables (K) */
   T?: number;
   library?: MaterialLibrary | null;
@@ -70,7 +72,8 @@ export async function prepareRun(a: PrepareArgs | Record<string, unknown>, b?: C
   const t0 = performance.now();
   const materials = resolveMaterials(spec, ph.type, args.case, args.T, lib, notes);
   timing.materials = performance.now() - t0;
-  const study = pickStudy(spec, ph.id, args.case);
+  let study = pickStudy(spec, ph.id, args.case);
+  if (args.dtFactor !== undefined && args.dtFactor !== 1 && study.type === 'time') study = scaleDt(spec, study, args.dtFactor, notes);
   return {
     spec, physicsId: ph.id, mesh, materials, study, notes, timing,
     progress: () => {}, signal: args.signal ?? new AbortController().signal,
@@ -95,7 +98,7 @@ function scaleSpecMesh(raw: Record<string, unknown>, f: number): Record<string, 
   return out;
 }
 
-const chains = new Map<string, Mesh[]>();
+const chains = new Map<string, { meshes: Mesh[]; refine: (m: Mesh) => Mesh }>();
 const lastHash = new Map<string, { hash: string; f: number }>();
 const MAX_CHAINS = 8;
 
@@ -111,9 +114,13 @@ function baseMesh(raw: Record<string, unknown>, spec: Spec, type: string, notes:
     const s = G.solids[0]!;
     const hmax = R.q(((raw.mesh ?? {}) as { size?: { hmax?: unknown } }).size?.hmax);
     const n = (r: [number, number]) => Math.max(1, Math.ceil((r[1] - r[0]) / hmax - 1e-9));
-    const m = boxMesh({ x: s.x, y: s.y, z: s.z, nx: n(s.x), ny: n(s.y), nz: n(s.z), cell: 'tet10', id: s.id });
-    notes.push('mesh: tet10 Kuhn box (packages/physics common/mesh.ts boxMesh), nested levels by refineUniform');
-    return { m, refine: (x) => refineUniform(x) };
+    // the Kuhn split of the doubled grid is a nested refinement of the Kuhn split (every fine tet lies in one coarse
+    // tet; checked 2026-11-06, DevLog-010 s.9), and building it directly is about 100x cheaper than refineUniform
+    let nn = [n(s.x), n(s.y), n(s.z)];
+    const mk = () => boxMesh({ x: s.x, y: s.y, z: s.z, nx: nn[0]!, ny: nn[1]!, nz: nn[2]!, cell: 'tet10', id: s.id });
+    const m = mk();
+    notes.push('mesh: tet10 Kuhn box (packages/physics common/mesh.ts boxMesh), nested levels by doubling the grid');
+    return { m, refine: () => { nn = nn.map((v) => 2 * v); return mk(); } };
   }
   if (G.dim === 3 && G.solids.length === 1 && G.solids[0]!.type === 'cylinder') {
     const c = G.solids[0]!;
@@ -135,12 +142,16 @@ function levelMesh(raw: Record<string, unknown>, spec: Spec, type: string, f: nu
   const simplexOk = (spec.geometry as { dim: number }).dim === 2 || (feats.length === 1 && (feats[0]!.type === 'cylinder' || (feats[0]!.type === 'box' && ord === 2)));
   if (nested && simplexOk) {
     const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type });
-    let chain = chains.get(key);
-    const b = chain ? null : baseMesh(raw, spec, type, notes);
-    if (!chain) { chain = [b!.m]; chains.set(key, chain); while (chains.size > MAX_CHAINS) chains.delete(chains.keys().next().value!); }
-    const ref = b?.refine ?? baseMesh(raw, spec, type, notes).refine;
-    while (chain.length <= k) chain.push(ref(chain[chain.length - 1]!));
-    if (k > 0) notes.push(`mesh: level ${k} = ${k} nested uniform refinement(s) of the hFactor = 1 mesh (refineUniform)`);
+    let entry = chains.get(key);
+    if (!entry) {
+      const bm = baseMesh(raw, spec, type, notes);
+      entry = { meshes: [bm.m], refine: bm.refine };
+      chains.set(key, entry);
+      while (chains.size > MAX_CHAINS) chains.delete(chains.keys().next().value!);
+    }
+    const chain = entry.meshes;
+    while (chain.length <= k) chain.push(entry.refine(chain[chain.length - 1]!));
+    if (k > 0) notes.push(`mesh: level ${k} = ${k} nested uniform refinement(s) of the hFactor = 1 mesh`);
     return chain[k]!;
   }
   if (f !== 1) notes.push(`mesh: hFactor ${f} is not a power of 1/2 (or no nested refinement for this cell type): re-meshed with scaled sizes, levels are not nested`);
@@ -213,4 +224,16 @@ function pickStudy(spec: Spec, physicsId: string, cs: Record<string, unknown> | 
   const hit = st.find((s) => s.type === want) ?? st.find((s) => s.type !== 'parametric') ?? st[0];
   if (!hit) throw new Error(`no study for physics ${physicsId}`);
   return hit;
+}
+
+/** Time study with dt scaled by dtFactor, rounded so that (stop - start) / dt is an integer (the step count rounds). */
+function scaleDt(spec: Spec, st: StudyNode, f: number, notes: string[]): StudyNode {
+  const scope = resolveParams(spec.params ?? {}).scope;
+  const set = (st.settings ?? {}) as { start: unknown; stop: unknown; dt: unknown };
+  const si = (q: unknown) => { const r = resolveQuantity(q, scope); if (r.na) throw new Error('time study value is N/A'); return r.si; };
+  const t0 = si(set.start), t1 = si(set.stop), dt = si(set.dt) * f;
+  const n = Math.max(1, Math.round((t1 - t0) / dt));
+  const dtR = (t1 - t0) / n;
+  notes.push(`time: dt scaled by dtFactor ${f}: ${si(set.dt)} s -> ${dtR} s (${n} steps${Math.abs(dtR - dt) > 1e-12 * dt ? `, rounded from ${dt} s` : ''})`);
+  return { ...st, settings: { ...(st.settings as Record<string, unknown>), dt: { value: dtR, unit: 's' } } } as StudyNode;
 }
