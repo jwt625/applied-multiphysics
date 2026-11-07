@@ -28,6 +28,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {text: "6061 sheet, all tempers of the table; temperature not stated"}
+    valid: {T: {na: "room temperature (MIL-HDBK-5J p.3-262: 'Room-temperature mechanical and physical properties'), not quantified"}}
     alternatives: []
   E:
     value: 9.9e3
@@ -38,6 +39,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "design value, no uncertainty stated"}
     conditions: {text: "room temperature design value, 6061 sheet T4 / T42 / T6 / T62"}
+    valid: {T: {na: "room temperature (MIL-HDBK-5J p.3-262: 'Room-temperature mechanical and physical properties'), not quantified"}}
     alternatives:
       - id: nist_cryo_e_t
         use: "temperature-dependent modulus below room temperature (2-295 K)"
@@ -61,6 +63,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "design value"}
     conditions: {text: "room temperature design value"}
+    valid: {T: {na: "room temperature (MIL-HDBK-5J p.3-262: 'Room-temperature mechanical and physical properties'), not quantified"}}
     alternatives: []
   nu:
     value: 0.33
@@ -71,6 +74,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "design value"}
     conditions: {text: "room temperature design value"}
+    valid: {T: {na: "room temperature (MIL-HDBK-5J p.3-262: 'Room-temperature mechanical and physical properties'), not quantified"}}
     alternatives: []
   k:
     fit:
@@ -97,6 +101,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {rel: 0.05, note: "curve fit error relative to data: 5 %"}
     conditions: {text: "6061-T6"}
+    note: "JANAF pure Al (janaf.nist.gov Al-001.txt, fetched by L10 2026-11-06): Cp 21.338 J/(mol K) at 200 K, 24.209 at 298.15 K, 24.247 at 300 K. Per unit mass this is 5-6 % below this fit (fresh-context audit 2026-11-06: 790.8 vs 835 at 200 K, 898.7 vs 954 at 300 K), at or beyond the fit's 5 %; the alloy vs pure-Al difference is not quantified by a source read here"
     alternatives: []
   alpha:
     fit:

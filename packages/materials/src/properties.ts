@@ -91,7 +91,11 @@ export function registerMaterialProperties(reg: Registry): string[] {
         throw new Error(`property '${d.name}': registered unit '${prev.unit}' differs in dimension from '${d.unit}'`);
       continue;
     }
-    reg.register({ kind: 'property', type: d.name, unit: d.unit, description: d.description, owner: '@amp/materials' }, { replace: !!prev });
+    reg.register({
+      kind: 'property', type: d.name, unit: d.unit, description: d.description, owner: '@amp/materials',
+      scalar: d.scalar,
+      tensor: Object.fromEntries(d.tensor.map((s) => [s, SYMMETRY_COMPONENTS[s]])),
+    }, { replace: !!prev });
     done.push(d.name);
   }
   return done;

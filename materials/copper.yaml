@@ -56,6 +56,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated in the compilation"}}
     alternatives:
       - id: lange1956
         use: "sensitivity (second handbook value in the same compilation, 20 C)"
@@ -67,6 +68,7 @@ properties:
         accessed: 2026-11-06
         uncertainty: {na: "not stated"}
         conditions: {T: "20 degC"}
+        valid: {T: {unit: degC, range: [20, 20]}, note: "single stated temperature (20 C)"}
   k:
     table:
       x: T
@@ -105,6 +107,7 @@ properties:
     accessed: 2026-10-20
     uncertainty: {abs: 0.7, unit: GPa}
     conditions: {text: "room temperature, annealed polycrystal; (1/E) dE/dT = -4.8e-4 /K at RT (Table 12 p.925), not applied"}
+    valid: {T: {na: "room temperature (Table 10), not quantified"}}
     alternatives: []
   nu:
     value: 0.350
@@ -115,6 +118,7 @@ properties:
     accessed: 2026-10-20
     uncertainty: {abs: 0.009}
     conditions: {text: "room temperature, annealed polycrystal"}
+    valid: {T: {na: "room temperature (Table 10), not quantified"}}
     alternatives: []
   cp:
     table:
@@ -149,13 +153,14 @@ properties:
         use: "constant CTE above 300 K (no temperature range stated in the source)"
         value: 17.0
         unit: ppm/K
-        cte_kind: instantaneous
+        cte_kind: unstated
         basis: handbook
         source: nist_solder_db_v4
         locator: "Table 2.2.7 row Cu: CTE 17.0 x 1e-6 /C (ASM Handbook Vol. 6, 1993, as cited)"
         accessed: 2026-11-06
         uncertainty: {na: "not stated"}
-        conditions: {text: "temperature range not stated; kind (mean vs instantaneous) not stated, recorded as instantaneous"}
+        conditions: {text: "temperature range not stated; kind (mean vs instantaneous) not stated by the source"}
+        valid: {T: {na: "temperature range not stated in the compilation"}}
   mu_r:
     value: N/A
     unit: "1"

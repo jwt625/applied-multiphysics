@@ -20,7 +20,7 @@ sources:
     citation: "D. B. Leviton, B. J. Frey, Temperature-dependent absolute refractive index measurements of synthetic fused silica, Proc. SPIE 6273, 62732K (2006); arXiv:0805.0091"
     url: https://arxiv.org/abs/0805.0091
     access: open
-    read: "text layer of the arXiv PDF (Tables 3, 4, 6), read by L10 2026-11-06; cached under cache/materials/fused-silica/"
+    read: "text layer of the arXiv PDF (p.3 air / vacuum convention, p.6 Table 3 and dn/dT method, p.7 Tables 4 and 6), read by L10 2026-11-06; cached under cache/materials/fused-silica/"
   corning_hpfs_2014:
     citation: "Corning Incorporated, HPFS 7979, 7980, 8655 Fused Silica, Product Information Sheet, February 2014 (hosted by Edmund Optics)"
     url: "https://www.edmundoptics.co.uk/ViewDocument/Corning%20Fused%20Silica%20Grades.pdf"
@@ -45,6 +45,9 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated in the database entry; primary not read"}
     conditions: {T: "20 degC"}
+    n_medium: air
+    n_medium_note: "Leviton and Frey 2006 (arXiv p.3): Malitson measured by minimum deviation in air and his law is 'for synthetic fused silica in air'; library converts to vacuum wavelength and n relative to vacuum with air.n (Ciddor 1996 standard air)"
+    valid: {T: {unit: degC, range: [20, 20]}, note: "Malitson room-temperature data (database: 20 C); use dndT for other T"}
     alternatives:
       - id: leviton_frey_corning7980
         use: "temperature-dependent index of Corning 7980, 30-300 K, 0.4-2.6 um"
@@ -65,21 +68,50 @@ properties:
         accessed: 2026-11-06
         uncertainty: {abs: 1.0e-5, note: "abstract: absolute uncertainty of measured index +-1e-5; Table 1 lists larger values beyond 2 um"}
         conditions: {text: "Corning 7980, five prisms, CHARMS minimum-deviation refractometer"}
+        n_medium: vacuum
+        n_medium_note: "absolute index (relative to vacuum), measured in vacuum (arXiv p.3)"
   dndT:
-    table:
-      x: lambda
-      x_unit: um
-      xs: [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.5, 2.6]
-      ys: [9.70e-6, 9.12e-6, 8.86e-6, 8.69e-6, 8.60e-6, 8.52e-6, 8.48e-6, 8.40e-6, 8.45e-6, 8.29e-6, 8.38e-6, 8.48e-6, 8.11e-6, 8.38e-6, 8.71e-6, 8.48e-6]
+    fit:
+      formula: leviton-frey-sellmeier-dndT
+      vars: [{name: lambda, unit: um, range: [0.4, 2.6]}, {name: T, unit: K, range: [30, 300]}]
+      coeffs:
+        S1: [1.10127, -4.94251e-5, 5.27414e-7, -1.59700e-9, 1.75949e-12]
+        S2: [1.78752e-5, 4.76391e-5, -4.49019e-7, 1.44546e-9, -1.57223e-12]
+        S3: [7.93552e-1, -1.27815e-3, 1.84595e-5, -9.20275e-8, 1.48829e-10]
+        L1: [-8.90600e-2, 9.08730e-6, -6.53638e-8, 7.77072e-11, 6.84605e-14]
+        L2: [2.97562e-1, -8.59578e-4, 6.59069e-6, -1.09482e-8, 7.85145e-13]
+        L3: [9.34454, -7.09788e-3, 1.01968e-4, -5.07660e-7, 8.21348e-10]
+        h: 0.01
     unit: 1/K
     basis: derived
     source: leviton2006
-    locator: "arXiv p.7 Table 6 'thermo-optic coefficient, dn/dT ... in units of 1/K', column 295 K"
+    locator: "arXiv p.6 Table 3 Sellmeier model (same coefficients as the n alternative leviton_frey_corning7980), differentiated in T"
     accessed: 2026-11-06
-    derivation: "source: derivative of the temperature-dependent fit of measured indices"
-    uncertainty: {abs: 2.0e-8, unit: 1/K, note: "abstract: statistical variations of derived dn/dT at the +-2e-8 /K level; peak sample-to-sample deviation 5e-8 /K (p.3)"}
-    conditions: {T: "295 K", text: "Corning 7980"}
-    alternatives: []
+    derivation: "dn/dT = [n(T + h) - n(T - h)] / (2 h), h = 0.01 K, of the Table 3 model (formula leviton-frey-sellmeier-dndT; changing h to 0.1 K changes the result by < 1e-15 /K at 1.55 um, 295 K)"
+    uncertainty: {abs: 6.8e-7, unit: 1/K, note: "spread between the two routes of the source, computed by L10 at 295 K over the 16 Table 6 wavelengths: Table 6 (per-wavelength quadratic n(T) fits, dn/dT = 2aT + b, p.6) minus this Sellmeier derivative is +0.9e-7 .. +3.2e-7 /K for 0.4-2.0 um and down to -6.8e-7 /K at 2.6 um; the abstract's +-2e-8 /K is only the statistical variation within one route"}
+    conditions: {text: "Corning 7980"}
+    n_medium: vacuum
+    n_medium_note: "absolute index (relative to vacuum, vacuum wavelength): CHARMS measures in vacuum and Leviton and Frey adjust Malitson's air-based law to vacuum for comparison (arXiv p.3)"
+    alternatives:
+      - id: table6_295k
+        use: "the source's Table 6 values at 295 K, only at the tabulated wavelengths (scattered, not interpolated)"
+        table:
+          x: lambda
+          x_unit: um
+          xs: [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.5, 2.6]
+          ys: [9.70e-6, 9.12e-6, 8.86e-6, 8.69e-6, 8.60e-6, 8.52e-6, 8.48e-6, 8.40e-6, 8.45e-6, 8.29e-6, 8.38e-6, 8.48e-6, 8.11e-6, 8.38e-6, 8.71e-6, 8.48e-6]
+          interp: nodes
+        unit: 1/K
+        basis: derived
+        source: leviton2006
+        locator: "arXiv p.7 Table 6 'thermo-optic coefficient, dn/dT ... in units of 1/K', column 295 K"
+        accessed: 2026-11-06
+        derivation: "source p.6: dn(T)/dT = 2aT + b of quadratic n(T) fits per wavelength"
+        uncertainty: {abs: 6.8e-7, unit: 1/K, note: "same two-route spread as the default; the column is non-monotonic in wavelength"}
+        conditions: {T: "295 K"}
+        valid: {T: {unit: K, range: [295, 295]}}
+        n_medium: vacuum
+        n_medium_note: "absolute index (arXiv p.3)"
   rho:
     value: 2.20
     unit: g/cm^3
@@ -89,6 +121,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {T: "25 degC", text: "HPFS 7980"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "sheet: all values at 25 C; measurement temperature range not stated"}
     alternatives: []
   E:
     value: 73
@@ -99,6 +132,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "sheet: all values at 25 C; measurement temperature range not stated"}
     alternatives: []
   G:
     value: 31
@@ -109,6 +143,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "sheet: all values at 25 C; measurement temperature range not stated"}
     alternatives: []
   nu:
     value: 0.16
@@ -119,6 +154,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "sheet: all values at 25 C; measurement temperature range not stated"}
     alternatives: []
   k:
     value: 1.38
@@ -129,6 +165,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "sheet: all values at 25 C; measurement temperature range not stated"}
     alternatives: []
   cp:
     value: 0.770
@@ -139,6 +176,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "sheet: all values at 25 C; measurement temperature range not stated"}
     alternatives: []
   alpha:
     value: 0.52
@@ -151,6 +189,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {text: "mean coefficient over 5-35 C"}
+    valid: {T: {unit: degC, range: [5, 35]}, note: "mean over the stated range"}
     alternatives:
       - id: mean_0_200c
         use: "mean CTE over a wider range"
@@ -164,6 +203,7 @@ properties:
         accessed: 2026-11-06
         uncertainty: {na: "not stated"}
         conditions: {text: "mean coefficient over 0-200 C"}
+        valid: {T: {unit: degC, range: [0, 200]}, note: "mean over the stated range"}
       - id: mean_m100_200c
         use: "mean CTE including low temperatures"
         value: 0.48
@@ -176,6 +216,7 @@ properties:
         accessed: 2026-11-06
         uncertainty: {na: "not stated"}
         conditions: {text: "mean coefficient over -100 to +200 C"}
+        valid: {T: {unit: degC, range: [-100, 200]}, note: "mean over the stated range"}
   eps_r:
     value: 3.75
     unit: "1"
@@ -185,6 +226,7 @@ properties:
     accessed: 2026-10-20
     uncertainty: {na: "not stated"}
     conditions: {f: "100 MHz", T: "293 K", text: "Heraeus Infrasil / Suprasil class"}
+    valid: {T: {unit: K, range: [293, 293]}, f: {unit: MHz, range: [100, 100]}, note: "single stated condition"}
     alternatives: []
   tan_delta:
     value: N/A

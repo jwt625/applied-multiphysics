@@ -2,7 +2,7 @@
 // Parse + validate one amp-material/0 document (DevLog-013 s.1.5 gate 1): zod structure, then semantic checks.
 
 import { parse as parseYaml } from 'yaml';
-import { materialSchema, type MaterialDoc, type Leaf, type AltLeaf, type Table, type Fit, type Component } from './schema.ts';
+import { materialSchema, type MaterialDoc, type Leaf, type AltLeaf, type Table, type Fit, type Component, type Valid } from './schema.ts';
 import { PROPERTY_BY_NAME, SYMMETRY_COMPONENTS, type PropertyDef, type Symmetry } from './properties.ts';
 import { FORMULAS, checkFormulaCoeffs } from './formulas.ts';
 import { parseUnit, parseQuantity, sameDim } from './units.ts';
@@ -41,6 +41,20 @@ function checkFit(issues: Issue[], where: string, f: Fit): void {
   });
 }
 
+function checkValid(issues: Issue[], where: string, v: Valid): void {
+  let n = 0;
+  for (const k of ['T', 'lambda', 'f'] as const) {
+    const e = v[k];
+    if (!e) continue;
+    n++;
+    if ('unit' in e) {
+      checkVarUnit(issues, `${where}.${k}.unit`, k, e.unit);
+      if (!(e.range[1] >= e.range[0])) issues.push({ path: `${where}.${k}.range`, message: 'range must be [lo, hi] with hi >= lo' });
+    }
+  }
+  if (n === 0) issues.push({ path: where, message: 'valid needs at least one of T, lambda, f' });
+}
+
 function forms(l: { value?: unknown; table?: unknown; fit?: unknown; tensor?: unknown }): string[] {
   return (['value', 'table', 'fit', 'tensor'] as const).filter((k) => l[k] !== undefined);
 }
@@ -76,6 +90,11 @@ function checkLeaf(issues: Issue[], where: string, l: Leaf | AltLeaf, def: Prope
     for (const [k, c] of Object.entries(l.tensor.components)) naComponent = checkComponent(issues, `${where}.tensor.components.${k}`, c) || naComponent;
     if (naComponent && !l.missing) issues.push({ path: where, message: 'N/A tensor component needs `missing` on the leaf' });
   } else if (!def.scalar) issues.push({ path: where, message: `${def.name} is a tensor property (symmetries: ${def.tensor.join(', ')})` });
+  const singleNumber = typeof l.value === 'number' || l.tensor !== undefined;
+  if (singleNumber && !l.valid) issues.push({ path: `${where}.valid`, message: 'a single-number value needs `valid` (range per T / lambda / f, or {na: reason})' });
+  if (l.valid) checkValid(issues, `${where}.valid`, l.valid);
+  if ((def.name === 'n' || def.name === 'dndT') && !l.n_medium) issues.push({ path: `${where}.n_medium`, message: 'refractive-index data need n_medium: air | vacuum | unstated' });
+  if (l.n_medium === 'unstated' && !l.n_medium_note) issues.push({ path: `${where}.n_medium_note`, message: 'n_medium unstated needs a note' });
   for (const k of ['basis', 'source', 'locator', 'accessed', 'uncertainty', 'conditions'] as const)
     if (l[k] === undefined) issues.push({ path: `${where}.${k}`, message: `${k} required for a non-N/A value` });
   for (const s of l.source === undefined ? [] : ([] as string[]).concat(l.source))

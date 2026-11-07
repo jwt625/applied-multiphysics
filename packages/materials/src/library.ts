@@ -3,7 +3,7 @@
 // (DevLog-013 s.1.2). Values come only from validated amp-material/0 documents; nothing is defaulted here.
 // The one derivation rule: sigma = 1 / rho_e when a material gives rho_e and no sigma (stated in the result).
 
-import type { MaterialDoc, Leaf, AltLeaf, Table, Fit, Component, Uncertainty, Conditions } from './schema.ts';
+import type { MaterialDoc, Leaf, AltLeaf, Table, Fit, Component, Uncertainty, Conditions, Valid } from './schema.ts';
 import { PROPERTY_BY_NAME, tensorMatrix, type Symmetry } from './properties.ts';
 import { FORMULAS } from './formulas.ts';
 import { parseUnit, toSI, fromSI, parseQuantity } from './units.ts';
@@ -44,10 +44,18 @@ export interface PropertyValue {
   alternative?: string;
   derived?: string;
   analogOf?: string;
-  cteKind?: 'instantaneous' | 'secant';
+  cteKind?: 'instantaneous' | 'secant' | 'unstated';
   /** Reference temperature of a secant CTE, K. */
   T_ref?: number;
   extrapolated?: boolean;
+  /** Validity range of the leaf as stored (per variable {unit, range} or {na}). */
+  valid?: Valid;
+  /** Uncertainty converted to SI (abs and range in `unit`; rel unchanged), when the stored one has numbers. */
+  uncertaintySI?: { abs?: number; rel?: number; range?: [number, number] };
+  /** Refractive-index data: medium of the source (air: converted here to vacuum wavelength and n relative to vacuum). */
+  nMedium?: 'air' | 'vacuum' | 'unstated';
+  /** Index of air used for the conversion (air.n at the query wavelength). */
+  airIndex?: number;
 }
 
 export class MaterialNAError extends Error {
@@ -73,13 +81,38 @@ function query(ctx: Ctx, v: string): number {
   return q;
 }
 
+/** Range test with a relative tolerance, so unit round trips (5e-6 m -> 5.000000000000001 um) do not fail. */
+const inRange = (x: number, lo: number, hi: number): boolean => {
+  const tol = 1e-9 * Math.max(Math.abs(lo), Math.abs(hi), 1e-300);
+  return x >= lo - tol && x <= hi + tol;
+};
+
+function checkValid(ctx: Ctx, v: Valid | undefined): void {
+  if (!v) return;
+  for (const k of ['T', 'lambda', 'f'] as const) {
+    const e = v[k];
+    const q = ctx.opts[k];
+    if (!e || !('unit' in e) || typeof q !== 'number') continue;
+    const x = fromSI(q, parseUnit(e.unit));
+    if (!inRange(x, e.range[0], e.range[1])) {
+      if (!ctx.opts.extrapolate) throw new MaterialRangeError(`${ctx.mat}.${ctx.prop}: ${k} = ${x} ${e.unit} outside the stated validity [${e.range[0]}, ${e.range[1]}] ${e.unit}${v.note ? ` (${v.note})` : ''}; pass {extrapolate: true} to use it anyway`);
+      ctx.extrapolated = true;
+    }
+  }
+}
+
 function evalTable(ctx: Ctx, t: Table): number {
   const x = fromSI(query(ctx, t.x), parseUnit(t.x_unit));
   const xs = t.xs, ys = t.ys, n = xs.length;
   const lo = xs[0] as number, hi = xs[n - 1] as number;
-  if (x < lo || x > hi) {
+  if (!inRange(x, lo, hi)) {
     if (!ctx.opts.extrapolate) throw new MaterialRangeError(`${ctx.mat}.${ctx.prop}: ${t.x} = ${x} ${t.x_unit} outside the table range [${lo}, ${hi}] ${t.x_unit}`);
     ctx.extrapolated = true;
+  }
+  if (t.interp === 'nodes') {
+    const j = xs.findIndex((xi) => Math.abs(xi - x) <= 1e-9 * Math.max(Math.abs(xi), 1e-300));
+    if (j < 0) throw new MaterialRangeError(`${ctx.mat}.${ctx.prop}: table holds values only at ${t.x} = ${xs.join(', ')} ${t.x_unit} (scattered data, not interpolated); got ${x}`);
+    return ys[j] as number;
   }
   let i = 0;
   while (i < n - 2 && x > (xs[i + 1] as number)) i++;
@@ -97,7 +130,7 @@ function evalFit(ctx: Ctx, f: Fit): number {
   const x: Record<string, number> = {};
   for (const v of f.vars) {
     const xv = fromSI(query(ctx, v.name), parseUnit(v.unit));
-    if (xv < v.range[0] || xv > v.range[1]) {
+    if (!inRange(xv, v.range[0], v.range[1])) {
       if (!ctx.opts.extrapolate) throw new MaterialRangeError(`${ctx.mat}.${ctx.prop}: ${v.name} = ${xv} ${v.unit} outside the fit range [${v.range[0]}, ${v.range[1]}] ${v.unit}`);
       ctx.extrapolated = true;
     }
@@ -151,9 +184,22 @@ export function createLibrary(docs: readonly MaterialDoc[]): Library {
   function evalLeaf(d: MaterialDoc, prop: string, l: Leaf | AltLeaf, opts: EvalOptions, alt?: string): PropertyValue {
     const def = PROPERTY_BY_NAME.get(prop);
     if (!def) throw new Error(`unknown property '${prop}'`);
-    const ctx: Ctx = { mat: d.id, prop, opts, extrapolated: false };
+    let airIndex: number | undefined;
+    let o = opts;
+    let airExtrapolated = false;
+    if (l.n_medium === 'air' && typeof opts.lambda === 'number') {
+      // Source data are in air: lambda_air = lambda_vacuum / n_air; n relative to vacuum = n_rel_air x n_air.
+      if (!byId.has('air')) throw new Error(`${d.id}.${prop} is air-referenced and needs materials/air (property n) for the conversion`);
+      const a = lib.getProperty('air', 'n', { lambda: opts.lambda, extrapolate: true });
+      airIndex = a.value as number;
+      airExtrapolated = a.extrapolated === true;
+      o = { ...opts, lambda: opts.lambda / airIndex };
+    }
+    const ctx: Ctx = { mat: d.id, prop, opts: o, extrapolated: false };
+    checkValid(ctx, l.valid);
     const ref = parseUnit(def.unit);
-    const toRef = (si: number): number => fromSI(si, ref);
+    const scale = prop === 'n' && airIndex !== undefined ? airIndex : 1;
+    const toRef = (si: number): number => fromSI(si, ref) * scale;
     let value: number | Record<string, number>;
     let matrix: number[][] | undefined;
     let symmetry: Symmetry | undefined;
@@ -188,7 +234,19 @@ export function createLibrary(docs: readonly MaterialDoc[]): Library {
     if (l.analog_of) out.analogOf = l.analog_of;
     if (l.cte_kind) out.cteKind = l.cte_kind;
     if (l.T_ref) out.T_ref = (parseQuantity(l.T_ref) as { si: number }).si;
-    if (ctx.extrapolated) out.extrapolated = true;
+    if (ctx.extrapolated || airExtrapolated) out.extrapolated = true;
+    if (l.valid) out.valid = l.valid;
+    if (l.n_medium) out.nMedium = l.n_medium;
+    if (airIndex !== undefined) out.airIndex = airIndex;
+    const u = l.uncertainty;
+    if (u && !('na' in u)) {
+      const uu = parseUnit(u.unit ?? l.unit);
+      const si: { abs?: number; rel?: number; range?: [number, number] } = {};
+      if (u.abs !== undefined) si.abs = u.abs * uu.factor / ref.factor;
+      if (u.rel !== undefined) si.rel = u.rel;
+      if (u.range) si.range = [fromSI(toSI(u.range[0], uu), ref), fromSI(toSI(u.range[1], uu), ref)];
+      out.uncertaintySI = si;
+    }
     return out;
   }
 
@@ -204,7 +262,11 @@ export function createLibrary(docs: readonly MaterialDoc[]): Library {
         if (prop === 'sigma' && d.properties.rho_e && d.properties.rho_e.value !== 'N/A') {
           const r = lib.getProperty(id, 'rho_e', opts);
           const derived = `sigma = 1 / rho_e (package rule, DevLog-013); rho_e from ${r.locator}`;
-          return { ...r, property: 'sigma', unit: 'S/m', value: 1 / (r.value as number), derived: r.derived ? `${derived}; ${r.derived}` : derived };
+          const out: PropertyValue = { ...r, property: 'sigma', unit: 'S/m', value: 1 / (r.value as number), basis: 'derived', derived: r.derived ? `${derived}; ${r.derived}` : derived };
+          delete out.uncertainty;
+          delete out.uncertaintySI;
+          if (r.uncertaintySI?.rel !== undefined) out.uncertaintySI = { rel: r.uncertaintySI.rel };
+          return out;
         }
         throw new Error(`${id} has no property '${prop}' (have ${Object.keys(d.properties).join(', ')})`);
       }

@@ -12,6 +12,7 @@ sources:
     url: "https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&ID=C7732185&Type=IsoBar&Digits=6&P=0.101325&THigh=370&TLow=275&TInc=5&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm"
     access: open
     read: "tab-separated data (sha256 a5de197c...) and the results page with 'References and Notes', fetched and read by L10 2026-11-06; cached under cache/materials/water/"
+    licence: "NIST Standard Reference Data: page states '(c) 2026 by the U.S. Secretary of Commerce ... All rights reserved. Copyright for NIST Standard Reference Data is governed by the Standard Reference Data Act'; 100 values extracted with attribution"
   iapws95:
     citation: "W. Wagner, A. Pruss, The IAPWS formulation 1995 for the thermodynamic properties of ordinary water substance for general and scientific use, J. Phys. Chem. Ref. Data 31(2), 387-535 (2002); IAPWS R6-95 (2016)"
     doi: 10.1063/1.1461829

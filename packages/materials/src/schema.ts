@@ -49,8 +49,22 @@ export const tableSchema = z.strictObject({
   x_unit: text(32),
   xs: z.array(finite).min(2),
   ys: z.array(finite).min(2),
-  interp: z.enum(['linear', 'loglog']).optional(),
-}).meta({ description: 'Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog' });
+  interp: z.enum(['linear', 'loglog', 'nodes']).optional(),
+}).meta({ description: 'Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog; nodes = values only at the tabulated x (no interpolation, for scattered data)' });
+
+export const validVarSchema = z.union([
+  z.strictObject({ unit: text(32), range: z.tuple([finite, finite]) }),
+  z.strictObject({ na: text() }),
+]);
+
+export const validSchema = z.strictObject({
+  T: validVarSchema.optional(),
+  lambda: validVarSchema.optional(),
+  f: validVarSchema.optional(),
+  note: text().optional(),
+}).meta({ description: 'Validity range per variable ({unit, range}; a point range [x, x] when only the measurement condition is known) or {na: reason} when the source states none; getProperty throws outside it unless extrapolate' });
+
+export const N_MEDIA = ['air', 'vacuum', 'unstated'] as const;
 
 export const fitSchema = z.strictObject({
   formula: text(64),
@@ -88,7 +102,10 @@ const provenance = {
   accessed: isoDate.optional(),
   uncertainty: uncertaintySchema.optional(),
   conditions: conditionsSchema.optional(),
-  cte_kind: z.enum(['instantaneous', 'secant']).optional(),
+  cte_kind: z.enum(['instantaneous', 'secant', 'unstated']).optional(),
+  valid: validSchema.optional(),
+  n_medium: z.enum(N_MEDIA).optional(),
+  n_medium_note: text().optional(),
   T_ref: quantityString.optional(),
   derivation: text().optional(),
   analog_of: text(200).optional(),
@@ -143,6 +160,7 @@ export type Tensor = z.infer<typeof tensorSchema>;
 export type Component = z.infer<typeof componentSchema>;
 export type Uncertainty = z.infer<typeof uncertaintySchema>;
 export type Conditions = z.infer<typeof conditionsSchema>;
+export type Valid = z.infer<typeof validSchema>;
 
 export function materialJsonSchema(): Record<string, unknown> {
   const js = z.toJSONSchema(materialSchema, { target: 'draft-2020-12', unrepresentable: 'any' }) as Record<string, unknown>;

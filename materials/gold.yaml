@@ -37,6 +37,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {T: "20 degC"}
+    valid: {T: {unit: degC, range: [20, 20]}, note: "single stated temperature"}
     alternatives: []
   E:
     value: 74.4
@@ -47,6 +48,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {text: "99.99 % gold, cast; temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
     alternatives: []
   nu:
     value: N/A
@@ -91,17 +93,19 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
     conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "single stated temperature"}
     alternatives: []
   alpha:
     value: 14.2
     unit: ppm/K
-    cte_kind: instantaneous
+    cte_kind: unstated
     basis: handbook
     source: nist_solder_db_v4
     locator: "Table 2.2.5 row Gold: thermal expansion coefficient (20 C) 14.2 x 1e-6 /K (Lange 1956, as cited)"
     accessed: 2026-11-06
     uncertainty: {na: "not stated"}
-    conditions: {T: "20 degC", text: "value at 20 C; recorded as instantaneous"}
+    conditions: {T: "20 degC", text: "value at 20 C; kind (mean vs instantaneous) not stated by the source"}
+    valid: {T: {unit: degC, range: [20, 20]}, note: "single stated temperature"}
     alternatives: []
   mu_r:
     value: N/A

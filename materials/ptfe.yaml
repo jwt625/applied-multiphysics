@@ -28,6 +28,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {abs: 0.02}
     conditions: {f: "10 GHz", text: "temperature not stated"}
+    valid: {f: {unit: GHz, range: [10, 10]}, T: {na: "not stated"}, note: "single measured frequency"}
     alternatives: []
   tan_delta:
     value: 2.0e-4
@@ -38,6 +39,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {abs: 8.0e-5}
     conditions: {f: "10 GHz", text: "temperature not stated"}
+    valid: {f: {unit: GHz, range: [10, 10]}, T: {na: "not stated"}, note: "single measured frequency"}
     alternatives: []
   k:
     fit:
@@ -80,6 +82,7 @@ properties:
     derivation: "secant CTE about 293 K = [y(T) - y(293 K)] x 1e-5 / (T - 293 K) (formula nist-cryo-linexp-secant); the fit's own y(293 K) is -3.8 (x 1e-5) and cancels in this form"
     uncertainty: {rel: 0.02, note: "curve fit error relative to data: 2 % (on the expansion)"}
     conditions: {text: "Teflon, grade not stated"}
+    note: "smoothed 4th-order fit; within a few K of 293 K the value is the slope of the fit polynomial, not resolved data (the fresh-context audit notes PTFE has solid-solid transitions near room temperature, not verified from a source here)"
     alternatives: []
   rho:
     value: N/A

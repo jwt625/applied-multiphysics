@@ -48,6 +48,9 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "not stated in the database entries; primary not read"}
     conditions: {T: "21 degC", text: "congruently grown LN (database comment: 21 C, CLN)"}
+    n_medium: unstated
+    n_medium_note: "the database entries do not say whether lambda is the air or vacuum wavelength and the primary (paywalled) was not read; a secondary note (arXiv 2609.01703) states vacuum wavelength, not verified. Not converted; an air convention would shift n by about n (n_air - 1), about 6e-4 at 1.55 um (estimate from air.n)"
+    valid: {T: {unit: degC, range: [21, 21]}, note: "fits at 21 C only (database comment); lambda range in each fit"}
     alternatives: []
   eps_r:
     tensor:
@@ -60,6 +63,7 @@ properties:
     accessed: 2026-10-15
     uncertainty: {na: "not stated; other eps^S rows of the same table: [22] 44 / 29, [25] 43.9 / 23.7, [26] 46.5 / 27.3"}
     conditions: {text: "clamped (constant strain), capacitance well above the mechanical resonance; frequency and temperature not given in the source"}
+    valid: {T: {na: "not given in the source"}, f: {na: "not given; clamped = above the mechanical resonances"}}
     alternatives:
       - id: unclamped
         use: "low-frequency (below mechanical resonance) permittivity"
@@ -73,6 +77,7 @@ properties:
         accessed: 2026-10-15
         uncertainty: {na: "not stated; other eps^T rows: [22] 84 / 30, [24] 84.6 / 28.6, [26] 84.1 / 28.1"}
         conditions: {text: "unclamped (constant stress), capacitance at very low frequencies"}
+        valid: {T: {na: "not given in the source"}, f: {na: "not given; unclamped = below the mechanical resonances"}}
   r_eo:
     tensor:
       symmetry: trigonal-3m
@@ -84,6 +89,7 @@ properties:
     accessed: 2026-10-15
     uncertainty: {na: "not stated per row; source: unclamped coefficients composition-independent within +-5 % (p.199)"}
     conditions: {lambda: "633 nm", text: "clamped (r^S, RF field); no 1550 nm or 1957 nm value in the source; temperature coefficient about 5e-4 /C (p.199)"}
+    valid: {lambda: {unit: nm, range: [633, 633]}, T: {na: "not given"}, note: "single measured wavelength"}
     alternatives:
       - id: clamped_kaminow1980
         use: "sensitivity: the source's 'probably the most accurate' set (fringing-field corrected); composite of two rows"
@@ -97,6 +103,7 @@ properties:
         accessed: 2026-10-15
         uncertainty: {na: "not stated"}
         conditions: {lambda: "633 nm", text: "clamped"}
+        valid: {lambda: {unit: nm, range: [633, 633]}, T: {na: "not given"}}
       - id: clamped_3390nm
         use: "wavelength dependence reference"
         tensor:
@@ -109,6 +116,7 @@ properties:
         accessed: 2026-10-15
         uncertainty: {na: "not stated"}
         conditions: {lambda: "3390 nm", text: "clamped"}
+        valid: {lambda: {unit: nm, range: [3390, 3390]}, T: {na: "not given"}}
       - id: unclamped
         use: "static / low-frequency field (includes the secondary piezo-elasto-optic effect); composite of two rows"
         tensor:
@@ -121,6 +129,7 @@ properties:
         accessed: 2026-10-15
         uncertainty: {na: "not stated"}
         conditions: {lambda: "633 nm", text: "unclamped (constant stress)"}
+        valid: {lambda: {unit: nm, range: [633, 633]}, T: {na: "not given"}}
   rho:
     value: N/A
     unit: kg/m^3

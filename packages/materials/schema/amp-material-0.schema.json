@@ -156,7 +156,8 @@
                 "type": "string",
                 "enum": [
                   "linear",
-                  "loglog"
+                  "loglog",
+                  "nodes"
                 ]
               }
             },
@@ -167,7 +168,7 @@
               "ys"
             ],
             "additionalProperties": false,
-            "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog"
+            "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog; nodes = values only at the tabulated x (no interpolation, for scattered data)"
           },
           "fit": {
             "type": "object",
@@ -320,7 +321,8 @@
                               "type": "string",
                               "enum": [
                                 "linear",
-                                "loglog"
+                                "loglog",
+                                "nodes"
                               ]
                             }
                           },
@@ -331,7 +333,7 @@
                             "ys"
                           ],
                           "additionalProperties": false,
-                          "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog"
+                          "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog; nodes = values only at the tabulated x (no interpolation, for scattered data)"
                         },
                         "fit": {
                           "type": "object",
@@ -621,8 +623,175 @@
             "type": "string",
             "enum": [
               "instantaneous",
-              "secant"
+              "secant",
+              "unstated"
             ]
+          },
+          "valid": {
+            "type": "object",
+            "properties": {
+              "T": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32
+                      },
+                      "range": {
+                        "type": "array",
+                        "prefixItems": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ],
+                        "items": false,
+                        "minItems": 2,
+                        "maxItems": 2
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "range"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "na": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000
+                      }
+                    },
+                    "required": [
+                      "na"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "lambda": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32
+                      },
+                      "range": {
+                        "type": "array",
+                        "prefixItems": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ],
+                        "items": false,
+                        "minItems": 2,
+                        "maxItems": 2
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "range"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "na": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000
+                      }
+                    },
+                    "required": [
+                      "na"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "f": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32
+                      },
+                      "range": {
+                        "type": "array",
+                        "prefixItems": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ],
+                        "items": false,
+                        "minItems": 2,
+                        "maxItems": 2
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "range"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "na": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4000
+                      }
+                    },
+                    "required": [
+                      "na"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "note": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              }
+            },
+            "additionalProperties": false,
+            "description": "Validity range per variable ({unit, range}; a point range [x, x] when only the measurement condition is known) or {na: reason} when the source states none; getProperty throws outside it unless extrapolate"
+          },
+          "n_medium": {
+            "type": "string",
+            "enum": [
+              "air",
+              "vacuum",
+              "unstated"
+            ]
+          },
+          "n_medium_note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
           },
           "T_ref": {
             "type": "string",
@@ -720,7 +889,8 @@
                       "type": "string",
                       "enum": [
                         "linear",
-                        "loglog"
+                        "loglog",
+                        "nodes"
                       ]
                     }
                   },
@@ -731,7 +901,7 @@
                     "ys"
                   ],
                   "additionalProperties": false,
-                  "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog"
+                  "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog; nodes = values only at the tabulated x (no interpolation, for scattered data)"
                 },
                 "fit": {
                   "type": "object",
@@ -884,7 +1054,8 @@
                                     "type": "string",
                                     "enum": [
                                       "linear",
-                                      "loglog"
+                                      "loglog",
+                                      "nodes"
                                     ]
                                   }
                                 },
@@ -895,7 +1066,7 @@
                                   "ys"
                                 ],
                                 "additionalProperties": false,
-                                "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog"
+                                "description": "Tabulated y(x); x strictly increasing; valid range = table span; linear interpolation unless loglog; nodes = values only at the tabulated x (no interpolation, for scattered data)"
                               },
                               "fit": {
                                 "type": "object",
@@ -1185,8 +1356,175 @@
                   "type": "string",
                   "enum": [
                     "instantaneous",
-                    "secant"
+                    "secant",
+                    "unstated"
                   ]
+                },
+                "valid": {
+                  "type": "object",
+                  "properties": {
+                    "T": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "unit": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 32
+                            },
+                            "range": {
+                              "type": "array",
+                              "prefixItems": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ],
+                              "items": false,
+                              "minItems": 2,
+                              "maxItems": 2
+                            }
+                          },
+                          "required": [
+                            "unit",
+                            "range"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "na": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4000
+                            }
+                          },
+                          "required": [
+                            "na"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "lambda": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "unit": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 32
+                            },
+                            "range": {
+                              "type": "array",
+                              "prefixItems": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ],
+                              "items": false,
+                              "minItems": 2,
+                              "maxItems": 2
+                            }
+                          },
+                          "required": [
+                            "unit",
+                            "range"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "na": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4000
+                            }
+                          },
+                          "required": [
+                            "na"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "f": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "unit": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 32
+                            },
+                            "range": {
+                              "type": "array",
+                              "prefixItems": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ],
+                              "items": false,
+                              "minItems": 2,
+                              "maxItems": 2
+                            }
+                          },
+                          "required": [
+                            "unit",
+                            "range"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "na": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4000
+                            }
+                          },
+                          "required": [
+                            "na"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "note": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4000
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Validity range per variable ({unit, range}; a point range [x, x] when only the measurement condition is known) or {na: reason} when the source states none; getProperty throws outside it unless extrapolate"
+                },
+                "n_medium": {
+                  "type": "string",
+                  "enum": [
+                    "air",
+                    "vacuum",
+                    "unstated"
+                  ]
+                },
+                "n_medium_note": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
                 },
                 "T_ref": {
                   "type": "string",

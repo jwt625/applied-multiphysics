@@ -49,8 +49,10 @@ test('tables: nodes reproduce the printed values; interpolation; SI conversion',
   close(lib.getProperty('air', 'rho', { T: 300 }).value as number, 0.040634 * 28.9586, 5e-5); // Table A2 x M
   close(lib.getProperty('water', 'rho', { T: 300 }).value as number, 996.557, 1e-12); // WebBook
   close(lib.getProperty('water', 'cp', { T: 300 }).value as number, 4180.64, 1e-12);
-  close(lib.getProperty('silicon', 'n', { lambda: 1.55e-6 }).value as number, 3.4757, 1e-12); // Li Table 1
-  close(lib.getProperty('silicon', 'dndT', { lambda: 1.55e-6 }).value as number, 1.818e-4, 1e-12); // Li Table 2
+  // Li Table 1 node 1.55 um (air-referenced): queried at the vacuum wavelength exactly at the node's vacuum equivalent
+  const nAir = lib.getProperty('air', 'n', { lambda: 1.55e-6 }).value as number;
+  close(lib.getProperty('silicon', 'n', { lambda: 1.55e-6 * nAir }).value as number, 3.4757 * (lib.getProperty('air', 'n', { lambda: 1.55e-6 * nAir }).value as number), 1e-9);
+  close(lib.getProperty('silicon', 'dndT', { lambda: 1.55e-6 * nAir }).value as number, 1.818e-4, 1e-9); // Li Table 2 (not converted)
   // linear interpolation midway between nodes
   close(lib.getProperty('air', 'c', { T: 305 }).value as number, (347.4 + 353.1) / 2, 1e-12);
 });
@@ -61,6 +63,7 @@ test('loglog interpolation and the sigma = 1 / rho_e rule', () => {
   close(r, exp, 1e-12);
   const s = lib.getProperty('copper', 'sigma', { T: 293 });
   close(s.value as number, 1 / 1.678e-8, 1e-12);
+  assert.equal(s.basis, 'derived');
   assert.equal(s.unit, 'S/m');
   assert.match(s.derived ?? '', /1 \/ rho_e/);
 });
@@ -157,16 +160,22 @@ test('listNA covers every N/A with its reason', () => {
   assert.ok(na.some((n) => n.material === 'pzt-4' && n.property === 'C'));
 });
 
-test('registry: property types supersede the provisional spec seed; the six sims/ examples still validate', () => {
+test('registry: property types (with scalar / tensor forms) supersede the provisional spec seed; sims/ outcomes unchanged', () => {
   const reg = wave1Registry();
   const done = registerMaterialProperties(reg);
   assert.ok(done.includes('E') && done.includes('C') && done.includes('r_eo'));
   for (const d of PROPERTY_DEFS) assert.equal(reg.get('property', d.name)?.owner, '@amp/materials');
   assert.deepEqual(registerMaterialProperties(reg), []); // idempotent
+  assert.deepEqual(reg.get('property', 'C')?.tensor, { cubic: ['C11', 'C12', 'C44'] });
+  assert.equal(reg.get('property', 'C')?.scalar, false);
+  assert.deepEqual(reg.get('property', 'r_eo')?.tensor, { 'trigonal-3m': ['r13', 'r22', 'r33', 'r51'] });
   const sims = resolve(import.meta.dirname, '../../../sims');
   for (const f of readdirSync(sims).filter((x) => x.endsWith('.yaml'))) {
-    const r = parseSpecText(readFileSync(resolve(sims, f), 'utf8'), reg);
-    assert.ok(r.ok, `${f}: ${JSON.stringify(r.issues?.slice(0, 2))}`);
+    // sims/ grows with other lanes' types; the materials registration must not change any outcome
+    const text = readFileSync(resolve(sims, f), 'utf8');
+    const r = parseSpecText(text, reg), r0 = parseSpecText(text, wave1Registry());
+    assert.equal(r.ok, r0.ok, `${f}: ${JSON.stringify(r.issues?.slice(0, 2))}`);
+    assert.deepEqual(r.issues.map((i) => i.message), r0.issues.map((i) => i.message), f);
   }
 });
 
@@ -179,4 +188,55 @@ test('JSON Schema export', () => {
 test('createLibrary rejects duplicate ids', () => {
   const d = lib.get('gold')!;
   assert.throws(() => createLibrary([d, d]), /duplicate/);
+});
+
+test('S1: single-number values carry a validity range; outside it throws unless extrapolate (flagged)', () => {
+  assert.throws(() => lib.getProperty('gold', 'alpha', { T: 1000 }), MaterialRangeError);
+  assert.equal(lib.getProperty('gold', 'alpha', { T: 1000, extrapolate: true }).extrapolated, true);
+  assert.throws(() => lib.getProperty('fused-silica', 'alpha', { T: 600 }), MaterialRangeError);
+  assert.equal(lib.getProperty('fused-silica', 'alpha', { T: 300 }).extrapolated, undefined); // 26.85 C inside 5-35 C
+  assert.throws(() => lib.getProperty('silicon', 'C', { T: 1000 }), MaterialRangeError);
+  assert.ok(lib.getProperty('silicon', 'C', { T: 298.15 }).value); // the measured 25 C point
+  assert.throws(() => lib.getProperty('ptfe', 'eps_r', { f: 1e9 }), MaterialRangeError);
+  assert.throws(() => lib.getProperty('linbo3-congruent', 'r_eo', { lambda: 1.55e-6 }), MaterialRangeError);
+  const r = lib.getProperty('linbo3-congruent', 'r_eo', { lambda: 1.55e-6, extrapolate: true });
+  assert.equal(r.extrapolated, true);
+  // without the variable the value is returned with its validity attached
+  assert.deepEqual(lib.getProperty('gold', 'alpha').valid?.T, { unit: 'degC', range: [20, 20] });
+  // every non-N/A single-number leaf has `valid` (validator gate)
+  for (const id of lib.ids()) for (const [p, l] of Object.entries(lib.get(id)!.properties))
+    for (const x of [l, ...l.alternatives]) if (typeof x.value === 'number' || x.tensor) assert.ok(x.valid, `${id}.${p}`);
+});
+
+test('S2: refractive index is relative to vacuum at the vacuum wavelength; air-referenced data converted with air.n', () => {
+  const nAir = lib.getProperty('air', 'n', { lambda: 1.55e-6 }).value as number;
+  assert.ok(nAir > 1.00026 && nAir < 1.00029, String(nAir));
+  const fs = lib.getProperty('fused-silica', 'n', { lambda: 1.55e-6 });
+  assert.equal(fs.nMedium, 'air');
+  close(fs.airIndex as number, nAir, 1e-15);
+  // Malitson converted vs Leviton-Frey absolute at 20 C: agree to < 1e-5 (LF p.3 reports agreement 'well less than 1e-5')
+  const lf = lib.getProperty('fused-silica', 'n', { lambda: 1.55e-6, T: 293.15, alternative: 'leviton_frey_corning7980' });
+  assert.equal(lf.nMedium, 'vacuum');
+  assert.ok(Math.abs((fs.value as number) - (lf.value as number)) < 1e-5, `${fs.value} vs ${lf.value}`);
+  assert.equal(lib.getProperty('linbo3-congruent', 'n', { lambda: 1.55e-6 }).nMedium, 'unstated');
+  // beyond the Ciddor range (1.69 um) the conversion is flagged
+  assert.equal(lib.getProperty('silicon', 'n', { lambda: 1.957e-6 }).extrapolated, true);
+  assert.throws(() => lib.getProperty('silicon', 'n', { lambda: 1.55e-6, T: 400 }), MaterialRangeError);
+});
+
+test('S3: fused-silica dn/dT is the derivative of the Leviton-Frey fit; Table 6 only at its nodes', () => {
+  const d = lib.getProperty('fused-silica', 'dndT', { lambda: 1.5e-6, T: 295 });
+  close(d.value as number, 8.2028e-6, 1e-4);
+  close(d.uncertaintySI?.abs as number, 6.8e-7, 1e-12);
+  // equals a numerical derivative of the n alternative
+  const n = (T: number): number => lib.getProperty('fused-silica', 'n', { lambda: 1.5e-6, T, alternative: 'leviton_frey_corning7980' }).value as number;
+  close(d.value as number, (n(296) - n(294)) / 2, 1e-3);
+  close(lib.getProperty('fused-silica', 'dndT', { lambda: 1.5e-6, T: 295, alternative: 'table6_295k' }).value as number, 8.45e-6, 1e-12);
+  assert.throws(() => lib.getProperty('fused-silica', 'dndT', { lambda: 1.55e-6, T: 295, alternative: 'table6_295k' }), /not interpolated/);
+});
+
+test('M2 / M3: range tolerance at the fit edge; uncertainty in SI', () => {
+  assert.ok(lib.getProperty('linbo3-congruent', 'n', { lambda: 5e-6 }).value);
+  close(lib.getProperty('silicon', 'rho').uncertaintySI?.abs as number, 0.2, 1e-9);
+  close(lib.getProperty('silicon', 'C').uncertaintySI?.rel as number, 2e-4, 1e-12);
 });

@@ -16,6 +16,13 @@ sources:
     url: https://srd.nist.gov/jpcrdreprint/1.1285884.pdf
     access: open
     read: "text layer: abstract (uncertainties), p.334 (constants, molar mass), p.366-367 Table A2 0.101325 MPa isobar; read by L10 2026-11-06; cached under cache/materials/air/"
+  ciddor1996:
+    citation: "P. E. Ciddor, Refractive index of air: new equations for the visible and near infrared, Appl. Opt. 35, 1566-1573 (1996); standard-air dispersion as tabulated by refractiveindex.info other/mixed gases/air/nk/Ciddor.yml"
+    doi: 10.1364/AO.35.001566
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/other/mixed%20gases/air/nk/Ciddor.yml
+    access: paywalled
+    read: "primary not read; refractiveindex.info entry (CC0) fetched and read by L10 2026-11-06: formula 6, coefficients 0 0.05792105 238.0185 0.00167917 57.362, 0.23-1.690 um, standard air (dry, 15 C, 101.325 kPa, 450 ppm CO2)"
+    licence: "refractiveindex.info database: CC0 1.0"
   kadoya1985:
     citation: "K. Kadoya, N. Matsunaga, A. Nagashima, Viscosity and thermal conductivity of dry air in the gaseous phase, J. Phys. Chem. Ref. Data 14(4), 947-970 (1985)"
     doi: 10.1063/1.555744
@@ -94,6 +101,22 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "estimated-uncertainty diagram in the source not read"}
     conditions: {p: "0.10 MPa", text: "dry air, gaseous phase"}
+    alternatives: []
+  n:
+    fit:
+      formula: gas-dispersion
+      vars: [{name: lambda, unit: um, range: [0.23, 1.690]}]
+      coeffs: {A: 0, B: [0.05792105, 0.00167917], C: [238.0185, 57.362]}
+    unit: "1"
+    basis: reference_correlation
+    source: ciddor1996
+    locator: "refractiveindex.info Ciddor.yml: formula 6, n - 1 = 0.05792105 / (238.0185 - lambda^-2) + 0.00167917 / (57.362 - lambda^-2), lambda in um"
+    accessed: 2026-11-06
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {T: "15 degC", p: "101.325 kPa", text: "standard air: dry, 450 ppm CO2"}
+    n_medium: vacuum
+    n_medium_note: "index of a gas is relative to vacuum by definition; the air / vacuum wavelength ambiguity changes n_air by far less than its other conditions"
+    valid: {T: {unit: degC, range: [15, 15]}, note: "standard air only; used by the library to convert air-referenced indices (outside 0.23-1.69 um the conversion is flagged extrapolated)"}
     alternatives: []
   mu_r:
     value: N/A

@@ -60,6 +60,23 @@ export const FORMULAS: Record<string, Formula> = {
     description: 'y = sum_i c_i (T - x0)^i, T in the fit variable unit',
     evaluate: (x, c) => polyval(arr(c, 'c'), (x.T as number) - num(c, 'x0')),
   },
+  'gas-dispersion': {
+    id: 'gas-dispersion', vars: ['lambda'], coeffs: { A: 'number', B: 'array', C: 'array' },
+    description: 'n - 1 = A + sum_i B_i / (C_i - lambda^-2), lambda in um (refractiveindex.info "formula 6", e.g. Ciddor 1996 standard air)',
+    evaluate: (x, c) => {
+      const B = arr(c, 'B'), C = arr(c, 'C'), s2 = (x.lambda as number) ** -2;
+      if (B.length !== C.length) throw new Error('gas-dispersion: B and C must have equal length');
+      return 1 + num(c, 'A') + B.reduce((s, b, i) => s + b / ((C[i] as number) - s2), 0);
+    },
+  },
+  'leviton-frey-sellmeier-dndT': {
+    id: 'leviton-frey-sellmeier-dndT', vars: ['lambda', 'T'], coeffs: { S1: 'array', S2: 'array', S3: 'array', L1: 'array', L2: 'array', L3: 'array', h: 'number' },
+    description: 'dn/dT of the leviton-frey-sellmeier model by central difference [n(T + h) - n(T - h)] / (2 h), h in K from the coefficients',
+    evaluate: (x, c) => {
+      const n = FORMULAS['leviton-frey-sellmeier'] as Formula, h = num(c, 'h'), T = x.T as number;
+      return (n.evaluate({ lambda: x.lambda as number, T: T + h }, c) - n.evaluate({ lambda: x.lambda as number, T: T - h }, c)) / (2 * h);
+    },
+  },
   'leviton-frey-sellmeier': {
     id: 'leviton-frey-sellmeier', vars: ['lambda', 'T'], coeffs: { S1: 'array', S2: 'array', S3: 'array', L1: 'array', L2: 'array', L3: 'array' },
     description: 'n^2 - 1 = sum_{i=1..3} S_i(T) lambda^2 / (lambda^2 - lambda_i(T)^2), S_i(T) = sum_j S_ij T^j, lambda_i(T) = sum_j lambda_ij T^j (Leviton and Frey 2006)',

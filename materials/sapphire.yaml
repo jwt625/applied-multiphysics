@@ -32,6 +32,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "model input; measurement source, frequency and temperature not stated"}
     conditions: {text: "microwave model input of the Palace CPW example"}
+    valid: {f: {na: "not stated (model input)"}, T: {na: "not stated (model input)"}}
     alternatives: []
   tan_delta:
     tensor:
@@ -44,6 +45,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {na: "model input"}
     conditions: {text: "microwave model input of the Palace CPW example"}
+    valid: {f: {na: "not stated (model input)"}, T: {na: "not stated (model input)"}}
     alternatives: []
   alpha:
     fit:
