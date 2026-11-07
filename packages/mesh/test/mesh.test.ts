@@ -183,7 +183,7 @@ test('meshExtruded: layered tet4 conforming, tagged, volume exact; prism6 option
   }, 0);
   assert.ok(Math.abs(m.quality!.volume! - (4 * 1 + via2d * 0.5)) < 1e-12);
   const ids = new Set(m.entities.boundaries.map((b) => b.id));
-  for (const want of ['bnd:sub0.top@L0', 'bnd:via@L0.top', 'bnd:via@L1.top', 'bnd:via.edge@L1', 'bnd:sub0.left@L0', 'bnd:sub@L0.bottom'])
+  for (const want of ['bnd:sub0.top.L0', 'bnd:via.L0.top', 'bnd:via.L1.top', 'bnd:via.edge.L1', 'bnd:sub0.left.L0', 'bnd:sub.L0.bottom'])
     assert.ok(ids.has(want), want);
   for (let b = 0; b < m.entities.boundaries.length; b++) assert.ok(m.facets.boundary.includes(b), `boundary ${m.entities.boundaries[b]!.id} has facets`);
   const p = meshExtruded(g, layers, { mesh2d: { hmax: 0.25 }, cell: 'prism6' });
@@ -203,7 +203,7 @@ test('meshRevolved: torus from a circle, volume vs Pappus, conforming; partial a
   const q = meshRevolved(cyl, { id: 'rev', sectors: 16, angle: Math.PI / 2, mesh2d: { hmax: 0.25 } });
   check3d(q);
   const ids = q.entities.boundaries.map((b) => b.id);
-  assert.deepEqual(ids, ['bnd:c.bottom@rev', 'bnd:c.right@rev', 'bnd:c.top@rev', 'bnd:c@rev.start', 'bnd:c@rev.end']);
+  assert.deepEqual(ids, ['bnd:c.bottom.rev', 'bnd:c.right.rev', 'bnd:c.top.rev', 'bnd:c.rev.start', 'bnd:c.rev.end']);
   for (let b = 0; b < ids.length; b++) assert.ok(q.facets.boundary.includes(b));
 });
 
@@ -223,4 +223,20 @@ test('toHcurlMesh: sorted tets, unique edges, edgeIndex consistent', () => {
   const faces = new Set<string>();
   for (let t = 0; t < H.nTets; t++) for (const f of [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]]) faces.add(f.map((i) => H.tets[4 * t + i]).join(','));
   assert.equal(H.nNodes - H.nEdges + faces.size - H.nTets, 1);
+});
+
+test('audit S2/S4: warnings for near-degenerate input; the vertex budget fails fast', () => {
+  // internally tangent circle: a cusp the mesher cannot grade -> min angle warning, mesh still returned
+  const g = buildGeometry2D({ features: [{ id: 'r', type: 'rect', x: [0, 1], y: [0, 1] }, { id: 'c', type: 'circle', c: [0.5, 0.25], r: 0.25 }, { id: 'f', type: 'fragment', inputs: ['r', 'c'] }] });
+  const m = mesh2d(g, { hmax: 0.05 });
+  assert.ok(m.warnings?.some((w) => w.startsWith('minimum angle')), JSON.stringify(m.warnings));
+  // a clean mesh has no warnings
+  assert.equal(mesh2d(buildGeometry2D({ features: plate }), { hmax: 0.005 }).warnings, undefined);
+  // a boundary shorter than 2 hmin is reported
+  const s = buildGeometry2D({ features: [{ id: 'r', type: 'rect', x: [0, 1], y: [0, 1] }, { id: 'tiny', type: 'rect', x: [0.5, 0.5 + 1e-6], y: [0.5, 0.5 + 1e-6] }, { id: 'd', type: 'difference', target: 'r', tools: ['tiny'] }] });
+  const ms = mesh2d(s, { hmax: 0.1, hmin: 1e-3 });
+  assert.ok(ms.warnings?.some((w) => w.includes('bnd:tiny.') && w.includes('resolvable size')), JSON.stringify(ms.warnings));
+  const t0 = performance.now();
+  assert.throws(() => mesh2d(buildGeometry2D({ features: [{ id: 'r', type: 'rect', x: [0, 1], y: [0, 1] }] }), { hmax: 1e-4 }), /estimated from the size field exceed the budget/);
+  assert.ok(performance.now() - t0 < 500);
 });

@@ -5,10 +5,17 @@
 // nodes on the exact curves; line2 / line3 facets carrying boundary entity indices; sha-256 hash (C2).
 
 import { orient2d } from 'robust-predicates';
-import { type Geometry2D, type Curve, type Mesh, point, curvature, finePieces, resolveSelection } from '@amp/geom';
+import { type Geometry2D, type Curve, type Mesh, point, curvature, finePieces, selectIndices } from '@amp/geom';
 import { meshDomain, createSizeField } from './cdt2d.mjs';
 import { meshHash, tagHash } from './sha256.ts';
 import { triQuality } from './quality.ts';
+
+/** Default P1 vertex budget (audit S4), measured in Node v23.7 on an M4 Pro (logs/l3-budget-20261106T161945.jsonl):
+ * 556,098 vertices 3.6 s / 437 MB peak RSS; 1,077,706 vertices 8.1 s / 648 MB. 5e5 keeps a Worker mesh near 3 s and
+ * below 0.5 GB; larger meshes pass `maxVertices` explicitly. */
+export const DEFAULT_MAX_VERTICES = 5e5;
+/** Vertices per (sqrt(3)/4 h^2) of domain area, calibrated on the same runs (1.11 and 1.08). */
+const VERTS_PER_CELL = 1.1;
 
 export interface Refine2D {
   /** entity ids: `dom:...`, `bnd:...`, `pnt:...` (pieces of a split id are included) */
@@ -32,8 +39,10 @@ export interface MeshOptions2D {
   maxAngleDeg?: number;
   refine?: Refine2D[];
   order?: 1 | 2;
-  /** vertex budget; default 4e6 */
+  /** P1 vertex budget (not tri6 nodes); default 1e6, checked against an up-front estimate before the CDT runs */
   maxVertices?: number;
+  /** warn when the minimum angle falls below this (deg); default 5 */
+  warnAngleDeg?: number;
 }
 
 /** Ray-cast classifier on a segment set with per-segment left / right domains (horizontal bands). */
@@ -168,6 +177,7 @@ function crossingEdges(P: Pslg, edgeOfSeg: Int32Array): Set<number> {
 
 export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
   const t0 = performance.now();
+  if (!g.entities.domains.length || !g.edges.length) throw new Error('mesh: the geometry has no domain to mesh');
   const [bx0, by0, bx1, by1] = g.bbox;
   const diag = Math.hypot(bx1 - bx0, by1 - by0);
   const hmax = opts.hmax ?? diag / 20;
@@ -198,16 +208,16 @@ export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
       byKind[k]!.push(id);
     }
     if (byKind.domains!.length)
-      for (const d of resolveSelection(g.entities, 'domains', byKind.domains!, { descendants: true })) {
+      for (const d of selectIndices(g.entities, 'domains', byKind.domains!)) {
         regionMax[d] = Math.min(regionMax[d] ?? Infinity, r.h);
         sources.push({ segs: segsWhere((k) => g.edges[k]!.left === d || g.edges[k]!.right === d), domain: d, h0: r.h, grade: gr });
       }
     if (byKind.boundaries!.length) {
-      const B = new Set(resolveSelection(g.entities, 'boundaries', byKind.boundaries!, { descendants: true }));
+      const B = new Set(selectIndices(g.entities, 'boundaries', byKind.boundaries!));
       sources.push({ segs: segsWhere((k) => B.has(g.edges[k]!.boundary)), h0: r.h, grade: gr });
     }
     if (byKind.points!.length)
-      for (const p of resolveSelection(g.entities, 'points', byKind.points!, { descendants: true })) {
+      for (const p of selectIndices(g.entities, 'points', byKind.points!)) {
         const v = g.pointVertex[p]!;
         const x = g.vertices[2 * v]!, y = g.vertices[2 * v + 1]!;
         sources.push({ segs: Float64Array.from([x, y, x, y]), h0: r.h, grade: gr });
@@ -215,6 +225,23 @@ export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
   }
   const hmin = opts.hmin ?? hminAuto / 50;
   const sizeAt = createSizeField({ rect, maxEdge: hmax, grade, sources, regionMax, classify });
+  // fail fast (audit S4): estimate the vertex count from the size field on a 64 x 64 grid before meshing (sub-cell
+  // refinement regions are under-sampled, so the in-CDT budget check stays as the backstop)
+  const maxVertices = opts.maxVertices ?? DEFAULT_MAX_VERTICES;
+  {
+    const NG = 64, dx = (bx1 - bx0) / NG, dy = (by1 - by0) / NG;
+    let ntri = 0;
+    for (let j = 0; j < NG; j++)
+      for (let i = 0; i < NG; i++) {
+        const x = bx0 + (i + 0.5) * dx, y = by0 + (j + 0.5) * dy;
+        const c = classify(x, y);
+        if (c < 0) continue;
+        const h = Math.max(hmin, sizeAt(x, y, c));
+        ntri += (dx * dy) / ((Math.sqrt(3) / 4) * h * h);
+      }
+    const est = VERTS_PER_CELL * ntri;
+    if (est > maxVertices) throw new Error(`mesh: about ${est.toPrecision(2)} vertices estimated from the size field exceed the budget maxVertices = ${maxVertices}; coarsen hmax / refine, or raise maxVertices`);
+  }
   // discretize, check crossings, densify the offending edges and retry
   const mult = new Float64Array(g.edges.length).fill(1);
   let P: Pslg | null = null;
@@ -223,14 +250,14 @@ export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
     const edgeOfSeg = Int32Array.from(P.segs.map((s) => s.edge));
     const bad = crossingEdges(P, edgeOfSeg);
     if (!bad.size) break;
-    if (round >= 5) throw new Error(`mesh: boundary discretization still self-intersects after densification (edges ${[...bad].join(', ')})`);
+    if (round >= 5) throw new Error(`mesh: boundary discretization still self-intersects after densification (${bad.size} edges, e.g. boundaries ${[...new Set([...bad].map((e) => g.entities.boundaries[g.edges[e]!.boundary]!.id))].slice(0, 6).join(', ')})`);
     for (const e of bad) mult[e]! *= 2;
   }
   const tDisc = performance.now();
   const curvePoint = (k: number, t: number) => point(g.edges[k]!.curve, t);
   const raw = meshDomain({
     rect, verts: P.verts, segs: P.segs, classify, curvePoint, sizeAt,
-    minAngleBound: opts.radiusEdge ?? 1.35, minEdge: hmin, maxVertices: opts.maxVertices ?? 4e6,
+    minAngleBound: opts.radiusEdge ?? 1.35, minEdge: hmin, maxVertices,
   });
   const tMesh = performance.now();
   const m = toMesh2D(g, raw, opts.order ?? 1);
@@ -239,6 +266,22 @@ export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
     minAngleDeg: q.minAngleDeg!, maxAngleDeg: q.maxAngleDeg!, maxRadiusEdge: q.maxRadiusEdge!, minShape: q.minShape,
     meanShape: q.meanShape, nPoor: q.nPoor, nInverted: q.nInverted, area: q.measure, ...(m.quality ?? {}),
   };
+  // warnings (audit S2): poor angles, and boundaries shorter than the resolvable size 2 hmin
+  const warnings = [...g.warnings];
+  const warnAng = opts.warnAngleDeg ?? 5;
+  if (q.minAngleDeg! < warnAng) {
+    let nb = 0;
+    for (let t = 0; t < raw.nTris; t++) {
+      const a = raw.tri[3 * t]!, b = raw.tri[3 * t + 1]!, c = raw.tri[3 * t + 2]!;
+      const one = triQuality(raw.nodes, Int32Array.of(a, b, c));
+      if (one.minAngleDeg! < warnAng) nb++;
+    }
+    warnings.push(`minimum angle ${q.minAngleDeg!.toPrecision(3)} deg < ${warnAng} deg in ${nb} triangles: a feature (thin sliver, tangency, small hole) is below the resolvable size; refine it or simplify the geometry`);
+  }
+  const blen = new Float64Array(g.entities.boundaries.length);
+  for (const sgm of P.segs) blen[sgm.tag]! += Math.hypot(P.verts[2 * sgm.a]! - P.verts[2 * sgm.b]!, P.verts[2 * sgm.a + 1]! - P.verts[2 * sgm.b + 1]!);
+  blen.forEach((L, b) => { if (L > 0 && L < 2 * hmin) warnings.push(`${g.entities.boundaries[b]!.id}: length ${L.toPrecision(3)} m is below the resolvable size 2 hmin = ${(2 * hmin).toPrecision(3)} m`); });
+  if (warnings.length) m.warnings = warnings;
   const tEnd = performance.now();
   m.stats = {
     nodes: m.nodes.length / 2, cells: m.cells.domain.length, facets: m.facets.boundary.length, pslgVerts: P.verts.length / 2,

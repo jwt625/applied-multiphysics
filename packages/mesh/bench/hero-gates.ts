@@ -10,7 +10,7 @@ import { mkdirSync, appendFileSync, readFileSync } from 'node:fs';
 import { parseYaml, parseSpecText } from '@amp/spec';
 import { wave1Registry } from '@amp/spec/provisional';
 import { registerGeomFeatures } from '@amp/geom/spec';
-import { buildGeometry2D, type Feature, type Mesh } from '@amp/geom';
+import { buildGeometry2D, resolveEntityIds, type Feature, type Mesh } from '@amp/geom';
 import { mesh2d, meshExtruded } from '../src/index.ts';
 import { meshFromSpec } from '../src/spec.ts';
 
@@ -64,21 +64,24 @@ for (const h of rows) {
   }
   ts.sort((a, b) => a - b);
   const m = M!;
-  const dIdx = new Map(m.entities.domains.map((e, i) => [e.id, i]));
-  const bIdx = new Map(m.entities.boundaries.map((e, i) => [e.id, i]));
+  // selected ids through the canonical resolver; each must resolve and carry cells (domains) or facets (boundaries)
   const dUsed = new Set(m.cells.domain), bUsed = new Set(m.facets.boundary);
   if (m.facets2) for (const b of m.facets2.boundary) bUsed.add(b);
+  const KIND = { dom: 'domains', bnd: 'boundaries', pnt: 'points', edg: 'edges' } as const;
   const missing = h.selected.filter((id) => {
-    if (id.startsWith('dom:')) return !dIdx.has(id) || !dUsed.has(dIdx.get(id)!);
-    if (id.startsWith('bnd:')) return !bIdx.has(id) || !bUsed.has(bIdx.get(id)!);
-    return !(m.entities.points ?? []).some((e) => e.id === id);
+    const kind = KIND[id.slice(0, 3) as keyof typeof KIND];
+    const r = resolveEntityIds(m.entities, kind, [id]);
+    if (r.unknown.length) return true;
+    if (kind === 'domains') return !r.indices.some((i) => dUsed.has(i));
+    if (kind === 'boundaries') return !r.indices.some((i) => bUsed.has(i));
+    return false;
   });
   const nn = m.nodes.length / m.dim, q = m.quality ?? {};
   const rec = {
     hero: h.id, what: h.what, src: h.src, specValidation: h.valid, ts: new Date().toISOString(), median_ms: ts[2], min_ms: ts[0], max_ms: ts[4],
     cellType: m.cells.type, cells: m.cells.domain.length, nodes: nn, facetType: m.facets.type, facets: m.facets.boundary.length + (m.facets2?.boundary.length ?? 0),
     domains: m.entities.domains.map((e) => e.id), boundaries: m.entities.boundaries.map((e) => e.id), selected: h.selected, missing,
-    quality: q, hash: m.hash, tagHash: m.tagHash, hashStable: hashes.size === 1, platform: { node: process.version, arch: process.arch },
+    quality: q, warnings: m.warnings ?? [], hash: m.hash, tagHash: m.tagHash, hashStable: hashes.size === 1, platform: { node: process.version, arch: process.arch },
   };
   appendFileSync(log, JSON.stringify(rec) + '\n');
   const qs = q.minAngleDeg !== undefined ? `min angle ${q.minAngleDeg.toFixed(1)} deg, q_min ${q.minShape!.toFixed(3)}`

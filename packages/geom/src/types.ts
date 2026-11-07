@@ -9,6 +9,8 @@ export type { CellType };
 export interface EntityRef extends EntityRefC2 {
   /** boundary lies on the symmetry axis r = 0 of an axisymmetric geometry */
   axis?: boolean;
+  /** every transitive origin id (parent of parent ...), used by expandSelection */
+  ancestors?: string[];
 }
 
 export interface EntityTable extends EntityTableC2 {
@@ -30,4 +32,6 @@ export interface Mesh extends MeshC2 {
   facets2?: { type: CellType; conn: Int32Array; boundary: Int32Array };
   /** entities.points[k] -> node index (-1 if the point is not a mesh node) */
   pointNode?: Int32Array;
+  /** non-fatal quality / resolution warnings (audit S2); physics readiness should list them as reasons */
+  warnings?: string[];
 }

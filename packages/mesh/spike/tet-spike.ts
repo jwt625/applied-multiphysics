@@ -41,13 +41,33 @@ if (!shape) {
     appendFileSync(log, JSON.stringify({ kind: 'bundle', package: name, version, raw_bytes: raw, gz9_bytes: gz, files: per, ts: new Date().toISOString() }) + '\n');
     console.log(`bundle ${name}@${version}: raw ${(raw / 1e6).toFixed(3)} MB, gzip-9 ${(gz / 1e6).toFixed(3)} MB`);
   }
+  // audit S5: every shape 5 times (fTetWild is not deterministic); per-run records plus a median / min / max summary
+  const reps = Number((process.argv.find((a) => a.startsWith('--reps=')) ?? '--reps=5').split('=')[1]);
+  const stat = (v: number[]) => { const a = [...v].sort((x, y) => x - y); return { median: a[a.length >> 1]!, min: a[0]!, max: a[a.length - 1]! }; };
   for (const s of ['box-hole', 'sphere-box', 'torus']) {
-    const r = spawnSync(process.execPath, ['--max-old-space-size=1536', '--no-warnings', fileURLToPath(import.meta.url), s], { encoding: 'utf8' });
-    const line = r.stdout.trim().split('\n').pop() ?? '';
-    if (r.status !== 0) { console.log(s, 'FAILED', r.stderr.slice(-2000)); appendFileSync(log, JSON.stringify({ kind: 'shape', shape: s, error: r.stderr.slice(-2000) }) + '\n'); continue; }
-    appendFileSync(log, line + '\n');
-    const o = JSON.parse(line);
-    console.log(`${s}: ${JSON.stringify(o)}`);
+    const runs: Array<Record<string, any>> = [];
+    for (let r = 0; r < reps; r++) {
+      const res = spawnSync(process.execPath, ['--max-old-space-size=1536', '--no-warnings', fileURLToPath(import.meta.url), s], { encoding: 'utf8' });
+      const line = res.stdout.trim().split('\n').pop() ?? '';
+      if (res.status !== 0) { console.log(s, 'FAILED', res.stderr.slice(-2000)); appendFileSync(log, JSON.stringify({ kind: 'shape', shape: s, rep: r, error: res.stderr.slice(-2000) }) + '\n'); continue; }
+      const o = JSON.parse(line);
+      o.rep = r;
+      appendFileSync(log, JSON.stringify(o) + '\n');
+      runs.push(o);
+    }
+    const pick = (f: (o: Record<string, any>) => number) => stat(runs.map(f));
+    const sum = {
+      kind: 'summary', shape: s, reps: runs.length,
+      ftetwild_ms: pick((o) => o.timings.ftetwild_ms), ftetwild_tets: pick((o) => o.ftetwild.tets),
+      ftetwild_minDihedralDeg: pick((o) => o.ftetwild.minDihedralDeg), ftetwild_minRadiusRatio: pick((o) => o.ftetwild.minRadiusRatio),
+      mmg3d_ms: pick((o) => o.timings.mmg3d_ms), mmg3d_tets: pick((o) => o.mmg3d.tets),
+      mmg3d_minDihedralDeg: pick((o) => o.mmg3d.minDihedralDeg), mmg3d_minRadiusRatio: pick((o) => o.mmg3d.minRadiusRatio),
+      mmg_gain_minDihedralDeg: pick((o) => o.mmg3d.minDihedralDeg - o.ftetwild.minDihedralDeg),
+      inverted_max: Math.max(...runs.map((o) => Math.max(o.ftetwild.inverted, o.mmg3d.inverted))),
+      peakRssMB: pick((o) => o.peakRssMB),
+    };
+    appendFileSync(log, JSON.stringify(sum) + '\n');
+    console.log(JSON.stringify(sum));
   }
   console.log(`log: ${log}`);
   process.exit(0);

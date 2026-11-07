@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // @amp/mesh/spec: mesh an amp-spec/0 model (parsed data). Params are resolved by @amp/spec, the geometry by
 // @amp/geom/spec; the `mesh` block maps to: size.hmax -> hmax, size.hmin -> hmin, size.grading -> grade (growth of the
-// target size per unit distance), refine[{select, h}] -> local refinement by entity id, budget.maxNodes -> vertex
-// budget. 2D: CDT (tri3 / tri6). 3D: box list -> structured hex8 (h = hmax); single cylinder -> extruded tet4.
+// target size per unit distance), refine[{select, h}] -> local refinement by entity id (resolveEntityIds), budget.maxNodes -> the P1
+// vertex budget `maxVertices` (not the tri6 node count; audit M7). 2D: CDT (tri3 / tri6). 3D: box list -> structured hex8 (h = hmax); single cylinder -> extruded tet4.
 
 import { resolveParams } from '@amp/spec';
 import { makeResolver, geometryFromSpec, type FeatureNodeLike } from '@amp/geom/spec';

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildGeometry2D, domainAreas, resolveSelection, extrudeLayered, revolve, boundarySides,
+  buildGeometry2D, domainAreas, resolveEntityIds, extrudeLayered, revolve, boundarySides,
   type Feature, type Geometry2D,
 } from '../src/index.ts';
 
@@ -100,10 +100,10 @@ test('fragment: origin-set naming, split edges with parents, areas sum', () => {
   close(area(g, 'dom:a&c'), half, 1e-12);
   close(area(g, 'dom:c'), half, 1e-12);
   close(area(g, 'dom:a'), 2 - half, 1e-12);
-  assert.deepEqual(resolveSelection(g.entities, 'boundaries', ['bnd:a.top']).length, 3);
-  assert.deepEqual(resolveSelection(g.entities, 'domains', ['dom:c'], { descendants: true }).map((i) => g.entities.domains[i]!.id).sort(), ['dom:a&c', 'dom:c']);
-  assert.deepEqual(resolveSelection(g.entities, 'domains', ['dom:c']).map((i) => g.entities.domains[i]!.id), ['dom:c']);
-  assert.throws(() => resolveSelection(g.entities, 'domains', ['dom:nope']), /matches no domain/);
+  const R = (kind: 'domains' | 'boundaries', ids: string[]) => resolveEntityIds(g.entities, kind, ids);
+  assert.equal(R('boundaries', ['bnd:a.top']).indices.length, 3);
+  assert.deepEqual(R('domains', ['dom:c']).indices.map((i) => g.entities.domains[i]!.id).sort(), ['dom:a&c', 'dom:c']);
+  assert.deepEqual(R('domains', ['dom:nope']), { indices: [], unknown: ['dom:nope'], expansion: {} });
 });
 
 test('union and intersection of two circles: areas vs the closed-form lens', () => {
@@ -156,16 +156,16 @@ test('polyline and arc: cutting polyline splits a domain; a dangling arc stays e
 test('extrudeLayered and revolve entity tables', () => {
   const g = buildGeometry2D({ features: [{ id: 'sub0', type: 'rect', x: [0, 2], y: [0, 2] }, { id: 'via', type: 'circle', c: [1, 1], r: 0.3 }, { id: 'sub', type: 'difference', target: 'sub0', tools: ['via'], keepTools: true }] });
   const E = extrudeLayered(g, [{ id: 'L0', z: [0, 1] }, { id: 'L1', z: [1, 1.5], domains: ['via'] }]);
-  assert.deepEqual(E.entities.domains.map((d) => d.id).sort(), ['dom:sub@L0', 'dom:via@L0', 'dom:via@L1']);
+  assert.deepEqual(E.entities.domains.map((d) => d.id).sort(), ['dom:sub.L0', 'dom:via.L0', 'dom:via.L1']);
   const bid = E.entities.boundaries.map((b) => b.id);
-  assert.ok(bid.includes('bnd:via@L0.top'), 'shared cap named after the lower layer');
-  assert.ok(bid.includes('bnd:via@L1.top') && bid.includes('bnd:sub@L0.top') && bid.includes('bnd:via.edge@L1'));
-  assert.ok(!bid.includes('bnd:sub0.left@L1'), 'absent domain gives no side face');
-  assert.deepEqual(E.entities.boundaries.find((b) => b.id === 'bnd:via@L0.top')!.parent, ['dom:via', 'bnd:via@L1.bottom']);
+  assert.ok(bid.includes('bnd:via.L0.top'), 'shared cap named after the lower layer');
+  assert.ok(bid.includes('bnd:via.L1.top') && bid.includes('bnd:sub.L0.top') && bid.includes('bnd:via.edge.L1'));
+  assert.ok(!bid.includes('bnd:sub0.left.L1'), 'absent domain gives no side face');
+  assert.deepEqual(E.entities.boundaries.find((b) => b.id === 'bnd:via.L0.top')!.parent, ['dom:via', 'bnd:via.L1.bottom']);
   assert.throws(() => extrudeLayered(g, [{ id: 'L0', z: [0, 1] }, { id: 'L1', z: [1.1, 2] }]), /does not start/);
   const m = buildGeometry2D({ axisym: true, features: [{ id: 'core', type: 'rect', x: [0, 1], y: [0, 1] }] });
   const R = revolve(m, 'rev');
-  assert.deepEqual(R.entities.boundaries.map((b) => b.id), ['bnd:core.bottom@rev', 'bnd:core.right@rev', 'bnd:core.top@rev']);
+  assert.deepEqual(R.entities.boundaries.map((b) => b.id), ['bnd:core.bottom.rev', 'bnd:core.right.rev', 'bnd:core.top.rev']);
   const Rp = revolve(m, 'rev', Math.PI / 2);
   assert.equal(Rp.entities.boundaries.length, 5);
 });
@@ -175,4 +175,65 @@ test('deterministic: the same input twice gives identical geometry', () => {
   const a = buildGeometry2D({ features: f }), b = buildGeometry2D({ features: f });
   assert.deepEqual(ids(a), ids(b));
   assert.deepEqual(Array.from(a.vertices), Array.from(b.vertices));
+});
+
+test('resolveEntityIds: split pieces at any depth and the transitive closure over parents', () => {
+  // bar cut into p#1 / p#2 by s, then p#2 cut again by s2 into q pieces; nested split ids p#2#k when the base is multi-domain
+  const g = buildGeometry2D({ features: [
+    { id: 'bar', type: 'rect', x: [0, 4], y: [0, 1] }, { id: 's', type: 'rect', x: [1, 1.2], y: [-1, 2] },
+    { id: 'p', type: 'difference', target: 'bar', tools: ['s'] },
+    { id: 's2', type: 'rect', x: [3, 3.2], y: [-1, 2] }, { id: 'q', type: 'difference', target: 'p', tools: ['s2'] }] });
+  const ids = g.entities.domains.map((d) => d.id);
+  assert.deepEqual(ids, ['dom:p#1', 'dom:p#2#1', 'dom:p#2#2']);
+  const R = (x: string) => resolveEntityIds(g.entities, 'domains', [x]).indices.map((i) => ids[i]);
+  assert.deepEqual(R('dom:bar'), ids);
+  assert.deepEqual(R('dom:p'), ids);
+  assert.deepEqual(R('dom:p#2'), ['dom:p#2#1', 'dom:p#2#2']);
+  assert.deepEqual(R('dom:p#2#1'), ['dom:p#2#1']);
+  assert.deepEqual(R('dom:p#1'), ['dom:p#1']);
+  // boundaries: every surviving piece of bar.bottom, whatever its depth
+  const B = resolveEntityIds(g.entities, 'boundaries', ['bnd:bar.bottom']).indices.map((i) => g.entities.boundaries[i]!.id);
+  assert.equal(B.length, 3);
+});
+
+// Audit B1: a curve touching a horizontal edge (or any edge) used to give an empty geometry with no error.
+const touchCases: Array<[string, Feature[]]> = (() => {
+  const out: Array<[string, Feature[]]> = [];
+  const rect: Feature = { id: 'r', type: 'rect', x: [0, 1], y: [0, 1] };
+  const disks: Array<[string, Feature]> = [
+    ['circle below', { id: 'c', type: 'circle', c: [0.5, -0.25], r: 0.25 }],
+    ['circle above', { id: 'c', type: 'circle', c: [0.5, 1.25], r: 0.25 }],
+    ['circle left', { id: 'c', type: 'circle', c: [-0.25, 0.5], r: 0.25 }],
+    ['circle right', { id: 'c', type: 'circle', c: [1.25, 0.5], r: 0.25 }],
+    ['ellipse below', { id: 'c', type: 'ellipse', c: [0.5, -0.1], rx: 0.3, ry: 0.1 }],
+  ];
+  for (const [n, d] of disks) {
+    out.push([`${n} (touching, final)`, [rect, d]]);
+    out.push([`${n} (union)`, [rect, d, { id: 'u', type: 'union', inputs: ['r', 'c'] }]]);
+    out.push([`${n} (fragment)`, [rect, d, { id: 'f', type: 'fragment', inputs: ['r', 'c'] }]]);
+  }
+  out.push(['inner tangent circle at the bottom (fragment)', [rect, { id: 'c', type: 'circle', c: [0.5, 0.25], r: 0.25 }, { id: 'f', type: 'fragment', inputs: ['r', 'c'] }]]);
+  out.push(['wire below a slab', [{ id: 'slab', type: 'rect', x: [-1, 1], y: [0, 0.2] }, { id: 'w', type: 'circle', c: [0, -0.05], r: 0.05 }]]);
+  out.push(['tilted rect tangent to a circle', [{ id: 'r', type: 'polygon', points: [[0, 0], [1, 0.3], [0.7, 1.3], [-0.3, 1]] }, { id: 'c', type: 'circle', c: [0.5 + 0.25 * 0.3 / Math.hypot(1, 0.3), 0.15 - 0.25 / Math.hypot(1, 0.3)], r: 0.25 }]]);
+  return out;
+})();
+for (const [name, f] of touchCases)
+  test(`B1 regression: ${name} keeps every domain and its area`, () => {
+    const g = buildGeometry2D({ features: f });
+    assert.ok(g.entities.domains.length >= 1, 'domains present');
+    const A = domainAreas(g).reduce((a, b) => a + b, 0);
+    // expected total: sum of primitive areas minus overlaps; all cases here touch or nest, so compute from primitives
+    const prim = f.filter((x) => ['rect', 'circle', 'ellipse', 'polygon'].includes(x.type));
+    const area1 = (x: Feature) => buildGeometry2D({ features: [x] });
+    const parts = prim.map((x) => domainAreas(area1(x))[0]!);
+    const nested = name.includes('inner');
+    const want = nested ? parts[0]! : parts.reduce((a, b) => a + b, 0);
+    close(A, want, 1e-9);
+  });
+
+test('S3: a feature below the geometric tolerance is an error, not a silent drop', () => {
+  const f = (r: number): Feature[] => [{ id: 'sq', type: 'rect', x: [0, 1], y: [0, 1] }, { id: 'h', type: 'circle', c: [0.5, 0.5], r }, { id: 'd', type: 'difference', target: 'sq', tools: ['h'] }];
+  assert.ok(buildGeometry2D({ features: f(1e-8) }).entities.boundaries.some((b) => b.id === 'bnd:h.edge'));
+  assert.throws(() => buildGeometry2D({ features: f(1e-9) }), /h: extent .* below 10 x the geometric tolerance/);
+  assert.throws(() => buildGeometry2D({ features: f(2e-9) }), /below 10 x the geometric tolerance|below the geometric tolerance/);
 });

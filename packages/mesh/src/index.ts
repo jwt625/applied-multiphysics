@@ -2,7 +2,7 @@
 // @amp/mesh: 2D CDT quality mesher (EO port), structured hex grid and layered prism/tet meshers (APA ports), revolve
 // sweep, quality metrics, P2 nodes, C2 mesh hash.
 
-export { mesh2d, makeClassifier, type MeshOptions2D, type Refine2D } from './mesh2d.ts';
+export { mesh2d, makeClassifier, DEFAULT_MAX_VERTICES, type MeshOptions2D, type Refine2D } from './mesh2d.ts';
 export { meshDomain, createSizeField } from './cdt2d.mjs';
 export { triQuality, tetQuality, solidQuality, type QualitySummary } from './quality.ts';
 export { meshHash, tagHash, Sha256 } from './sha256.ts';

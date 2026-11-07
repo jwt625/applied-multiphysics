@@ -18,11 +18,13 @@ import { type Curve, type Vec2, point, deriv, reverse } from './curves.ts';
 import { arrange, type Arrangement } from './arrangement.ts';
 import type { EntityRef, EntityTable } from './types.ts';
 
-export interface DomainRec { id: string; parent?: string[] }
+export interface DomainRec { id: string; parent?: string[]; anc?: string[] }
 export interface EdgeRec {
   curve: Curve;
   id: string;
   parent?: string[];
+  /** every transitive origin id (with prefix), for selection expansion */
+  anc?: string[];
   left: number;
   right: number;
   /** order of the entity in its object, and position of this record along the entity (for #k ordering) */
@@ -31,7 +33,7 @@ export interface EdgeRec {
   /** from a curve object (arc / polyline): kept as an embedded edge inside domains */
   embedded: boolean;
 }
-export interface PointRec { id: string; p: Vec2; parent?: string[] }
+export interface PointRec { id: string; p: Vec2; parent?: string[]; anc?: string[] }
 export interface Obj { feature: string; domains: DomainRec[]; edges: EdgeRec[]; points: PointRec[]; curveOnly: boolean }
 
 export type Feature =
@@ -71,9 +73,12 @@ export interface Geometry2D {
   pointVertex: Int32Array;
   /** features in construction order (ids) */
   features: string[];
+  /** non-fatal issues (near-tolerance features); surfaced by the mesher and as readiness reasons */
+  warnings: string[];
 }
 
 const ID_RE = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+const uniqNot = (l: string[], self: string) => [...new Set(l)].filter((x) => x !== self);
 const fail = (m: string): never => {
   throw new Error(`geom: ${m}`);
 };
@@ -158,9 +163,28 @@ const keyLess = (a: Key, b: Key) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 export interface CombineResult { obj: Obj; arr: Arrangement; subKept: Uint8Array; subRec: Int32Array; faceDom: Int32Array }
 
 export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineResult {
+  const who = op === 'final' ? 'final fragment of the remaining objects' : fid;
   const recObj: number[] = [], recs: EdgeRec[] = [];
   for (let o = 0; o < objs.length; o++) for (const e of objs[o]!.edges) { recObj.push(o); recs.push(e); }
   const A = arrange(recs.map((r) => r.curve), tol);
+  // no silent loss (audit S3): an entity of positive length whose every curve collapsed below tol is an error
+  const lost = new Map<string, number>();
+  recs.forEach((r, i) => {
+    const k = r.id;
+    if (!lost.has(k)) lost.set(k, 0);
+    if (A.recPieces[i]! > 0) lost.set(k, 1);
+    else if (A.recLength[i]! <= tol) lost.set(k, Math.max(lost.get(k)!, 0.5));
+  });
+  // two pieces of one entity of one object merged as coincident: the feature degenerated (e.g. a circle below tol)
+  for (const S of A.subs)
+    for (let a = 0; a < S.srcs.length; a++)
+      for (let b = a + 1; b < S.srcs.length; b++) {
+        const ra = S.srcs[a]!.rec, rb = S.srcs[b]!.rec;
+        if (recObj[ra] === recObj[rb] && recs[ra]!.id === recs[rb]!.id)
+          fail(`${who}: boundary '${recs[ra]!.id}' folds onto itself below the geometric tolerance ${tol.toPrecision(3)} m (feature too small relative to the model size)`);
+      }
+  for (const [k, v] of lost)
+    if (v === 0) fail(`${who}: boundary '${k}' collapses below the geometric tolerance ${tol.toPrecision(3)} m (feature too small relative to the model size)`);
   const domOff: number[] = [];
   let nd = 0;
   for (const o of objs) { domOff.push(nd); nd += o.domains.length; }
@@ -199,7 +223,7 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
       ng.sort((a, b) => a - b);
       const cur = origin[g + 1];
       if (cur == null) { origin[g + 1] = ng; queue.push(g); }
-      else if (cur.length !== ng.length || cur.some((k, i) => k !== ng[i])) fail(`${fid}: inconsistent region classification (check for coincident curved edges or self-intersecting input)`);
+      else if (cur.length !== ng.length || cur.some((k, i) => k !== ng[i])) fail(`${who}: inconsistent region classification (check for coincident curved edges or self-intersecting input)`);
     }
   }
   // kept faces and group keys
@@ -272,7 +296,10 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
     if (renamed || cnt > 1 || c.origins.length > 1) parent = c.origins.map((q) => `dom:${domName(q).id}`);
     else parent = domName(c.origins[0]!).parent;
     for (const f of c.faces) faceDom[f] = domains.length;
-    domains.push(parent ? { id, parent } : { id });
+    const anc = uniqNot(c.origins.flatMap((q) => [`dom:${domName(q).id}`, ...(domName(q).anc ?? [])]), `dom:${id}`);
+    const rec: DomainRec = parent ? { id, parent } : { id };
+    if (anc.length) rec.anc = anc;
+    domains.push(rec);
   }
   // kept subs
   const curveOnly = objs.every((o) => o.curveOnly);
@@ -301,7 +328,7 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
   for (let s = 0; s < nS; s++) if (subKept[s]) { inc[A.subs[s]!.v0]!.push(s); inc[A.subs[s]!.v1]!.push(s); }
   const inChain = new Int32Array(nS).fill(-1);
   type Step = { s: number; dir: 1 | -1 };
-  const chains: Array<{ steps: Step[]; key: Key; base: string; ids: string[] }> = [];
+  const chains: Array<{ steps: Step[]; key: Key; base: string; ids: string[]; closed: boolean }> = [];
   const endV = (st: Step) => (st.dir > 0 ? A.subs[st.s]!.v1 : A.subs[st.s]!.v0);
   const startV = (st: Step) => (st.dir > 0 ? A.subs[st.s]!.v0 : A.subs[st.s]!.v1);
   const lr = (st: Step): [number, number] => (st.dir > 0 ? [dl[st.s]!, dr[st.s]!] : [dr[st.s]!, dl[st.s]!]);
@@ -352,14 +379,18 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
       for (let i = 1; i < steps.length; i++) if (keyLess(stepKey(steps[i]!), stepKey(steps[bi]!)) < 0) bi = i;
       steps.push(...steps.splice(0, bi));
     }
-    chains.push({ steps, key: stepKey(steps[0]!), base: prim, ids });
+    chains.push({ steps, key: stepKey(steps[0]!), base: prim, ids, closed });
   }
   chains.sort((a, b) => keyLess(a.key, b.key));
   const cCount = new Map<string, number>();
   for (const c of chains) cCount.set(c.base, (cCount.get(c.base) ?? 0) + 1);
   const cSeen = new Map<string, number>();
   const parentOfId = new Map<string, string[] | undefined>();
-  for (const e of recs) if (!parentOfId.has(e.id)) parentOfId.set(e.id, e.parent);
+  const ancOfId = new Map<string, string[]>();
+  for (const e of recs) {
+    if (!parentOfId.has(e.id)) parentOfId.set(e.id, e.parent);
+    if (e.anc) ancOfId.set(e.id, uniqNot([...(ancOfId.get(e.id) ?? []), ...e.anc], ''));
+  }
   const edges: EdgeRec[] = [];
   const subRec = new Int32Array(nS).fill(-1);
   chains.forEach((c, ord) => {
@@ -368,6 +399,7 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
     cSeen.set(c.base, k);
     const id = cnt > 1 ? `${c.base}#${k}` : c.base;
     const parent = cnt > 1 || c.ids.length > 1 ? c.ids.map((x) => `bnd:${x}`) : parentOfId.get(c.base);
+    const anc = uniqNot(c.ids.flatMap((x) => [`bnd:${x}`, ...(ancOfId.get(x) ?? [])]), `bnd:${id}`);
     c.steps.forEach((st, pos) => {
       const S = A.subs[st.s]!;
       let curve = st.dir > 0 ? S.curve : reverse(S.curve);
@@ -379,12 +411,14 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
       subRec[st.s] = edges.length;
       const rec: EdgeRec = { curve, id, left: l, right: r, ord, pos, embedded: emb[st.s] === 1 };
       if (parent) rec.parent = parent;
+      if (anc.length) rec.anc = anc;
       edges.push(rec);
     });
   });
   // points: chain end vertices
   const isEnd = new Uint8Array(nV);
   for (const c of chains) {
+    if (c.closed) continue; // a closed loop (circle seam) has no end vertex (audit M1)
     isEnd[startV(c.steps[0]!)] = 1;
     isEnd[endV(c.steps[c.steps.length - 1]!)] = 1;
   }
@@ -409,6 +443,8 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
       const rec: PointRec = { id: l[0]!.id, p };
       if (l.length > 1) rec.parent = l.map((q) => `pnt:${q.id}`);
       else if (l[0]!.parent) rec.parent = l[0]!.parent;
+      const anc = uniqNot(l.flatMap((q) => [`pnt:${q.id}`, ...(q.anc ?? [])]), `pnt:${rec.id}`);
+      if (anc.length) rec.anc = anc;
       points.push(rec);
     } else {
       let key: Key = [Infinity, Infinity, Infinity];
@@ -454,6 +490,12 @@ export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number } 
   const scale = Math.hypot(bb0[2] - bb0[0], bb0[3] - bb0[1]);
   if (!(scale > 0)) fail('empty geometry');
   const tol = (opts.relTol ?? 1e-9) * scale;
+  // no silent drop (audit S3): a primitive smaller than 10 x the merge tolerance cannot be represented
+  prims.forEach((o) => {
+    const b = bboxOfObjs([o]);
+    const ext = Math.hypot(b[2] - b[0], b[3] - b[1]);
+    if (ext < 10 * tol) fail(`${o.feature}: extent ${ext.toPrecision(3)} m is below 10 x the geometric tolerance (${tol.toPrecision(3)} m = ${opts.relTol ?? 1e-9} x model size ${scale.toPrecision(3)} m); scale the model or pass a smaller relTol`);
+  });
   let pi = 0;
   const take = (ids: string[], who: string) =>
     ids.map((x) => {
@@ -487,7 +529,18 @@ export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number } 
   const remaining = [...live.values()];
   if (!remaining.some((o) => !o.curveOnly)) fail('no solid domain in the geometry');
   const R = combine('final', 'geom', remaining, tol);
-  return toGeometry(R, !!spec.axisym, tol, order);
+  if (!R.obj.domains.length) fail('the final geometry has no domain although solid features exist (report this geometry)');
+  const G = toGeometry(R, !!spec.axisym, tol, order);
+  // near-tolerance entities (audit S2): resolvable, but represented with few significant digits
+  const len = new Map<number, number>();
+  for (const e of G.edges) {
+    const a = [G.vertices[2 * e.v0]!, G.vertices[2 * e.v0 + 1]!], b = [G.vertices[2 * e.v1]!, G.vertices[2 * e.v1 + 1]!];
+    const m = point(e.curve, 0.5);
+    len.set(e.boundary, (len.get(e.boundary) ?? 0) + Math.hypot(m[0] - a[0]!, m[1] - a[1]!) + Math.hypot(b[0]! - m[0], b[1]! - m[1]));
+  }
+  for (const [b, L] of len)
+    if (L < 1e3 * tol) G.warnings.push(`${G.entities.boundaries[b]!.id}: length ${L.toPrecision(3)} m is within 1000 x the geometric tolerance (${tol.toPrecision(3)} m); its shape is not reliable`);
+  return G;
 }
 
 function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: string[]): Geometry2D {
@@ -502,6 +555,7 @@ function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: st
       bIndex.set(e.id, boundaries.length);
       const ref: EntityRef = { id: `bnd:${e.id}` };
       if (e.parent) ref.parent = e.parent;
+      if (e.anc) ref.ancestors = e.anc;
       boundaries.push(ref);
     }
   }
@@ -533,10 +587,16 @@ function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: st
     if (best < 0) continue;
     const ref: EntityRef = { id: `pnt:${p.id}` };
     if (p.parent) ref.parent = p.parent;
+    if (p.anc) ref.ancestors = p.anc;
     pointsRef.push(ref);
     pv.push(best);
   }
-  const domains: EntityRef[] = obj.domains.map((d) => (d.parent ? { id: `dom:${d.id}`, parent: d.parent } : { id: `dom:${d.id}` }));
+  const domains: EntityRef[] = obj.domains.map((d) => {
+    const ref: EntityRef = { id: `dom:${d.id}` };
+    if (d.parent) ref.parent = d.parent;
+    if (d.anc) ref.ancestors = d.anc;
+    return ref;
+  });
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const e of edges)
     for (let i = 0; i <= 32; i++) {
@@ -560,27 +620,44 @@ function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: st
   }
   return {
     dim: 2, axisym, tol, bbox: [x0, y0, x1, y1], vertices, edges,
-    entities: { domains, boundaries, points: pointsRef }, pointVertex: Int32Array.from(pv), features,
+    entities: { domains, boundaries, points: pointsRef }, pointVertex: Int32Array.from(pv), features, warnings: [],
   };
 }
 
-/** Resolve selection ids (`dom:x`, `bnd:x.top`, `pnt:x.p0`) to entity indices: the exact id; when no entity has that
- * id, or with `descendants`, also every entity whose `parent` lists it (pieces of a split or merge). */
-export function resolveSelection(ent: EntityTable, kind: 'domains' | 'boundaries' | 'points', ids: string[], opts: { descendants?: boolean } = {}): number[] {
-  const list = ent[kind] ?? [];
+/** Does entity id `a` belong to selection id `x`: equal, or a piece `x#k`, `x#k#m`, ... */
+const isPieceOf = (a: string, x: string) => a === x || a.startsWith(`${x}#`);
+
+export type EntityKindKey = 'domains' | 'boundaries' | 'edges' | 'points';
+
+/**
+ * The canonical selection resolver (CONTRACTS-v0 changelog 2026-11-06 16:16; audit S1). Owned by @amp/geom, used by
+ * @amp/mesh and injected into @amp/spec checkSelections. An id X of the given kind selects every entity whose id is X
+ * or a split piece X#k, X#k#m, ... (any depth), or whose `parent` or `ancestors` (transitive closure over parent,
+ * recorded at construction) contain X or a piece of X. Never throws: ids that match nothing go to `unknown`.
+ * `expansion` (id -> matched entity ids) is an addition for readiness messages (coordinator decision 6).
+ */
+export function resolveEntityIds(table: EntityTable, kind: EntityKindKey, ids: readonly string[]):
+  { indices: number[]; unknown: string[]; expansion: Record<string, string[]> } {
+  const list = table[kind] ?? [];
   const out = new Set<number>();
-  for (const id of ids) {
-    let hit = false;
+  const unknown: string[] = [];
+  const expansion: Record<string, string[]> = {};
+  for (const x of ids) {
+    const hit: string[] = [];
     list.forEach((e, i) => {
-      if (e.id === id) { out.add(i); hit = true; }
+      if (isPieceOf(e.id, x) || e.parent?.some((p) => isPieceOf(p, x)) || e.ancestors?.some((p) => isPieceOf(p, x))) { out.add(i); hit.push(e.id); }
     });
-    if (hit && !opts.descendants) continue;
-    list.forEach((e, i) => {
-      if (e.parent?.includes(id)) { out.add(i); hit = true; }
-    });
-    if (!hit) fail(`selection '${id}' matches no ${kind.slice(0, -1)}`);
+    if (hit.length) expansion[x] = hit;
+    else unknown.push(x);
   }
-  return [...out].sort((a, b) => a - b);
+  return { indices: [...out].sort((a, b) => a - b), unknown, expansion };
+}
+
+/** resolveEntityIds that throws on unknown ids (internal convenience for the meshers). */
+export function selectIndices(table: EntityTable, kind: EntityKindKey, ids: string[]): number[] {
+  const r = resolveEntityIds(table, kind, ids);
+  if (r.unknown.length) fail(`selection ${r.unknown.map((u) => `'${u}'`).join(', ')} matches no ${kind === 'boundaries' ? 'boundary' : kind.slice(0, -1)}`);
+  return r.indices;
 }
 
 /** Area of every domain by Green's theorem on the exact curves (Gauss-Legendre per edge). */

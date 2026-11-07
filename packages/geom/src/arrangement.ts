@@ -19,9 +19,21 @@ export interface Arrangement {
   faces: ArrFace[];
   /** face index on the left of half-edge h (h = 2 s forward, 2 s + 1 backward); -1 = unbounded */
   heFace: Int32Array;
+  /** pieces each input curve produced (0 = collapsed below tol) and its length */
+  recPieces: Int32Array;
+  recLength: Float64Array;
 }
 
 const sq = (x: number) => x * x;
+
+/** Direction angle in (-pi + 1e-10, pi + 1e-10]: `+ 0` turns -0 into +0 (atan2(-0, x < 0) is -pi), and angles within
+ * 1e-10 of -pi are folded onto +pi, so two tangent directions that straddle the +-pi cut compare as a tie and reach the
+ * curvature tie-break (audit 2026-11-06 B1). The plain difference is then a consistent sort key. */
+const ANG_TIE = 1e-10;
+export function dirAngle(x: number, y: number): number {
+  const a = Math.atan2(y + 0, x + 0);
+  return a <= -Math.PI + ANG_TIE ? a + 2 * Math.PI : a;
+}
 
 export function arrange(curves: Curve[], tol: number): Arrangement {
   // ---- vertices (spatial hash, merge within tol) ----
@@ -140,6 +152,7 @@ export function arrange(curves: Curve[], tol: number): Arrangement {
   // ---- pieces, coincident merge ----
   const subs: ArrSub[] = [];
   const byPair = new Map<string, number[]>();
+  const recPieces = new Int32Array(n);
   for (let i = 0; i < n; i++) {
     const sp = splits[i]!.sort((a, b) => a.t - b.t);
     const list: Array<{ t: number; v: number }> = [];
@@ -150,6 +163,7 @@ export function arrange(curves: Curve[], tol: number): Arrangement {
     for (let q = 0; q + 1 < list.length; q++) {
       const a = list[q]!, b = list[q + 1]!;
       if (a.v === b.v) continue;
+      recPieces[i]!++;
       const cv = subCurve(curves[i]!, a.t, b.t);
       const key = a.v < b.v ? `${a.v}_${b.v}` : `${b.v}_${a.v}`;
       const mid = point(cv, 0.5);
@@ -193,8 +207,8 @@ export function arrange(curves: Curve[], tol: number): Arrangement {
       const a = deriv(S.curve, 0), b = deriv(S.curve, 1);
       d0 = a; d1 = [-b[0], -b[1]];
     }
-    ang[2 * s] = Math.atan2(d0[1], d0[0]);
-    ang[2 * s + 1] = Math.atan2(d1[1], d1[0]);
+    ang[2 * s] = dirAngle(d0[0], d0[1]);
+    ang[2 * s + 1] = dirAngle(d1[0], d1[1]);
     kap[2 * s] = curvature(S.curve, 0);
     kap[2 * s + 1] = -curvature(S.curve, 1);
     out[S.v0]!.push(2 * s);
@@ -205,7 +219,7 @@ export function arrange(curves: Curve[], tol: number): Arrangement {
     const l = out[v]!;
     l.sort((a, b) => {
       const d = ang[a]! - ang[b]!;
-      if (Math.abs(d) > 1e-10) return d;
+      if (Math.abs(d) > ANG_TIE) return d;
       return kap[a]! - kap[b]! || a - b;
     });
     l.forEach((h, i) => { posInV[h] = i; });
@@ -300,8 +314,15 @@ export function arrange(curves: Curve[], tol: number): Arrangement {
       F.area += cArea[c]!;
     }
   }
+  // post-conditions (audit B1): Euler V - E + F = 1 + C (F counts the unbounded face) and positive bounded-face areas;
+  // a wrong half-edge order shows up as a missing face, which would otherwise silently drop domains
+  const usedV = new Set<number>();
+  for (const S of subs) { usedV.add(S.v0); usedV.add(S.v1); }
+  if (nS > 0 && usedV.size - nS + (faces.length + 1) !== 1 + compOuter.size)
+    throw new Error(`geom: arrangement inconsistent (V ${usedV.size} - E ${nS} + F ${faces.length + 1} != 1 + C ${compOuter.size}): report this geometry`);
+  for (const F of faces) if (!(F.area > 0)) throw new Error('geom: arrangement produced a face with non-positive area: report this geometry');
   const heFace = new Int32Array(nH);
   for (let h = 0; h < nH; h++) heFace[h] = cycFace[cyc[h]!]!;
   void sq;
-  return { vx: Float64Array.from(VX), vy: Float64Array.from(VY), subs, faces, heFace };
+  return { vx: Float64Array.from(VX), vy: Float64Array.from(VY), subs, faces, heFace, recPieces, recLength: Float64Array.from(len) };
 }

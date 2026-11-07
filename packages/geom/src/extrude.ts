@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // 3D entity tables for a layered extrusion (z) and a revolution (about the z axis, x = r) of a 2D geometry.
-// IDs: domain `<d>@<layer>`, side face `<b>@<layer>`, caps `<d>@<layer>.bottom` / `.top` (a cap shared by two layers
-// takes the lower layer's `.top`, with the upper `.bottom` in `parent`). Revolve: `<d>@<rev>`, `<b>@<rev>`, partial
-// angles add `<d>@<rev>.start` / `.end`; boundaries on the axis vanish. Every 3D entity lists its 2D origin in `parent`.
+// IDs (CONTRACTS-v0 changelog 2026-11-06 16:16: layers are dotted sub-entities `.L<k>`, `@` is reserved): layer k
+// (0-based, in list order) gives domain `<d>.L<k>`, side face `<b>.L<k>`, caps `<d>.L<k>.bottom` / `.top` (a cap shared
+// by two layers takes the lower layer's `.top`, with the upper `.bottom` in `parent`). Layer ids stay labels. Revolve
+// `rev`: `<d>.<rev>`, `<b>.<rev>`, partial angles add `<d>.<rev>.start` / `.end`; boundaries on the axis vanish. Every
+// 3D entity lists its 2D origin in `parent` and the 2D lineage in `ancestors`.
 
 import type { EntityRef, EntityTable } from './types.ts';
 import type { Geometry2D } from './model.ts';
@@ -29,6 +31,11 @@ export interface Extruded {
 }
 
 const strip = (id: string, p: string) => (id.startsWith(p) ? id.slice(p.length) : id);
+/** 3D entity with the 2D origin's lineage: ancestors = parent ids + the origin's ancestors. */
+const lin = (r: EntityRef, origin: EntityRef): EntityRef => {
+  const anc = [...new Set([...(r.parent ?? []), origin.id, ...(origin.ancestors ?? [])])].filter((x) => x !== r.id);
+  return anc.length ? { ...r, ancestors: anc } : r;
+};
 const ID_RE = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
 /** Left / right 2D domain of each boundary entity. */
@@ -71,7 +78,7 @@ export function extrudeLayered(g: Geometry2D, layers: Layer[]): Extruded {
     for (let d = 0; d < nD; d++)
       if (active[d * nL + k]) {
         domainIndex[d * nL + k] = domains.length;
-        domains.push({ id: `dom:${d2[d]}@${layers[k]!.id}`, parent: [`dom:${d2[d]}`] });
+        domains.push(lin({ id: `dom:${d2[d]}.L${k}`, label: `${d2[d]} in layer ${layers[k]!.id}`, parent: [`dom:${d2[d]}`] }, g.entities.domains[d]!));
       }
   const sides = boundarySides(g);
   const sideIndex = new Int32Array(nB * nL).fill(-1);
@@ -82,18 +89,18 @@ export function extrudeLayered(g: Geometry2D, layers: Layer[]): Extruded {
       if (!al && !ar) continue;
       const b2 = strip(g.entities.boundaries[b]!.id, 'bnd:');
       sideIndex[b * nL + k] = boundaries.length;
-      boundaries.push({ id: `bnd:${b2}@${layers[k]!.id}`, parent: [`bnd:${b2}`] });
+      boundaries.push(lin({ id: `bnd:${b2}.L${k}`, label: `${b2} in layer ${layers[k]!.id}`, parent: [`bnd:${b2}`] }, g.entities.boundaries[b]!));
     }
   const capIndex = new Int32Array((nL + 1) * nD).fill(-1);
   for (let j = 0; j <= nL; j++)
     for (let d = 0; d < nD; d++) {
       const below = j > 0 && active[d * nL + j - 1] === 1, above = j < nL && active[d * nL + j] === 1;
       if (!below && !above) continue;
-      const id = below ? `bnd:${d2[d]}@${layers[j - 1]!.id}.top` : `bnd:${d2[d]}@${layers[j]!.id}.bottom`;
+      const id = below ? `bnd:${d2[d]}.L${j - 1}.top` : `bnd:${d2[d]}.L${j}.bottom`;
       const parent = [`dom:${d2[d]}`];
-      if (below && above) parent.push(`bnd:${d2[d]}@${layers[j]!.id}.bottom`);
+      if (below && above) parent.push(`bnd:${d2[d]}.L${j}.bottom`);
       capIndex[j * nD + d] = boundaries.length;
-      boundaries.push({ id, parent });
+      boundaries.push(lin({ id, parent }, g.entities.domains[d]!));
     }
   return { kind: 'extrude', base: g, layers, domainIndex, sideIndex, capIndex, entities: { domains, boundaries } };
 }
@@ -120,7 +127,7 @@ export function revolve(g: Geometry2D, id: string, angle = 2 * Math.PI): Revolve
   const full = Math.abs(angle - 2 * Math.PI) <= 1e-12;
   const nD = g.entities.domains.length, nB = g.entities.boundaries.length;
   const d2 = g.entities.domains.map((d) => strip(d.id, 'dom:'));
-  const domains: EntityRef[] = d2.map((d) => ({ id: `dom:${d}@${id}`, parent: [`dom:${d}`] }));
+  const domains: EntityRef[] = d2.map((d, i) => lin({ id: `dom:${d}.${id}`, parent: [`dom:${d}`] }, g.entities.domains[i]!));
   const boundaries: EntityRef[] = [];
   const sideIndex = new Int32Array(nB).fill(-1);
   const onAxis = new Uint8Array(nB).fill(1);
@@ -132,15 +139,15 @@ export function revolve(g: Geometry2D, id: string, angle = 2 * Math.PI): Revolve
     if (onAxis[b]) continue;
     const b2 = strip(g.entities.boundaries[b]!.id, 'bnd:');
     sideIndex[b] = boundaries.length;
-    boundaries.push({ id: `bnd:${b2}@${id}`, parent: [`bnd:${b2}`] });
+    boundaries.push(lin({ id: `bnd:${b2}.${id}`, parent: [`bnd:${b2}`] }, g.entities.boundaries[b]!));
   }
   const startIndex = new Int32Array(nD).fill(-1), endIndex = new Int32Array(nD).fill(-1);
   if (!full)
     for (let d = 0; d < nD; d++) {
       startIndex[d] = boundaries.length;
-      boundaries.push({ id: `bnd:${d2[d]}@${id}.start`, parent: [`dom:${d2[d]}`] });
+      boundaries.push(lin({ id: `bnd:${d2[d]}.${id}.start`, parent: [`dom:${d2[d]}`] }, g.entities.domains[d]!));
       endIndex[d] = boundaries.length;
-      boundaries.push({ id: `bnd:${d2[d]}@${id}.end`, parent: [`dom:${d2[d]}`] });
+      boundaries.push(lin({ id: `bnd:${d2[d]}.${id}.end`, parent: [`dom:${d2[d]}`] }, g.entities.domains[d]!));
     }
   return {
     kind: 'revolve', base: g, id, angle, domainIndex: Int32Array.from({ length: nD }, (_, i) => i), sideIndex,

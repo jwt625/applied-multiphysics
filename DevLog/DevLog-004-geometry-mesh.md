@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-11-06 |
-| Status | Hand-off (2026-11-06 15:58 PST); awaiting the coordinator's fresh-context audit |
+| Status | Audit corrections applied (2026-11-06 16:24 PST); see section 7 |
 | Scope | `@amp/geom` (2D primitives, booleans, persistent IDs, axisym, extrude, revolve), `@amp/mesh` (2D CDT port + generalization, structured grid port, layered prism/tet port, quality, P2, hash), 3D tet spike (manifold-3d, fTetWild WASM, MMG WASM) |
 | Owner | Lane L3 (Claude Opus 5.5 subagent) |
 | Owns | `packages/geom/**`, `packages/mesh/**`, this file |
@@ -34,7 +34,7 @@
   - Every result entity carries `parent` (the source IDs).
   - Test: the ID tables match across parameter changes that keep topology; a topology change is detected.
 - Axisym: a geometry flag, with validation r >= 0 and the r = 0 boundaries marked as the axis.
-- 3D: `extrudeLayered(geom2d, layers)` and `revolve(geom2d, {angle})` give the 3D entity tables (domain `<d>@<layer>`, side `<b>@<layer>`, caps `<d>@<layer>.bottom/.top`).
+- 3D: `extrudeLayered(geom2d, layers)` and `revolve(geom2d, {angle})` give the 3D entity tables (domain `<d>@<layer>`, side `<b>@<layer>`, caps `<d>@<layer>.bottom/.top`). Superseded 16:16 PST: `.L<k>` (s.4.7).
 
 ### 1.2 `@amp/mesh`
 
@@ -109,7 +109,8 @@ Hero dimensions are placeholders for meshing only. They are not physics values.
 - [x] Tet spike: install, licences, 3 shapes, Node Worker + headless Chrome Worker, recommendation (section 4.3)
 - [x] `check` (tsc) and `test` green for both packages (geom 17/17, mesh 10/10)
 - [x] Hand-off
-- [ ] Fresh-context audit (coordinator)
+- [x] Fresh-context audit (coordinator): `DevLog/audits/2026-11-06-L3-geom-mesh-audit.md`, 1 B / 6 S / 10 M
+- [x] Audit corrections (section 7); tests geom 37/37, mesh 11/11; hero gate rerun, hashes unchanged
 
 ## 3. Progress log
 
@@ -126,12 +127,15 @@ Hero dimensions are placeholders for meshing only. They are not physics values.
 - 2026-11-06 15:50 PST: Coordinator note: @amp/spec done. Renames: circle `edge`, difference result = feature id, box `zmin/zmax`. Added `meshCylinder`, `@amp/geom/spec`, `@amp/mesh/spec`; dropped the shim; root `pnpm install`. Tests re-baselined to the new names (geom 17/17, mesh 10/10).
 - 2026-11-06 15:53 PST: Gates rerun from sims/*.yaml: all 6 validate with the @amp/geom registrations, and 39/39 selected ids are present. Spike rerun with per-stage RSS; MMG `IPARAM_mem` 64 MB test added.
 - 2026-11-06 15:58 PST: Hand-off.
+- 2026-11-06 16:05-16:24 PST: Audit corrections (section 7).
+  - Coordinator grammar decision applied: layers `.L<k>`, revolve `.<rev>`, resolver `resolveEntityIds`.
+  - Budget timings: `logs/l3-budget-20261106T161945.jsonl`. Spike, 5 reps: `logs/l3-tet-spike-20261107T002118.jsonl`. Gate: `logs/l3-hero-gates-20261107T002336.jsonl`.
 
 ## 4. Results
 
 Platform: Apple M4 Pro, Node v23.7.0 (arm64), `nice -n 10`, heap cap 1.5 GB. Times are the median of 5 runs after 1 warm-up and cover geometry build plus mesh (the 3D rows include the 2D mesh). The hash is stable over the 5 runs for every row.
 
-### 4.1 Hero mesh gates (`logs/l3-hero-gates-20261106T235348.jsonl`)
+### 4.1 Hero mesh gates (`logs/l3-hero-gates-20261106T235348.jsonl`; rerun after the audit corrections: `logs/l3-hero-gates-20261107T002336.jsonl`, identical hashes, no warnings, 39/39 ids through `resolveEntityIds`)
 
 Inputs:
 - H1-H6 are the L2 specs in `sims/*.yaml`, with their params and `mesh` blocks unchanged (dimensions from the R3 eval cases).
@@ -154,12 +158,12 @@ Inputs:
 | H6t AC-02 box (bench) | tet4 (extruded) | 27.7 | 59040 / 11492 | 6304 | 1 / 6 | n/a | 16.0 deg, q_min 0.384 | `3e85fb15dc1b7796` |
 | H1f H1 refined (bench) | tri3 | 696.8 | 556470 / 279385 | 2298 | 1 / 5 | n/a | 22.1 deg, q_min 0.569 | `6f466d745e6e8a00` |
 
-- H1f shows the cap is lifted: 279,385 vertices against the EO 80k cap.
+- H1f shows the cap is lifted: 279,385 vertices against the EO 80k cap. Its time is about 0.7-0.9 s under load (audit M9: 697 / 868 / 822 ms in three runs). H1f exceeds nothing, but the default vertex budget is now 5e5 (section 7, S4).
 - H2 in `sims/` is the NAFEMS T4 plate, with no fin. The finned plate is H2b, with placeholder dimensions and no sim yet.
 - 2D min angles are at or above the radius-edge bound B = 1.35 (21.7 deg) in every row.
 - tri6 curved-element check: minimum Jacobian ratio > 0.5 is asserted in tests. P2 mid-edge nodes lie on the exact circle within 1e-15 relative.
 
-### 4.2 Tests (`pnpm test`)
+### 4.2 Tests (`pnpm test`; after the audit corrections: geom 37/37, mesh 11/11, see section 7)
 
 - `@amp/geom`, 17/17:
   - areas of primitives and booleans vs closed forms (lens 1e-12);
@@ -176,7 +180,7 @@ Inputs:
   - revolve: torus volume within 1 % of Pappus (sectors 48), partial-angle caps;
   - `toHcurlMesh`: sorted tets, edge map, Euler characteristic 1.
 
-### 4.3 3D tet spike (`logs/l3-tet-spike-20261106T235406.jsonl`)
+### 4.3 3D tet spike (single run: `logs/l3-tet-spike-20261106T235406.jsonl`; **superseded by the 5-run statistics in section 7, S5**)
 
 Setup:
 - Pipeline: manifold-3d CSG -> triangle soup -> float-tetwild-wasm (serial build: what a browser without COI loads) -> mmg3d `-optim` (hausd = 1e-3 of the bbox diagonal).
@@ -223,7 +227,7 @@ Recommendation:
 |---|---|---|
 | manifold-3d 3.5.4 | **Adopt** (tier-2 3D CSG) | Apache-2.0, 0.22 MB gz, ~10 ms CSG, loads in a Worker without COI. Its mesh output is Float32, so snap vertices in f64 before tagging |
 | float-tetwild-wasm 0.2.0 | **Adopt with conditions**, lazy, never the default hero path | Robust: 0 inverted on all shapes. Conditions: (1) 3-4 s serial for 10-20k tets misses the < 1 s re-mesh target, so run it in a Worker with progress; (2) output is not deterministic, so cache the mesh by input hash and treat the result as data, not a function of the spec; (3) no per-region sizing or labels, so domains come from centroid classification; (4) the npm tarball ships no LICENSE or third-party notices, so our build must carry MPL-2.0 + deps notices; (5) single maintainer: pin and vendor the build script (`.github/workflows/wasm.yml` of the fork) |
-| @loumalouomega/mmg-wasm 0.1.0 | **Adopt** for quality optimisation after fTetWild; **hold** for mobile | Raises min dihedral 9.0 -> 20.2, 12.7 -> 18.0 and 16.1 -> 18.1 deg, keeps domain refs, LGPL-3.0+ (compatible). The ~0.6 GB RSS growth needs a size study before phone targets |
+| @loumalouomega/mmg-wasm 0.1.0 | **Adopt with conditions** for quality optimisation after fTetWild; **hold** for mobile | Corrected (audit S5): over 5 runs, the min-dihedral gain is median +3.4 to +5.2 deg but ranges from -0.8 to +7.9 deg, and the min radius ratio can drop. MMG `-optim` is a usual-case improvement, not a guarantee. Keeps domain refs; LGPL-3.0+ (compatible). The ~0.6 GB RSS growth needs a size study before phone targets |
 
 The heroes do not need the WASM path: H5 is an extruded disk and H6 a structured grid. Revolve covers coils and tori, at 48 sectors within 1 % of the Pappus volume.
 
@@ -232,7 +236,7 @@ The heroes do not need the WASM path: H5 is an extruded disk and H6 a structured
 | Package | Tarball | Upstream | Notes |
 |---|---|---|---|
 | manifold-3d 3.5.4 | LICENSE = Apache-2.0 | elalish/manifold: Apache-2.0 | GPLv3-compatible |
-| float-tetwild-wasm 0.2.0 | package.json MPL-2.0; **no LICENSE file** | loumalouomega/fTetWild (fork of wildmeshing/fTetWild): MPL-2.0, LICENSE.MPL2 | File headers are plain MPL-2.0, with no "Incompatible With Secondary Licenses" notice, so MPL s.3.3 allows GPL combination. The WASM build forces GMP off (CMakeLists: `if(EMSCRIPTEN) set(FLOAT_TETWILD_USE_GMP OFF ...)`). Bundled deps: oneTBB Apache-2.0, fast-envelope MIT, libigl (GitHub reports GPL-3.0; compatible either way), Geogram NOASSERTION [unv] |
+| float-tetwild-wasm 0.2.0 | package.json MPL-2.0; **no LICENSE file** | loumalouomega/fTetWild (fork of wildmeshing/fTetWild): MPL-2.0, LICENSE.MPL2 | File headers are plain MPL-2.0, with no "Incompatible With Secondary Licenses" notice, so MPL s.3.3 allows GPL combination. GMP is forced off under Emscripten. Bundled deps, with Geogram resolved: see `packages/mesh/THIRD_PARTY_NOTICES.md` (Geogram v1.9.6 BSD-3 Inria; TetGen must be pinned OFF) |
 | @loumalouomega/mmg-wasm 0.1.0 | LICENSE = LGPL-3.0 | loumalouomega/MMG-WASM: LGPL-3.0; MmgTools/mmg LICENSE: "LGPL ... version 3 ... or any later version" (COPYING, COPYING.LESSER) | LGPL-3.0-or-later; serving the wasm needs the source offer (R4 s.8) |
 | robust-predicates 3.0.3 | Unlicense | mourner/robust-predicates | runtime dep (C1) |
 
@@ -278,7 +282,20 @@ Booleans:
 - Coincident sources: the first in construction order wins, and the rest go in `parent`.
 - New intersection points: `<feature>.x<k>`.
 
-Layered extrude and revolve: `<d>@<layer>`, `<b>@<layer>`, `<d>@<layer>.bottom|.top`, `<d>@<rev>[.start|.end]`.
+Layered extrude and revolve (changed 16:16 PST by the C2 grammar decision; `@` is reserved for operation-log tokens):
+- layer k (0-based, in list order): `<d>.L<k>`, `<b>.L<k>`, `<d>.L<k>.bottom` / `.top`; the layer id is kept as a `label`;
+- revolve `rev`: `<d>.rev`, `<b>.rev`, `<d>.rev.start` / `.end`.
+
+Grammar details:
+- Repeated splits: `X#k#m` (from 1, up to 8 levels per the C2 decision). Pieces of a boundary are numbered along the *source curve direction*, so `rect.top#1` is the right-hand piece, because top runs from p2 to p3 (audit M8).
+- Fragment names follow the order of the fragment's `inputs` list, not the construction order: `inputs: [b, a]` gives `b&a` (audit M2, text corrected).
+- Every entity carries `ancestors` (all transitive origins), used by the resolver.
+- A circle's angle-0 seam is no longer a point entity (audit M1).
+
+Canonical resolver: `resolveEntityIds(table, kind, ids) -> {indices, unknown, expansion}`, exported by `@amp/geom`.
+- It matches the exact id, pieces `X#k...` at any depth, and `parent` or `ancestors`. It never throws.
+- `expansion` (id -> matched ids) is an addition, for readiness messages.
+- `selectIndices` is the throwing wrapper the meshers use. The old `resolveSelection` is removed.
 
 Structured boxes: an interface is owned by the minus-side box (`<box>.zmax#k`, plus-side face in `parent`), plus `bnd:sym.x` and `bnd:sym.y`.
 
@@ -293,7 +310,7 @@ New feature types beyond the seed: ellipse, arc, polyline, intersection, fragmen
 3. **C2 hash scope.** `hash` covers nodes + cells.conn only, so a re-tagged mesh (different domains or boundaries) keeps the same hash. Request: run records also carry `tagHash`, which covers cells.domain, facets.conn, facets.boundary and the entity ids, or C2 widens `hash`.
 4. **C1 runtime dependencies.** `@amp/geom` now depends on `@amp/spec` (workspace) and `zod` 4.6.7, for the `@amp/geom/spec` subpath only; the main entry imports neither. Approve, or have `@amp/spec` re-export `z` so geom needs only `@amp/spec`.
 5. **C3 `mesh.size.grading`.** L3 maps it to the size growth per unit distance, h = h0 + g d (default 0.3). Please document this. A per-refine `grade` would also help; it exists in `mesh2d` but not in the schema.
-6. **Selection semantics (C3/L2).** An id selects the exact entity. Selecting all pieces of a split or merge needs the descendants rule (`resolveSelection(..., {descendants: true})` matches `parent`). Which rule does the spec use when an id no longer exists exactly?
+6. **Selection semantics (C3/L2).** Resolved 16:16 PST: `resolveEntityIds` (s.4.7, section 7 S1). An id selects the exact entity. Selecting all pieces of a split or merge needs the descendants rule (`resolveSelection(..., {descendants: true})` matches `parent`). Which rule does the spec use when an id no longer exists exactly?
 7. **L4**: `toHcurlMesh` (section 4.6) is the tet input for core H(curl). For 3D specs, `mesh.refine` is not wired for boxgrid and cylinder; only `size.hmax` is used.
 
 ## 6. Hand-off
@@ -319,10 +336,47 @@ nice -n 10 node --max-old-space-size=1536 packages/mesh/spike/tet-spike.ts
 
 Open:
 - 3D CSG in `@amp/geom` (tier 2 via manifold) is not integrated. 3D tier 1 is a box list, one cylinder, extrude or revolve.
-- Arrangement limits:
-  - coincident curved edges (two equal circles) are unsupported;
-  - crossing detection uses 1-degree chords, so a near-tangent double crossing inside a chord sagitta (3.8e-5 r) is missed.
+- Arrangement limit: crossing detection uses 1-degree chords, so a near-tangent double crossing inside a chord sagitta (3.8e-5 r) is missed. Correction (audit M3): coincident equal circles do work under fragment and union.
 - No uniform h-refinement helper (`refineUniform`) yet. Convergence studies re-mesh at a smaller h instead.
-- Spike: mmg3d memory (~0.6 GB RSS growth), fTetWild nondeterminism, Geogram licence [unv], browser timings not recorded.
+- Spike: mmg3d memory (~0.6 GB RSS growth), fTetWild nondeterminism, browser timings not recorded. Geogram licence resolved: BSD-3 (THIRD_PARTY_NOTICES.md).
 - Fresh-context audit pending (coordinator).
 - Scratch: `.request-tmp/` (geom-smoke.ts, mesh-smoke.ts, hcurl-check.ts, unit-check.ts, rss-base.mjs, a node_modules symlink) is gitignored. No mesh files were written.
+
+## 7. Audit corrections (audit `DevLog/audits/2026-11-06-L3-geom-mesh-audit.md`, applied 2026-11-06 16:05-16:24 PST)
+
+| # | Finding | Disposition | Change and evidence |
+|---|---|---|---|
+| B1 | A curve touching a horizontal edge from below gives an empty geometry, then a TypeError | **Fixed** | `arrangement.ts`: `dirAngle()`. `+ 0` removes -0, and angles within 1e-10 of -pi are folded onto +pi, so ties across the cut reach the curvature tie-break. Post-conditions: Euler V - E + F = 1 + C and positive face areas, else a clear error. `buildGeometry2D` throws when the final geometry has no domain; `mesh2d` throws "the geometry has no domain to mesh". 18 regression tests: circles touching the bottom, top, left and right edges and an ellipse below, each as final / union / fragment; inner tangency; wire below a slab; a tilted polygon. **With the old atan2, 7 of the 18 fail; with the fix, 18 of 18 pass** |
+| S1 | Two inconsistent selection resolvers; nested pieces unselectable | **Fixed** | One canonical `resolveEntityIds(table, kind, ids)` in `@amp/geom`, the name and signature fixed by the coordinator and L2 (DevLog-003 s.8, contract changelog 16:16). It matches exact, `X#k...` at any depth, and `parent` + new `ancestors` (lineage recorded through every boolean, extrude and revolve). It never throws; `expansion` is returned for readiness. `mesh2d` refine and the hero gate use it (via `selectIndices`). Test: bar -> p#1 / p#2#1 / p#2#2. `dom:bar` and `dom:p` select all three, `dom:p#2` selects two, `bnd:bar.bottom` selects all three pieces. L2 delegates `checkSelections` to it |
+| S2 | No quality guard (min angles near 0 deg accepted) | **Fixed (warn)** | `Mesh.warnings` (L3 optional field) gets an entry when the min angle is below `warnAngleDeg` (default 5; count of bad triangles), for each boundary shorter than 2 hmin, and from geometry warnings for entities within 1000 x tol. Physics readiness should list `mesh.warnings` as reasons (to L4). Test: an internally tangent circle warns, and a clean H1 mesh has no warnings. All 9 gate rows: no warnings. No automatic hmin floor (left to the user, now told) |
+| S3 | Features below about 5e-9 of the diagonal dropped silently | **Fixed** | Three new errors, each naming the feature: (a) a primitive whose extent is below 10 x tol; (b) an entity whose curves all collapse; (c) one entity folding onto itself as coincident pieces. Probe on a 1 m square: r = 2e-8 and 1e-8 kept; 7e-9, 5e-9, 3e-9 and 1e-9 raise clear errors; none drops silently. Test added. r = 1e-8 is kept but its area error is 6 %, which is what the near-tolerance warning reports |
+| S4 | The default vertex budget (4e6) runs 16 s / 1.2 GB before failing | **Fixed** | Default `maxVertices` = **5e5** (`DEFAULT_MAX_VERTICES`), a parameter. Measured (`logs/l3-budget-20261106T161945.jsonl`): 556,098 vertices in 3.6 s / 437 MB peak RSS; 1,077,706 in 8.1 s / 648 MB. Up-front estimate from the size field on a 64 x 64 grid, calibrated at 1.1 vertices per (sqrt(3)/4 h^2) (measured 1.11 / 1.08). Over-budget cases fail in 2-3 ms; hmax 1e-4 on 1 m^2 gives "about 1.2e+8 vertices estimated". The in-CDT check stays as the backstop. Test added |
+| S5 | Single-run spike numbers do not reproduce; the MMG claim is not robust | **Fixed** | 5 reps per shape (`logs/l3-tet-spike-20261107T002118.jsonl`; table below). MMG claim corrected in s.4.3: the median gain is positive, the range includes a loss |
+| S6 | Licences and notices needed before any WASM ships | **Fixed (doc)** | `packages/mesh/THIRD_PARTY_NOTICES.md`. Clipper2 BSL-1.0 checked from AngusJohnson/Clipper2, and its symbols are present in manifold.wasm. fTetWild fork commit `b6362a34`, Geogram v1.9.6 BSD-3 (Inria, LICENSE at tag), oneTBB, libigl, fmt, spdlog, CLI11, json, fast-envelope, MMG LGPL-3.0-or-later. **TetGen must be pinned `-DGEOGRAM_WITH_TETGEN=OFF` (FORCE) in our vendored build before shipping.** The fork has only an overridable `option(... OFF)`; 0 TetGen strings in the 0.2.0 wasm |
+| M1 | Circle seam vertex named like an intersection | Fixed | closed chains mark no end vertex |
+| M2 | Fragment name order | Fixed (doc) | s.4.7: input order |
+| M3 | Equal circles do work | Fixed (doc) | s.6 corrected |
+| M4 | Error messages | Fixed partly | "boundarie" fixed (`selectIndices`); the doubled `geom: geom:` came from the final op's label and now reads "final fragment of the remaining objects"; long edge lists are cut to 6 boundary ids. Bowtie "zero area" wording: deferred |
+| M5 | Chord-fallback split keeps a parametric t | Deferred | Not triggered (max offset 1.1e-13 of the edge); the fix needs a projection callback into cdt2d.mjs |
+| M6 | No SPDX line in browser-check.html | Fixed | HTML comment SPDX line |
+| M7 | `budget.maxNodes` semantics | Fixed (doc) | `@amp/mesh/spec` comment: it maps to the P1 vertex budget, not the tri6 node count |
+| M8 | `#k` direction | Fixed (doc) | s.4.7 |
+| M9 | H1f time | Fixed (doc) | s.4.1: about 0.7-0.9 s |
+| M10 | O(curves^2) arrangement | Deferred | Fine for the heroes (196 holes: 126 ms build); needs a spatial index for large patterned layouts |
+
+S5: tet spike, 5 runs per shape (Node, serial fTetWild, mmg3d `-optim`; median [min, max]):
+
+| Shape | fTetWild ms | fTetWild tets | fTetWild min dihedral (deg) | mmg3d ms | mmg3d tets | mmg3d min dihedral (deg) | Gain in min dihedral (deg) | mmg3d min radius ratio | Peak RSS (MB) |
+|---|---|---|---|---|---|---|---|---|---|
+| box-hole | 3803 [3024, 4979] | 11298 [10921, 13237] | 11.6 [10.4, 12.4] | 500 [466, 539] | 16625 [16421, 20257] | 17.0 [14.6, 18.1] | +5.2 [+2.2, +7.7] | 0.196 [0.191, 0.292] (fTetWild 0.264) | 855 [832, 870] |
+| sphere-box | 2427 [2349, 2902] | 19803 [19689, 22916] | 12.1 [11.2, 15.1] | 943 [927, 1004] | 32579 [32159, 33541] | 17.5 [14.4, 19.1] | +4.5 [-0.8, +7.9] | 0.311 [0.257, 0.320] | 890 [875, 900] |
+| torus | 4654 [3861, 5083] | 9965 [9452, 10300] | 12.3 [11.5, 13.6] | 772 [756, 808] | 26930 [26431, 27351] | 15.6 [13.3, 18.5] | +3.4 [+0.5, +7.0] | 0.314 [0.126, 0.333] | 848 [824, 870] |
+
+Inverted tets: 0 in all 15 runs.
+
+Verdicts after S5:
+- manifold: adopt.
+- fTetWild: lazy and optional, cached by input hash (not deterministic).
+- MMG: adopt with conditions as an optimiser whose gain is usual but not guaranteed (keep the better of the before and after meshes by min dihedral); hold for mobile because of memory.
+
+Not changed: the tet4 C2 orientation and the H(curl) adapter (audit s.4: correct). Hero hashes are unchanged by the corrections (they touch tags, lineage and checks, not node or connectivity bytes).

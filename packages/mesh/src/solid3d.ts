@@ -210,8 +210,8 @@ export function meshCylinder(c: CylinderSpec, o: ExtrudeOptions = {}): Mesh {
   const g = buildGeometry2D({ features: [{ id: c.id, type: 'circle', c: [0, 0], r: c.radius }] });
   const m = meshExtruded(g, [{ id: 'L', z: [0, c.height] }], o);
   const rename: Record<string, string> = {
-    [`dom:${c.id}@L`]: `dom:${c.id}`, [`bnd:${c.id}.edge@L`]: `bnd:${c.id}.side`,
-    [`bnd:${c.id}@L.bottom`]: `bnd:${c.id}.bottom`, [`bnd:${c.id}@L.top`]: `bnd:${c.id}.top`,
+    [`dom:${c.id}.L0`]: `dom:${c.id}`, [`bnd:${c.id}.edge.L0`]: `bnd:${c.id}.side`,
+    [`bnd:${c.id}.L0.bottom`]: `bnd:${c.id}.bottom`, [`bnd:${c.id}.L0.top`]: `bnd:${c.id}.top`,
   };
   const ren = (e: { id: string }) => ({ id: rename[e.id] ?? e.id });
   m.entities = { domains: m.entities.domains.map(ren), boundaries: m.entities.boundaries.map(ren) };
