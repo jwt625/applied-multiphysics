@@ -194,3 +194,9 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - C1: zod 4.6.7 and yaml 2.9.1 are approved for `@amp/materials`.
   - `@amp/materials` owns the material-property types, including C, G, r_eo, mu, rho_e and dndT. L4 does not re-register them.
   - Queued for contracts v1 (L2 scope): a tensor override form in spec materials; basis vocabulary gains `paper_model_input` and `reference_correlation`; `materials/<id>` refs checked against library ids.
+- 2026-11-06 16:21 PST, rights-tag vocabulary (from the L7c audit). The authoritative enum is in eval/schema (L8), defined as:
+  - `cite_value`: numeric values cited with locator only.
+  - `copy_with_attribution`: the licence permits copying source files into the repo, with licence and attribution kept.
+  - `reference_by_hash`: data not redistributed; referenced by URL + revision + hash (the hash is required).
+  - `copy_text`: verbatim prose allowed (rare; licence must permit derivatives).
+  Same licence means the same tags (e.g. Code_Aster GPL-3.0 test files: `copy_with_attribution` in both SM-21 and SM-61). Other tags in use must be mapped to these four or added with a definition.
