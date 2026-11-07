@@ -17,7 +17,8 @@ Open-source (GPL-3.0-or-later), browser-native, agent-native multiphysics simula
 - **Evaluation set** (`eval/`): 85 cases in three classes: (a) analytic, (b) papers, (c) other solvers and datasets. Generated references live in `validation/` (a uv project).
 - **Heroes H1-H6** pass their eval gates on the real engine through the harness, and run in under 5 s cold end to end in Node. Class a: 11 pass, 0 fail, 18 pending (non-hero).
 - **Web app** (`apps/web`): workbench, Play view per hero, real-time GPU panels, operation timeline, agent chat panel. Mock provider only so far; no live model run yet.
-- **Not yet:** heroes H7-H13 (fluids NS, photonic crystal bands, coupled microheater), public deployment (Cloudflare Pages, domain TBD), a live-model agent trial.
+- **Live:** https://outside5sigma.com/applied-multiphysics/ (Cloudflare Pages behind a route Worker; `deploy/`, DevLog-017).
+- **Not yet:** heroes H7-H13 (fluids NS, photonic crystal bands, coupled microheater).
 
 ## Run
 

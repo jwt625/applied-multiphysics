@@ -11,6 +11,14 @@
   # frame-ancestors only works as a header
   Content-Security-Policy: frame-ancestors 'none'
 
+# HTML pages: no-transform stops zone-level edge injection (Bot Fight Mode JS detections, Web Analytics beacon),
+# whose inline scripts the hashed meta CSP would block (DevLog-017 s.5). Value otherwise = the Pages default.
+/
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
+/play/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+
 /_app/*
   # scripts and workers (a worker's CSP comes from its own response)
   Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://api.anthropic.com; worker-src 'self'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'

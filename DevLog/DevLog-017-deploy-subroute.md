@@ -91,3 +91,37 @@ Grep after the change: no absolute `/_app`, `/play` or `fetch("/...")` URLs in `
 2. Zone features that rewrite HTML (Rocket Loader, Email Obfuscation) would break the CSP hashes; README s.3 compares the HTML hash via the blog and via pages.dev.
 3. `wrangler@4.152.0` (npm publish 2026-10-22) is named for the optional CLI deploy; not run.
 4. Pass-through of other glob paths relies on a Worker subrequest to its own zone going to the origin (GitHub Pages); a tighter alternative is two routes (`outside5sigma.com/applied-multiphysics` and `outside5sigma.com/applied-multiphysics/*`).
+
+## 6. Live deployment (2026-11-06)
+
+### 6.1 Set up (by Wentao through the Chrome extension, from the coordinator's prompt)
+- Pages project `applied-multiphysics` (`applied-multiphysics.pages.dev`), Git-connected to `jwt625/applied-multiphysics` `main` (Cloudflare GitHub app scoped to this repo only). Preset None, build command and output `apps/web/build` as in deploy/README.md; NODE_VERSION=23.7.0, PNPM_VERSION=10.12.4. First build: commit 34c4818, 46 s (build step 35 s). Build log warns that Node 23.7.0 is end-of-life (not fatal).
+- Worker `applied-multiphysics-route` = `deploy/worker.js`, `PAGES_ORIGIN=https://applied-multiphysics.pages.dev`, workers.dev and preview URLs off, route `outside5sigma.com/applied-multiphysics*`, failure mode fail closed.
+- Configuration Rule `applied-multiphysics` (URI path starts with `/applied-multiphysics`): Email Obfuscation off, Rocket Loader off (zone had Email Obfuscation on, Rocket Loader off). No DNS, SSL, other routes or zone-wide settings touched; no API tokens.
+- One 500 on the very first pages.dev load right after the deploy; gone on reload a few seconds later, not seen since.
+
+### 6.2 Coordinator checks (2026-11-06 20:28 PST, curl + chrome-headless-shell 151 via playwright-core, script in session scratch)
+| Check | Result |
+|---|---|
+| `/applied-multiphysics/`, `/play/kirsch-plate`, `/play/heat-plate-fin`, `/play/rt/lbm-d2q9`, `/play/rt/fdtd-tmz` | 200; COOP same-origin, COEP require-corp, CORP same-origin, CSP frame-ancestors none, nosniff, no-referrer, Permissions-Policy |
+| `_app/*` | CSP header with `wasm-unsafe-eval`, `connect-src 'self' https://api.anthropic.com` |
+| `/applied-multiphysics`, `/applied-multiphysics?a=1` | 301 to `/applied-multiphysics/` (query kept) |
+| `/applied-multiphysics/nope` (open item 1) | 404, `no-store`, no content type and no body page: Chromium treats a navigation to it as a download. Cosmetic; a `404.html` under the base would fix it (follow-up) |
+| `/applied-multiphysics-x` | 404 from the blog origin (pass-through, open item 4) |
+| `/`, `/posts/` | 200 from GitHub Pages (`x-github-request-id`), unchanged |
+| crossOriginIsolated | true on all 5 pages and on the SW-controlled reload |
+| Service worker | scope `https://outside5sigma.com/applied-multiphysics/`, controls the second load |
+| Page errors, failed or >= 400 requests (app) | none; WebGPU pages warn "No available adapters" (headless, no GPU; expected) |
+| Edge HTML injection (open item 2) | **found**: every page logs a CSP violation for an inline `/cdn-cgi/challenge-platform/scripts/jsd/` script (Bot Fight Mode JavaScript detections), and the workbench also for `static.cloudflareinsights.com/beacon.min.js` (Web Analytics RUM). Both are injected at the zone edge (absent on pages.dev) and blocked by the hashed meta CSP; the app itself is unaffected, but the console is not clean |
+
+### 6.3 Fix (2026-11-06 20:32 PST)
+- Cloudflare docs (developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/, read 2026-11-06): JS detections cannot be switched off under Bot Fight Mode; an origin `Cache-Control: no-transform` prevents the injection. Configuration Rules (developers.cloudflare.com/rules/configuration-rules/settings/) offer "Disable Real User Monitoring (RUM)" per path, but no Bot Fight Mode / JS detections setting.
+- `apps/web/static/_headers`: `/` and `/play/*` now send `Cache-Control: public, max-age=0, must-revalidate, no-transform` (the Pages default plus no-transform); assets unchanged. Base build: generated `build/_headers` has the rules under `/applied-multiphysics/`; `deploy/serve.mjs` serves the header on the three HTML routes (`logs/D1-build-base-notransform-*.log`). Root production build restored afterwards.
+- If the beacon survives no-transform after redeploy: add "Disable Real User Monitoring (RUM)" to the existing Configuration Rule (dashboard, Wentao).
+
+### 6.4 Follow-ups
+- [ ] Recheck the live console after the Pages rebuild of this commit.
+- [ ] `404.html` under the base (missing path currently downloads in Chromium).
+- [ ] NODE_VERSION: move from 23.7.0 (EOL) to an LTS line once the local toolchain moves (local Node is 23.7.0; check that the LTS line runs the erasable TS without flags before switching).
+
+- 2026-11-06 20:33 PST: section 6 written.
