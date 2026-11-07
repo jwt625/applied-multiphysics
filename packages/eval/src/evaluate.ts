@@ -88,16 +88,21 @@ const finiteVal = (v: ObservedValue): boolean =>
 
 /**
  * Fallback when the shared rule declares Richardson unavailable (oscillatory or non-nested sequence, order outside
- * the band, flat or too few levels; L4 DevLog-010 s.5 item 3): gate on the finest value against the budget plus a
- * monotone error, |e_k| non-increasing over the levels. Richardson is reported unavailable with the reason.
+ * the band, flat or too few levels; L4 DevLog-010 s.5 item 3, I1 Follow-up 4): pass when the finest value is within
+ * the budget and either |e_k| is non-increasing or every level is within the budget. Richardson is reported
+ * unavailable with the reason.
  */
-function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], why: string): { fine: ScalarCheck; monotone: boolean; reason: string } {
+function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], why: string): { fine: ScalarCheck; monotone: boolean; allWithin: boolean; pass: boolean; reason: string } {
+  // Follow-up 4: pass when the finest level is within the budget AND (|error| non-increasing OR every level within
+  // the budget); a non-monotone error is a note, not a fail
   const fine = checkScalar(vals[vals.length - 1]!, ref, tol);
   const e = vals.map((v) => Math.abs(v - ref));
   let monotone = true;
   for (let i = 1; i < e.length; i++) if (e[i]! > e[i - 1]! * (1 + 1e-12) + 1e-300) monotone = false;
-  const reason = `richardson unavailable (${why}); fallback: finest value ${fine.pass ? 'within' : 'outside'} the budget, |error| ${monotone ? 'non-increasing' : 'not monotone'} over ${vals.length} levels`;
-  return { fine, monotone, reason };
+  const allWithin = vals.every((v) => checkScalar(v, ref, tol).pass);
+  const pass = fine.pass && (monotone || allWithin);
+  const reason = `richardson unavailable (${why}); fallback: finest value ${fine.pass ? 'within' : 'outside'} the budget, |error| ${monotone ? 'non-increasing' : `non-monotone (note)${allWithin ? ', every level within the budget' : ', not every level within the budget'}`} over ${vals.length} levels`;
+  return { fine, monotone, allWithin, pass, reason };
 }
 
 /** One sequence through the shared rule: extrapolated value, verdict parts and reason. */
@@ -106,7 +111,7 @@ function richardsonVerdict(vals: number[], hs: number[], ref: number, tol: Refer
   const ri = richardsonRule(vals, hs, { ...(opts.expectedOrder !== undefined ? { expectedOrder: opts.expectedOrder } : {}), band, ...(opts.safetyFactor !== undefined ? { fs: opts.safetyFactor } : {}) });
   if (!ri.available) {
     const fb = fallbackGate(vals, ref, tol, ri.reason ?? 'unavailable');
-    return { ri, value: fb.fine.value, check: fb.fine, pass: fb.fine.pass && fb.monotone, fallback: true, reason: fb.reason };
+    return { ri, value: fb.fine.value, check: fb.fine, pass: fb.pass, fallback: true, reason: fb.reason };
   }
   const ext = checkScalar(ri.f_ext!, ref, tol);
   const fine = checkScalar(ri.f_fine, ref, tol);

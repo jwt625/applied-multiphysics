@@ -19,7 +19,8 @@ import { dimOf, type CaseObservation, type ObserveOptions, type Source, type Spe
 import { Worker } from 'node:worker_threads';
 import { importWorkspace } from './workspace.ts';
 
-export interface PrepareArgs { case: EvalCase; spec: Spec; physicsId: string; level: number; hFactor: number; signal: AbortSignal }
+/** dtFactor (convergence.dt_with_h): time-step scale for this level, hFactor^(space_order / time_order); 1 otherwise. */
+export interface PrepareArgs { case: EvalCase; spec: Spec; physicsId: string; level: number; hFactor: number; dtFactor: number; signal: AbortSignal }
 export type PrepareFn = ((args: PrepareArgs) => Promise<RunContext>) | ((spec: Spec, caseCtx: Omit<PrepareArgs, 'spec'>) => Promise<RunContext>);
 
 /** Call prepareRun in either form: `(args)` (one object) or `(spec, caseCtx)` (two parameters, contract changelog 16:0x). */
@@ -256,6 +257,15 @@ export function checkRunRecord(run: unknown, meshHash?: string): string[] {
   return p;
 }
 
+/** dt scale per level (Follow-up 4): dt_factor = h_factor^(space_order / time_order) with convergence.dt_with_h. */
+export function dtFactorsFor(c: EvalCase, hf: number[]): number[] {
+  const cv = c.convergence;
+  if (!cv?.dt_with_h) return hf.map(() => 1);
+  const ps = cv.space_order ?? cv.expected_order, pt = cv.time_order;
+  if (!ps || !pt) return hf.map(() => 1);
+  return hf.map((f) => Math.pow(f, ps / pt));
+}
+
 export function hFactorsFor(c: EvalCase): number[] {
   const conv = c.convergence;
   if (conv?.h_factors?.length) return conv.h_factors;
@@ -306,7 +316,7 @@ export interface WorkerTarget { tid: string; ref: Reference; points?: number[][]
 export interface WorkerResult {
   ok: true;
   targets: Record<string, TargetObservation | { pending: string } | { error: string }>;
-  levels: Array<{ level: number; hFactor: number; dof: number; meshHash: string; run: unknown; wall_ms: number; stages: Record<string, number>; iterations?: number }>;
+  levels: Array<{ level: number; hFactor: number; dtFactor: number; dof: number; meshHash: string; run: unknown; wall_ms: number; stages: Record<string, number>; iterations?: number }>;
   speed?: SpeedRecord;
 }
 

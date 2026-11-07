@@ -127,8 +127,15 @@ test('evaluateTarget: Richardson gate (audit S3): extrapolated and finest in bud
   assert.equal(osc.status, 'fail'); assert.match(osc.reason!, /oscillatory.*fallback/);
   const fb = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-3, 1 - 2e-4, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) }, { expectedOrder: 2 });
   assert.equal(fb.status, 'pass'); assert.equal(fb.richardson_fallback, 'finest+monotone'); assert.match(fb.reason!, /richardson unavailable \(order not observed \(oscillatory\)\)/);
+  // Follow-up 4: non-monotone but every level within the budget -> pass with a note (SM-02, HT-04 pattern)
   const nm = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-4, 1 - 2e-4, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) });
-  assert.equal(nm.status, 'fail'); assert.match(nm.reason!, /not monotone/);
+  assert.equal(nm.status, 'pass'); assert.match(nm.reason!, /non-monotone \(note\), every level within the budget/);
+  // non-monotone and a level outside the budget -> fail
+  const nm2 = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-4, 1 - 2e-3, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) });
+  assert.equal(nm2.status, 'fail'); assert.match(nm2.reason!, /not every level within the budget/);
+  // SM-02 numbers: 92.6576 vs 92.7 MPa (-4.6e-4) at the finest, budget 1e-2, non-monotone sequence
+  const sm02 = evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 92.7, { levels: [92.31, 92.71, 92.6576].map((v, i) => ({ value: v, h: h[i]! })) }, { expectedOrder: 2 });
+  assert.equal(sm02.status, 'pass'); assert.equal(sm02.richardson_fallback, 'finest+monotone');
   const f = evaluateTarget(ref({ rel: 1e-3 }), 1, { levels: lv });
   assert.equal(f.status, 'fail'); close(f.diff!, 0.005);
   const info = evaluateTarget(ref({ rel: 1e-3 }, { gate: false }), 1, { levels: lv });
@@ -263,5 +270,15 @@ test('SM-01 numbers: unit 1 field target with abs 1e-3 is the relative L2 (5.86e
   const pa = t({ abs: 1e-3, norm: 'l2' }, 'Pa');                  // dimensional unit: abs is the RMS in Pa
   assert.equal(pa.status, 'fail'); assert.equal(pa.field!.metric, 'rms_abs');
   assert.equal(t({ abs: 1e-2, norm: 'rel_max' }).field!.metric, 'max_rel');
+});
+
+test('Follow-up 4: dt_with_h scales dt per level as h^(space_order / time_order)', async () => {
+  const { dtFactorsFor } = await import('../src/registry.ts');
+  const c = (conv: Record<string, unknown>) => ({ convergence: conv } as never);
+  assert.deepEqual(dtFactorsFor(c({ h_factors: [1, 0.5, 0.25] }), [1, 0.5, 0.25]), [1, 1, 1]);
+  const d = dtFactorsFor(c({ dt_with_h: true, space_order: 2, time_order: 1 }), [1, 0.5, 0.25]);
+  assert.deepEqual(d, [1, 0.25, 0.0625]);
+  const e = dtFactorsFor(c({ dt_with_h: true, expected_order: 2, time_order: 2 }), [1, 0.5, 0.25]);
+  assert.deepEqual(e, [1, 0.5, 0.25]);
 });
 

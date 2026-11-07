@@ -9,7 +9,7 @@ import type { EvalCase } from './loader.ts';
 import type { LevelObservation, TargetObservation } from './evaluate.ts';
 import type { Solution } from './contract-shim.ts';
 import type { Spec } from './contract-shim.ts';
-import { callPrepare, extractFromSolution, loadDefaultRegistry, setExpressionCompiler, setUnitsApi, specRuntime, type WorkerResult, type WorkerTarget } from './registry.ts';
+import { callPrepare, dtFactorsFor, extractFromSolution, loadDefaultRegistry, setExpressionCompiler, setUnitsApi, specRuntime, type WorkerResult, type WorkerTarget } from './registry.ts';
 import { importWorkspace } from './workspace.ts';
 import { timeRuns } from './speed.ts';
 import type { LevelTimingSummary } from './source.ts';
@@ -28,9 +28,10 @@ async function main(d: Data): Promise<WorkerResult> {
     setExpressionCompiler(ce.mod?.compileExpression ?? null);
   }
   const signal = AbortSignal.timeout(d.timeoutMs);
+  const dtf = dtFactorsFor(d.caseData, d.factors);
   const once = async (level: number) => {
     const t0 = performance.now();
-    const ctx = await callPrepare(registry.prepare!, { case: d.caseData, spec: d.spec, physicsId: d.physicsId, level, hFactor: d.factors[level]!, signal });
+    const ctx = await callPrepare(registry.prepare!, { case: d.caseData, spec: d.spec, physicsId: d.physicsId, level, hFactor: d.factors[level]!, dtFactor: dtf[level]!, signal });
     const sol: Solution = await mod.run(ctx);
     return { ctx, sol, wall_ms: performance.now() - t0 };
   };
@@ -39,7 +40,7 @@ async function main(d: Data): Promise<WorkerResult> {
   const bad = new Map<string, { pending: string } | { error: string }>();
   for (let i = 0; i < d.factors.length; i++) {
     const { ctx, sol, wall_ms } = await once(i);
-    levels.push({ level: i, hFactor: d.factors[i]!, dof: sol.stats.dof, meshHash: sol.meshHash, run: sol.run, wall_ms, stages: sol.timing, ...(sol.stats.iterations !== undefined ? { iterations: sol.stats.iterations } : {}) });
+    levels.push({ level: i, hFactor: d.factors[i]!, dtFactor: dtf[i]!, dof: sol.stats.dof, meshHash: sol.meshHash, run: sol.run, wall_ms, stages: sol.timing, ...(sol.stats.iterations !== undefined ? { iterations: sol.stats.iterations } : {}) });
     for (const t of d.targets) {
       if (bad.has(t.tid)) continue;
       const ex = extractFromSolution(sol, t.ref, { mesh: ctx.mesh, ...(registry.sample ? { sample: registry.sample } : {}), ...(t.points ? { points: t.points } : {}) });

@@ -96,7 +96,7 @@ export async function runCase(lc: LoadedCase, source: Source, opts: RunOptions =
     return evaluateTarget(r, ref, o as TargetObservation, {
       ...(obs.dim !== undefined ? { dim: obs.dim } : {}),
       ...(rs ? { refSamples: rs } : {}),
-      ...(conv?.expected_order !== undefined ? { expectedOrder: conv.expected_order } : {}),
+      ...((r.expected_order ?? conv?.expected_order) !== undefined ? { expectedOrder: (r.expected_order ?? conv?.expected_order)! } : {}),
       ...(conv?.safety_factor !== undefined ? { safetyFactor: conv.safety_factor } : {}),
       ...(conv?.order_band !== undefined ? { orderBand: conv.order_band } : {}),
       ...(conv?.order_check !== undefined ? { orderCheck: conv.order_check } : {}),

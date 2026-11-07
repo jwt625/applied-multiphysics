@@ -833,6 +833,11 @@
         "spec": {
           "$ref": "#/$defs/specRef",
           "description": "model for this target when it differs from the case-level spec (default)"
+        },
+        "expected_order": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "theoretical order for this target (overrides convergence.expected_order), e.g. 2 for P1 nodal values, 1 for P1 stresses"
         }
       },
       "additionalProperties": false
@@ -1199,6 +1204,20 @@
         "order_check": {
           "type": "boolean",
           "description": "false: the observed order is reported, not gated"
+        },
+        "dt_with_h": {
+          "type": "boolean",
+          "description": "transient studies: scale dt with the mesh, dt_factor = h_factor^(space_order / time_order), so the time error does not mask space convergence; prepareRun receives dtFactor"
+        },
+        "space_order": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "dt_with_h: spatial order (default convergence.expected_order)"
+        },
+        "time_order": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "dt_with_h: order of the time integrator (1 backward Euler, 2 BDF2 / Crank-Nicolson); required with dt_with_h"
         }
       },
       "additionalProperties": false

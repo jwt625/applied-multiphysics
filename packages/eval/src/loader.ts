@@ -69,6 +69,7 @@ export interface Reference {
   form: 'closed_form' | 'benchmark' | 'paper_sim' | 'paper_measured' | 'solver_ref' | 'dataset';
   provenance: { citation: string; locator: string; accessed: string | null; [k: string]: unknown };
   extract?: Extract;
+  expected_order?: number;
   spec?: SpecRef;
   gate?: boolean;
   note?: string;
@@ -87,7 +88,7 @@ export interface EvalCase {
   references: Reference[];
   convergence?: {
     levels_min?: number; ratio_min?: number; method?: 'richardson_gci' | 'rate_fit' | 'none';
-    safety_factor?: number; expected_order?: number; h_factors?: number[]; order_band?: number; order_check?: boolean;
+    safety_factor?: number; expected_order?: number; h_factors?: number[]; order_band?: number; order_check?: boolean; dt_with_h?: boolean; space_order?: number; time_order?: number;
   } | null;
   speed?: { budget_s?: { browser?: number; native?: number }; report?: string[]; reference_timings?: unknown[] | null } | null;
   adapter?: { python?: { script: string; args?: string[] } } | null;
@@ -373,6 +374,10 @@ function semanticChecks(
   if (Array.isArray(rights?.allowed) && rights.allowed.includes('reference_by_hash')) {
     const h = (c.dataset as { hash?: unknown } | null | undefined)?.hash;
     if (typeof h !== 'string' || !h.length) at(c.dataset ? '/dataset' : '/rights/allowed', 'reference-by-hash', `rights tag reference_by_hash requires dataset.hash (sha256:<64 hex> or md5:<32 hex>)`);
+  }
+  if (c.convergence?.dt_with_h) {
+    if (c.convergence.time_order === undefined) at('/convergence', 'dt-with-h', `dt_with_h needs time_order`);
+    if (c.convergence.space_order === undefined && c.convergence.expected_order === undefined) at('/convergence', 'dt-with-h', `dt_with_h needs space_order or expected_order`);
   }
   if (c.convergence?.h_factors && c.convergence.levels_min !== undefined && c.convergence.h_factors.length < c.convergence.levels_min) {
     at('/convergence/h_factors', 'levels', `h_factors has ${c.convergence.h_factors.length} levels, levels_min is ${c.convergence.levels_min}`);

@@ -112,3 +112,34 @@ test('B5: field targets sample through @amp/post sample(solution, field, points,
     assert.equal(code, 0, JSON.stringify(out.results[0])); assert.equal(out.results[0]!.status, 'pass');
   } finally { fx.cleanup(); }
 });
+
+test('Follow-up 4: per-target expected_order overrides the case value; dtFactor reaches prepareRun', async () => {
+  // mock: q(h) = 1 + 0.1 h^2 (order 2); a second metric dtf reports the dtFactor of the level
+  const phys = MOCK_PHYSICS.replace("scalars: { q: { value: 1 + 0.1 * h * h, unit: '1' } }", "scalars: { q: { value: 1 + 0.1 * h * h, unit: '1' }, dtf: { value: ctx.mesh.dtFactor, unit: '1' } }")
+    .replace("return { spec, mesh: { h: hFactor / 10 },", "return { spec, mesh: { h: hFactor / 10, dtFactor: arguments[0].dtFactor },");
+  const fx = makeRoot({ physicsSrc: phys });
+  try {
+    const conv = 'convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, h_factors: [1, 0.5, 0.25], expected_order: 1, dt_with_h: true, space_order: 2, time_order: 1}';
+    const dtTarget = `
+  - quantity: dtf
+    metric_id: dtf
+    value: 0.0625
+    unit: "1"
+    tolerance: {abs: 1.0e-12}
+    basis: D
+    form: closed_form
+    provenance: {citation: synthetic, locator: test, accessed: 2026-11-06}`;
+    // case order 1 is wrong for q (observed 2): unavailable -> fallback; target order 2 -> Richardson accepted
+    const y = (targetOrder: string) => caseYaml({ refExtra: `${targetOrder}${dtTarget}` }).replace(/convergence: \{[^\n]*\}/, conv);
+    fx.write('eval/cases/a/XX-01.yaml', y(''));
+    const a = await run(['--root', fx.root, '--no-log']);
+    const ta = a.out.results[0]!.targets as unknown as Array<{ status: string; richardson_fallback?: string; reason?: string }>;
+    assert.equal(ta[0]!.richardson_fallback, 'finest+monotone'); assert.match(ta[0]!.reason!, /outside the band/);
+    assert.equal(ta[1]!.status, 'pass');   // finest-level dtFactor = 0.25^(2/1)
+    fx.write('eval/cases/a/XX-01.yaml', y('\n    expected_order: 2'));
+    const b = await run(['--root', fx.root, '--no-log']);
+    const tb = b.out.results[0]!.targets as unknown as Array<{ status: string; richardson_fallback?: string; order_ratio?: number }>;
+    assert.equal(tb[0]!.status, 'pass'); assert.equal(tb[0]!.richardson_fallback, undefined); assert.ok(Math.abs(tb[0]!.order_ratio! - 1) < 1e-9);
+  } finally { fx.cleanup(); }
+});
+
