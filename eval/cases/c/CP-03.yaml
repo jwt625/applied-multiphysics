@@ -35,7 +35,7 @@ references:
   gate: true
   expected: {file: eval/expected/CP-03.json, metric_id: T_center}
   provenance: {citation: closed form; target Rohsenow-Choi 1963 p. 106 ex. 6.5 via VM58, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
-      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: T_surface
   metric_id: T_surface
   value: 487.5105902777777
@@ -47,7 +47,7 @@ references:
   gate: true
   expected: {file: eval/expected/CP-03.json, metric_id: T_surface}
   provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
-      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: q per 1 ft
   metric_id: q_per_ft
   value: 100.08377583671476
@@ -59,7 +59,7 @@ references:
   gate: true
   expected: {file: eval/expected/CP-03.json, metric_id: q_per_ft}
   provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
-      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -71,8 +71,8 @@ dataset: null
 rights:
   source_license: Ansys MAPDL Verification Manual page, (c) ANSYS Inc. all rights reserved; target cites the textbook/report;
     formula textbook
-  allowed: [cite_values]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_with_attribution, copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/heated-wire.yaml}
 missing: []

@@ -20,9 +20,11 @@ materials:
   rod: {eps_r: 12.0, source: mpb doc/docs/Python_Tutorial.md L288}
 bcs: null
 initial: null
-study: {type: eigen, n: 50, shift: 'k = (0.5, 0.5); or target frequency 0.38 (L341-349)'}
+study: {type: eigen, n: 50, shift: 'k = (0.5, 0.5); or target frequency 0.38 (L341-349)', resolution_source: 'MPB resolution
+    16, 5x5 supercell'}
 references:
 - quantity: defect frequency (band 25)
+  metric_id: defect_frequency_band_25
   value: 0.378166
   unit: 1 (c/a)
   tolerance: {rel: 0.005, after: richardson, note: 'MPB resolution 16, 5x5 supercell; supercell size changes the value at
@@ -30,10 +32,13 @@ references:
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: MPB Python tutorial, locator: 'mpb doc/docs/Python_Tutorial.md L320, L349', accessed: '2026-11-06'}
   extraction: text
+  note: margin vs a converged reference not measured (MPB/Meep at the tutorial resolution); gate pending an independent check
+    (DevLog-008 TODO)
 - quantity: energy fraction in the defect region
+  metric_id: energy_fraction_in_the_defect_region
   value: 0.624794702341156
   unit: '1'
   tolerance: {rel: 0.02}
@@ -43,7 +48,8 @@ references:
   gate: false
   provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L337, accessed: '2026-11-06'}
   extraction: text
-  note: region and energy computation at L322-335 of the tutorial
+  note: region and energy computation at L322-335 of the tutorial; margin vs a converged reference not measured (MPB/Meep
+    at the tutorial resolution); gate pending an independent check (DevLog-008 TODO)
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -54,8 +60,8 @@ speed:
 dataset: null
 rights:
   source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
-  allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/phc-point-defect.yaml}
 missing: []
@@ -64,3 +70,5 @@ source_case: {suite: MPB tutorial, file: doc/docs/Python_Tutorial.md, url: githu
   note: cache/eval-c/sources/mpb/Python_Tutorial.md sha256 beebeb55eabd0e1b7297045377fb505ed56d688c7f246c8fce3363c4b6886001}
 lane: L7c
 created: '2026-11-06'
+notes: ['The MPB tutorial quotes the bulk gap as 0.2812-0.4174 at L320 but prints 0.2826-0.4193 at L120 (resolution 32); PWE
+    converged: 0.28066-0.41717 (WO-04).']

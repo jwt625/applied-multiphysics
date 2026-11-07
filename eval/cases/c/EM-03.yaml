@@ -25,6 +25,18 @@ bcs:
 initial: null
 study: {type: stationary}
 references:
+- quantity: M_ab (exact coplanar filament loops)
+  metric_id: M_ab_filament_exact
+  value: 1.981369687046371e-12
+  unit: H
+  tolerance: {rel: 0.005, after: richardson, note: 'remaining model error: 1 um strip width (est. < 5e-3)'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/EM-03.json, metric_id: M_ab_filament_exact}
+  provenance: {citation: Maxwell mutual inductance of coaxial coplanar loops (this lane), locator: palace docs/src/examples/rings.md
+      L42 (inputs), accessed: null, generator: validation/c/gen_palace.py}
 - quantity: M_ab
   metric_id: M_ab
   value: 1.9739208799572496e-12
@@ -34,10 +46,11 @@ references:
   bounds: null
   basis: D
   form: closed_form
-  gate: true
+  gate: false
   expected: {file: eval/expected/EM-03.json, metric_id: M_ab}
   provenance: {citation: 'Biot-Savart small-loop limit, Palace docs', locator: 'palace docs/src/examples/rings.md L28-30,
-      L73-75', accessed: null, generator: validation/c/gen_palace.py}
+      L73-75', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
+  note: small-loop limit printed by Palace; 0.38 % below the exact filament-loop value
 - quantity: L_aa
   metric_id: L_aa
   value: 4.1785366513873915e-11
@@ -50,7 +63,7 @@ references:
   gate: true
   expected: {file: eval/expected/EM-03.json, metric_id: L_aa}
   provenance: {citation: 'thin-ring self inductance, Palace docs ref. [1]', locator: 'palace docs/src/examples/rings.md L35-39,
-      L79-83', accessed: null, generator: validation/c/gen_palace.py}
+      L79-83', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
 - quantity: L_bb
   metric_id: L_bb
   value: 7.072050415971537e-10
@@ -62,7 +75,7 @@ references:
   gate: true
   expected: {file: eval/expected/EM-03.json, metric_id: L_bb}
   provenance: {citation: 'thin-ring self inductance, Palace docs ref. [1]', locator: 'palace docs/src/examples/rings.md L35-39,
-      L79-83', accessed: null, generator: validation/c/gen_palace.py}
+      L79-83', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
 reference_results:
 - {solver: Palace v0.19.0 regression gold (coarse CI mesh), M_11_H: 4.271797046795e-11, M_12_H: 1.960101643863e-12, M_22_H: 7.139527404879e-10,
   locator: test/data/regression/ref/rings/terminal-M.csv}
@@ -76,7 +89,7 @@ dataset: null
 rights:
   source_license: Apache-2.0 (Palace code and docs)
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/coplanar-rings.yaml}
 missing: []

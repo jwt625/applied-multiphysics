@@ -19,38 +19,42 @@ initial: null
 study: {type: stationary}
 references:
 - quantity: C_L (alpha 10)
+  metric_id: C_L_alpha_10
   value: 1.0909
   unit: '1'
   tolerance:
     rule:
       type: range
-      range: [1.0909, 1.0983]
-      note: CFL3D .. FUN3D on the same grid; validation-page values, no grid-convergence data
-  bounds: [1.0909, 1.0983]
+      range: [1.0891, 1.1]
+      note: 'envelope of all seven TMR codes (CFL3D 1.0909, FUN3D 1.0983, NTS 1.0891, JOE 1.0918, SUMB 1.0904, TURNS 1.1000,
+        GGNS 1.0941); page: max 1 % lift spread'
+  bounds: [1.0891, 1.1]
   basis: P
   form: solver_ref
   gate: true
-  provenance: {citation: 'NASA TMR NACA 0012 validation, SA', locator: tmbwg.github.io/turbmodels/naca0012_val_sa.html table
-      L170-183, accessed: '2026-11-06'}
+  provenance: {citation: 'NASA TMR NACA 0012 validation, SA', locator: 'tmbwg.github.io/turbmodels/naca0012_val_sa.html table
+      L160-235, text L122-129', accessed: '2026-11-06'}
   extraction: tabulated
 - quantity: C_D (alpha 10)
+  metric_id: C_D_alpha_10
   value: 0.01231
   unit: '1'
   tolerance:
     rule:
       type: range
-      range: [0.01231, 0.01242]
-  bounds: [0.01231, 0.01242]
+      range: [0.01225, 0.01245]
+      note: 'envelope of all seven codes (GGNS 0.01225 .. JOE 0.01245); page: max 4 % drag spread'
+  bounds: [0.01225, 0.01245]
   basis: P
   form: solver_ref
   gate: true
-  provenance: {citation: 'NASA TMR NACA 0012 validation, SA', locator: 'naca0012_val_sa.html table L173, L183', accessed: '2026-11-06'}
+  provenance: {citation: 'NASA TMR NACA 0012 validation, SA', locator: naca0012_val_sa.html table L160-235, accessed: '2026-11-06'}
   extraction: tabulated
 reference_results:
 - alpha_deg: 15
-  C_L: [1.5461, 1.5547]
-  C_D: [0.02124, 0.02159]
-  codes: [CFL3D, FUN3D]
+  C_L_range: [1.5446, 1.5642]
+  C_D_range: [0.02073, 0.02159]
+  codes: 7
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
   budget_s: {browser: null, native: null}
@@ -60,8 +64,8 @@ speed:
 dataset: null
 rights:
   source_license: CC0-1.0 (TMBWG/turbmodels repository licence)
-  allowed: [cite_values, re_derive_setup, copy_data]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/tmr-naca0012-sa.yaml}
 missing: []
@@ -70,3 +74,6 @@ source_case: {suite: NASA TMR, file: naca0012_val_sa.html, url: tmbwg.github.io/
   accessed: '2026-11-06', note: cache/eval-c/sources/tmr/naca0012_val_sa.html sha256 1fe38b6dc3c9b066445410ca2fa30226cdd141703b7c9b5ccc84bb4ee315fd0f}
 lane: L7c
 created: '2026-11-06'
+notes: ['Validation-page values on the 897x257 grid (GGNS adaptive); no grid convergence on this page. The grid-converged
+    numerical-analysis case (naca0012numerics_val_sa.html) gives results only as plots, so no numeric gate is available from
+    it.']

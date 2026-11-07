@@ -4,8 +4,8 @@ schema: amp-eval/0
 id: FL-07
 class: c
 title: AirfRANS sample (NACA 4/5-digit, Re 2-6e6, AoA -5 to 15 deg, incompressible RANS)
-status: unvalidated
-untestable_reason: null
+status: untestable
+untestable_reason: no content hash for the AirfRANS archive (ODbL data stays out of the repo)
 physics: [turbulent]
 dimension: 2D
 units: SI
@@ -18,6 +18,7 @@ initial: null
 study: {type: stationary}
 references:
 - quantity: C_D, C_L relative error vs AirfRANS simulation
+  metric_id: C_D_C_L_relative_error_vs_AirfRANS_simulation
   value: null
   unit: '1'
   tolerance:
@@ -40,10 +41,10 @@ speed:
   report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
   reference_timings: []
 dataset: {name: AirfRANS, subset: full (800 train / 200 test), metric: 'C_D, C_L relative error; field MSE', url: 'https://data.isir.upmc.fr/extrality/NeurIPS_2022/Dataset.zip',
-  license: ODbL-1.0, file: 'N/A (not fetched: archive size not stated on the docs page; R3 states 10.0 GB)'}
+  license: ODbL-1.0, file: Dataset.zip, file_bytes: 10029067577, http_etag: 62f519b5-255c76d39 (HEAD 2026-11-06)}
 rights:
   source_license: 'ODbL-1.0 (github.com/Extrality/AirfRANS LICENSE, GitHub API 2026-11-06): data stays out of the repo'
-  allowed: [cite_values, reference_by_hash]
+  allowed: [cite_values, re_derive_setup]
   forbidden: [copy_data, redistribute_data]
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/airfrans-sample.yaml}
@@ -52,3 +53,4 @@ assumptions: []
 source_case: {suite: AirfRANS, file: notes/dataset.html, url: airfrans.readthedocs.io, accessed: '2026-11-06'}
 lane: L7c
 created: '2026-11-06'
+activation: sha256 of Dataset.zip recorded (10,029,067,577 B, Last-Modified 2022-08-11, ETag 62f519b5-255c76d39)

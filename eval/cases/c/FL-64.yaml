@@ -25,22 +25,55 @@ bcs: null
 initial: null
 study: {type: transient}
 references:
-- quantity: VRMSE vs stored trajectory at frames 1, 10, last
+- quantity: VRMSE vs stored frames up to the own predictability horizon
+  metric_id: VRMSE_vs_stored_frames_up_to_the_own_predictability_horizon
   value: null
   unit: '1'
   tolerance:
     rule:
       type: range
       range: [0.0, 1.0]
-      note: 'sanity bound: VRMSE 1 = predicting the spatial mean (The Well App. E.3); the gate is the own self-convergence
-        floor, set after the first run (R3 s.4)'
+      note: sanity bound only; gate = own self-convergence floor (R3 s.4), pending
   bounds: null
   basis: P
   form: dataset
   gate: false
-  provenance: {citation: 'Ohana et al., The Well, NeurIPS 2024 Datasets and Benchmarks, arXiv:2412.00568', locator: HF shear_flow
-      README 'About the data'; paper App. E.3 (VRMSE), accessed: '2026-11-06'}
-  note: per field; The Well metric definition
+  provenance: {citation: 'Ohana et al., The Well, NeurIPS 2024 Datasets and Benchmarks, arXiv:2412.00568', locator: R3 s.4
+      protocol; audit S4, accessed: '2026-11-06'}
+  note: horizon H = first stored frame where our two finest levels differ by VRMSE > 0.1; frames beyond H are not compared
+    pointwise
+- quantity: 'statistic: tracer variance and kinetic energy vs t (all stored frames)'
+  metric_id: statistic_tracer_variance_and_kinetic_energy_vs_t_all_stored_frames
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.0, 1.0]
+      note: sanity bound only; gate = own self-convergence floor (R3 s.4), pending
+  bounds: null
+  basis: P
+  form: dataset
+  gate: false
+  provenance: {citation: 'Ohana et al., The Well, NeurIPS 2024 Datasets and Benchmarks, arXiv:2412.00568', locator: R3 s.4
+      protocol; audit S4, accessed: '2026-11-06'}
+  note: relative difference of the statistic; long-horizon check instead of last-frame VRMSE (audit S4)
+- quantity: 'statistic: x-averaged u_x(y) profile vs t'
+  metric_id: statistic_x_averaged_u_x_y_profile_vs_t
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0.0, 1.0]
+      note: sanity bound only; gate = own self-convergence floor (R3 s.4), pending
+  bounds: null
+  basis: P
+  form: dataset
+  gate: false
+  provenance: {citation: 'Ohana et al., The Well, NeurIPS 2024 Datasets and Benchmarks, arXiv:2412.00568', locator: R3 s.4
+      protocol; audit S4, accessed: '2026-11-06'}
+  note: relative difference of the statistic; long-horizon check instead of last-frame VRMSE (audit S4)
 reference_results: []
 convergence: {method: none, note: 'dataset case: report own self-convergence floor (two finest levels) next to the dataset
     metric (R3 s.4)'}
@@ -77,7 +110,7 @@ dataset:
 rights:
   source_license: CC-BY-4.0 (HF dataset card license tag; The Well paper App. A.6); code BSD-3-Clause
   allowed: [cite_values, re_derive_setup, reference_by_hash]
-  forbidden: [redistribute_data_without_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/well-shear-flow.yaml}
 missing: []

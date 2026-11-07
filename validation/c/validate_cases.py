@@ -6,9 +6,11 @@
   2. id == file name, class == c, ID range rule (R3 ids or 61-79 for new class-c ids, CONTRACTS-v0 changelog),
   3. every reference with `expected` has the same value as eval/expected/<ID>.json (and the JSON is class c),
   4. every basis P/S reference has an ISO `accessed` date and a non-empty locator,
-  5. no COMSOL mention outside rights/notes text that says it is excluded (DevLog-001 Q5).
+  5. no mention of COMSOL anywhere in a case file (DevLog-001 Q5),
+  6. rights tags are in the eval/schema rightsItem enum (authoritative vocabulary),
+     and reference_by_hash requires dataset.hash.
 
-Run: cd validation && uv run --with jsonschema python c/validate_cases.py
+Run: cd validation && uv run python c/validate_cases.py
 """
 
 from __future__ import annotations
@@ -67,6 +69,14 @@ def main() -> int:
         nn = int(re.match(r"^[A-Z]+-(\d+)", cid).group(1))
         if cid not in R3_C_IDS and not 61 <= nn <= 79:
             errs.append(f"{cid}: new class-c id outside 61-79")
+        vocab = set(
+            json.loads((ROOT / "eval" / "schema" / "amp-eval-0.schema.json").read_text())["$defs"]["rightsItem"]["enum"]
+        )
+        tags = set(d["rights"]["allowed"]) | set(d["rights"]["forbidden"])
+        if tags - vocab:
+            errs.append(f"{cid}: rights tags outside the contract vocabulary: {sorted(tags - vocab)}")
+        if "reference_by_hash" in d["rights"]["allowed"] and not (d.get("dataset") or {}).get("hash"):
+            errs.append(f"{cid}: reference_by_hash without dataset.hash")
         if "comsol" in p.read_text().lower():
             errs.append(f"{cid}: mentions COMSOL")
         for r in d["references"]:

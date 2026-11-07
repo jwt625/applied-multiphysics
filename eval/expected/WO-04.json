@@ -1,0 +1,90 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-04",
+  "class": "c",
+  "generator": "validation/c/gen_pwe.py",
+  "command": "cd validation && uv run python c/gen_pwe.py",
+  "method": "Plane-wave expansion, TM, square lattice of rods r 0.2a eps 12 in air; independent check of the MPB gap edges (MPB is the cited reference).",
+  "generated_at": "2026-11-06T16:32:28-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "gap_lower",
+      "value": 0.28066257049446014,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "PWE TM, MPB k path",
+        "levels": [
+          {
+            "nmax": 8,
+            "n_plane_waves": 197,
+            "lo": 0.2806840319985547,
+            "hi": 0.4172550626138508
+          },
+          {
+            "nmax": 12,
+            "n_plane_waves": 441,
+            "lo": 0.28066876316914224,
+            "hi": 0.41718729179715164
+          },
+          {
+            "nmax": 16,
+            "n_plane_waves": 797,
+            "lo": 0.2806645475923549,
+            "hi": 0.4171725990429296
+          },
+          {
+            "nmax": 20,
+            "n_plane_waves": 1257,
+            "lo": 0.2806631119872755,
+            "hi": 0.4171678198377438
+          },
+          {
+            "nmax": 24,
+            "n_plane_waves": 1793,
+            "lo": 0.28066257049446014,
+            "hi": 0.41716547014388133
+          }
+        ],
+        "last_step_rel": 1.9293374759971056e-06
+      },
+      "source": {
+        "source_value": "0.282623311147724",
+        "rel_diff": 0.0069376465985815,
+        "agreement": "disagree",
+        "note": "MPB tutorial (resolution 32)"
+      }
+    },
+    {
+      "metric_id": "gap_upper",
+      "value": 0.41716547014388133,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "PWE TM, MPB k path",
+        "last_step_rel": 5.632522417710312e-06
+      },
+      "source": {
+        "source_value": "0.419334798706834",
+        "rel_diff": 0.0051732614837655755,
+        "agreement": "disagree",
+        "note": "MPB tutorial (resolution 32)"
+      }
+    }
+  ],
+  "inputs": {
+    "lattice": "square",
+    "r_over_a": 0.2,
+    "eps_rod": 12.0,
+    "k_path": "MPB tutorial"
+  }
+}

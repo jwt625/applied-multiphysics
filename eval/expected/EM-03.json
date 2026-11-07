@@ -5,7 +5,7 @@
   "generator": "validation/c/gen_palace.py",
   "command": "cd validation && uv run python c/gen_palace.py",
   "method": "Inductance matrix of two coplanar concentric rings, formulas and inputs as printed in the Palace docs (approximate: thin ring, r_a << r_b); exact filament-loop M_ab recorded.",
-  "generated_at": "2026-11-06T15:57:14-08:00",
+  "generated_at": "2026-11-06T16:32:17-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -35,6 +35,22 @@
       "exact_filament_loops": 1.981369687046371e-12,
       "approx_vs_exact_rel": -0.0037594231595544435,
       "note": "rings.md L29 prints mu0 pi r_b^2 / (2 r_a); the printed value 1.973921 pH equals mu0 pi r_a^2 / (2 r_b): typo in the docs formula, value consistent with the correct form"
+    },
+    {
+      "metric_id": "M_ab_filament_exact",
+      "value": 1.981369687046371e-12,
+      "unit": "H",
+      "precision": {
+        "method": "Maxwell coaxial filament loops: mu0 sqrt(ra rb) ((2/k - k) K(k) - (2/k) E(k)), scipy"
+      },
+      "source": {
+        "source_value": "1.973921",
+        "rel_diff": 0.003773548711610447,
+        "agreement": "disagree",
+        "note": "palace docs/src/examples/rings.md L73-83, in pH (small-loop limit)"
+      },
+      "locator": "palace docs/src/examples/rings.md L73-83",
+      "note": "exact for zero-width coplanar loops; the 1 um strip width is a further, small effect"
     },
     {
       "metric_id": "L_aa",

@@ -21,6 +21,7 @@ initial: null
 study: null
 references:
 - quantity: f1 short
+  metric_id: f1_short
   value: 66560.0
   unit: Hz
   tolerance: {rel: 0.03, note: measured target (Boucher 1981 Table 1); tolerance proposed}
@@ -33,6 +34,7 @@ references:
   extraction: text
   note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
 - quantity: f2 short
+  metric_id: f2_short
   value: 88010.0
   unit: Hz
   tolerance: {rel: 0.03, note: measured target (Boucher 1981 Table 1); tolerance proposed}
@@ -45,6 +47,7 @@ references:
   extraction: text
   note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
 - quantity: f1 open
+  metric_id: f1_open
   value: 81590.0
   unit: Hz
   tolerance: {rel: 0.03, note: measured target (Boucher 1981 Table 1); tolerance proposed}
@@ -57,6 +60,7 @@ references:
   extraction: text
   note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
 - quantity: f2 open
+  metric_id: f2_open
   value: 93410.0
   unit: Hz
   tolerance: {rel: 0.03, note: measured target (Boucher 1981 Table 1); tolerance proposed}
@@ -78,8 +82,8 @@ speed:
 dataset: null
 rights:
   source_license: Ansys MAPDL Verification Manual page, (c) ANSYS Inc. all rights reserved; target cites the textbook/report
-  allowed: [cite_values]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_with_attribution, copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pzt-cube.yaml}
 missing: ['PZT-4 [c], [e], [eps_r] values']

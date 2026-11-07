@@ -4,8 +4,8 @@ schema: amp-eval/0
 id: TR-63
 class: c
 title: PDEBench 2D diffusion-reaction (FitzHugh-Nagumo), Neumann, t <= 5
-status: unvalidated
-untestable_reason: null
+status: untestable
+untestable_reason: HDF5 layout, dtype and boundary condition not verified (header probe failed)
 physics: [transport-reaction]
 dimension: 2D
 units: SI
@@ -18,6 +18,7 @@ initial: null
 study: {type: transient}
 references:
 - quantity: nRMSE vs stored solution
+  metric_id: nRMSE_vs_stored_solution
   value: null
   unit: '1'
   tolerance:
@@ -57,7 +58,7 @@ dataset:
 rights:
   source_license: CC BY 4.0 (DaRUS dataset licence field); code 'MIT except where otherwise stated' (LICENSE.txt)
   allowed: [cite_values, re_derive_setup, reference_by_hash]
-  forbidden: [redistribute_data_without_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pdebench-2d-diff-react.yaml}
 missing: [stored group/dataset names and dtype (probe failed), 'boundary condition: paper D.9 does not state it in the extracted
@@ -75,3 +76,4 @@ notes: ['Equations: u_t = Du lap u + u - u^3 - k - v; v_t = Dv lap v + u - v, (x
     x 2 x 4 B + 5.3 MB: consistent with float32 u, v (D).']
 lane: L7c
 created: '2026-11-06'
+activation: header probe within a new byte budget (walker that lists one sample group only) + BC from sim_diff_react.py

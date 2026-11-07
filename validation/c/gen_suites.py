@@ -50,7 +50,6 @@ def em05() -> None:
     rhs = np.array([0, 0, -b0 * ro, -b0], dtype=complex)
     c, d, e, ff = np.linalg.solve(m, rhs)
     by0 = -c  # B_y = -dA/dx, A = C x inside
-    ref = -b0  # by construction the far field is B_y = -(-B0) = B0? sign check below
 
     def fr(r):
         return d * i1(1, kap * r) + e * k1(1, kap * r)
@@ -113,7 +112,7 @@ def em05() -> None:
                 "B0_T": b0,
                 "B0_meaning": "peak amplitude of the applied field B_y = B0 cos(w t)",
             },
-            "check_far_field_sign": float(np.real(ref)),
+            "far_field": "A = -B0 r cos(theta) -> B_y = +B0",
         },
     )
 
@@ -314,7 +313,83 @@ def rf62() -> None:
     )
 
 
+def wo05() -> None:
+    """Audit m5: exact TM (E_z) resonances of the Meep tutorial ring (n 3.4, r 1..2, air), units c = a = 1.
+    E_z = J_m(k r) inside, A J_m(n k r) + B Y_m(n k r) in the ring, C H1_m(k r) outside (outgoing, e^{-i w t});
+    continuity of E_z and dE_z/dr at r = 1, 2; complex root of the 4x4 determinant (mpmath, 30 digits)."""
+    import mpmath as mp
+
+    mp.mp.dps = 30
+    n, r1, r2 = 3.4, 1.0, 2.0
+
+    def det(f, m):
+        k = 2 * mp.pi * f
+
+        def jj(z):
+            return mp.besselj(m, z)
+
+        def yy(z):
+            return mp.bessely(m, z)
+
+        def hh(z):
+            return mp.hankel1(m, z)
+
+        def d(fun, z):
+            return mp.diff(fun, z)
+
+        a1, b1, a2, b2 = k * r1, n * k * r1, n * k * r2, k * r2
+        mat = mp.matrix(
+            [
+                [jj(a1), -jj(b1), -yy(b1), 0],
+                [k * d(jj, a1), -n * k * d(jj, b1), -n * k * d(yy, b1), 0],
+                [0, jj(a2), yy(a2), -hh(b2)],
+                [0, n * k * d(jj, a2), n * k * d(yy, a2), -k * d(hh, b2)],
+            ]
+        )
+        return mp.det(mat)
+
+    meep = [
+        ("0.118101575043663", "80.683059081382"),
+        ("0.147162555528154", "316.29272471914"),
+        ("0.175246750722663", "1677.48461212767"),
+    ]
+    tg = []
+    for i, (m, f0) in enumerate([(3, 0.1181), (4, 0.1472), (5, 0.1752)]):
+        f = mp.findroot(lambda x, m=m: det(x, m), mp.mpc(f0, -0.0005))
+        f2 = mp.findroot(lambda x, m=m: det(x, m), mp.mpc(float(f.real) * 1.001, float(f.imag) * 1.1))
+        fr, q = float(f.real), float(f.real / (-2 * f.imag))
+        prec = {"method": "complex root, mpmath 30 digits", "restart_diff": float(abs(f - f2)), "m": m}
+        tg.append(
+            target(
+                f"f{i + 1}",
+                fr,
+                "1 (c/a)",
+                prec,
+                source_compare(fr, meep[i][0], 1.0, "Meep tutorial (resolution 10)"),
+                locator="meep doc/docs/Python_Tutorials/Basics.md L1117-1119",
+            )
+        )
+        tg.append(
+            target(
+                f"Q{i + 1}",
+                q,
+                "1",
+                prec,
+                source_compare(q, meep[i][1], 1.0, "Meep tutorial (resolution 10)"),
+                locator="meep doc/docs/Python_Tutorials/Basics.md L1117-1119",
+            )
+        )
+    write_expected(
+        "WO-05",
+        tg,
+        GEN,
+        "Exact TM resonances (complex frequency) of a dielectric ring n 3.4, inner radius 1, "
+        "outer radius 2, in air (Meep tutorial 'Modes of a Ring Resonator' geometry).",
+        extra={"inputs": {"n": n, "r_inner": r1, "r_outer": r2, "units": "c = a = 1"}},
+    )
+
+
 if __name__ == "__main__":
-    for fn in (em05, cp03, sm61, ht61, rf62):
+    for fn in (em05, cp03, sm61, ht61, rf62, wo05):
         fn()
         print("wrote", fn.__name__)

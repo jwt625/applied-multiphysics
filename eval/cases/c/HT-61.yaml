@@ -18,6 +18,7 @@ geometry:
 materials: null
 bcs:
 - {selection: boundary, type: dirichlet, value: 0}
+- {selection: domain, type: source, value: 1.0, note: '-lap u = f, f = 1'}
 initial: null
 study: {type: stationary}
 references:
@@ -32,7 +33,7 @@ references:
   gate: true
   expected: {file: eval/expected/HT-61.json, metric_id: u_max}
   provenance: {citation: double Fourier sine series (this lane), locator: github.com/kinnala/scikit-fem tag 12.0.2 tests/test_examples.py
-      L8-12 (FEM gold 0.073657185490792), accessed: null, generator: validation/c/gen_suites.py}
+      L8-12 (FEM gold 0.073657185490792), accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 reference_results:
 - {solver: 'scikit-fem 12.0.2 P1, MeshTri().refined(6)', u_max: 0.073657185490792, locator: tests/test_examples.py L12}
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
@@ -45,7 +46,7 @@ dataset: null
 rights:
   source_license: BSD-3-Clause (scikit-fem)
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/poisson-square.yaml}
 missing: []

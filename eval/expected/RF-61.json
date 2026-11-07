@@ -5,7 +5,7 @@
   "generator": "validation/c/gen_palace.py",
   "command": "cd validation && uv run python c/gen_palace.py",
   "method": "RG-401/U coax section (inner 0.0645 in, outer 0.215 in diameter, eps_r 2.08, tan d 4e-2) driven by a 100 Ohm lumped port: reflection magnitude from the quasi-TEM line impedance.",
-  "generated_at": "2026-11-06T15:57:14-08:00",
+  "generated_at": "2026-11-06T16:32:17-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",

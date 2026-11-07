@@ -1,9 +1,9 @@
-# RF-01: Palace cylinder: Teflon-filled cylindrical cavity, modes, dielectric and copper-wall Q
+# RF-01: Palace cylinder: Teflon-filled cavity with copper (impedance) walls, conductor Q of TE011
 # Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
 schema: amp-eval/0
 id: RF-01
 class: c
-title: 'Palace cylinder: Teflon-filled cylindrical cavity, modes, dielectric and copper-wall Q'
+title: 'Palace cylinder: Teflon-filled cavity with copper (impedance) walls, conductor Q of TE011'
 status: unvalidated
 untestable_reason: null
 physics: [rf-resonator]
@@ -33,11 +33,12 @@ references:
   bounds: null
   basis: D
   form: closed_form
-  gate: true
+  gate: false
   expected: {file: eval/expected/RF-01.json, metric_id: f_TM010}
   provenance: {citation: Pozar via Palace docs, locator: 'palace docs/src/examples/cylinder.md L31-44, L115', accessed: null,
-    generator: validation/c/gen_palace.py}
-  note: exact; Palace's table entry 2.903605 GHz uses a rounded Bessel zero (L7a RF-21 resolution); equals RF-21
+    generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
+  note: exact; Palace's table entry 2.903605 GHz uses a rounded Bessel zero (L7a RF-21 resolution); equals RF-21; duplicate
+    of class-a RF-21 (same closed form); gated there, kept here for traceability
 - quantity: f TE111
   metric_id: f_TE111
   value: 2922197191.014636
@@ -46,9 +47,11 @@ references:
   bounds: null
   basis: D
   form: closed_form
-  gate: true
+  gate: false
   expected: {file: eval/expected/RF-01.json, metric_id: f_TE111}
-  provenance: {citation: Pozar via Palace docs, locator: palace docs/src/examples/cylinder.md L119, accessed: null, generator: validation/c/gen_palace.py}
+  provenance: {citation: Pozar via Palace docs, locator: palace docs/src/examples/cylinder.md L119, accessed: null, generator: validation/c/gen_palace.py,
+    source_accessed: '2026-11-06'}
+  note: duplicate of class-a RF-21 (same closed form); gated there, kept here for traceability
 - quantity: f TE011
   metric_id: f_TE011
   value: 5000146299.18556
@@ -57,10 +60,11 @@ references:
   bounds: null
   basis: D
   form: closed_form
-  gate: true
+  gate: false
   expected: {file: eval/expected/RF-01.json, metric_id: f_TE011}
-  provenance: {citation: Pozar via Palace docs, locator: palace docs/src/examples/cylinder.md L118, accessed: null, generator: validation/c/gen_palace.py}
-  note: degenerate with TM111
+  provenance: {citation: Pozar via Palace docs, locator: palace docs/src/examples/cylinder.md L118, accessed: null, generator: validation/c/gen_palace.py,
+    source_accessed: '2026-11-06'}
+  note: degenerate with TM111; duplicate of class-a RF-21 (same closed form); gated there, kept here for traceability
 - quantity: Q_c TE011 (R_s 0.0184 Ohm)
   metric_id: Q_c_TE011
   value: 29395.11665316677
@@ -72,7 +76,7 @@ references:
   gate: true
   expected: {file: eval/expected/RF-01.json, metric_id: Q_c_TE011}
   provenance: {citation: Pozar Ex. 6.4 formula as printed in Palace docs, locator: 'palace docs/src/examples/cylinder.md L53-65,
-      L150-159', accessed: null, generator: validation/c/gen_palace.py}
+      L150-159', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
 - quantity: Q TE011 copper walls
   metric_id: Q_TE011_copper
   value: 2304.045237772176
@@ -83,7 +87,8 @@ references:
   form: closed_form
   gate: true
   expected: {file: eval/expected/RF-01.json, metric_id: Q_TE011_copper}
-  provenance: {citation: 1/Q = 1/Q_c + 1/Q_d, locator: palace docs/src/examples/cylinder.md L150-156, accessed: null, generator: validation/c/gen_palace.py}
+  provenance: {citation: 1/Q = 1/Q_c + 1/Q_d, locator: palace docs/src/examples/cylinder.md L150-156, accessed: null, generator: validation/c/gen_palace.py,
+    source_accessed: '2026-11-06'}
 - quantity: Q_d
   metric_id: Q_d
   value: 2500.0
@@ -92,9 +97,11 @@ references:
   bounds: null
   basis: D
   form: closed_form
-  gate: true
+  gate: false
   expected: {file: eval/expected/RF-01.json, metric_id: Q_d}
-  provenance: {citation: 1/tan delta, locator: 'palace docs/src/examples/cylinder.md L50, L135', accessed: null, generator: validation/c/gen_palace.py}
+  provenance: {citation: 1/tan delta, locator: 'palace docs/src/examples/cylinder.md L50, L135', accessed: null, generator: validation/c/gen_palace.py,
+    source_accessed: '2026-11-06'}
+  note: duplicate of class-a RF-21 (same closed form); gated there, kept here for traceability
 reference_results:
 - solver: Palace v0.19.0 regression gold cavity_pec (coarse CI mesh)
   f_GHz_first4: [2.904769618774, 2.922855211084, 2.922855211091, 3.469124240109]
@@ -111,7 +118,7 @@ dataset: null
 rights:
   source_license: Apache-2.0 (Palace code and docs)
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  forbidden: []
 hero:
   suitable: true
   why: animated E/H of cavity modes; R3 hero RF-01

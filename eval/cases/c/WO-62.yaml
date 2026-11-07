@@ -21,9 +21,10 @@ materials:
     source: mpb doc/docs/Python_Tutorial.md L256
 bcs: null
 initial: null
-study: {type: eigen, n: 8, shift: both polarizations (ms.run)}
+study: {type: eigen, n: 8, shift: both polarizations (ms.run), resolution_source: MPB resolution 32}
 references:
 - quantity: complete gap lower edge (band 2)
+  metric_id: complete_gap_lower_edge_band_2
   value: 0.223977612336924
   unit: 1 (c/a)
   tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
@@ -31,10 +32,13 @@ references:
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L269, accessed: '2026-11-06'}
   extraction: text
+  note: margin vs a converged reference not measured (MPB/Meep at the tutorial resolution); gate pending an independent check
+    (DevLog-008 TODO)
 - quantity: complete gap upper edge (band 3)
+  metric_id: complete_gap_upper_edge_band_3
   value: 0.274704473679751
   unit: 1 (c/a)
   tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
@@ -42,9 +46,11 @@ references:
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L269, accessed: '2026-11-06'}
   extraction: text
+  note: margin vs a converged reference not measured (MPB/Meep at the tutorial resolution); gate pending an independent check
+    (DevLog-008 TODO)
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -55,8 +61,8 @@ speed:
 dataset: null
 rights:
   source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
-  allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/phc-anisotropic.yaml}
 missing: []

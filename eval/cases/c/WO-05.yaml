@@ -16,40 +16,120 @@ materials:
   ring: {n: 3.4, source: meep python/tests/test_ring.py L21}
 bcs: null
 initial: null
-study: {type: transient, t_end: 300, source: 'Gaussian Ez at (r + 0.1, 0), fcen 0.15, df 0.1'}
+study: {type: transient, t_end: 300, source: 'Gaussian Ez at (r + 0.1, 0), fcen 0.15, df 0.1', resolution_source: Meep resolution
+    10 (tutorial)}
 references:
+- quantity: f1 exact (m = 3)
+  metric_id: f1
+  value: 0.11819169373401972
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/WO-05.json, metric_id: f1}
+  provenance: {citation: exact annulus TM resonance (this lane), locator: validation/c/gen_suites.py wo05, accessed: null,
+    generator: validation/c/gen_suites.py}
+- quantity: f2 exact (m = 4)
+  metric_id: f2
+  value: 0.14743103286733042
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/WO-05.json, metric_id: f2}
+  provenance: {citation: exact annulus TM resonance (this lane), locator: validation/c/gen_suites.py wo05, accessed: null,
+    generator: validation/c/gen_suites.py}
+- quantity: f3 exact (m = 5)
+  metric_id: f3
+  value: 0.1757793737226367
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/WO-05.json, metric_id: f3}
+  provenance: {citation: exact annulus TM resonance (this lane), locator: validation/c/gen_suites.py wo05, accessed: null,
+    generator: validation/c/gen_suites.py}
+- quantity: Q1 exact
+  metric_id: Q1
+  value: 77.25539747710403
+  unit: '1'
+  tolerance: {rel: 0.01, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/WO-05.json, metric_id: Q1}
+  provenance: {citation: exact annulus TM resonance (this lane), locator: validation/c/gen_suites.py wo05, accessed: null,
+    generator: validation/c/gen_suites.py}
+- quantity: Q2 exact
+  metric_id: Q2
+  value: 343.9164578371421
+  unit: '1'
+  tolerance: {rel: 0.01, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/WO-05.json, metric_id: Q2}
+  provenance: {citation: exact annulus TM resonance (this lane), locator: validation/c/gen_suites.py wo05, accessed: null,
+    generator: validation/c/gen_suites.py}
+- quantity: Q3 exact
+  metric_id: Q3
+  value: 1634.2055851261723
+  unit: '1'
+  tolerance: {rel: 0.01, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/WO-05.json, metric_id: Q3}
+  provenance: {citation: exact annulus TM resonance (this lane), locator: validation/c/gen_suites.py wo05, accessed: null,
+    generator: validation/c/gen_suites.py}
 - quantity: f1
+  metric_id: meep_f1
   value: 0.118101575043663
   unit: 1 (c/a)
   tolerance: {rel: 0.005, after: richardson, note: Meep resolution 10 (not converged); proposed}
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: Meep tutorial 'Modes of a Ring Resonator', locator: meep doc/docs/Python_Tutorials/Basics.md L1116-1117,
     accessed: '2026-11-06'}
   extraction: text
+  note: Meep resolution 10, informative
 - quantity: f2
+  metric_id: meep_f2
   value: 0.147162555528154
   unit: 1 (c/a)
   tolerance: {rel: 0.005, after: richardson}
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1118, accessed: '2026-11-06'}
   extraction: text
+  note: Meep resolution 10, informative
 - quantity: f3
+  metric_id: meep_f3
   value: 0.175246750722663
   unit: 1 (c/a)
   tolerance: {rel: 0.005, after: richardson}
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1119, accessed: '2026-11-06'}
   extraction: text
+  note: Meep resolution 10, informative
 - quantity: Q1
+  metric_id: meep_Q1
   value: 80.683059081382
   unit: '1'
   tolerance: {rel: 0.2}
@@ -58,7 +138,9 @@ references:
   form: solver_ref
   gate: false
   provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1117, accessed: '2026-11-06'}
+  note: Meep resolution 10, informative
 - quantity: Q2
+  metric_id: meep_Q2
   value: 316.29272471914
   unit: '1'
   tolerance: {rel: 0.2}
@@ -67,7 +149,9 @@ references:
   form: solver_ref
   gate: false
   provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1118, accessed: '2026-11-06'}
+  note: Meep resolution 10, informative
 - quantity: Q3
+  metric_id: meep_Q3
   value: 1677.48461212767
   unit: '1'
   tolerance: {rel: 0.2}
@@ -76,6 +160,7 @@ references:
   form: solver_ref
   gate: false
   provenance: {citation: Meep tutorial, locator: meep doc/docs/Python_Tutorials/Basics.md L1119, accessed: '2026-11-06'}
+  note: Meep resolution 10, informative
 reference_results:
 - {solver: Meep v1.35.1 unit-test gold, f1: 0.118101315147, decay: -0.000731513241623, tolerance_in_test: 1e-3 relative, locator: meep
     python/tests/test_ring.py L67-68}
@@ -88,8 +173,8 @@ speed:
 dataset: null
 rights:
   source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
-  allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero:
   suitable: true
   why: ring resonance build-up (R3 hero WO-05)

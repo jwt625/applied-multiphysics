@@ -6,13 +6,16 @@ checked against sha256 values recorded here, and run unmodified in a subprocess.
 fetched the same way (devsim/devsim_tests_macos_arm64; repository has no LICENSE file: values are cited,
 the file is not committed). Nothing from DEVSIM is copied into the repository.
 
-Run (devsim is not in validation/pyproject.toml; requested in DevLog-008 "Contract requests"):
-  cd validation && uv run --with devsim==2.11.2 --with requests python c/gen_devsim.py
+Gate values (audit B2): devsim_diode_tight.py, extended precision, three meshes, Richardson.
+
+Run: cd validation && uv run python c/gen_devsim.py
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
+import math
 import os
 import random
 import subprocess
@@ -82,40 +85,113 @@ def main() -> int:
         return 1
     (d / "diode_1d.local.out").write_text(run.stdout)
     ours, gold = parse(run.stdout)["top"], parse((d / "diode_1d.golden.out").read_text())["top"]
+    gold_bot = parse((d / "diode_1d.golden.out").read_text())["bot"]
+
+    # Tight reference (audit B2): extended precision, Newton to the round-off floor, mesh refine 1, 2, 4
+    levels = []
+    for refine in (1, 2, 4):
+        r = subprocess.run(
+            [sys.executable, str(Path(__file__).with_name("devsim_diode_tight.py")), str(d), str(refine), "extended"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=1200,
+        )
+        line = [x for x in r.stdout.splitlines() if x.startswith("{")]
+        if r.returncode != 0 or not line:
+            print(r.stderr[-2000:])
+            return 1
+        levels.append(json.loads(line[-1]))
     tg = []
-    for (v, _, _, jt), (vg, _, _, jg) in zip(ours, gold, strict=True):
-        if v < 0.05:
-            continue
+    for i, ((v, _, _, jt), (_, _, _, jg), (_, _, _, jgb)) in enumerate(
+        zip(ours[1:], gold[1:], gold_bot[1:], strict=True)
+    ):
+        j = [lv["rows"][i]["J_top"] for lv in levels]
+        jb = [lv["rows"][i]["J_bot"] for lv in levels]
+        cont = max(abs(a + b) / abs(a) for a, b in zip(j, jb, strict=True))
+        p_obs = math.log(abs(j[0] - j[1]) / abs(j[1] - j[2])) / math.log(2)
+        j_ext = j[2] + (j[2] - j[1]) / 3  # second-order Richardson (formal p = 2, observed p_obs)
         mv = f"{v:.1f}"
         tg.append(
             target(
-                f"J_top_{mv}V",
-                jt,
+                f"J_{mv}V",
+                j_ext,
                 "A/cm^2",
-                {"method": "DEVSIM diode_1d.py re-run, unmodified", "golden_rel_diff": abs(jt - jg) / abs(jg)},
-                source_compare(jt, repr(jg), 1.0, "golden diode_1d.out, total current at contact top"),
+                {
+                    "method": "DEVSIM 2.11.2, diode_1d set-up, float128 (extended_*), Newton rel 1e-11 / abs 1e4 "
+                    "cm^-3, mesh spacing / 1, 2, 4; Richardson p = 2",
+                    "levels": [
+                        {"refine": lv["refine"], "n_nodes": lv["n_nodes"], "J_top": jj}
+                        for lv, jj in zip(levels, j, strict=True)
+                    ],
+                    "observed_order": p_obs,
+                    "richardson_minus_finest_rel": abs(j_ext - j[2]) / abs(j_ext),
+                    "current_continuity_max_rel": cont,
+                },
+                source_compare(
+                    j_ext,
+                    repr(jg),
+                    1.0,
+                    "DEVSIM golden diode_1d.out, 'top' (double precision, absolute_error 1e10: informative only)",
+                ),
                 locator=f"devsim_tests_macos_arm64@{GOLDEN_COMMIT[:7]} goldenresults/examples/diode/"
-                f"diode_1d.out, line 'top {vg}'",
+                f"diode_1d.out, line 'top {v}'",
                 bias_V=v,
+                golden_top=jg,
+                golden_bot=jgb,
+                golden_continuity_rel=abs(jg + jgb) / abs(jg),
+                example_rerun_top=jt,
+                example_rerun_vs_golden_rel=abs(jt - jg) / abs(jg),
             )
         )
     write_expected(
         "SC-02",
         tg,
         GEN,
-        "DEVSIM 1D abrupt Si pn diode (examples/diode/diode_1d.py: N_A = N_D = 1e18 cm^-3, 1e-5 cm, "
-        "SRH tau 1e-8 s, Scharfetter-Gummel), DC sweep 0.1-0.5 V; total current density at contact "
-        "'top' (DEVSIM cm-based units; 1D device, so A/cm^2).",
+        "DEVSIM 1D abrupt Si pn diode (examples/diode/diode_1d.py set-up: N_A = N_D = 1e18 cm^-3, length 1e-5 cm, "
+        "SRH tau_n = tau_p = 1e-8 s, Scharfetter-Gummel), DC sweep 0.1-0.5 V; total current density at the "
+        "contacts (DEVSIM cm units, A/cm^2). Gate values: extended-precision, mesh-extrapolated; the double-precision "
+        "golden and the unmodified example re-run are recorded per target.",
         extra={
             "devsim_commit": DEVSIM_COMMIT,
             "golden_commit": GOLDEN_COMMIT,
             "files_sha256": {k: v[1] for k, v in FILES.items()},
+            "driver": "validation/c/devsim_diode_tight.py",
+            "physical_parameters": {
+                "T_K": 300,
+                "q_C": 1.6e-19,
+                "k_B_J_per_K": 1.3806503e-23,
+                "eps0_F_per_cm": 8.85e-14,
+                "eps_r_Si": 11.1,
+                "n_i_cm-3": 1.0e10,
+                "mu_n_cm2_per_Vs": 400,
+                "mu_p_cm2_per_Vs": 200,
+                "tau_n_s": 1e-8,
+                "tau_p_s": 1e-8,
+                "n1_p1_cm-3": 1.0e10,
+                "N_A_cm-3": "1e18 for x < 0.5e-5 cm",
+                "N_D_cm-3": "1e18 for x > 0.5e-5 cm",
+                "contacts": "ohmic (equilibrium carriers), top at x = 0 biased, bot at x = 1e-5 cm grounded",
+                "mesh_cm": "1D, spacing 1e-7 at both contacts, 1e-9 at the junction (geometric grading), divided by refine",
+                "source": "devsim python_packages/simple_physics.py constants and SetSiliconParameters (devsim 2.11.2 "
+                "wheel); diode_common.py SetNetDoping, CreateMesh @e3a25f0; diode_1d.py tau override",
+            },
         },
-        extra_versions={"devsim": getattr(__import__("devsim"), "__version__", "2.11.2 (pinned in uv --with)")},
-        command="cd validation && uv run --with devsim==2.11.2 --with requests python c/gen_devsim.py",
+        extra_versions={"devsim": getattr(__import__("devsim"), "__version__", "2.11.2")},
+        command="cd validation && uv run python c/gen_devsim.py",
     )
     for t in tg:
-        print(t["metric_id"], t["value"], t["precision"]["golden_rel_diff"])
+        pr = t["precision"]
+        print(
+            t["metric_id"],
+            t["value"],
+            "p",
+            round(pr["observed_order"], 2),
+            "cont",
+            pr["current_continuity_max_rel"],
+            "golden rel",
+            t["source"]["rel_diff"],
+        )
     return 0
 
 

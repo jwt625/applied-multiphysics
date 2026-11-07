@@ -36,6 +36,7 @@ initial: null
 study: {type: stationary}
 references:
 - quantity: drag force
+  metric_id: drag_force
   value: 14.2929
   unit: N/m
   tolerance: {rel: 0.001, after: richardson}
@@ -48,6 +49,7 @@ references:
   extraction: tabulated
   note: reference row 'ref.' gives 14.29
 - quantity: lift force
+  metric_id: lift_force
   value: 1.11905
   unit: N/m
   tolerance: {rel: 0.002, after: richardson}
@@ -75,7 +77,7 @@ dataset: null
 rights:
   source_license: open web page, no terms stated; Turek-Hron 2006 (Springer LNCSE 53) paywalled
   allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  forbidden: [copy_with_attribution, copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/turek-hron-cfd1.yaml}
 missing: []

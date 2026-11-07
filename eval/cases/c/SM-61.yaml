@@ -39,7 +39,7 @@ references:
   expected: {file: eval/expected/SM-61.json, metric_id: f1}
   provenance: {citation: Timoshenko beam frequency equation / fixed-free bar (this lane), locator: 'gitlab.com/codeaster/src
       tag 17.5.8 (c1f5c46ef795e0bf6d82a29dc20da30d281535ce) astest/sdll01a.comm L186-246 (VALE_REFE), L44-95 (inputs)', accessed: null,
-    generator: validation/c/gen_suites.py}
+    generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: f2
   metric_id: f2
   value: 1265.9242088545832
@@ -52,7 +52,7 @@ references:
   expected: {file: eval/expected/SM-61.json, metric_id: f2}
   provenance: {citation: Timoshenko beam frequency equation / fixed-free bar (this lane), locator: 'gitlab.com/codeaster/src
       tag 17.5.8 (c1f5c46ef795e0bf6d82a29dc20da30d281535ce) astest/sdll01a.comm L186-246 (VALE_REFE), L44-95 (inputs)', accessed: null,
-    generator: validation/c/gen_suites.py}
+    generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: f3
   metric_id: f3
   value: 1500.367155645226
@@ -65,7 +65,7 @@ references:
   expected: {file: eval/expected/SM-61.json, metric_id: f3}
   provenance: {citation: Timoshenko beam frequency equation / fixed-free bar (this lane), locator: 'gitlab.com/codeaster/src
       tag 17.5.8 (c1f5c46ef795e0bf6d82a29dc20da30d281535ce) astest/sdll01a.comm L186-246 (VALE_REFE), L44-95 (inputs)', accessed: null,
-    generator: validation/c/gen_suites.py}
+    generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: f4
   metric_id: f4
   value: 2870.797506581162
@@ -78,7 +78,7 @@ references:
   expected: {file: eval/expected/SM-61.json, metric_id: f4}
   provenance: {citation: Timoshenko beam frequency equation / fixed-free bar (this lane), locator: 'gitlab.com/codeaster/src
       tag 17.5.8 (c1f5c46ef795e0bf6d82a29dc20da30d281535ce) astest/sdll01a.comm L186-246 (VALE_REFE), L44-95 (inputs)', accessed: null,
-    generator: validation/c/gen_suites.py}
+    generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: f5
   metric_id: f5
   value: 3797.7726265637493
@@ -91,7 +91,7 @@ references:
   expected: {file: eval/expected/SM-61.json, metric_id: f5}
   provenance: {citation: Timoshenko beam frequency equation / fixed-free bar (this lane), locator: 'gitlab.com/codeaster/src
       tag 17.5.8 (c1f5c46ef795e0bf6d82a29dc20da30d281535ce) astest/sdll01a.comm L186-246 (VALE_REFE), L44-95 (inputs)', accessed: null,
-    generator: validation/c/gen_suites.py}
+    generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: f6
   metric_id: f6
   value: 4361.251491712328
@@ -104,12 +104,12 @@ references:
   expected: {file: eval/expected/SM-61.json, metric_id: f6}
   provenance: {citation: Timoshenko beam frequency equation / fixed-free bar (this lane), locator: 'gitlab.com/codeaster/src
       tag 17.5.8 (c1f5c46ef795e0bf6d82a29dc20da30d281535ce) astest/sdll01a.comm L186-246 (VALE_REFE), L44-95 (inputs)', accessed: null,
-    generator: validation/c/gen_suites.py}
+    generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 reference_results:
 - source: code_aster VALE_REFE (SFM.VPCS SDLL01, ANALYTIQUE)
   f_Hz: [431.555, 1265.924, 1498.295, 2870.661, 3797.773, 4377.837]
 - solver: code_aster 40 POU_D_T elements (VALE_CALC)
-  f_Hz: [431.89155927, 1266.00555, 1500.76348, 2873.53437, 3799.96925]
+  f_Hz: [431.89155927, 1266.00555, 1500.76348, 2873.53437, 3799.96925, 4370.82061]
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
   budget_s: {browser: 1.0, native: null}
@@ -119,8 +119,8 @@ speed:
 dataset: null
 rights:
   source_license: GPL-3.0-or-later (code_aster test file header)
-  allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: [copy_v_doc_text]
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/timoshenko-beam-ss.yaml}
 missing: []

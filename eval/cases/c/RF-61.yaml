@@ -35,7 +35,7 @@ references:
   gate: true
   expected: {file: eval/expected/RF-61.json, metric_id: abs_S11_lumped100}
   provenance: {citation: quasi-TEM coax impedance with lossy dielectric, locator: 'palace docs/src/examples/coaxial.md L19-23,
-      L99-116', accessed: null, generator: validation/c/gen_palace.py}
+      L99-116', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
   note: Palace docs state |Gamma| = 1/3 for a 50 Ohm line; the line is 50.05 Ohm with tan d 4e-2, giving 0.33318
 - quantity: Z0 (lossless)
   metric_id: Z0_lossless
@@ -48,7 +48,7 @@ references:
   gate: false
   expected: {file: eval/expected/RF-61.json, metric_id: Z0_lossless}
   provenance: {citation: eta0 ln(b/a) / (2 pi sqrt(eps_r)), locator: palace docs/src/examples/coaxial.md L19-21, accessed: null,
-    generator: validation/c/gen_palace.py}
+    generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -60,7 +60,7 @@ dataset: null
 rights:
   source_license: Apache-2.0 (Palace code and docs)
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/coax-lumped-wave.yaml}
 missing: []

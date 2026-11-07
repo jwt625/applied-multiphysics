@@ -1,0 +1,78 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "RF-03",
+  "class": "c",
+  "generator": "validation/c/gen_palace.py",
+  "command": "cd validation && uv run python c/gen_palace.py",
+  "method": "Quasi-static Z0 of a CPW on a 500 um C-axis sapphire substrate (anisotropic and isotropic variants).",
+  "generated_at": "2026-11-06T16:32:17-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "Z0_anisotropic",
+      "value": 53.3518982011289,
+      "unit": "ohm",
+      "precision": {
+        "method": "uniaxial -> isotropic map + partial-capacitance conformal map",
+        "eps_eq": 10.341663309158735,
+        "h_eq_m": 0.0004496375351808146,
+        "eps_eff": 5.666480941218951,
+        "half_space_limit_ohm": 53.33142824465255,
+        "finite_h_effect_rel": 0.00038382539433302713,
+        "value_with_30pi_prefactor": 53.38883295877137
+      },
+      "source": {
+        "source_value": "56.02",
+        "rel_diff": 0.04762766509944852,
+        "agreement": "disagree",
+        "note": "cpw.md L25 (Palace prints 56.02 for this substrate)"
+      },
+      "locator": "palace docs/src/examples/cpw.md L18-25"
+    },
+    {
+      "metric_id": "Z0_isotropic_9p3",
+      "value": 55.98025465947027,
+      "unit": "ohm",
+      "precision": {
+        "method": "partial-capacitance conformal map, eps 9.3, h 500 um"
+      },
+      "source": {
+        "source_value": "56.02",
+        "rel_diff": 0.0007094848363037149,
+        "agreement": "disagree",
+        "note": "cpw.md L25"
+      },
+      "locator": "palace docs/src/examples/cpw.md L18-25",
+      "value_with_30pi_prefactor": 56.01900899077478,
+      "note": "with the handbook prefactor 30 pi (eta0 ~ 120 pi) this is 56.02 Ohm, the docs value: the docs value corresponds to isotropic eps 9.3; this generator uses eta0/4 exactly (-0.07 %)"
+    },
+    {
+      "metric_id": "Z0_isotropic_11p5",
+      "value": 50.816420587261746,
+      "unit": "ohm",
+      "precision": {
+        "method": "as above, eps 11.5"
+      },
+      "locator": "palace docs/src/examples/cpw.md L18-25"
+    }
+  ],
+  "inputs": {
+    "w_m": 3e-05,
+    "s_m": 1.8e-05,
+    "h_m": 0.0005,
+    "eps_perp_c": 9.3,
+    "eps_par_c": 11.5,
+    "c_axis": "normal to the substrate"
+  },
+  "source_repo": "awslabs/palace tag v0.19.0 (commit ca9a6a2d1e64a410229c3d7538507e5eae975cc6)"
+}

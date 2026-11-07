@@ -21,6 +21,7 @@ initial: null
 study: {type: stationary}
 references:
 - quantity: Cf(x = 0.970084071)
+  metric_id: Cf_x_0_970084071
   value: 0.00270562153
   unit: '1'
   tolerance: {rel: 0.002, after: richardson, note: CFL3D and FUN3D finest grids differ by 8e-5 relative}
@@ -32,6 +33,7 @@ references:
       zone CFL3D row 1, accessed: '2026-11-06'}
   extraction: tabulated
 - quantity: C_D
+  metric_id: C_D
   value: 0.00285985288
   unit: '1'
   tolerance: {rel: 0.003, after: richardson}
@@ -54,8 +56,8 @@ speed:
 dataset: null
 rights:
   source_license: CC0-1.0 (TMBWG/turbmodels repository licence)
-  allowed: [cite_values, re_derive_setup, copy_data]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/tmr-flatplate-sa.yaml}
 missing: []

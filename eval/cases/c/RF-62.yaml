@@ -30,7 +30,8 @@ references:
   gate: true
   expected: {file: eval/expected/RF-62.json, metric_id: C_per_length}
   provenance: {citation: conformal map (this lane); EO atlas K6a closed form, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md
-      L345; validation/reference/K6a.json closed_form_t0_infinite, accessed: null, generator: validation/c/gen_suites.py}
+      L345; validation/reference/K6a.json closed_form_t0_infinite, accessed: null, generator: validation/c/gen_suites.py,
+    source_accessed: '2026-11-06'}
 - quantity: n_RF
   metric_id: n_rf
   value: 2.5199206336708304
@@ -42,7 +43,7 @@ references:
   gate: true
   expected: {file: eval/expected/RF-62.json, metric_id: n_rf}
   provenance: {citation: as above, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md L346, accessed: null,
-    generator: validation/c/gen_suites.py}
+    generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: Z0
   metric_id: Z0
   value: 39.32845936007282
@@ -54,7 +55,7 @@ references:
   gate: true
   expected: {file: eval/expected/RF-62.json, metric_id: Z0}
   provenance: {citation: as above, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md L347, accessed: null,
-    generator: validation/c/gen_suites.py}
+    generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 reference_results:
 - {solver: 'EO tier-B P2 FEM, t = 0, R -> inf', C_pF_per_m: 213.729, U: 0.014, Z0_ohm: 39.3282, locator: eo-modulator-atlas
     DevLog/DevLog-028-open-source-references.md L345-347}
@@ -68,8 +69,8 @@ speed:
 dataset: null
 rights:
   source_license: own work (eo-modulator-atlas); conformal map textbook
-  allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/cpw-halfspace.yaml}
 missing: []

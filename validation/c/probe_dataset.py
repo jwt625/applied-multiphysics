@@ -13,7 +13,7 @@ Byte budget: aborts above --max-mb (default 50) transferred bytes. Range request
 by --gap-s seconds (default 0.5) plus jitter.
 
 Run (uv only, no project):
-  uv run --no-project --with h5py --with numpy --with requests python -I validation/c/probe_dataset.py \
+  cd validation && uv run python -I c/probe_dataset.py \
       --name gray_scott --url <resolve url> --upstream-size N --upstream-checksum sha256:...
 """
 

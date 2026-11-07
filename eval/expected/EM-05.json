@@ -5,7 +5,7 @@
   "generator": "validation/c/gen_suites.py",
   "command": "cd validation && uv run python c/gen_suites.py",
   "method": "Infinitely long hollow conducting cylinder in a uniform transverse time-harmonic field, A_z = f(r) cos(theta); inside f = C r, shell f = D I1(kr) + E K1(kr) with k^2 = j w mu0 sigma, outside f = -B0 r + F/r; continuity of f and f' at r_i and r_o (mu = mu0 everywhere).",
-  "generated_at": "2026-11-06T15:57:15-08:00",
+  "generated_at": "2026-11-06T16:32:18-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -90,5 +90,5 @@
     "B0_T": 0.1,
     "B0_meaning": "peak amplitude of the applied field B_y = B0 cos(w t)"
   },
-  "check_far_field_sign": -0.1
+  "far_field": "A = -B0 r cos(theta) -> B_y = +B0"
 }

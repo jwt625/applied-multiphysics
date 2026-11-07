@@ -40,7 +40,7 @@ references:
   gate: true
   expected: {file: eval/expected/EM-02.json, metric_id: C_aa}
   provenance: {citation: 'Lekner, J. Electrostat. 69 (2011) 11-14, series as in Palace docs', locator: 'palace docs/src/examples/spheres.md
-      L27-40 (series), L74-80 (values)', accessed: null, generator: validation/c/gen_palace.py}
+      L27-40 (series), L74-80 (values)', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
 - quantity: C_bb
   metric_id: C_bb
   value: 2.431543115748378e-12
@@ -52,7 +52,7 @@ references:
   gate: true
   expected: {file: eval/expected/EM-02.json, metric_id: C_bb}
   provenance: {citation: 'Lekner, J. Electrostat. 69 (2011) 11-14, series as in Palace docs', locator: 'palace docs/src/examples/spheres.md
-      L27-40 (series), L74-80 (values)', accessed: null, generator: validation/c/gen_palace.py}
+      L27-40 (series), L74-80 (values)', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
 - quantity: C_ab
   metric_id: C_ab
   value: -4.945667565325716e-13
@@ -64,7 +64,7 @@ references:
   gate: true
   expected: {file: eval/expected/EM-02.json, metric_id: C_ab}
   provenance: {citation: 'Lekner, J. Electrostat. 69 (2011) 11-14, series as in Palace docs', locator: 'palace docs/src/examples/spheres.md
-      L27-40 (series), L74-80 (values)', accessed: null, generator: validation/c/gen_palace.py}
+      L27-40 (series), L74-80 (values)', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
 reference_results:
 - {solver: 'Palace v0.19.0 regression gold (coarse CI mesh, order 3)', C_aa_F: 1.237445610357e-12, C_bb_F: 2.478413459856e-12,
   C_ab_F: -4.770975738888e-13, locator: test/data/regression/ref/spheres/terminal-C.csv}
@@ -78,7 +78,7 @@ dataset: null
 rights:
   source_license: Apache-2.0 (Palace code and docs)
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/two-spheres.yaml}
 missing: []

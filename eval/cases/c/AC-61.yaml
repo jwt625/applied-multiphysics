@@ -4,8 +4,9 @@ schema: amp-eval/0
 id: AC-61
 class: c
 title: 'The Well helmholtz_staircase: point-source scattering by a periodic sound-hard staircase'
-status: unvalidated
-untestable_reason: null
+status: untestable
+untestable_reason: 'time-harmonic point-source problem: frame 0 does not determine the solution; the staircase geometry and
+  the per-trajectory source position are not yet extracted'
 physics: [acoustics]
 dimension: 2D
 units: SI
@@ -25,6 +26,7 @@ initial: null
 study: {type: transient}
 references:
 - quantity: VRMSE vs stored trajectory at frames 1, 10, last
+  metric_id: VRMSE_vs_stored_trajectory_at_frames_1_10_last
   value: null
   unit: '1'
   tolerance:
@@ -75,7 +77,7 @@ dataset:
 rights:
   source_license: CC-BY-4.0 (HF dataset card license tag; The Well paper App. A.6); code BSD-3-Clause
   allowed: [cite_values, re_derive_setup, reference_by_hash]
-  forbidden: [redistribute_data_without_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/well-helmholtz-staircase.yaml}
 missing: [staircase period d and step geometry in physical units are not in the README (mask field gives them)]
@@ -84,12 +86,13 @@ source_case: {suite: The Well, file: helmholtz_staircase README.md + helmholtz_s
   accessed: '2026-11-06', note: cache/eval-c/sources/hf/helmholtz_staircase_README.md sha256 84ddf8e2ba22e6b66dfd7afa97a054e1939cda2fa06ca4b823b20e369a0cfec5}
 notes: ['Equations: -(lap + omega^2) u = delta(x - x0) above a right-angle staircase, u_n = 0 on the surface, outgoing radiation;
     stored fields are Re/Im of u(x) e^{-i omega t} over one period', 'Parameters: 16 omega in 0.06283032-2.5110908; sources
-    x0 in {-0.4..0.4} x {-0.2..0.4} (README); stored dt = 2 pi/(50 omega)', 'Protocol (R3 s.4): load stored frame 0 (and stored
-    coefficient fields), integrate with our solver at a resolution where our own result is converged, compare with the stored
-    trajectory using the dataset metric, report it next to our self-convergence floor (two finest levels).', 'Generator: Floquet-Bloch
-    transform + boundary integral equations (github.com/fruzsinaagocs/bies), Agocs-Barnett arXiv:2310.12486.', 'Probed file:
-    test/helmholtz_staircase_omega_006.hdf5 (335,544,320 B): 3 trajectories, root attr omega 0.06283032.', 'Gate idea: frame
-    0 alone does not fix the solution (source term); solve the frequency-domain BVP with our solver (PML + quasi-periodic)
-    and compare frame-by-frame phases.']
+    x0 in {-0.4..0.4} x {-0.2..0.4} (README); stored dt = 2 pi/(50 omega)', 'Generator: Floquet-Bloch transform + boundary
+    integral equations (github.com/fruzsinaagocs/bies), Agocs-Barnett arXiv:2310.12486.', 'Probed file: test/helmholtz_staircase_omega_006.hdf5
+    (335,544,320 B): 3 trajectories, root attr omega 0.06283032.', 'Gate idea: frame 0 alone does not fix the solution (source
+    term); solve the frequency-domain BVP with our solver (PML + quasi-periodic) and compare frame-by-frame phases.', 'Protocol
+    (case-specific): frequency-domain solve of -(lap + omega^2) u = delta(x - x0), u_n = 0 on the staircase, outgoing; compare
+    u(x) e^{-i omega t_j} with the stored pressure_re/im at the 50 phases.']
 lane: L7c
 created: '2026-11-06'
+activation: extract the staircase from the stored mask and x0 per trajectory, then solve the frequency-domain BVP (PML + quasi-periodic)
+  and compare Re/Im fields at stored phases

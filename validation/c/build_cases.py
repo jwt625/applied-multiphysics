@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -1481,7 +1482,7 @@ def all_cases() -> list[dict]:
                     "DEVSIM example diode_1d.py, golden output",
                     f"{dg} (bias {v:.1f})",
                     case="SC-02",
-                    mid=f"J_top_{v:.1f}V",
+                    mid=f"J_{v:.1f}V",
                 )
                 for v in (0.1, 0.2, 0.3, 0.4, 0.5)
             ],
@@ -2445,6 +2446,504 @@ class _NoAlias(yaml.SafeDumper):
         return True
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# Audit corrections (DevLog/audits/2026-11-06-L7c-eval-c-audit.md; dispositions in DevLog-008 "Audit corrections").
+# Applied after all_cases() so the original definitions stay readable; every change is keyed by case id.
+# ---------------------------------------------------------------------------------------------------------------
+
+RIGHTS = {  # one rule per licence family; tags from the eval/schema rightsItem enum (authoritative, L8)
+    "open_code": (["cite_values", "re_derive_setup", "copy_with_attribution"], []),
+    "proprietary": (
+        ["cite_values", "re_derive_setup"],
+        ["copy_with_attribution", "copy_text", "copy_figures", "copy_input_files"],
+    ),
+    "open_data": (["cite_values", "re_derive_setup", "reference_by_hash"], []),
+    "open_data_and_code": (["cite_values", "re_derive_setup", "reference_by_hash", "copy_with_attribution"], []),
+    "odbl_no_hash": (["cite_values", "re_derive_setup"], ["copy_data", "redistribute_data"]),
+}
+FAMILY = {
+    **{
+        c: "open_code"
+        for c in (
+            "EM-02",
+            "EM-03",
+            "RF-01",
+            "RF-03",
+            "EM-61",
+            "RF-61",
+            "WO-04",
+            "WO-61",
+            "WO-62",
+            "WO-63",
+            "WO-05",
+            "WO-64",
+            "SM-61",
+            "TR-61",
+            "HT-61",
+            "SC-02",
+            "WO-65",
+            "RF-62",
+            "FL-05",
+            "FL-62",
+        )
+    },
+    **{c: "proprietary" for c in ("EM-05", "CP-03", "CP-04", "CP-06", "FL-61")},
+    **{c: "open_data" for c in ("TR-03", "AC-61", "AC-62", "FL-63", "FL-64", "TR-02", "TR-62", "FL-06", "TR-63")},
+    "WO-66": "open_data_and_code",
+    "FL-07": "odbl_no_hash",
+}
+
+
+def _refs(d, pred):
+    return [r for r in d["references"] if pred(r)]
+
+
+def _ungate(d, note, pred=lambda r: True):
+    for r in _refs(d, pred):
+        r["gate"] = False
+        r["note"] = (r.get("note", "") + "; " if r.get("note") else "") + note
+
+
+def _dstat(q, note, tol=None):
+    return ref(
+        q,
+        None,
+        "1",
+        tol
+        or {
+            "rule": {
+                "type": "range",
+                "range": [0.0, 1.0],
+                "note": "sanity bound only; gate = own self-convergence floor (R3 s.4), pending",
+            }
+        },
+        "P",
+        "dataset",
+        WELL_PAPER,
+        "R3 s.4 protocol; audit S4",
+        gate=False,
+        note=note,
+    )
+
+
+def apply_audit(d: dict) -> dict:
+    cid = d["id"]
+    allowed, forbidden = RIGHTS[FAMILY[cid]]
+    d["rights"]["allowed"], d["rights"]["forbidden"] = list(allowed), list(forbidden)
+    if cid == "SM-61":  # same rule as L7a's SM-21 (code_aster astest, GPL-3.0-or-later; FDL V-docs not used)
+        d["rights"]["forbidden"] = ["copy_v_doc_text"]
+    for r in d["references"]:
+        if r["basis"] == "D":
+            r["provenance"]["source_accessed"] = ACC
+    pal = "palace docs/src/examples/cpw.md L18-25"
+    if cid == "RF-03":  # B1
+        d["title"] = "Palace CPW: coplanar waveguide on 500 um C-axis sapphire (uniaxial), quasi-static Z0"
+        d["references"] = [
+            ref(
+                "Z0 (uniaxial sapphire)",
+                None,
+                "ohm",
+                {
+                    "rel": 5e-3,
+                    "after": "richardson",
+                    "note": "partial-capacitance model; finite-substrate correction itself is 3.8e-4, so the model error "
+                    "is taken as < 5e-3 (est.)",
+                },
+                "D",
+                "closed_form",
+                "uniaxial-to-isotropic map (eps_eq = sqrt(eps_x eps_y), h' = h sqrt(eps_x/eps_y)) + partial-capacitance "
+                "conformal map (this lane)",
+                f"{pal} (inputs)",
+                case="RF-03",
+                mid="Z0_anisotropic",
+            ),
+            ref(
+                "Z0 printed by Palace docs",
+                56.02,
+                "ohm",
+                {"rel": 1e-3},
+                "P",
+                "closed_form",
+                "Palace docs citing H. J. Visser, Antenna Theory and Applications (2012)",
+                pal,
+                gate=False,
+                extraction="text",
+                note="equals the isotropic eps 9.3 conformal map with the 30 pi prefactor (56.019 "
+                "Ohm); not the uniaxial substrate the docs describe (audit B1)",
+            ),
+            ref(
+                "Z0 isotropic eps 9.3 (variant)",
+                None,
+                "ohm",
+                {"rel": 5e-3, "after": "richardson"},
+                "D",
+                "closed_form",
+                "partial-capacitance conformal map (this lane)",
+                pal,
+                case="RF-03",
+                mid="Z0_isotropic_9p3",
+                gate=False,
+                note="for a solver run with isotropic eps 9.3 only",
+            ),
+        ]
+        d["geometry"]["spec"].update(
+            {
+                "air_below_substrate": True,
+                "grounds": "semi-infinite (solver: wide grounds)",
+                "single_line": "Z0 of one isolated CPW (the 3D example has two lines 266 um apart)",
+            }
+        )
+        d["study"] = {
+            "type": "stationary",
+            "note": "quasi-static 2D: Z0 = 1/(c sqrt(C C0)) from two electrostatic solves",
+        }
+        d["missing"] = ["enclosure size of the 2D cross-section (solver choice; report the truncation study)"]
+        d["assumptions"] = [
+            "Uniaxial sapphire, C axis normal to the substrate (cpw.md L21-24): eps 9.3 in plane, "
+            "11.5 normal; the planar-interface map to an isotropic layer is exact for the Laplace "
+            "equation, the partial-capacitance step is the approximation."
+        ]
+    if cid == "SC-02":  # B2, S8
+        for r in d["references"]:
+            r["quantity"] = r["quantity"].replace("J_total", "J (contact current density)")
+            r["tolerance"] = {
+                "rel": 1e-3,
+                "after": "richardson",
+                "note": "reference mesh-extrapolated (3 levels, p ~ 2), float128, current continuity "
+                "|J_top + J_bot| / |J| < 3e-16; Richardson-minus-finest <= 4.6e-6",
+            }
+            r["basis"], r["form"] = "D", "solver_ref"
+            r["provenance"]["citation"] = (
+                "DEVSIM 2.11.2 re-run of the diode_1d set-up in extended precision, three "
+                "meshes, Richardson (this lane, validation/c/devsim_diode_tight.py)"
+            )
+            r["provenance"]["accessed"] = None
+            r["provenance"]["source_accessed"] = ACC
+        d["materials"] = {
+            "si": {
+                "eps_r": 11.1,
+                "eps0_F_per_cm": 8.85e-14,
+                "n_i_per_cm3": 1.0e10,
+                "T_K": 300,
+                "q_C": 1.6e-19,
+                "k_B_J_per_K": 1.3806503e-23,
+                "mu_n_cm2_per_Vs": 400.0,
+                "mu_p_cm2_per_Vs": 200.0,
+                "mobility": "constant",
+                "recombination": "SRH, tau_n = tau_p = 1e-8 s, n1 = p1 = n_i",
+                "source": "devsim 2.11.2 python_packages/simple_physics.py L34-44 (constants), L122-141 "
+                "(SetSiliconParameters); diode_1d.py L24-25 (tau override)",
+            }
+        }
+        d["geometry"]["spec"] = {
+            "length_cm": 1e-5,
+            "junction_cm": 0.5e-5,
+            "doping": "N_A = 1e18 cm^-3 for x < 0.5e-5 cm, N_D = 1e18 cm^-3 for x > 0.5e-5 cm "
+            "(diode_common.SetNetDoping)",
+            "mesh_cm": "DEVSIM 1D mesh lines: spacing 1e-7 at x = 0 and 1e-5, 1e-9 at the junction "
+            "(diode_common.CreateMesh); reference levels divide all three by 1, 2, 4",
+        }
+        d["bcs"] = [
+            {
+                "selection": "top (x = 0)",
+                "type": "ohmic",
+                "params": {"V": "0.1..0.5 step 0.1"},
+                "note": "equilibrium carrier densities, Dirichlet potential = bias + built-in",
+            },
+            {"selection": "bot (x = 1e-5 cm)", "type": "ohmic", "params": {"V": 0}},
+        ]
+        d["units"] = "SI"
+        d["assumptions"] = [
+            "Units follow DEVSIM (cm based): J in A/cm^2 for the 1D device.",
+            "The DEVSIM golden (double precision, absolute_error 1e10) has |J_top + J_bot|/|J_top| = "
+            "2.45e-2, 3.26e-2, 3.5e-3, 1.5e-4, 4e-6 at 0.1-0.5 V and is 4.0e-2, 4.0e-3, 3.0e-4, 3.4e-5, "
+            "2.2e-5 off the reference: kept per target in the expected JSON, informative only. "
+            "Tightening Newton in double precision does not help (low-bias current is a difference of "
+            "large majority fluxes); float128 restores exact continuity.",
+        ]
+        d["notes"] = [
+            "Gate values: validation/c/gen_devsim.py -> devsim_diode_tight.py (extended precision, Newton rel "
+            "1e-11, abs 1e4 cm^-3 at the observed round-off floor, mesh / 1, 2, 4)."
+        ]
+    if cid == "RF-01":  # S1
+        _ungate(
+            d,
+            "duplicate of class-a RF-21 (same closed form); gated there, kept here for traceability",
+            lambda r: r.get("metric_id") in ("f_TM010", "f_TE111", "f_TE011", "Q_d"),
+        )
+        d["title"] = "Palace cylinder: Teflon-filled cavity with copper (impedance) walls, conductor Q of TE011"
+    if cid == "FL-62":  # S2
+        d["references"][0]["tolerance"] = {
+            "rule": {
+                "type": "range",
+                "range": [1.0891, 1.1000],
+                "note": "envelope of all seven TMR codes (CFL3D 1.0909, FUN3D 1.0983, NTS 1.0891, JOE 1.0918, SUMB 1.0904, "
+                "TURNS 1.1000, GGNS 1.0941); page: max 1 % lift spread",
+            }
+        }
+        d["references"][0]["bounds"] = [1.0891, 1.1000]
+        d["references"][0]["provenance"]["locator"] = (
+            "tmbwg.github.io/turbmodels/naca0012_val_sa.html table L160-235, text L122-129"
+        )
+        d["references"][1]["tolerance"] = {
+            "rule": {
+                "type": "range",
+                "range": [0.01225, 0.01245],
+                "note": "envelope of all seven codes (GGNS 0.01225 .. JOE 0.01245); page: max 4 % drag spread",
+            }
+        }
+        d["references"][1]["bounds"] = [0.01225, 0.01245]
+        d["references"][1]["provenance"]["locator"] = "naca0012_val_sa.html table L160-235"
+        d["reference_results"] = [
+            {"alpha_deg": 15, "C_L_range": [1.5446, 1.5642], "C_D_range": [0.02073, 0.02159], "codes": 7}
+        ]
+        d["notes"] = [
+            "Validation-page values on the 897x257 grid (GGNS adaptive); no grid convergence on this page. "
+            "The grid-converged numerical-analysis case (naca0012numerics_val_sa.html) gives results only as "
+            "plots, so no numeric gate is available from it."
+        ]
+    if cid == "AC-62":  # S3
+        d["bcs"] = [
+            {"selection": "x0 (x = -1)", "type": "wall", "note": "pyclaw BC.wall; stored attr x0_wall WALL"},
+            {"selection": "xL (x = +1)", "type": "open", "note": "pyclaw BC.extrap; stored attr xL_open OPEN"},
+            {"selection": "y0 (y = -1)", "type": "wall", "note": "pyclaw BC.wall; stored attr y0_wall WALL"},
+            {"selection": "yL (y = +1)", "type": "open", "note": "pyclaw BC.extrap; stored attr yL_open OPEN"},
+        ]
+        d["geometry"]["spec"]["domain_generator"] = [[-1.0, 1.0], [-1.0, 1.0]]
+        d["materials"] = {
+            "medium": {
+                "K": 4.0,
+                "rho": "stored per sample (maze: walls 1e6 + 3, paths 3)",
+                "c": "sqrt(K / rho)",
+                "source": "generation/acoustics_2d_interface_maze.py L129-134",
+            }
+        }
+        d["notes"] = [n for n in d["notes"] if "Stored x, y run" not in n] + [
+            "BCs (audit S3): authoritative = stored HDF5 boundary_conditions attrs (all three variants: x0 WALL, xL OPEN, "
+            "y0 WALL, yL OPEN) and the HF generation script acoustics_2d_interface_maze.py L105-112 (lower = wall, "
+            "upper = extrap, both axes). The README ('open in y, reflective in x') disagrees: recorded as a conflict.",
+            "Domain: the generator uses [-1, 1]^2 (L114-115); the stored coordinate arrays run 0..1 (relabelled); use "
+            "the generator extent for physical lengths.",
+        ]
+        d["source_case"]["note"] = (
+            d["source_case"].get("note", "")
+            + "; generation/acoustics_2d_interface_maze.py cached at cache/eval-c/sources/hf/ sha256 "
+            + sha("hf/acoustics_2d_interface_maze.py")
+        )
+    if cid in ("TR-03", "FL-63", "FL-64"):  # S4
+        stats = {
+            "TR-03": [
+                "spatial mean and variance of A and B vs t (all stored frames)",
+                "radially averaged power spectrum of A at t = 10000 (pattern wavelength)",
+            ],
+            "FL-63": [
+                "horizontally averaged buoyancy profile b(z), time mean over t in [25, 49.75]",
+                "Nusselt number time series (mean and std over t in [25, 49.75])",
+            ],
+            "FL-64": ["tracer variance and kinetic energy vs t (all stored frames)", "x-averaged u_x(y) profile vs t"],
+        }[cid]
+        d["references"] = [
+            _dstat(
+                "VRMSE vs stored frames up to the own predictability horizon",
+                "horizon H = first stored frame where our two finest levels differ by VRMSE > 0.1; frames beyond H "
+                "are not compared pointwise",
+            ),
+        ] + [
+            _dstat(
+                f"statistic: {q}",
+                "relative difference of the statistic; long-horizon check instead of last-frame VRMSE (audit S4)",
+            )
+            for q in stats
+        ]
+    if cid == "AC-61":  # S5
+        d["status"] = "untestable"
+        d["untestable_reason"] = (
+            "time-harmonic point-source problem: frame 0 does not determine the solution; the "
+            "staircase geometry and the per-trajectory source position are not yet extracted"
+        )
+        d["activation"] = (
+            "extract the staircase from the stored mask and x0 per trajectory, then solve the "
+            "frequency-domain BVP (PML + quasi-periodic) and compare Re/Im fields at stored phases"
+        )
+        d["notes"] = [n for n in d["notes"] if not n.startswith("Protocol")] + [
+            "Protocol (case-specific): frequency-domain solve of -(lap + omega^2) u = delta(x - x0), u_n = 0 on the "
+            "staircase, outgoing; compare u(x) e^{-i omega t_j} with the stored pressure_re/im at the 50 phases."
+        ]
+    if cid == "WO-66":  # S5, m7
+        d["status"] = "untestable"
+        d["untestable_reason"] = (
+            "stored 32^3 crop holds neither the sources nor the exterior; regeneration needs the "
+            "python 'fdtd' package at the dataset's (unpinned) version and the per-sample seed"
+        )
+        d["activation"] = (
+            "pin an fdtd version, reproduce one stored sample from its seed (maxwell.py L65, L148), then "
+            "compare our FDTD on the full periodic 64^3 grid against the crop"
+        )
+        d["notes"] = [n for n in d["notes"] if not n.startswith("Protocol")] + [
+            "Protocol (case-specific): regenerate, not integrate-from-frame-0. Note maxwell.py stores grid.E in the "
+            "dataset named d_field (L142).",
+            "configs/maxwell3d.yaml says samples 32; the test file size implies 25 samples (m7).",
+        ]
+    if cid == "TR-63":  # S5
+        d["status"] = "untestable"
+        d["untestable_reason"] = "HDF5 layout, dtype and boundary condition not verified (header probe failed)"
+        d["activation"] = (
+            "header probe within a new byte budget (walker that lists one sample group only) + BC from sim_diff_react.py"
+        )
+    if cid == "FL-07":  # S6
+        d["status"] = "untestable"
+        d["untestable_reason"] = "no content hash for the AirfRANS archive (ODbL data stays out of the repo)"
+        d["activation"] = (
+            "sha256 of Dataset.zip recorded (10,029,067,577 B, Last-Modified 2022-08-11, ETag 62f519b5-255c76d39)"
+        )
+        d["dataset"]["file"] = "Dataset.zip"
+        d["dataset"]["file_bytes"] = 10029067577
+        d["dataset"]["http_etag"] = "62f519b5-255c76d39 (HEAD 2026-11-06)"
+    if cid in ("WO-04", "WO-61"):  # S9
+        mpb = d["references"]
+        for r in mpb:
+            r["gate"] = False
+        diffs = {"WO-04": ("6.9e-3", "5.2e-3"), "WO-61": ("2.4e-3", "2.4e-3")}[cid]
+        mpb[0]["note"] = f"MPB resolution 32; {diffs[0]} above the converged PWE value (gen_pwe.py)"
+        mpb[1]["note"] = f"MPB resolution 32; {diffs[1]} above the converged PWE value (gen_pwe.py)"
+        d["references"] = [
+            ref(
+                "gap lower edge (converged)",
+                None,
+                "1 (c/a)",
+                {"rel": 1e-3, "after": "richardson", "note": "PWE last-step change 2e-6; margin 500x"},
+                "D",
+                "solver_ref",
+                "plane-wave expansion (this lane)",
+                "validation/c/gen_pwe.py, MPB k path",
+                case=cid,
+                mid="gap_lower",
+            ),
+            ref(
+                "gap upper edge (converged)",
+                None,
+                "1 (c/a)",
+                {"rel": 1e-3, "after": "richardson", "note": "PWE last-step change 6e-6"},
+                "D",
+                "solver_ref",
+                "plane-wave expansion (this lane)",
+                "validation/c/gen_pwe.py, MPB k path",
+                case=cid,
+                mid="gap_upper",
+            ),
+        ] + mpb
+        d["study"]["resolution_source"] = "MPB resolution 32 (tutorial)"
+    if cid in ("WO-62", "WO-63", "WO-64"):  # S9
+        _ungate(
+            d,
+            "margin vs a converged reference not measured (MPB/Meep at the tutorial resolution); gate pending an "
+            "independent check (DevLog-008 TODO)",
+        )
+        d["study"]["resolution_source"] = {
+            "WO-62": "MPB resolution 32",
+            "WO-63": "MPB resolution 16, 5x5 supercell",
+            "WO-64": "Meep resolution 20",
+        }[cid]
+        if cid == "WO-63":
+            d["notes"] = (d.get("notes") or []) + [
+                "The MPB tutorial quotes the bulk gap as 0.2812-0.4174 at L320 but "
+                "prints 0.2826-0.4193 at L120 (resolution 32); PWE converged: "
+                "0.28066-0.41717 (WO-04)."
+            ]
+    if cid == "WO-05":  # S9, m5
+        meep = d["references"]
+        for r in meep:
+            r["gate"] = False
+            r["note"] = (r.get("note", "") + "; " if r.get("note") else "") + "Meep resolution 10, informative"
+        d["references"] = (
+            [
+                ref(
+                    f"f{i} exact (m = {m})",
+                    None,
+                    "1 (c/a)",
+                    {"rel": 1e-4, "after": "richardson"},
+                    "D",
+                    "closed_form",
+                    "exact annulus TM resonance (this lane)",
+                    "validation/c/gen_suites.py wo05",
+                    case="WO-05",
+                    mid=f"f{i}",
+                )
+                for i, m in ((1, 3), (2, 4), (3, 5))
+            ]
+            + [
+                ref(
+                    f"Q{i} exact",
+                    None,
+                    "1",
+                    {"rel": 1e-2, "after": "richardson"},
+                    "D",
+                    "closed_form",
+                    "exact annulus TM resonance (this lane)",
+                    "validation/c/gen_suites.py wo05",
+                    case="WO-05",
+                    mid=f"Q{i}",
+                )
+                for i in (1, 2, 3)
+            ]
+            + meep
+        )
+        d["study"]["resolution_source"] = "Meep resolution 10 (tutorial)"
+    if cid == "EM-05":  # m1
+        for r in d["references"]:
+            if r.get("metric_id") in ("By_center_re", "By_center_im"):
+                r["tolerance"] = {"abs": 4.2e-5, "after": "richardson", "note": "2e-3 of |By(0,0)| = 0.02105 T"}
+            if r.get("quantity", "").startswith("VM166 target loss"):
+                r["note"] = (
+                    "VM166 states a quarter-symmetry model (Analysis Assumptions); equals full-section loss / 4 "
+                    "to 2.3e-5; Ansys quarter-model results 2341.3 (PLANE13) / 2315.2 (PLANE233) W/m"
+                )
+        d["assumptions"] = [a for a in d["assumptions"]] + [
+            "Quarter-symmetry reading of 2288 W/m is stated on the VM166 page (audit m1)."
+        ]
+    if cid == "SM-61":  # m2
+        d["reference_results"][1]["f_Hz"] = [431.891559270, 1266.00555, 1500.76348, 2873.53437, 3799.96925, 4370.82061]
+    if cid == "EM-03":  # m3
+        for r in d["references"]:
+            if r.get("metric_id") == "M_ab":
+                r["gate"] = False
+                r["note"] = "small-loop limit printed by Palace; 0.38 % below the exact filament-loop value"
+        d["references"].insert(
+            0,
+            ref(
+                "M_ab (exact coplanar filament loops)",
+                None,
+                "H",
+                {"rel": 5e-3, "after": "richardson", "note": "remaining model error: 1 um strip width (est. < 5e-3)"},
+                "D",
+                "closed_form",
+                "Maxwell mutual inductance of coaxial coplanar loops (this lane)",
+                "palace docs/src/examples/rings.md L42 (inputs)",
+                case="EM-03",
+                mid="M_ab_filament_exact",
+            ),
+        )
+    if cid == "HT-61":  # m4
+        d["bcs"] = d["bcs"] + [{"selection": "domain", "type": "source", "value": 1.0, "note": "-lap u = f, f = 1"}]
+    # every target gets an explicit, unique metric_id (L8 loader: engine looks targets up by metric_id)
+    used = {r["metric_id"] for r in d["references"] if r.get("metric_id")}
+    prefix = {"WO-05": "meep_", "WO-04": "mpb_", "WO-61": "mpb_"}.get(cid, "")
+    for r in d["references"]:
+        if r.get("metric_id"):
+            continue
+        base = re.sub(r"[^A-Za-z0-9]+", "_", r["quantity"]).strip("_")
+        mid = base if base not in used else prefix + base if prefix else base + "_info"
+        i = 2
+        while mid in used:
+            mid, i = f"{base}_{i}", i + 1
+        new = {"quantity": r["quantity"], "metric_id": mid}
+        new.update({k: v for k, v in r.items() if k != "quantity"})
+        r.clear()
+        r.update(new)
+        used.add(mid)
+    return d
+
+
 def dump(d: dict) -> str:
     head = (
         f"# {d['id']}: {d['title']}\n# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 "
@@ -2459,7 +2958,7 @@ def main() -> int:
     force = "--force" in sys.argv
     CASES.mkdir(parents=True, exist_ok=True)
     ids = []
-    for d in all_cases():
+    for d in map(apply_audit, all_cases()):
         p = CASES / f"{d['id']}.yaml"
         ids.append(d["id"])
         if p.exists() and not force:

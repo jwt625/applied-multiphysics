@@ -25,6 +25,7 @@ initial: null
 study: null
 references:
 - quantity: tip UY
+  metric_id: tip_UY
   value: 2.7e-05
   unit: m
   tolerance: {rel: 0.02}
@@ -46,8 +47,8 @@ speed:
 dataset: null
 rights:
   source_license: Ansys MAPDL Verification Manual page, (c) ANSYS Inc. all rights reserved; target cites the textbook/report
-  allowed: [cite_values]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_with_attribution, copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/hot-arm-actuator.yaml}
 missing: [convection h, emissivity, ambient temperature, d10, alpha and k units]

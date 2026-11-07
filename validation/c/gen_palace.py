@@ -105,6 +105,15 @@ def em03() -> None:
             "mu0 pi r_a^2 / (2 r_b): typo in the docs formula, value consistent with the correct form",
         ),
         target(
+            "M_ab_filament_exact",
+            mab_exact,
+            "H",
+            {"method": "Maxwell coaxial filament loops: mu0 sqrt(ra rb) ((2/k - k) K(k) - (2/k) E(k)), scipy"},
+            source_compare(mab_exact, "1.973921", 1e-12, f"{loc}, in pH (small-loop limit)"),
+            locator=loc,
+            note="exact for zero-width coplanar loops; the 1 um strip width is a further, small effect",
+        ),
+        target(
             "L_aa",
             laa,
             "H",
@@ -348,7 +357,85 @@ def rf61() -> None:
     )
 
 
+def rf03() -> None:
+    """Audit B1: CPW (w 30 um, s 18 um) on a 500 um uniaxial sapphire substrate, C axis normal (eps 9.3 in plane,
+    11.5 normal), air above and below, zero-thickness metal, semi-infinite grounds.
+
+    Method: (1) a uniaxial layer with planar interfaces maps exactly (Laplace) to an isotropic layer with
+    eps_eq = sqrt(eps_x eps_y) and thickness h' = h sqrt(eps_x / eps_y); (2) quasi-static partial-capacitance
+    conformal map for a CPW on a finite substrate (Simons, Coplanar Waveguide Circuits, 2001, eqs. 2.4-2.6 form):
+    eps_eff = 1 + (eps - 1)/2 K(k1)K(k0')/(K(k1')K(k0)), k0 = a/b, k1 = sinh(pi a/2h)/sinh(pi b/2h);
+    Z0 = 30 pi / sqrt(eps_eff) K(k0')/K(k0). Also the infinite-substrate limit (exact for a half-space).
+    """
+
+    def kk(k):
+        return special.ellipk(k**2) / special.ellipk(1 - k**2)
+
+    a, b, h = 15e-6, 33e-6, 500e-6
+    k0 = a / b
+
+    def z0(eps, hh):
+        k1 = math.sinh(math.pi * a / (2 * hh)) / math.sinh(math.pi * b / (2 * hh))
+        eps_eff = 1 + (eps - 1) / 2 * kk(k1) / kk(k0)
+        return ETA0 / 4 / math.sqrt(eps_eff) / kk(k0), eps_eff
+
+    ex, ey = 9.3, 11.5
+    eps_eq, h_eq = math.sqrt(ex * ey), h * math.sqrt(ex / ey)
+    z_an, ee_an = z0(eps_eq, h_eq)
+    z_iso93, _ = z0(9.3, h)
+    z_iso115, _ = z0(11.5, h)
+    z_half = ETA0 / 4 / math.sqrt((eps_eq + 1) / 2) / kk(k0)
+    loc = "palace docs/src/examples/cpw.md L18-25"
+    tg = [
+        target(
+            "Z0_anisotropic",
+            z_an,
+            "ohm",
+            {
+                "method": "uniaxial -> isotropic map + partial-capacitance conformal map",
+                "eps_eq": eps_eq,
+                "h_eq_m": h_eq,
+                "eps_eff": ee_an,
+                "half_space_limit_ohm": z_half,
+                "finite_h_effect_rel": (z_an - z_half) / z_half,
+                "value_with_30pi_prefactor": z_an * 30 * math.pi / (ETA0 / 4),
+            },
+            source_compare(z_an, "56.02", 1.0, "cpw.md L25 (Palace prints 56.02 for this substrate)"),
+            locator=loc,
+        ),
+        target(
+            "Z0_isotropic_9p3",
+            z_iso93,
+            "ohm",
+            {"method": "partial-capacitance conformal map, eps 9.3, h 500 um"},
+            source_compare(z_iso93, "56.02", 1.0, "cpw.md L25"),
+            locator=loc,
+            value_with_30pi_prefactor=z_iso93 * 30 * math.pi / (ETA0 / 4),
+            note="with the handbook prefactor 30 pi (eta0 ~ 120 pi) this is 56.02 Ohm, the docs value: the docs "
+            "value corresponds to isotropic eps 9.3; this generator uses eta0/4 exactly (-0.07 %)",
+        ),
+        target("Z0_isotropic_11p5", z_iso115, "ohm", {"method": "as above, eps 11.5"}, None, locator=loc),
+    ]
+    write_expected(
+        "RF-03",
+        tg,
+        GEN,
+        "Quasi-static Z0 of a CPW on a 500 um C-axis sapphire substrate (anisotropic and isotropic variants).",
+        extra={
+            "inputs": {
+                "w_m": 30e-6,
+                "s_m": 18e-6,
+                "h_m": h,
+                "eps_perp_c": ex,
+                "eps_par_c": ey,
+                "c_axis": "normal to the substrate",
+            },
+            "source_repo": PALACE,
+        },
+    )
+
+
 if __name__ == "__main__":
-    for fn in (em02, em03, rf01, em61, rf61):
+    for fn in (em02, em03, rf01, em61, rf61, rf03):
         fn()
         print("wrote", fn.__name__.upper().replace("EM", "EM-").replace("RF", "RF-"))

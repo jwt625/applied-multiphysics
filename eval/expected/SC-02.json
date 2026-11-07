@@ -3,9 +3,9 @@
   "case": "SC-02",
   "class": "c",
   "generator": "validation/c/gen_devsim.py",
-  "command": "cd validation && uv run --with devsim==2.11.2 --with requests python c/gen_devsim.py",
-  "method": "DEVSIM 1D abrupt Si pn diode (examples/diode/diode_1d.py: N_A = N_D = 1e18 cm^-3, 1e-5 cm, SRH tau 1e-8 s, Scharfetter-Gummel), DC sweep 0.1-0.5 V; total current density at contact 'top' (DEVSIM cm-based units; 1D device, so A/cm^2).",
-  "generated_at": "2026-11-06T15:57:15-08:00",
+  "command": "cd validation && uv run python c/gen_devsim.py",
+  "method": "DEVSIM 1D abrupt Si pn diode (examples/diode/diode_1d.py set-up: N_A = N_D = 1e18 cm^-3, length 1e-5 cm, SRH tau_n = tau_p = 1e-8 s, Scharfetter-Gummel), DC sweep 0.1-0.5 V; total current density at the contacts (DEVSIM cm units, A/cm^2). Gate values: extended-precision, mesh-extrapolated; the double-precision golden and the unmodified example re-run are recorded per target.",
+  "generated_at": "2026-11-06T16:32:35-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
@@ -20,89 +20,209 @@
   },
   "targets": [
     {
-      "metric_id": "J_top_0.1V",
-      "value": 1.1592313132996793e-07,
+      "metric_id": "J_0.1V",
+      "value": 1.2058397864588948e-07,
       "unit": "A/cm^2",
       "precision": {
-        "method": "DEVSIM diode_1d.py re-run, unmodified",
-        "golden_rel_diff": 1.1416953328474332e-16
+        "method": "DEVSIM 2.11.2, diode_1d set-up, float128 (extended_*), Newton rel 1e-11 / abs 1e4 cm^-3, mesh spacing / 1, 2, 4; Richardson p = 2",
+        "levels": [
+          {
+            "refine": 1.0,
+            "n_nodes": 465,
+            "J_top": 1.2059244520147888e-07
+          },
+          {
+            "refine": 2.0,
+            "n_nodes": 929,
+            "J_top": 1.2058609476968115e-07
+          },
+          {
+            "refine": 4.0,
+            "n_nodes": 1859,
+            "J_top": 1.205845076768374e-07
+          }
+        ],
+        "observed_order": 2.0004681640752113,
+        "richardson_minus_finest_rel": 4.387240774971716e-06,
+        "current_continuity_max_rel": 0.0
       },
       "source": {
         "source_value": "1.1592313132996792e-07",
-        "rel_diff": 1.1416953328474332e-16,
+        "rel_diff": 0.040206361426303724,
         "agreement": "disagree",
-        "note": "golden diode_1d.out, total current at contact top"
+        "note": "DEVSIM golden diode_1d.out, 'top' (double precision, absolute_error 1e10: informative only)"
       },
       "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.1'",
-      "bias_V": 0.1
+      "bias_V": 0.1,
+      "golden_top": 1.1592313132996792e-07,
+      "golden_bot": -1.1876078998786658e-07,
+      "golden_continuity_rel": 0.02447879577908782,
+      "example_rerun_top": 1.1592313132996793e-07,
+      "example_rerun_vs_golden_rel": 1.1416953328474332e-16
     },
     {
-      "metric_id": "J_top_0.2V",
-      "value": 1.136336617995751e-06,
+      "metric_id": "J_0.2V",
+      "value": 1.1409262260730073e-06,
       "unit": "A/cm^2",
       "precision": {
-        "method": "DEVSIM diode_1d.py re-run, unmodified",
-        "golden_rel_diff": 0.0
+        "method": "DEVSIM 2.11.2, diode_1d set-up, float128 (extended_*), Newton rel 1e-11 / abs 1e4 cm^-3, mesh spacing / 1, 2, 4; Richardson p = 2",
+        "levels": [
+          {
+            "refine": 1.0,
+            "n_nodes": 465,
+            "J_top": 1.1410028471174157e-06
+          },
+          {
+            "refine": 2.0,
+            "n_nodes": 929,
+            "J_top": 1.1409457158518615e-06
+          },
+          {
+            "refine": 4.0,
+            "n_nodes": 1859,
+            "J_top": 1.1409310985177208e-06
+          }
+        ],
+        "observed_order": 1.9666002669069846,
+        "richardson_minus_finest_rel": 4.270604533599846e-06,
+        "current_continuity_max_rel": 1.8560124891738681e-16
       },
       "source": {
         "source_value": "1.136336617995751e-06",
-        "rel_diff": 0.0,
-        "agreement": "agree",
-        "note": "golden diode_1d.out, total current at contact top"
+        "rel_diff": 0.004038951138749163,
+        "agreement": "disagree",
+        "note": "DEVSIM golden diode_1d.out, 'top' (double precision, absolute_error 1e10: informative only)"
       },
       "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.2'",
-      "bias_V": 0.2
+      "bias_V": 0.2,
+      "golden_top": 1.136336617995751e-06,
+      "golden_bot": -1.0993109929725313e-06,
+      "golden_continuity_rel": 0.032583324726897143,
+      "example_rerun_top": 1.136336617995751e-06,
+      "example_rerun_vs_golden_rel": 0.0
     },
     {
-      "metric_id": "J_top_0.3V",
-      "value": 1.5931460769419148e-05,
+      "metric_id": "J_0.3V",
+      "value": 1.5926642725545277e-05,
       "unit": "A/cm^2",
       "precision": {
-        "method": "DEVSIM diode_1d.py re-run, unmodified",
-        "golden_rel_diff": 2.1266924847976322e-16
+        "method": "DEVSIM 2.11.2, diode_1d set-up, float128 (extended_*), Newton rel 1e-11 / abs 1e4 cm^-3, mesh spacing / 1, 2, 4; Richardson p = 2",
+        "levels": [
+          {
+            "refine": 1.0,
+            "n_nodes": 465,
+            "J_top": 1.592751719722208e-05
+          },
+          {
+            "refine": 2.0,
+            "n_nodes": 929,
+            "J_top": 1.5926878712892058e-05
+          },
+          {
+            "refine": 4.0,
+            "n_nodes": 1859,
+            "J_top": 1.5926701722381973e-05
+          }
+        ],
+        "observed_order": 1.850979205429117,
+        "richardson_minus_finest_rel": 3.704285812932939e-06,
+        "current_continuity_max_rel": 2.1273279603496445e-16
       },
       "source": {
         "source_value": "1.593146076941915e-05",
-        "rel_diff": 2.1266924847976322e-16,
-        "agreement": "agree",
-        "note": "golden diode_1d.out, total current at contact top"
+        "rel_diff": 0.00030242323309874605,
+        "agreement": "disagree",
+        "note": "DEVSIM golden diode_1d.out, 'top' (double precision, absolute_error 1e10: informative only)"
       },
       "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.30000000000000004'",
-      "bias_V": 0.30000000000000004
+      "bias_V": 0.30000000000000004,
+      "golden_top": 1.593146076941915e-05,
+      "golden_bot": -1.5987869977899756e-05,
+      "golden_continuity_rel": 0.0035407430176700493,
+      "example_rerun_top": 1.5931460769419148e-05,
+      "example_rerun_vs_golden_rel": 2.1266924847976322e-16
     },
     {
-      "metric_id": "J_top_0.4V",
-      "value": 0.00044875293238027603,
+      "metric_id": "J_0.4V",
+      "value": 0.00044873765743527424,
       "unit": "A/cm^2",
       "precision": {
-        "method": "DEVSIM diode_1d.py re-run, unmodified",
-        "golden_rel_diff": 2.41603362174076e-16
+        "method": "DEVSIM 2.11.2, diode_1d set-up, float128 (extended_*), Newton rel 1e-11 / abs 1e4 cm^-3, mesh spacing / 1, 2, 4; Richardson p = 2",
+        "levels": [
+          {
+            "refine": 1.0,
+            "n_nodes": 465,
+            "J_top": 0.0004487541190024846
+          },
+          {
+            "refine": 2.0,
+            "n_nodes": 929,
+            "J_top": 0.00044874254640415805
+          },
+          {
+            "refine": 4.0,
+            "n_nodes": 1859,
+            "J_top": 0.0004487388796774952
+          }
+        ],
+        "observed_order": 1.6581481914639622,
+        "richardson_minus_finest_rel": 2.7237344597698894e-06,
+        "current_continuity_max_rel": 1.2080447699615076e-16
       },
       "source": {
         "source_value": "0.0004487529323802759",
-        "rel_diff": 2.41603362174076e-16,
+        "rel_diff": 3.4038652228208754e-05,
         "agreement": "disagree",
-        "note": "golden diode_1d.out, total current at contact top"
+        "note": "DEVSIM golden diode_1d.out, 'top' (double precision, absolute_error 1e10: informative only)"
       },
       "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.4'",
-      "bias_V": 0.4
+      "bias_V": 0.4,
+      "golden_top": 0.0004487529323802759,
+      "golden_bot": -0.0004488207423287151,
+      "golden_continuity_rel": 0.0001511075327786778,
+      "example_rerun_top": 0.00044875293238027603,
+      "example_rerun_vs_golden_rel": 2.41603362174076e-16
     },
     {
-      "metric_id": "J_top_0.5V",
-      "value": 0.018155155173288445,
+      "metric_id": "J_0.5V",
+      "value": 0.01815474923638956,
       "unit": "A/cm^2",
       "precision": {
-        "method": "DEVSIM diode_1d.py re-run, unmodified",
-        "golden_rel_diff": 7.643992945999581e-16
+        "method": "DEVSIM 2.11.2, diode_1d set-up, float128 (extended_*), Newton rel 1e-11 / abs 1e4 cm^-3, mesh spacing / 1, 2, 4; Richardson p = 2",
+        "levels": [
+          {
+            "refine": 1.0,
+            "n_nodes": 465,
+            "J_top": 0.018155154839398918
+          },
+          {
+            "refine": 2.0,
+            "n_nodes": 929,
+            "J_top": 0.018154884136919666
+          },
+          {
+            "refine": 4.0,
+            "n_nodes": 1859,
+            "J_top": 0.018154782961522085
+          }
+        ],
+        "observed_order": 1.4198495824000523,
+        "richardson_minus_finest_rel": 1.8576479403702996e-06,
+        "current_continuity_max_rel": 1.911037416039006e-16
       },
       "source": {
         "source_value": "0.01815515517328843",
-        "rel_diff": 7.643992945999581e-16,
+        "rel_diff": 2.2359318606660474e-05,
         "agreement": "disagree",
-        "note": "golden diode_1d.out, total current at contact top"
+        "note": "DEVSIM golden diode_1d.out, 'top' (double precision, absolute_error 1e10: informative only)"
       },
       "locator": "devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out, line 'top 0.5'",
-      "bias_V": 0.5
+      "bias_V": 0.5,
+      "golden_top": 0.01815515517328843,
+      "golden_bot": -0.018155230759504492,
+      "golden_continuity_rel": 4.163347288361432e-06,
+      "example_rerun_top": 0.018155155173288445,
+      "example_rerun_vs_golden_rel": 7.643992945999581e-16
     }
   ],
   "devsim_commit": "e3a25f08c7f17cc6932624c12bf9f0f10d7f7cfd",
@@ -111,5 +231,24 @@
     "diode_1d.py": "66a60784e9a54644b6186828343a6101228d13a4e4a0ab007e17aee0992f9cd8",
     "diode_common.py": "5fb7a95c08165627bffd33ca97755ef206de49ee7f550c91023294de3486e772",
     "diode_1d.golden.out": "d73bc236345a898f379a29d74fcbf5d899faaa3f9f63d2ea0fd302a2f10b0c7d"
+  },
+  "driver": "validation/c/devsim_diode_tight.py",
+  "physical_parameters": {
+    "T_K": 300,
+    "q_C": 1.6e-19,
+    "k_B_J_per_K": 1.3806503e-23,
+    "eps0_F_per_cm": 8.85e-14,
+    "eps_r_Si": 11.1,
+    "n_i_cm-3": 10000000000.0,
+    "mu_n_cm2_per_Vs": 400,
+    "mu_p_cm2_per_Vs": 200,
+    "tau_n_s": 1e-08,
+    "tau_p_s": 1e-08,
+    "n1_p1_cm-3": 10000000000.0,
+    "N_A_cm-3": "1e18 for x < 0.5e-5 cm",
+    "N_D_cm-3": "1e18 for x > 0.5e-5 cm",
+    "contacts": "ohmic (equilibrium carriers), top at x = 0 biased, bot at x = 1e-5 cm grounded",
+    "mesh_cm": "1D, spacing 1e-7 at both contacts, 1e-9 at the junction (geometric grading), divided by refine",
+    "source": "devsim python_packages/simple_physics.py constants and SetSiliconParameters (devsim 2.11.2 wheel); diode_common.py SetNetDoping, CreateMesh @e3a25f0; diode_1d.py tau override"
   }
 }

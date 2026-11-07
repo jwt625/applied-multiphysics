@@ -4,8 +4,9 @@ schema: amp-eval/0
 id: WO-66
 class: c
 title: 'PDEArena Maxwell-3D: FDTD in a periodic eps_r 10 cube, random plane sources (32^3 crop)'
-status: unvalidated
-untestable_reason: null
+status: untestable
+untestable_reason: stored 32^3 crop holds neither the sources nor the exterior; regeneration needs the python 'fdtd' package
+  at the dataset's (unpinned) version and the per-sample seed
 physics: [optics-scattering]
 dimension: 3D-periodic
 units: SI
@@ -19,6 +20,7 @@ initial: null
 study: {type: transient}
 references:
 - quantity: nRMSE of E, H vs stored frames
+  metric_id: nRMSE_of_E_H_vs_stored_frames
   value: null
   unit: '1'
   tolerance:
@@ -48,8 +50,8 @@ dataset: {name: PDEArena / Maxwell-3D, subset: test, metric: nRMSE, url: 'https:
   sample_index: 0, frame0: 'd_field[0, 0], h_field[0, 0]'}
 rights:
   source_license: MIT (HF dataset card; pdearena repo LICENSE)
-  allowed: [cite_values, re_derive_setup, copy_with_attribution]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, reference_by_hash, copy_with_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pdearena-maxwell3d.yaml}
 missing: [python 'fdtd' package version used for the dataset (not pinned in the repo files read)]
@@ -62,6 +64,10 @@ notes: ['Config (configs/maxwell3d.yaml): wavelength 1e-5 m, amplitude 1, eps 10
     fields cropped to the central 32^3 (outer_area = 16); datasets d_field, h_field shaped (samples, nt, 32, 32, 32, 3), dtype
     float (float64).', 'File size 314,575,504 B = 25 samples x 8 x 32^3 x 3 x 8 B x 2 fields + 2.7 kB (D), matching 25 test
     samples per seed and float64 storage.', 'Header probe hit its 7.9 MB cap (frame read too large); layout above is from
-    the generator code, not the file.']
+    the generator code, not the file.', 'Protocol (case-specific): regenerate, not integrate-from-frame-0. Note maxwell.py
+    stores grid.E in the dataset named d_field (L142).', configs/maxwell3d.yaml says samples 32; the test file size implies
+    25 samples (m7).]
 lane: L7c
 created: '2026-11-06'
+activation: pin an fdtd version, reproduce one stored sample from its seed (maxwell.py L65, L148), then compare our FDTD on
+  the full periodic 64^3 grid against the crop

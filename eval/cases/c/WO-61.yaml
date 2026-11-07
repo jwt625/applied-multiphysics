@@ -21,9 +21,34 @@ materials:
   rod: {eps_r: 12.0, source: 'mpb doc/docs/Python_Tutorial.md L69, L181'}
 bcs: null
 initial: null
-study: {type: eigen, n: 8, shift: 'Gamma-M-K-Gamma, 4 interpolated points'}
+study: {type: eigen, n: 8, shift: 'Gamma-M-K-Gamma, 4 interpolated points', resolution_source: MPB resolution 32 (tutorial)}
 references:
+- quantity: gap lower edge (converged)
+  metric_id: gap_lower
+  value: 0.27441945682736507
+  unit: 1 (c/a)
+  tolerance: {rel: 0.001, after: richardson, note: PWE last-step change 2e-6; margin 500x}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/WO-61.json, metric_id: gap_lower}
+  provenance: {citation: plane-wave expansion (this lane), locator: 'validation/c/gen_pwe.py, MPB k path', accessed: null,
+    generator: validation/c/gen_pwe.py}
+- quantity: gap upper edge (converged)
+  metric_id: gap_upper
+  value: 0.44522020121595035
+  unit: 1 (c/a)
+  tolerance: {rel: 0.001, after: richardson, note: PWE last-step change 6e-6}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/WO-61.json, metric_id: gap_upper}
+  provenance: {citation: plane-wave expansion (this lane), locator: 'validation/c/gen_pwe.py, MPB k path', accessed: null,
+    generator: validation/c/gen_pwe.py}
 - quantity: gap lower edge
+  metric_id: gap_lower_edge
   value: 0.275065617068082
   unit: 1 (c/a)
   tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
@@ -31,10 +56,12 @@ references:
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L184, accessed: '2026-11-06'}
   extraction: text
+  note: MPB resolution 32; 2.4e-3 above the converged PWE value (gen_pwe.py)
 - quantity: gap upper edge
+  metric_id: gap_upper_edge
   value: 0.446289918847647
   unit: 1 (c/a)
   tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
@@ -42,9 +69,10 @@ references:
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L184, accessed: '2026-11-06'}
   extraction: text
+  note: MPB resolution 32; 2.4e-3 above the converged PWE value (gen_pwe.py)
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -55,8 +83,8 @@ speed:
 dataset: null
 rights:
   source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
-  allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/phc-triangular-rods.yaml}
 missing: []

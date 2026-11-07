@@ -5,7 +5,7 @@
   "generator": "validation/c/gen_suites.py",
   "command": "cd validation && uv run python c/gen_suites.py",
   "method": "Simply supported Timoshenko beam (supports on the neutral fibre), L 1 m, section 0.2 x 0.1 m (I_z = 6.6667e-5 m^4), shear coefficient 1/1.17692, E 2e11 Pa, nu 0.3, rho 7800 kg/m3: in-plane bending (Timoshenko frequency equation, lower branch) and axial fixed-free modes (the axial condition follows from DX fixed at one support only), modes in 430-4500 Hz.",
-  "generated_at": "2026-11-06T15:57:15-08:00",
+  "generated_at": "2026-11-06T16:32:18-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",

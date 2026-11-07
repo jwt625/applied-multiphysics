@@ -1,0 +1,130 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-05",
+  "class": "c",
+  "generator": "validation/c/gen_suites.py",
+  "command": "cd validation && uv run python c/gen_suites.py",
+  "method": "Exact TM resonances (complex frequency) of a dielectric ring n 3.4, inner radius 1, outer radius 2, in air (Meep tutorial 'Modes of a Ring Resonator' geometry).",
+  "generated_at": "2026-11-06T16:32:23-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "f1",
+      "value": 0.11819169373401972,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "complex root, mpmath 30 digits",
+        "restart_diff": 1.125122760143209e-37,
+        "m": 3
+      },
+      "source": {
+        "source_value": "0.118101575043663",
+        "rel_diff": 0.0007630608679299903,
+        "agreement": "disagree",
+        "note": "Meep tutorial (resolution 10)"
+      },
+      "locator": "meep doc/docs/Python_Tutorials/Basics.md L1117-1119"
+    },
+    {
+      "metric_id": "Q1",
+      "value": 77.25539747710403,
+      "unit": "1",
+      "precision": {
+        "method": "complex root, mpmath 30 digits",
+        "restart_diff": 1.125122760143209e-37,
+        "m": 3
+      },
+      "source": {
+        "source_value": "80.683059081382",
+        "rel_diff": 0.04248303972734372,
+        "agreement": "disagree",
+        "note": "Meep tutorial (resolution 10)"
+      },
+      "locator": "meep doc/docs/Python_Tutorials/Basics.md L1117-1119"
+    },
+    {
+      "metric_id": "f2",
+      "value": 0.14743103286733042,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "complex root, mpmath 30 digits",
+        "restart_diff": 2.2958874039497803e-41,
+        "m": 4
+      },
+      "source": {
+        "source_value": "0.147162555528154",
+        "rel_diff": 0.0018243590444110163,
+        "agreement": "disagree",
+        "note": "Meep tutorial (resolution 10)"
+      },
+      "locator": "meep doc/docs/Python_Tutorials/Basics.md L1117-1119"
+    },
+    {
+      "metric_id": "Q2",
+      "value": 343.9164578371421,
+      "unit": "1",
+      "precision": {
+        "method": "complex root, mpmath 30 digits",
+        "restart_diff": 2.2958874039497803e-41,
+        "m": 4
+      },
+      "source": {
+        "source_value": "316.29272471914",
+        "rel_diff": 0.08733597379620826,
+        "agreement": "disagree",
+        "note": "Meep tutorial (resolution 10)"
+      },
+      "locator": "meep doc/docs/Python_Tutorials/Basics.md L1117-1119"
+    },
+    {
+      "metric_id": "f3",
+      "value": 0.1757793737226367,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "complex root, mpmath 30 digits",
+        "restart_diff": 5.739718509874451e-42,
+        "m": 5
+      },
+      "source": {
+        "source_value": "0.175246750722663",
+        "rel_diff": 0.003039274610098768,
+        "agreement": "disagree",
+        "note": "Meep tutorial (resolution 10)"
+      },
+      "locator": "meep doc/docs/Python_Tutorials/Basics.md L1117-1119"
+    },
+    {
+      "metric_id": "Q3",
+      "value": 1634.2055851261723,
+      "unit": "1",
+      "precision": {
+        "method": "complex root, mpmath 30 digits",
+        "restart_diff": 5.739718509874451e-42,
+        "m": 5
+      },
+      "source": {
+        "source_value": "1677.48461212767",
+        "rel_diff": 0.025799954699199275,
+        "agreement": "disagree",
+        "note": "Meep tutorial (resolution 10)"
+      },
+      "locator": "meep doc/docs/Python_Tutorials/Basics.md L1117-1119"
+    }
+  ],
+  "inputs": {
+    "n": 3.4,
+    "r_inner": 1.0,
+    "r_outer": 2.0,
+    "units": "c = a = 1"
+  }
+}

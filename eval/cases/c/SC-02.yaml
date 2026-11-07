@@ -11,84 +11,95 @@ dimension: 1D
 units: SI
 geometry:
   kind: analytic
-  spec: {length_cm: 1.0e-05, junction_cm: 5.0e-06, mesh_cm: 'ps 1e-7 at ends, 1e-9 at the junction (diode_common.py CreateMesh)'}
+  spec: {length_cm: 1.0e-05, junction_cm: 5.0e-06, doping: 'N_A = 1e18 cm^-3 for x < 0.5e-5 cm, N_D = 1e18 cm^-3 for x > 0.5e-5
+      cm (diode_common.SetNetDoping)', mesh_cm: 'DEVSIM 1D mesh lines: spacing 1e-7 at x = 0 and 1e-5, 1e-9 at the junction
+      (diode_common.CreateMesh); reference levels divide all three by 1, 2, 4'}
 materials:
-  si: {source: 'DEVSIM simple_physics defaults via diode_common.SetParameters; mu_n 400, mu_p 200 cm2/Vs, tau 1e-8 s (R3 s.3.9)'}
+  si: {eps_r: 11.1, eps0_F_per_cm: 8.85e-14, n_i_per_cm3: 10000000000.0, T_K: 300, q_C: 1.6e-19, k_B_J_per_K: 1.3806503e-23,
+    mu_n_cm2_per_Vs: 400.0, mu_p_cm2_per_Vs: 200.0, mobility: constant, recombination: 'SRH, tau_n = tau_p = 1e-8 s, n1 =
+      p1 = n_i', source: 'devsim 2.11.2 python_packages/simple_physics.py L34-44 (constants), L122-141 (SetSiliconParameters);
+      diode_1d.py L24-25 (tau override)'}
 bcs:
-- selection: top
+- selection: top (x = 0)
   type: ohmic
-  params: {V: 0..0.5 step 0.1}
-- selection: bot
+  params: {V: 0.1..0.5 step 0.1}
+  note: equilibrium carrier densities, Dirichlet potential = bias + built-in
+- selection: bot (x = 1e-5 cm)
   type: ohmic
   params: {V: 0}
 initial: null
 study: {type: parametric}
 references:
-- quantity: J_total 0.1 V
-  metric_id: J_top_0.1V
-  value: 1.1592313132996793e-07
+- quantity: J (contact current density) 0.1 V
+  metric_id: J_0.1V
+  value: 1.2058397864588948e-07
   unit: A/cm^2
-  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
-      mesh (proposed)}
+  tolerance: {rel: 0.001, after: richardson, note: 'reference mesh-extrapolated (3 levels, p ~ 2), float128, current continuity
+      |J_top + J_bot| / |J| < 3e-16; Richardson-minus-finest <= 4.6e-6'}
   bounds: null
-  basis: P
+  basis: D
   form: solver_ref
   gate: true
-  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.1V}
-  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
-      (bias 0.1), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
-- quantity: J_total 0.2 V
-  metric_id: J_top_0.2V
-  value: 1.136336617995751e-06
+  expected: {file: eval/expected/SC-02.json, metric_id: J_0.1V}
+  provenance: {citation: 'DEVSIM 2.11.2 re-run of the diode_1d set-up in extended precision, three meshes, Richardson (this
+      lane, validation/c/devsim_diode_tight.py)', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.1), accessed: null, generator: validation/c/gen_devsim.py, source_accessed: '2026-11-06'}
+- quantity: J (contact current density) 0.2 V
+  metric_id: J_0.2V
+  value: 1.1409262260730073e-06
   unit: A/cm^2
-  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
-      mesh (proposed)}
+  tolerance: {rel: 0.001, after: richardson, note: 'reference mesh-extrapolated (3 levels, p ~ 2), float128, current continuity
+      |J_top + J_bot| / |J| < 3e-16; Richardson-minus-finest <= 4.6e-6'}
   bounds: null
-  basis: P
+  basis: D
   form: solver_ref
   gate: true
-  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.2V}
-  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
-      (bias 0.2), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
-- quantity: J_total 0.3 V
-  metric_id: J_top_0.3V
-  value: 1.5931460769419148e-05
+  expected: {file: eval/expected/SC-02.json, metric_id: J_0.2V}
+  provenance: {citation: 'DEVSIM 2.11.2 re-run of the diode_1d set-up in extended precision, three meshes, Richardson (this
+      lane, validation/c/devsim_diode_tight.py)', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.2), accessed: null, generator: validation/c/gen_devsim.py, source_accessed: '2026-11-06'}
+- quantity: J (contact current density) 0.3 V
+  metric_id: J_0.3V
+  value: 1.5926642725545277e-05
   unit: A/cm^2
-  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
-      mesh (proposed)}
+  tolerance: {rel: 0.001, after: richardson, note: 'reference mesh-extrapolated (3 levels, p ~ 2), float128, current continuity
+      |J_top + J_bot| / |J| < 3e-16; Richardson-minus-finest <= 4.6e-6'}
   bounds: null
-  basis: P
+  basis: D
   form: solver_ref
   gate: true
-  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.3V}
-  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
-      (bias 0.3), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
-- quantity: J_total 0.4 V
-  metric_id: J_top_0.4V
-  value: 0.00044875293238027603
+  expected: {file: eval/expected/SC-02.json, metric_id: J_0.3V}
+  provenance: {citation: 'DEVSIM 2.11.2 re-run of the diode_1d set-up in extended precision, three meshes, Richardson (this
+      lane, validation/c/devsim_diode_tight.py)', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.3), accessed: null, generator: validation/c/gen_devsim.py, source_accessed: '2026-11-06'}
+- quantity: J (contact current density) 0.4 V
+  metric_id: J_0.4V
+  value: 0.00044873765743527424
   unit: A/cm^2
-  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
-      mesh (proposed)}
+  tolerance: {rel: 0.001, after: richardson, note: 'reference mesh-extrapolated (3 levels, p ~ 2), float128, current continuity
+      |J_top + J_bot| / |J| < 3e-16; Richardson-minus-finest <= 4.6e-6'}
   bounds: null
-  basis: P
+  basis: D
   form: solver_ref
   gate: true
-  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.4V}
-  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
-      (bias 0.4), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
-- quantity: J_total 0.5 V
-  metric_id: J_top_0.5V
-  value: 0.018155155173288445
+  expected: {file: eval/expected/SC-02.json, metric_id: J_0.4V}
+  provenance: {citation: 'DEVSIM 2.11.2 re-run of the diode_1d set-up in extended precision, three meshes, Richardson (this
+      lane, validation/c/devsim_diode_tight.py)', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.4), accessed: null, generator: validation/c/gen_devsim.py, source_accessed: '2026-11-06'}
+- quantity: J (contact current density) 0.5 V
+  metric_id: J_0.5V
+  value: 0.01815474923638956
   unit: A/cm^2
-  tolerance: {rel: 0.001, after: richardson, note: DEVSIM's own mesh reproduces the golden to < 1e-15; 1e-3 is for an independent
-      mesh (proposed)}
+  tolerance: {rel: 0.001, after: richardson, note: 'reference mesh-extrapolated (3 levels, p ~ 2), float128, current continuity
+      |J_top + J_bot| / |J| < 3e-16; Richardson-minus-finest <= 4.6e-6'}
   bounds: null
-  basis: P
+  basis: D
   form: solver_ref
   gate: true
-  expected: {file: eval/expected/SC-02.json, metric_id: J_top_0.5V}
-  provenance: {citation: 'DEVSIM example diode_1d.py, golden output', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
-      (bias 0.5), accessed: '2026-11-06', generator: validation/c/gen_devsim.py}
+  expected: {file: eval/expected/SC-02.json, metric_id: J_0.5V}
+  provenance: {citation: 'DEVSIM 2.11.2 re-run of the diode_1d set-up in extended precision, three meshes, Richardson (this
+      lane, validation/c/devsim_diode_tight.py)', locator: devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out
+      (bias 0.5), accessed: null, generator: validation/c/gen_devsim.py, source_accessed: '2026-11-06'}
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -99,15 +110,18 @@ speed:
 dataset: null
 rights:
   source_license: Apache-2.0 (DEVSIM); golden-results repo has no LICENSE file (values cited only)
-  allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/devsim-diode-1d.yaml}
 missing: []
-assumptions: []
+assumptions: ['Units follow DEVSIM (cm based): J in A/cm^2 for the 1D device.', 'The DEVSIM golden (double precision, absolute_error
+    1e10) has |J_top + J_bot|/|J_top| = 2.45e-2, 3.26e-2, 3.5e-3, 1.5e-4, 4e-6 at 0.1-0.5 V and is 4.0e-2, 4.0e-3, 3.0e-4,
+    3.4e-5, 2.2e-5 off the reference: kept per target in the expected JSON, informative only. Tightening Newton in double
+    precision does not help (low-bias current is a difference of large majority fluxes); float128 restores exact continuity.']
 source_case: {suite: DEVSIM examples, file: examples/diode/diode_1d.py, url: github.com/devsim/devsim main e3a25f08c7f17cc6932624c12bf9f0f10d7f7cfd,
   accessed: '2026-11-06', note: cache/eval-c/sources/devsim/diode_1d.py sha256 66a60784e9a54644b6186828343a6101228d13a4e4a0ab007e17aee0992f9cd8}
-notes: ['Regenerated locally: validation/c/gen_devsim.py runs the unmodified example with devsim 2.11.2 (PyPI) and matches
-    the golden to < 1e-15 relative at every bias.']
+notes: ['Gate values: validation/c/gen_devsim.py -> devsim_diode_tight.py (extended precision, Newton rel 1e-11, abs 1e4 cm^-3
+    at the observed round-off floor, mesh / 1, 2, 4).']
 lane: L7c
 created: '2026-11-06'

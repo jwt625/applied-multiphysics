@@ -23,6 +23,7 @@ initial: null
 study: {type: stationary}
 references:
 - quantity: nRMSE vs stored solution
+  metric_id: nRMSE_vs_stored_solution
   value: null
   unit: '1'
   tolerance:
@@ -67,7 +68,7 @@ dataset:
 rights:
   source_license: CC BY 4.0 (DaRUS dataset licence field); code 'MIT except where otherwise stated' (LICENSE.txt)
   allowed: [cite_values, re_derive_setup, reference_by_hash]
-  forbidden: [redistribute_data_without_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pdebench-2d-darcyflow-beta1p0.yaml}
 missing: [how a(x) is represented between cell centres (piecewise constant per cell assumed)]

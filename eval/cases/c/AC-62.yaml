@@ -22,12 +22,22 @@ geometry:
     x_stored: [0.0, 1.0]
     fields: [pressure, velocity (2), density, speed_of_sound]
     dtype: float32
-materials: null
-bcs: null
+    domain_generator:
+    - [-1.0, 1.0]
+    - [-1.0, 1.0]
+materials:
+  medium: {K: 4.0, rho: 'stored per sample (maze: walls 1e6 + 3, paths 3)', c: sqrt(K / rho), source: generation/acoustics_2d_interface_maze.py
+      L129-134}
+bcs:
+- {selection: x0 (x = -1), type: wall, note: pyclaw BC.wall; stored attr x0_wall WALL}
+- {selection: xL (x = +1), type: open, note: pyclaw BC.extrap; stored attr xL_open OPEN}
+- {selection: y0 (y = -1), type: wall, note: pyclaw BC.wall; stored attr y0_wall WALL}
+- {selection: yL (y = +1), type: open, note: pyclaw BC.extrap; stored attr yL_open OPEN}
 initial: null
 study: {type: transient}
 references:
 - quantity: VRMSE vs stored trajectory at frames 1, 10, last
+  metric_id: VRMSE_vs_stored_trajectory_at_frames_1_10_last
   value: null
   unit: '1'
   tolerance:
@@ -78,17 +88,21 @@ dataset:
     x_stored: [0.0, 1.0]
     fields: [pressure, velocity (2), density, speed_of_sound]
     dtype: float32
+    domain_generator:
+    - [-1.0, 1.0]
+    - [-1.0, 1.0]
 rights:
   source_license: CC-BY-4.0 (HF dataset card license tag; The Well paper App. A.6); code BSD-3-Clause
   allowed: [cite_values, re_derive_setup, reference_by_hash]
-  forbidden: [redistribute_data_without_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/well-acoustic-scattering-maze.yaml}
 missing: []
 assumptions: ['Frame-0 velocity is zero (flat static pressure field plus rings, README); to confirm from the stored velocity
     frame 0 before gating.']
 source_case: {suite: The Well, file: acoustic_scattering_maze README.md + acoustic_scattering_maze.yaml, url: huggingface.co/datasets/polymathic-ai/acoustic_scattering_maze,
-  accessed: '2026-11-06', note: cache/eval-c/sources/hf/acoustic_scattering_maze_README.md sha256 b5e1bb113e88ae307402dfee4600ad48b1f946b9d309db3efbbc563a79024eae}
+  accessed: '2026-11-06', note: cache/eval-c/sources/hf/acoustic_scattering_maze_README.md sha256 b5e1bb113e88ae307402dfee4600ad48b1f946b9d309db3efbbc563a79024eae;
+    generation/acoustics_2d_interface_maze.py cached at cache/eval-c/sources/hf/ sha256 57a67c6fa2223ad556352a5a580b2ee88de622d283bf7dc040ff9cf18d35e3b2}
 notes: ['Equations: p_t + K (u_x + v_y) = 0; u_t + p_x / rho = 0; v_t + p_y / rho = 0', 'Parameters: K 4 (maze); maze walls
     rho 1e6, paths rho 3; maze IC 1-6 rings, intensity U(3, 5), radius U(0.01, 0.04); inclusions IC 1-4 rings U(0.5, 2), radius
     U(0.06, 0.15); open in y, reflective in x', 'Protocol (R3 s.4): load stored frame 0 (and stored coefficient fields), integrate
@@ -97,7 +111,10 @@ notes: ['Equations: p_t + K (u_x + v_y) = 0; u_t + p_x / rho = 0; v_t + p_y / rh
     chunk_18 (15,980,298,240 B, 100 traj., 202 frames, t 0-4); inclusions chunk_36 and discontinuous chunk_18 (8,111,783,936
     B each, 100 traj., 102 frames, t 0-2).', 'R3 flag ''201 vs 100 steps'' resolved from the stored arrays: maze 202 frames
     (README says 201 steps and dt 2/201; metadata yaml says 202), inclusions/discontinuous 102 frames (README 101; yaml 102).',
-  'Stored x, y run 0..1 (256 points); README states [-1, 1]^2 (flag).', 'Generator: Clawpack acoustics_2d_interface, generation
-    scripts in the HF repo (generation/*.py), double precision.']
+  'Generator: Clawpack acoustics_2d_interface, generation scripts in the HF repo (generation/*.py), double precision.', 'BCs
+    (audit S3): authoritative = stored HDF5 boundary_conditions attrs (all three variants: x0 WALL, xL OPEN, y0 WALL, yL OPEN)
+    and the HF generation script acoustics_2d_interface_maze.py L105-112 (lower = wall, upper = extrap, both axes). The README
+    (''open in y, reflective in x'') disagrees: recorded as a conflict.', 'Domain: the generator uses [-1, 1]^2 (L114-115);
+    the stored coordinate arrays run 0..1 (relabelled); use the generator extent for physical lengths.']
 lane: L7c
 created: '2026-11-06'

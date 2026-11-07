@@ -26,6 +26,7 @@ initial: null
 study: {type: eigen, n: 6, shift: 2.45}
 references:
 - quantity: n_eff TE0
+  metric_id: n_eff_TE0
   value: 2.44722338
   unit: '1'
   tolerance: {abs: 2.0e-06, after: richardson, note: fixture U 5.9e-7 (safety 3); window PEC at +-2 um}
@@ -38,6 +39,7 @@ references:
       U 5.86e-7)', accessed: '2026-11-06'}
   extraction: tabulated
 - quantity: ng (energy)
+  metric_id: ng_energy
   value: 4.19616697
   unit: '1'
   tolerance: {abs: 3.0e-06, after: richardson}
@@ -63,7 +65,7 @@ dataset: null
 rights:
   source_license: own work (Wentao Jiang, eo-modulator-atlas; engine GPL-3.0-or-later; validation/ has no separate licence)
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
-  forbidden: [copy_text_without_attribution]
+  forbidden: []
 hero:
   suitable: true
   why: H4 Si waveguide modes

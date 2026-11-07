@@ -6,7 +6,7 @@
 | Lane | L7c |
 | Owns | `eval/cases/c/**`, `eval/expected/` (class-c files only), `validation/c/**`, this file |
 | Inputs | DevLog-001 (A12, Q5), CONTRACTS-v0 C8, R3 (sections 1-6, 8) |
-| Status | Hand-off (36 cases, 11 expected files, all schema-valid); fresh-context audit pending |
+| Status | Audit corrections applied (36 cases, 15 expected files, 0 loader errors / 0 warnings) |
 
 ## Plan (written 2026-11-06 15:15 PST, before any fetch or code)
 
@@ -43,8 +43,9 @@ the MED mesh / FDL V-doc.
 - [x] Generators + expected JSON (11 files)
 - [x] Validator: L8 CLI dry-run 0 loader errors; local validator 0 errors
 - [x] Summary table, contract requests, hand-off
-- [ ] Fresh-context audit (coordinator)
-- [ ] Generators not written yet: TR-61 (scikit-fem Q1/Q2 re-run of step-7), WO-04/61-63 (independent PWE), EM-05 FEM cross-check
+- [x] Fresh-context audit (coordinator, `DevLog/audits/2026-11-06-L7c-eval-c-audit.md`); corrections below
+- [x] PWE generator for WO-04/WO-61; exact ring resonances for WO-05; anisotropic CPW for RF-03; tight DEVSIM for SC-02
+- [ ] Still open: TR-61 scikit-fem re-run; independent checks for WO-62/63/64 (TE / supercell / FDTD); dataset adapter (L8)
 
 ## Progress log
 
@@ -80,19 +81,19 @@ the MED mesh / FDL V-doc.
 | FL-64 | The Well | CC-BY-4.0 | laminar-ns, transport-diffusion | VRMSE vs stored trajectory at frames 1, 10, last | N/A (dataset metric) (1) | HF shear_flow README 'About the data'; paper App. E.3 (VRMSE) | no |
 | HT-61 | scikit-fem examples | BSD-3-Clause | heat-cond | u_max | 0.07367135328 (1) | github.com/kinnala/scikit-fem tag 12.0.2 tests/test_examples.py L8-12 (FEM gold  | yes |
 | RF-01 | Palace examples | Apache-2.0 | rf-resonator | f TM010 | 2903636072 Hz | palace docs/src/examples/cylinder.md L31-44, L115 | yes |
-| RF-03 | Palace examples | Apache-2.0 | rf-waveguide | Z0 | 56.02 ohm | palace docs/src/examples/cpw.md L18-25 | no |
+| RF-03 | Palace examples | Apache-2.0 | rf-waveguide | Z0 (uniaxial sapphire) | 53.3518982 ohm | palace docs/src/examples/cpw.md L18-25 (inputs); 56.02 informative | yes |
 | RF-61 | Palace examples | Apache-2.0 | rf-sparams | abs(S11) | 0.3331824528 (1) | palace docs/src/examples/coaxial.md L19-23, L99-116 | yes |
 | RF-62 | eo-modulator-atlas tier B | own work | electrostatics, rf-waveguide | C' | 2.137269193e-10 F/m | eo-modulator-atlas DevLog/DevLog-028-open-source-references.md L345; validation/ | yes |
-| SC-02 | DEVSIM examples | Apache-2.0 | semiconductor-dd | J_total 0.1 V | 1.159231313e-07 A/cm^2 | devsim_tests_macos_arm64@85e6e1f goldenresults/examples/diode/diode_1d.out (bias | yes |
+| SC-02 | DEVSIM examples | Apache-2.0 | semiconductor-dd | J 0.1 V (float128, mesh-extrapolated) | 1.205839786e-07 A/cm^2 | validation/c/devsim_diode_tight.py via gen_devsim.py; golden informative | yes |
 | SM-61 | Code_Aster astest | GPL-3.0-or-later | solid-modal | f1 | 431.8818422 Hz | gitlab.com/codeaster/src tag 17.5.8 (c1f5c46ef795e0bf6d82a29dc20da30d281535ce) a | yes |
 | TR-02 | PDEBench | CC BY 4.0 | transport-diffusion | nRMSE vs stored solution | N/A (dataset metric) (1) | paper App. D.1 eq. 6-8; Table 1 (Ns 1024, Nt 200) | no |
 | TR-03 | The Well | CC-BY-4.0 | transport-reaction | VRMSE vs stored trajectory at frames 1, 10, last | N/A (dataset metric) (1) | HF gray_scott_reaction_diffusion README 'About the data'; paper App. E.3 (VRMSE) | no |
 | TR-61 | deal.II tutorial | LGPL-2.1-or-later | transport-reaction | L2 error rate, Q1 global refinement | 2 (1) | dealii examples/step-7/doc/results.dox L66-97 | no |
 | TR-62 | PDEBench | CC BY 4.0 | transport-diffusion | nRMSE vs stored solution | N/A (dataset metric) (1) | paper App. D.3 eq. 11-12 | no |
 | TR-63 | PDEBench | CC BY 4.0 | transport-reaction | nRMSE vs stored solution | N/A (dataset metric) (1) | paper App. D.9 eq. 24-26; Table 1 (128 x 128, Nt 100, 1000 samples) | no |
-| WO-04 | MPB tutorial | GPL-2.0-or-later | optics-phc | gap lower edge (band 1 max) | 0.2826233111 c/a | mpb doc/docs/Python_Tutorial.md L120 | no |
-| WO-05 | Meep tutorial + test | GPL-2.0-or-later | optics-modes, rf-resonator | f1 | 0.118101575 c/a | meep doc/docs/Python_Tutorials/Basics.md L1116-1117 | no |
-| WO-61 | MPB tutorial | GPL-2.0-or-later | optics-phc | gap lower edge | 0.2750656171 c/a | mpb doc/docs/Python_Tutorial.md L184 | no |
+| WO-04 | MPB tutorial | GPL-2.0-or-later | optics-phc | gap lower edge (converged, PWE) | 0.2806626 c/a | validation/c/gen_pwe.py; MPB L120 informative | yes |
+| WO-05 | Meep tutorial + test | GPL-2.0-or-later | optics-modes, rf-resonator | f1 exact (m = 3) | 0.1181916937 c/a | validation/c/gen_suites.py wo05; Meep L1117 informative | yes |
+| WO-61 | MPB tutorial | GPL-2.0-or-later | optics-phc | gap lower edge (converged, PWE) | 0.2744193 c/a | validation/c/gen_pwe.py; MPB L184 informative | yes |
 | WO-62 | MPB tutorial | GPL-2.0-or-later | optics-phc | complete gap lower edge (band 2) | 0.2239776123 c/a | mpb doc/docs/Python_Tutorial.md L269 | no |
 | WO-63 | MPB tutorial | GPL-2.0-or-later | optics-phc | defect frequency (band 25) | 0.378166 c/a | mpb doc/docs/Python_Tutorial.md L320, L349 | no |
 | WO-64 | Meep tests | GPL-2.0-or-later | optics-phc, rf-resonator | f | 0.2344541535 c/a | meep python/tests/test_holey_wvg_cavity.py L66-73 | no |
@@ -117,7 +118,7 @@ Untestable (status `untestable`, with activation): CP-04 (VM223 omits h, emissiv
 | CP-03 | T_c / T_s / q | 419.94 F / 417.85 F / 341.50 Btu/hr | 419.9 / 417.9 / 341.5 | <= 1.2e-4 | Ansys FE gives 417.8 F |
 | SM-61 | 6 modes in 430-4500 Hz | 431.882, 1265.924, 1500.367, 2870.798, 3797.773, 4361.251 Hz | 431.555, 1265.924, 1498.295, 2870.661, 3797.773, 4377.837 | 2e-7 (axial) to 3.8e-3 (bending n 4) | flag below |
 | HT-61 | u_max | 0.0736713533 | FEM gold 0.073657185 | 1.9e-4 | gold is P1 FEM, not exact |
-| SC-02 | J at 0.1-0.5 V | 1.15923e-7 .. 1.81552e-2 A/cm^2 | golden | < 1e-15 | unmodified DEVSIM 2.11.2 re-run |
+| SC-02 | J at 0.1-0.5 V | 1.15923e-7 .. 1.81552e-2 A/cm^2 | golden | < 1e-15 | unmodified example re-run (superseded as gate by the float128 reference, see Audit corrections B2) |
 
 ### Dataset facts resolved from the stored files (HTTP range reads of HDF5 headers)
 
@@ -154,7 +155,7 @@ Sidecars: `cache/eval-c/<name>/sidecar.json` (url, ISO date, file size, upstream
 
 ## Contract requests
 
-1. `validation/pyproject.toml` (L7a): add `devsim==2.11.2` (Apache-2.0, PyPI macOS arm64 wheel) and `requests`
+1. (done by L7a: devsim, requests, h5py, jsonschema are in `validation/pyproject.toml`) `validation/pyproject.toml` (L7a): add `devsim==2.11.2` (Apache-2.0, PyPI macOS arm64 wheel) and `requests`
    for `c/gen_devsim.py`; `h5py` for `c/probe_dataset.py`; `jsonschema` for `c/validate_cases.py`. Until then the
    commands use `uv run --with ...` (stated in each script header).
 2. L8 schema: allow `dataset` extra keys used here (`hf_revision`, `n_hdf5_files`, `total_hdf5_bytes`, `file_bytes`,
@@ -168,10 +169,40 @@ Sidecars: `cache/eval-c/<name>/sidecar.json` (url, ISO date, file size, upstream
 
 ## Hand-off
 
-- Files: `eval/cases/c/*.yaml` (36), `eval/expected/{EM-02,EM-03,EM-05,EM-61,RF-01,RF-61,RF-62,CP-03,SM-61,HT-61,SC-02}.json`,
-  `validation/c/{common_c,gen_palace,gen_suites,gen_devsim,build_cases,validate_cases,probe_dataset}.py`.
-- Rebuild: `cd validation && uv run python c/gen_palace.py && uv run python c/gen_suites.py && uv run --with devsim==2.11.2 --with requests python c/gen_devsim.py && uv run python c/build_cases.py --force && uv run --with jsonschema python c/validate_cases.py`; then `node packages/eval/src/cli.ts --class c --dry-run`.
-- `build_cases.py --force` rewrites every class-c YAML from code; hand edits to the YAML must go into the builder.
+- Files: `eval/cases/c/*.yaml` (36), `eval/expected/{EM-02,EM-03,EM-05,EM-61,RF-01,RF-03,RF-61,RF-62,CP-03,SM-61,HT-61,SC-02,WO-04,WO-05,WO-61}.json`,
+  `validation/c/{common_c,gen_palace,gen_suites,gen_pwe,gen_devsim,devsim_diode_tight,build_cases,validate_cases,probe_dataset}.py`.
+- Rebuild (deps are in `validation/pyproject.toml` now): `cd validation && uv run python c/gen_palace.py && uv run python c/gen_suites.py && uv run python c/gen_pwe.py && uv run python c/gen_devsim.py && uv run python c/build_cases.py --force && uv run python c/validate_cases.py`; then `node packages/eval/src/cli.ts --class c --dry-run`.
+- `build_cases.py --force` rewrites every class-c YAML from code (case definitions, then `apply_audit()`); hand edits to the YAML must go into the builder.
 - No COMSOL files, runs or values. No git. No files written outside owned paths except `cache/eval-c/` (gitignored) and `logs/eval-c-*.log`.
 - Ruff: imports fixed and `ruff format` applied; 44 E501 (long string literals) remain in `validation/c/`.
 - Next: dataset adapter + own convergence floors (TR-02 exact shift first, then FL-06 Darcy on stored a(x)); TR-61 scikit-fem re-run; independent PWE for the MPB cases; retry the three failed header probes with a smarter walker only under a new byte budget.
+
+## Audit corrections (2026-11-06 16:20-16:33 PST; audit `DevLog/audits/2026-11-06-L7c-eval-c-audit.md`)
+
+All corrections live in `validation/c/build_cases.py::apply_audit()` (keyed by case id) and the generators. Final checks 16:32: generators re-run, `validate_cases.py` 36 cases / 104 references / 0 errors, L8 dry-run 0 loader errors / 0 warnings, exit 0 (`logs/eval-20261106T163235.jsonl`, `logs/eval-c-rebuild-*.log`).
+
+| Item | Disposition | What changed (numbers) |
+|---|---|---|
+| B1 RF-03 | Fixed (gate on the anisotropic reference) | `gen_palace.py::rf03`: the uniaxial sapphire (eps 9.3 in plane, 11.5 normal) maps exactly to isotropic eps_eq = sqrt(9.3 x 11.5) = 10.342 with h' = 449.6 um, then the partial-capacitance conformal map. Gate Z0 = 53.352 Ohm (rel 5e-3; finite-h correction 3.8e-4). The docs' 56.02 Ohm is informative: it equals isotropic eps 9.3 with the handbook prefactor 30 pi (56.019; 55.980 with eta0/4). With 30 pi the anisotropic value is 53.389, matching the audit's 53.39. Form `closed_form` |
+| B2 SC-02 | Fixed (tight reference) | `devsim_diode_tight.py`: DEVSIM 2.11.2 float128 (extended_solver/model/equation), Newton rel 1e-11 / abs 1e4 cm^-3 at the observed round-off floor, mesh spacing / 1, 2, 4, Richardson p 2. Tightening Newton in double precision did NOT fix continuity: the error is round-off in the low-bias current, not loose iteration. Gate J = 1.20584e-7, 1.14093e-6, 1.59266e-5, 4.48738e-4, 1.81547e-2 A/cm^2 at 0.1-0.5 V (rel 1e-3), with continuity < 3e-16 and Richardson-minus-finest <= 4.6e-6. Golden is 4.0e-2 / 4.0e-3 / 3.0e-4 / 3.4e-5 / 2.2e-5 off and stays informative |
+| S8 SC-02 inputs | Fixed | materials/geometry/bcs now state every parameter: eps_r 11.1, eps0 8.85e-14 F/cm, n_i 1e10, T 300 K, q 1.6e-19, k_B 1.3806503e-23, mu 400/200, SRH tau 1e-8 s, n1 = p1 = n_i, doping, mesh, ohmic contacts (simple_physics.py L34-44, L122-141; diode_1d.py L24-25) |
+| S1 RF-01 | Fixed (informative duplicates) | f TM010/TE111/TE011 and Q_d are `gate: false` with a pointer to RF-21. RF-01 now gates only Q_c TE011 and Q with copper walls |
+| S2 FL-62 | Fixed | ranges are the envelope of all 7 codes: C_L(10) [1.0891, 1.1000], C_D(10) [0.01225, 0.01245]. The numerical-analysis page has plots only, so no converged numeric gate |
+| S3 AC-62 | Fixed | BCs per edge from the stored HDF5 attrs (x0 WALL, xL OPEN, y0 WALL, yL OPEN, same in all 3 variants) and the generator (`acoustics_2d_interface_maze.py` L105-112: lower wall, upper extrap). The README conflict is recorded. Physical domain [-1, 1]^2 per generator L114-115 (stored coords 0..1). K 4, c = sqrt(K/rho) (L129-134). 1 extra fetch (6.7 kB) |
+| S4 TR-03, FL-63, FL-64 | Fixed | "last frame" removed. VRMSE only up to the own predictability horizon H (first frame where our two finest levels differ by VRMSE > 0.1). After H, statistics are compared instead (TR-03: mean and variance vs t plus the A spectrum at t 10000; FL-63: mean b(z) and Nu over t 25-49.75; FL-64: tracer variance, KE, mean u_x(y)). All `gate: false` until the floor exists |
+| S5 AC-61, WO-66, TR-63 | Fixed (untestable with activation) | Case-specific protocol lines: AC-61 frequency-domain BVP vs stored phases; WO-66 regenerate from seed with a pinned `fdtd` (grid.E stored as d_field, maxwell.py L142); TR-63 needs a header probe and the BC |
+| S6 FL-07 | Fixed (untestable) | No sha256 available without the 10 GB download. HEAD recorded 10,029,067,577 B, Last-Modified 2022-08-11, ETag 62f519b5-255c76d39. `reference_by_hash` no longer claimed |
+| S7 rights | Fixed | One rule per licence family with tags from the schema `rightsItem` enum (the enum says `cite_values`, not `cite_value`; schema followed): open code/docs (Apache, BSD, MIT, GPL-2.0+, GPL-3.0+, LGPL, CC0, own work) = [cite_values, re_derive_setup, copy_with_attribution]; proprietary or no terms (Ansys, FEATFLOW) = [cite_values, re_derive_setup], forbidding copy_with_attribution, copy_text, copy_figures, copy_input_files; open data = + reference_by_hash; ODbL without hash forbids copy_data, redistribute_data. SM-61 forbids copy_v_doc_text, as SM-21 does. `validate_cases.py` checks the enum and that reference_by_hash has a hash |
+| S9 MPB/Meep | Fixed for WO-04, WO-61, WO-05; deferred for WO-62/63/64 | `gen_pwe.py` (TM PWE, MPB k path, 197-1793 plane waves): converged WO-04 0.280663 / 0.417165, WO-61 0.274419 / 0.445220, last-step change <= 6e-6. MPB at resolution 32 is 6.9e-3 / 5.2e-3 / 2.4e-3 / 2.4e-3 high, so the old 1 % gate had only a 1.4x margin. Gate is now the PWE value (rel 1e-3), with MPB informative. WO-05 gates on the exact annulus resonances (mpmath): 0.1181916937 / 0.1474310329 / 0.1757793737, Q 77.255 / 343.92 / 1634.21, all equal to the audit's values. Meep at resolution 10 is 7.6e-4 / 1.8e-3 / 3.0e-3 low (informative). WO-62/63/64 are `gate: false` until there is an independent check (TE PWE, supercell, FDTD) |
+| m1 EM-05 | Fixed | By tolerance abs 4.2e-5 T (2e-3 of abs(By)). Quarter-symmetry note now cites the VM166 page statement and the Ansys quarter-model losses |
+| m2 SM-61 | Fixed | VALE_CALC mode 6 (4370.82061) added. Basis-D targets carry `source_accessed` |
+| m3 EM-03 | Fixed | Gate is the exact coplanar filament-loop M_ab = 1.98137 pH (rel 5e-3, strip width est.). The 1.97392 pH small-loop value is informative |
+| m4 HT-61 | Fixed | source term f = 1 added to `bcs` |
+| m5 WO-05 | Fixed | see S9 |
+| m6 MPB/Meep resolution | Fixed | `study.resolution_source` per case; MPB L320 vs L120 gap-range discrepancy noted in WO-63 |
+| m7 WO-66 | Fixed | yaml `samples: 32` vs 25 in the file, noted |
+| m8 DevLog drift | Fixed | rebuild line uses the project env; diff-react had 3 attempts (69.1 MB) and gray_scott 2 probes, already counted in the 194.5 MB total |
+| m9 cache | Fixed | removed my cached GitLab 404 body `cache/eval-c/sources/aster/COPYING`. Code_Aster licence evidence = per-file GPL-3.0-or-later header. scikit-fem licence cited as BSD-3-Clause via the GitHub API |
+| m10 validator docstring | Fixed | COMSOL rule now reads "no mention anywhere" (as coded) |
+| m11 dead code | Fixed | removed `ref = -b0` in `gen_suites.py::em05` |
+| L8 loader warnings | Fixed | each target now has an explicit, unique `metric_id` (Meep/MPB informative ids prefixed `meep_`/`mpb_`) |

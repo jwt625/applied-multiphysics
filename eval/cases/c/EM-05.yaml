@@ -27,27 +27,27 @@ references:
   metric_id: By_center_re
   value: -0.0018439155993120807
   unit: T
-  tolerance: {rel: 0.002, after: richardson}
+  tolerance: {abs: 4.2e-05, after: richardson, note: '2e-3 of |By(0,0)| = 0.02105 T'}
   bounds: null
   basis: D
   form: closed_form
   gate: true
   expected: {file: eval/expected/EM-05.json, metric_id: By_center_re}
   provenance: {citation: exact 2D Bessel solution (this lane); target Emson RAL-86-049 p. 39 via Ansys VM166, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
-      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
   note: phasor e^{+j w t}
 - quantity: By(0,0) imag
   metric_id: By_center_im
   value: -0.021044761843139963
   unit: T
-  tolerance: {rel: 0.002, after: richardson}
+  tolerance: {abs: 4.2e-05, after: richardson, note: '2e-3 of |By(0,0)| = 0.02105 T'}
   bounds: null
   basis: D
   form: closed_form
   gate: true
   expected: {file: eval/expected/EM-05.json, metric_id: By_center_im}
   provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
-      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: loss per length, full section
   metric_id: loss_per_length
   value: 9151.78562574126
@@ -59,8 +59,9 @@ references:
   gate: true
   expected: {file: eval/expected/EM-05.json, metric_id: loss_per_length}
   provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
-      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py}
+      Results Comparison table', accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
 - quantity: VM166 target loss (quarter section, inferred)
+  metric_id: VM166_target_loss_quarter_section_inferred
   value: 2288
   unit: W/m
   tolerance: {rel: 0.001}
@@ -71,7 +72,8 @@ references:
   provenance: {citation: Emson 1986 via Ansys VM166, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
       Results Comparison table', accessed: '2026-11-06'}
   extraction: text
-  note: equals full-section loss / 4 to 2.3e-5; read as a quarter-symmetry value (assumption)
+  note: VM166 states a quarter-symmetry model (Analysis Assumptions); equals full-section loss / 4 to 2.3e-5; Ansys quarter-model
+    results 2341.3 (PLANE13) / 2315.2 (PLANE233) W/m
 reference_results:
 - {solver: Ansys PLANE233, By_T: -0.0018 - j0.0212, loss_W_per_m: 2315.2128}
 - {solver: Ansys PLANE13, By_T: -0.0019 - j0.02140, loss_W_per_m: 2341.3041}
@@ -85,13 +87,14 @@ dataset: null
 rights:
   source_license: Ansys MAPDL Verification Manual page, (c) ANSYS Inc. all rights reserved; target cites the textbook/report;
     formula textbook
-  allowed: [cite_values]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_with_attribution, copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/eddy-hollow-cylinder.yaml}
 missing: []
 assumptions: ['B0 = 0.1 T is the peak of B_y = B0 cos(w t); the VM166 page writes ''omega = 60 Hz'', read as f = 60 Hz.',
-  The 0.84 m external boundary is replaced by the exact far-field condition in the generator.]
+  The 0.84 m external boundary is replaced by the exact far-field condition in the generator., Quarter-symmetry reading of
+    2288 W/m is stated on the VM166 page (audit m1).]
 source_case: {suite: Ansys VM166 (pointer), file: Hlp_V_VM166.html, url: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM166.html,
   accessed: '2026-11-06'}
 lane: L7c

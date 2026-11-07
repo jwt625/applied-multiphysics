@@ -28,6 +28,7 @@ initial: null
 study: {type: stationary}
 references:
 - quantity: L2 error rate, Q1 global refinement
+  metric_id: L2_error_rate_Q1_global_refinement
   value: 2.0
   unit: '1'
   tolerance:
@@ -39,6 +40,7 @@ references:
   provenance: {citation: deal.II step-7 results, locator: dealii examples/step-7/doc/results.dox L66-97, accessed: '2026-11-06'}
   extraction: tabulated
 - quantity: H1 error rate, Q2 global refinement
+  metric_id: H1_error_rate_Q2_global_refinement
   value: 2.0
   unit: '1'
   tolerance:
@@ -50,6 +52,7 @@ references:
   provenance: {citation: deal.II step-7 results, locator: dealii examples/step-7/doc/results.dox L141-172, accessed: '2026-11-06'}
   extraction: tabulated
 - quantity: L2 error, Q1, 16384 cells
+  metric_id: L2_error_Q1_16384_cells
   value: 0.000766
   unit: '1'
   tolerance: {rel: 0.02, note: same mesh family required}
@@ -60,6 +63,7 @@ references:
   provenance: {citation: deal.II step-7 results, locator: dealii examples/step-7/doc/results.dox L90, accessed: '2026-11-06'}
   extraction: tabulated
 - quantity: L2 error, Q2, 16384 cells
+  metric_id: L2_error_Q2_16384_cells
   value: 1.394e-05
   unit: '1'
   tolerance: {rel: 0.02}
@@ -85,8 +89,8 @@ speed:
 dataset: null
 rights:
   source_license: LGPL-2.1-or-later (step-7.cc SPDX); deal.II library Apache-2.0 WITH LLVM-exception OR LGPL-2.1-or-later
-  allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
 spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/dealii-step7.yaml}
 missing: []

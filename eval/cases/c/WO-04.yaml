@@ -17,9 +17,35 @@ materials:
   background: {eps_r: 1.0, source: default air}
 bcs: null
 initial: null
-study: {type: eigen, n: 8, shift: 'Bloch k on Gamma-X-M-Gamma, 4 interpolated points per segment'}
+study: {type: eigen, n: 8, shift: 'Bloch k on Gamma-X-M-Gamma, 4 interpolated points per segment', resolution_source: MPB
+    resolution 32 (tutorial)}
 references:
+- quantity: gap lower edge (converged)
+  metric_id: gap_lower
+  value: 0.28066257049446014
+  unit: 1 (c/a)
+  tolerance: {rel: 0.001, after: richardson, note: PWE last-step change 2e-6; margin 500x}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/WO-04.json, metric_id: gap_lower}
+  provenance: {citation: plane-wave expansion (this lane), locator: 'validation/c/gen_pwe.py, MPB k path', accessed: null,
+    generator: validation/c/gen_pwe.py}
+- quantity: gap upper edge (converged)
+  metric_id: gap_upper
+  value: 0.41716547014388133
+  unit: 1 (c/a)
+  tolerance: {rel: 0.001, after: richardson, note: PWE last-step change 6e-6}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/WO-04.json, metric_id: gap_upper}
+  provenance: {citation: plane-wave expansion (this lane), locator: 'validation/c/gen_pwe.py, MPB k path', accessed: null,
+    generator: validation/c/gen_pwe.py}
 - quantity: gap lower edge (band 1 max)
+  metric_id: gap_lower_edge_band_1_max
   value: 0.282623311147724
   unit: 1 (c/a)
   tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
@@ -27,10 +53,12 @@ references:
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L120, accessed: '2026-11-06'}
   extraction: text
+  note: MPB resolution 32; 6.9e-3 above the converged PWE value (gen_pwe.py)
 - quantity: gap upper edge (band 2 min)
+  metric_id: gap_upper_edge_band_2_min
   value: 0.419334798706834
   unit: 1 (c/a)
   tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
@@ -38,9 +66,10 @@ references:
   bounds: null
   basis: P
   form: solver_ref
-  gate: true
+  gate: false
   provenance: {citation: MPB Python tutorial, locator: mpb doc/docs/Python_Tutorial.md L120, accessed: '2026-11-06'}
   extraction: text
+  note: MPB resolution 32; 5.2e-3 above the converged PWE value (gen_pwe.py)
 reference_results:
 - {source: 'Joannopoulos et al., Photonic Crystals 2nd ed. ch. 5 (eps 8.9 variant)', note: R3 s.3.5; figure precision only}
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
@@ -52,8 +81,8 @@ speed:
 dataset: null
 rights:
   source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
-  allowed: [cite_values, re_derive_setup]
-  forbidden: [copy_text, copy_figures, copy_input_files]
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
 hero:
   suitable: true
   why: photonic band diagram (H7)

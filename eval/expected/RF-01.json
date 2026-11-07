@@ -5,7 +5,7 @@
   "generator": "validation/c/gen_palace.py",
   "command": "cd validation && uv run python c/gen_palace.py",
   "method": "Teflon-filled circular cylinder cavity (a 2.74 cm, d = 2a): mode frequencies, dielectric and conductor Q, formulas as printed in the Palace docs (Pozar).",
-  "generated_at": "2026-11-06T15:57:14-08:00",
+  "generated_at": "2026-11-06T16:32:17-08:00",
   "versions": {
     "python": "3.12.11",
     "numpy": "2.5.4",
