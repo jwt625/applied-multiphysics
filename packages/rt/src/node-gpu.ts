@@ -8,12 +8,21 @@ export interface NodeGpu {
   features: string[];
 }
 
+import { guardDevice } from "./gpu.ts";
+
 let cached: Promise<NodeGpu | null> | null = null;
 // Keep the GPU instance and adapter reachable: if they are garbage-collected, dawn.node aborts the process
 // ("mutex lock failed" / SIGSEGV), observed with webgpu 0.6.2 on macOS 2026-11-06.
 const keepAlive: unknown[] = [];
+let lastError: string | null = null;
 
-/** Returns null when Dawn or an adapter is unavailable (tests then skip the GPU gates). */
+/** Why nodeGpu() returned null (null when it succeeded or was not called). */
+export function nodeGpuError(): string | null {
+  return lastError;
+}
+
+/** Returns null when Dawn or an adapter is unavailable; nodeGpuError() gives the reason. Tests and gates then fail
+ * unless skipping is explicitly allowed (AMP_RT_ALLOW_NO_GPU=1, or gates --cpu-only). */
 export function nodeGpu(): Promise<NodeGpu | null> {
   cached ??= (async () => {
     try {
@@ -24,16 +33,17 @@ export function nodeGpu(): Promise<NodeGpu | null> {
       Object.assign(globalThis, mod.globals);
       const gpu = mod.create([]);
       const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
-      if (!adapter) return null;
+      if (!adapter) {
+        lastError = "requestAdapter() returned null";
+        return null;
+      }
       keepAlive.push(gpu, adapter);
       const want = ["maxStorageBufferBindingSize", "maxBufferSize", "maxComputeWorkgroupsPerDimension", "maxStorageBuffersPerShaderStage"] as const;
       const requiredLimits: Record<string, number> = {};
       for (const k of want) requiredLimits[k] = adapter.limits[k];
       const device = await adapter.requestDevice({ requiredLimits });
       keepAlive.push(device);
-      device.addEventListener("uncapturederror", (e) => {
-        console.error("WebGPU uncaptured error:", (e as GPUUncapturedErrorEvent).error.message);
-      });
+      guardDevice(device); // uncaptured errors and device loss become thrown errors in the kernels (audit S2)
       const i = adapter.info;
       const limits: Record<string, number> = {};
       for (const k of want) limits[k] = adapter.limits[k];
@@ -44,7 +54,7 @@ export function nodeGpu(): Promise<NodeGpu | null> {
         features: [...adapter.features].map(String).sort(),
       };
     } catch (e) {
-      console.error("nodeGpu unavailable:", (e as Error).message);
+      lastError = (e as Error).message;
       return null;
     }
   })();

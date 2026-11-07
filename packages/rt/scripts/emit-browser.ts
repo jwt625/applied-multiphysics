@@ -20,8 +20,10 @@ function walk(d: string): string[] {
   });
 }
 
+/** Map of paths relative to demo/lib (or "../NOTICE") to file text. */
 export function emitted(): Map<string, string> {
   const m = new Map<string, string>();
+  m.set("../NOTICE", readFileSync(join(pkg, "NOTICE"), "utf8")); // ships the MIT text with the demo (audit M7)
   for (const f of walk(src)) {
     const rel = relative(src, f);
     const js = stripTypeScriptTypes(readFileSync(f, "utf8"), { mode: "strip" }).replace(

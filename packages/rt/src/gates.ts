@@ -13,6 +13,38 @@ import { C0, yeeOmega } from "./kernels/fdtd-common.ts";
 import { WELL_FK } from "./kernels/grayscott-common.ts";
 import { meanPeriod, patternClass, recurrenceTheta, spectralPeak, type PatternStats } from "./analysis.ts";
 
+/**
+ * Gate thresholds (DevLog-005 s.3 and s.10.1; the "new" ones were fixed 2026-11-06 16:14 PST before the runs that
+ * report against them). Each gate row carries `pass` (true / false); rows without `pass` are informational.
+ */
+export const THRESHOLDS = {
+  poiseuilleTrtF64: 1e-12,
+  poiseuilleTrtF32: 1e-4,
+  poiseuilleBgkOrder: { target: 2, tolF64: 0.05, tolF32: 0.1 },
+  channelShape: 1e-3,
+  stBand: [0.295, 0.305] as [number, number],
+  stMinD: 20,
+  /** St gate scope (set 2026-11-06 after the first post-audit run, disclosed in DevLog-005 s.10): TRT rows with
+   * D >= stMinD and u_max >= stMinUMax; other rows (BGK comparison, tau < 0.52) are report-only */
+  stMinUMax: 0.025,
+  dispersionF64: 1e-10,
+  dispersionF32: 1e-4,
+  cpmlDb: -40,
+  cavityRelAtN32: 0.01,
+  cavityOrder: { target: 2, tol: 0.1 },
+  gsVsF32At1000: 1e-4,
+  lbmGpuVsCpuRel: 1e-4,
+  fdtdGpuVsCpuRel: 1e-5,
+} as const;
+
+/** FL-04 reference values for error reporting (realtime tier: report-only). */
+export interface Fl04Ref {
+  c_D_max: number;
+  c_L_max: number;
+  St: number;
+  source: string;
+}
+
 const maxAbsDiff = (a: ArrayLike<number>, b: ArrayLike<number>, off = 0): number => {
   let m = 0;
   for (let i = 0; i < a.length; i++) m = Math.max(m, Math.abs(a[i]! - b[off + i]!));
@@ -34,6 +66,7 @@ export interface PoiseuilleRow {
   steps: number;
   L2: number;
   order?: number;
+  pass?: boolean;
 }
 
 /** Gate 1: body-force Poiseuille, periodic x, halfway bounce-back walls. Steady state after 10 H^2 / nu steps. */
@@ -77,6 +110,12 @@ export async function poiseuille(device: GPUDevice | null, Hs = [8, 16, 32, 64],
     const b = rows[i]!;
     if (a.collision === b.collision && b.H === 2 * a.H) b.order = Math.log2(a.L2 / b.L2);
   }
+  const T = THRESHOLDS;
+  for (const r of rows) {
+    if (r.collision === "TRT") r.pass = r.L2 < (r.backend === "cpu" ? T.poiseuilleTrtF64 : T.poiseuilleTrtF32);
+    else if (r.order !== undefined)
+      r.pass = Math.abs(r.order - T.poiseuilleBgkOrder.target) <= (r.backend === "cpu" ? T.poiseuilleBgkOrder.tolF64 : T.poiseuilleBgkOrder.tolF32);
+  }
   return rows;
 }
 
@@ -94,6 +133,7 @@ export interface ChannelResult {
   L2shape: number;
   /** mean rho at the station minus mean rho at the inlet */
   dRho: number;
+  pass: boolean;
 }
 
 /** Gate 1b: velocity inlet + rho = 1 outlet channel (the BCs of the cylinder case), profile at mid-length. */
@@ -146,6 +186,7 @@ export async function channelPoiseuille(device: GPUDevice | null, H = 32, nx = 8
   return {
     backend: device ? "gpu" : "cpu", H, nx, tau, uMax, steps, station: x,
     L2: Math.sqrt(e2 / a2), L2shape: Math.sqrt(s2 / b2), dRho: rx - r0,
+    pass: Math.sqrt(s2 / b2) < THRESHOLDS.channelShape,
   };
 }
 
@@ -163,17 +204,28 @@ export interface StrouhalResult {
   StPrevWindow: number;
   cDmax: number;
   cLmax: number;
-  pass: boolean;
+  /** relative errors vs the FL-04 reference (report-only for the realtime tier) */
+  errSt?: number;
+  errCD?: number;
+  errCL?: number;
+  /** St gate: in band; evaluated only in the gate scope (TRT, D >= stMinD, u_max >= stMinUMax) */
+  pass?: boolean;
+  bouzidi: number;
   wall_s: number;
 }
 
 /** Gate 2: DFG 2D-2 at Re 100 (GPU only). St from upward zero crossings of c_L over the last 10 periods. */
-export async function strouhal(device: GPUDevice, nD: number, opts: { uMax?: number; collision?: number; tEnd?: number } = {}): Promise<StrouhalResult> {
+export async function strouhal(
+  device: GPUDevice,
+  nD: number,
+  opts: { uMax?: number; collision?: number; tEnd?: number; bouzidi?: number; ref?: Fl04Ref; series?: (cd: Float64Array, cl: Float64Array) => void } = {},
+): Promise<StrouhalResult> {
   const uMax = opts.uMax ?? 0.1;
   const collision = opts.collision ?? 1;
   const tEnd = opts.tEnd ?? 12;
   const { grid, params } = dfgGrid(nD);
-  const p = { ...params, Re: 100, uMax, collision };
+  const bouzidi = opts.bouzidi ?? 1;
+  const p = { ...params, Re: 100, uMax, collision, bouzidi };
   const d = lbmDerive(lbmParams(p), grid);
   const k = new LbmD2Q9();
   await k.init(device, p, grid);
@@ -196,6 +248,7 @@ export async function strouhal(device: GPUDevice, nD: number, opts: { uMax?: num
   }
   const wall = (performance.now() - t0) / 1000;
   k.dispose();
+  opts.series?.(cd, cl);
   const P = 10;
   const T = meanPeriod(cl, Math.floor(steps / 2), steps, P);
   const T2 = meanPeriod(cl, Math.floor(steps / 3), Math.floor(steps - P * T), P);
@@ -206,10 +259,14 @@ export async function strouhal(device: GPUDevice, nD: number, opts: { uMax?: num
     cDmax = Math.max(cDmax, cd[i]!);
     cLmax = Math.max(cLmax, cl[i]!);
   }
+  const [lo, hi] = THRESHOLDS.stBand;
+  const ref = opts.ref;
   return {
     nD, nx: grid.nx, ny: grid.ny, uMax, mach: d.mach, tau: d.tau, collision: collision ? "TRT" : "BGK",
     tEnd_s: tEnd, steps, St, StPrevWindow: nD / T2 / d.uMean, cDmax, cLmax,
-    pass: St >= 0.295 && St <= 0.305, wall_s: wall,
+    ...(ref ? { errSt: St / ref.St - 1, errCD: cDmax / ref.c_D_max - 1, errCL: cLmax / ref.c_L_max - 1 } : {}),
+    ...(nD >= THRESHOLDS.stMinD && collision === 1 && uMax >= THRESHOLDS.stMinUMax ? { pass: St >= lo && St <= hi } : {}),
+    bouzidi, wall_s: wall,
   };
 }
 
@@ -227,7 +284,11 @@ export async function lbmGpuVsCpu(device: GPUDevice, n = 200): Promise<Record<st
     out[`${name}_maxAbsDiff`] = maxAbsDiff(g, c[name]);
     out[`${name}_rel`] = out[`${name}_maxAbsDiff`]! / maxAbs(c[name]);
   }
+  const g = await k.readback("force");
+  const fc = c.force();
+  out.force_rel = Math.hypot(g[2 * (n - 1)]! - fc[0], g[2 * (n - 1) + 1]! - fc[1]) / Math.hypot(fc[0], fc[1]);
   k.dispose();
+  out.pass = Number(["ux_rel", "uy_rel", "rho_rel", "force_rel"].every((key) => out[key]! < THRESHOLDS.lbmGpuVsCpuRel));
   return out;
 }
 
@@ -241,6 +302,7 @@ export interface DispersionRow {
   ppw: number;
   relErrVsYee: number;
   yeeVsContinuum: number;
+  pass: boolean;
 }
 
 /** Gate 3: periodic standing-wave eigenmode; temporal frequency vs the analytic Yee dispersion relation. */
@@ -282,6 +344,7 @@ export async function dispersion(device: GPUDevice | null, N = 80, steps = 2000,
     rows.push({
       backend: device ? "gpu" : "cpu", m, n, angle_deg: (Math.atan2(n, m) * 180) / Math.PI,
       ppw: N / Math.hypot(m, n), relErrVsYee: (w - wy) / wy, yeeVsContinuum: (wy - wc) / wc,
+      pass: Math.abs((w - wy) / wy) < (device ? THRESHOLDS.dispersionF32 : THRESHOLDS.dispersionF64),
     });
   }
   return rows;
@@ -295,6 +358,7 @@ export interface CpmlResult {
   dB: number;
   steps: number;
   ppwAtPeak: number;
+  pass: boolean;
 }
 
 /** Gate 4: normal-incidence CPML reflection with a Ricker plane wave (periodic y), test vs extended-domain reference. */
@@ -330,7 +394,8 @@ export async function cpmlReflection(device: GPUDevice | null, pml: number, m = 
     ref = Math.max(ref, Math.abs(b[t]!));
   }
   const R = d / ref;
-  return { backend: device ? "gpu" : "cpu", pml, m, reflection: R, dB: 20 * Math.log10(R), steps, ppwAtPeak: C0 / freq / dx };
+  const dB = 20 * Math.log10(R);
+  return { backend: device ? "gpu" : "cpu", pml, m, reflection: R, dB, steps, ppwAtPeak: C0 / freq / dx, pass: dB < THRESHOLDS.cpmlDb };
 }
 
 export interface CavityRow {
@@ -343,6 +408,7 @@ export interface CavityRow {
   relErrVsYee: number;
   steps: number;
   order?: number;
+  pass?: boolean;
 }
 
 /** Gate 5: PEC square cavity, side a = N dx; TM11 from the Hann-windowed spectrum of a Ricker-excited ringdown. */
@@ -386,6 +452,12 @@ export async function cavity(device: GPUDevice | null, Ns = [16, 32, 64], period
     const q = rows[i]!;
     if (q.N === 2 * p.N) q.order = Math.log2(Math.abs(p.relErrVsAnalytic) / Math.abs(q.relErrVsAnalytic));
   }
+  for (const r of rows) {
+    const checks: boolean[] = [];
+    if (r.N === 32) checks.push(Math.abs(r.relErrVsAnalytic) < THRESHOLDS.cavityRelAtN32);
+    if (r.order !== undefined) checks.push(Math.abs(r.order - THRESHOLDS.cavityOrder.target) <= THRESHOLDS.cavityOrder.tol);
+    if (checks.length) r.pass = checks.every((x) => x);
+  }
   return rows;
 }
 
@@ -408,7 +480,8 @@ export async function fdtdGpuVsCpu(device: GPUDevice, n = 300): Promise<Record<s
   const ez = await k.readback("ez");
   k.dispose();
   const d = maxAbsDiff(ez, c.ez);
-  return { steps: n, cells: grid.nx * grid.ny, ez_maxAbsDiff: d, ez_rel: d / maxAbs(c.ez) };
+  const rel = d / maxAbs(c.ez);
+  return { steps: n, cells: grid.nx * grid.ny, ez_maxAbsDiff: d, ez_rel: rel, pass: Number(rel < THRESHOLDS.fdtdGpuVsCpuRel) };
 }
 
 // ---------------------------------------------------------------- Gray-Scott
@@ -434,6 +507,8 @@ export async function gsGpuVsCpu(device: GPUDevice, Ns = [100, 1000]): Promise<A
       u_vs_f64: maxAbsDiff(u, c64.uv), v_vs_f64: maxAbsDiff(v, c64.uv, M),
       u_vs_f32: maxAbsDiff(u, c32.uv), v_vs_f32: maxAbsDiff(v, c32.uv, M),
     });
+    const last = out[out.length - 1]!;
+    if (N === 1000) last.pass = Number(last.u_vs_f32! < THRESHOLDS.gsVsF32At1000 && last.v_vs_f32! < THRESHOLDS.gsVsF32At1000);
   }
   return out;
 }

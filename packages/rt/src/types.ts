@@ -8,6 +8,8 @@ export interface Grid {
   nz?: number;
   /** cell size in metres (FDTD, LBM) or in model length units (Gray-Scott, The Well domain [-1, 1]) */
   dx: number;
+  /** unit of dx (CONTRACTS-v0 changelog 2026-11-06 15:5x): "m" or dimensionless model units; default "m" */
+  lengthUnit?: "m" | "model";
 }
 
 export interface KernelView {
@@ -58,6 +60,8 @@ export interface KernelInfo {
   /** lattice cells updated per step */
   cellsPerStep: number;
   steps: number;
+  /** LBM: fluid cells with obstacle links in the boundary table */
+  boundaryCells?: number;
 }
 
 /** C9 plus optional members used by the demo and the gates. */

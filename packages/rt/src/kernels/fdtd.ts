@@ -2,7 +2,7 @@
 // 2D TMz FDTD with CPML, WebGPU. Two dispatches per step (H then E). Arithmetic mirrors cpu/fdtd.ts. DevLog-005.
 
 import type { Grid, KernelInfo, KernelView, PaintOp, RealtimeKernelExt, ViewSpec } from "../types.ts";
-import { BufferSet, groups, pipeline, readF32, write } from "../gpu.ts";
+import { BufferSet, checkDevice, groups, guardDevice, pipeline, readF32, scoped, write } from "../gpu.ts";
 import { rasterize } from "../paint.ts";
 import { fdtdDt, fdtdMaterials, fdtdParams, paintCell, pmlProfile, waveform, type FdtdMaterials } from "./fdtd-common.ts";
 
@@ -99,9 +99,10 @@ const SLOT = 256; // minUniformBufferOffsetAlignment upper bound
 export class FdtdTMz implements RealtimeKernelExt {
   readonly id = "fdtd-tmz";
   readonly fidelity = "realtime" as const;
-  grid: Grid = { nx: 0, ny: 0, dx: 1 };
+  grid: Grid = { nx: 0, ny: 0, dx: 1, lengthUnit: "m" };
   p: Record<string, number> = {};
   dt = 0;
+  private disposed = true;
   steps = 0;
   mat!: FdtdMaterials;
   private device!: GPUDevice;
@@ -127,36 +128,39 @@ export class FdtdTMz implements RealtimeKernelExt {
   async init(device: GPUDevice, params: Record<string, number>, grid: Grid): Promise<void> {
     if (this.bufs) this.dispose();
     this.device = device;
-    this.grid = { ...grid };
+    guardDevice(device);
+    this.grid = { lengthUnit: "m", ...grid };
     this.p = fdtdParams(params);
     this.dt = fdtdDt(this.p, grid);
     this.steps = 0;
     const { nx, ny } = grid;
     const N = nx * ny;
-    const b = (this.bufs = new BufferSet(device));
-    this.F = b.storage(3 * N * 4, "fdtd.F");
-    this.psi = b.storage(4 * N * 4, "fdtd.psi");
-    this.matBuf = b.storage(3 * N * 4, "fdtd.mat");
-    this.co = b.storage(6 * (nx + ny) * 4, "fdtd.coef");
-    this.cls = b.storage(N * 4, "fdtd.cls");
-    this.viewBuf = b.storage(N * 4, "fdtd.view");
-    this.prm = b.uniform(32, "fdtd.params");
-    this.su = b.uniform(BATCH * SLOT, "fdtd.stepU");
-    this.vprm = b.uniform(16, "fdtd.vparams");
-    this.hist = b.storage(FDTD_RECORD_CAP * 4, "fdtd.probeHist");
-    this.mat = fdtdMaterials(this.p, grid);
-    this.uploadMaterials(0, ny - 1);
-    const px = pmlProfile(nx, this.p.bcX!, this.p);
-    const py = pmlProfile(ny, this.p.bcY!, this.p);
-    const co = new Float32Array(6 * (nx + ny));
-    for (let k = 0; k < 6; k++) {
-      co.set(px[k]!, k * nx);
-      co.set(py[k]!, 6 * nx + k * ny);
-    }
-    write(device, this.co, co);
+    await scoped(device, "fdtd.init", () => {
+      const b = (this.bufs = new BufferSet(device));
+      this.F = b.storage(3 * N * 4, "fdtd.F");
+      this.psi = b.storage(4 * N * 4, "fdtd.psi");
+      this.matBuf = b.storage(3 * N * 4, "fdtd.mat");
+      this.co = b.storage(6 * (nx + ny) * 4, "fdtd.coef");
+      this.cls = b.storage(N * 4, "fdtd.cls");
+      this.viewBuf = b.storage(N * 4, "fdtd.view");
+      this.prm = b.uniform(32, "fdtd.params");
+      this.su = b.uniform(BATCH * SLOT, "fdtd.stepU");
+      this.vprm = b.uniform(16, "fdtd.vparams");
+      this.hist = b.storage(FDTD_RECORD_CAP * 4, "fdtd.probeHist");
+      this.mat = fdtdMaterials(this.p, grid);
+      this.uploadMaterials(0, ny - 1);
+      const px = pmlProfile(nx, this.p.bcX!, this.p);
+      const py = pmlProfile(ny, this.p.bcY!, this.p);
+      const co = new Float32Array(6 * (nx + ny));
+      for (let k = 0; k < 6; k++) {
+        co.set(px[k]!, k * nx);
+        co.set(py[k]!, 6 * nx + k * ny);
+      }
+      write(device, this.co, co);
+    });
     this.uploadParams();
 
-    const bgl = device.createBindGroupLayout({
+    const bgl = await scoped(device, "fdtd.layout", () => device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
         { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform", hasDynamicOffset: true, minBindingSize: 16 } },
@@ -165,11 +169,12 @@ export class FdtdTMz implements RealtimeKernelExt {
         { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
         { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
       ],
-    });
+    }));
     const layout = device.createPipelineLayout({ bindGroupLayouts: [bgl] });
     this.hpipe = await pipeline(device, FDTD_WGSL, "fdtd.h", "hstep", layout);
     this.epipe = await pipeline(device, FDTD_WGSL, "fdtd.e", "estep", layout);
     this.vpipe = await pipeline(device, FDTD_VIEW_WGSL, "fdtd.view");
+    this.disposed = false;
     this.bg = device.createBindGroup({
       layout: bgl,
       entries: [
@@ -189,6 +194,11 @@ export class FdtdTMz implements RealtimeKernelExt {
         { binding: 2, resource: { buffer: this.viewBuf } },
       ],
     });
+  }
+
+  private live(where: string): void {
+    if (this.disposed) throw new Error(`fdtd-tmz.${where}: kernel not initialized or used after dispose()`);
+    checkDevice(this.device, `fdtd-tmz.${where}`);
   }
 
   private uploadParams(): void {
@@ -218,6 +228,7 @@ export class FdtdTMz implements RealtimeKernelExt {
 
   /** Source and probe parameters can change live; grid, BCs and CPML need init(). */
   setParams(p: Record<string, number>): void {
+    this.live("setParams");
     const live = ["freq", "srcType", "srcAmp", "ramp", "probeX", "probeY"];
     for (const k of Object.keys(p)) if (!live.includes(k)) throw new Error(`fdtd: ${k} needs init()`);
     this.p = fdtdParams({ ...this.p, ...p });
@@ -236,12 +247,14 @@ export class FdtdTMz implements RealtimeKernelExt {
 
   /** Overwrites a field (names ez, hx, hy) from host data, e.g. eigenmode initial conditions in the gates. */
   setField(name: "ez" | "hx" | "hy", data: ArrayLike<number>): void {
+    this.live("setField");
     const N = this.grid.nx * this.grid.ny;
     const off = { ez: 0, hx: N, hy: 2 * N }[name];
     write(this.device, this.F, Float32Array.from(data), off * 4);
   }
 
   step(n: number): void {
+    this.live("step");
     const dev = this.device;
     const { nx, ny } = this.grid;
     let done = 0;
@@ -274,6 +287,7 @@ export class FdtdTMz implements RealtimeKernelExt {
   }
 
   view(): KernelView {
+    this.live("view");
     const { nx, ny } = this.grid;
     write(this.device, this.vprm, new Uint32Array([nx, ny, this.viewMode, 0]));
     const enc = this.device.createCommandEncoder();
@@ -289,34 +303,31 @@ export class FdtdTMz implements RealtimeKernelExt {
   }
 
   overlay(): GPUBuffer {
+    this.live("overlay");
     return this.cls;
   }
 
   paint(op: PaintOp): void {
+    this.live("paint");
     const rows = rasterize(op, this.grid.nx, this.grid.ny, (c) => paintCell(this.mat, c, op.tool, op.value ?? 1));
     if (rows) this.uploadMaterials(rows[0], rows[1]);
   }
 
   /** Names: ez, hx, hy, view, probe (Ez history ring), cls. */
   async readback(name: string): Promise<Float32Array> {
+    this.live("readback");
     const N = this.grid.nx * this.grid.ny;
     await this.device.queue.onSubmittedWorkDone();
-    switch (name) {
-      case "ez":
-        return readF32(this.device, this.F, 0, N * 4);
-      case "hx":
-        return readF32(this.device, this.F, N * 4, N * 4);
-      case "hy":
-        return readF32(this.device, this.F, 2 * N * 4, N * 4);
-      case "view":
-        return readF32(this.device, this.viewBuf, 0, N * 4);
-      case "probe":
-        return readF32(this.device, this.hist, 0, FDTD_RECORD_CAP * 4);
-      case "cls":
-        return Float32Array.from(this.mat.cls);
-      default:
-        throw new Error(`fdtd: unknown readback ${name}`);
-    }
+    let out: Float32Array;
+    if (name === "ez") out = await readF32(this.device, this.F, 0, N * 4);
+    else if (name === "hx") out = await readF32(this.device, this.F, N * 4, N * 4);
+    else if (name === "hy") out = await readF32(this.device, this.F, 2 * N * 4, N * 4);
+    else if (name === "view") out = await readF32(this.device, this.viewBuf, 0, N * 4);
+    else if (name === "probe") out = await readF32(this.device, this.hist, 0, FDTD_RECORD_CAP * 4);
+    else if (name === "cls") out = Float32Array.from(this.mat.cls);
+    else throw new Error(`fdtd: unknown readback ${name}`);
+    this.live("readback");
+    return out;
   }
 
   info(): KernelInfo {
@@ -324,6 +335,7 @@ export class FdtdTMz implements RealtimeKernelExt {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.bufs?.destroy();
   }
 }

@@ -5,6 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>amp rt</title>
+<link rel="icon" href="data:,">
 <style>
   :root {
     --bg: #0d0f12; --panel: #14171b; --panel2: #1a1e23; --line: #272c33; --text: #cdd1d6; --dim: #7c838d;
@@ -46,9 +47,10 @@
   #main { grid-area: main; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--bg); }
   #wrap { position: relative; display: flex; align-items: stretch; gap: 10px; }
   #cv { display: block; border: 1px solid var(--line); border-radius: 0; cursor: crosshair; touch-action: none; }
-  #cbar { position: relative; width: 70px; font: 11px var(--mono); color: var(--dim); }
+  #cbar { position: relative; width: 124px; font: 11px var(--mono); color: var(--dim); }
   #cbar canvas { position: absolute; left: 0; top: 0; width: 14px; height: 100%; border: 1px solid var(--line); border-radius: 0; box-sizing: border-box; }
-  #cbar span { position: absolute; left: 20px; white-space: nowrap; }
+  #cbar > span { position: absolute; left: 20px; white-space: nowrap; }
+  #cbar .clip { color: var(--warn); margin-left: 6px; }
   #cbhi { top: -2px; }
   #cbmid { top: 50%; transform: translateY(-50%); }
   #cblo { bottom: -2px; }
@@ -57,8 +59,38 @@
   #tip { position: fixed; pointer-events: none; padding: 3px 6px; background: rgba(20,23,27,.94); border: 1px solid var(--line); border-radius: 0; font: 11px var(--mono); color: var(--text); display: none; white-space: pre; z-index: 5; }
   #foot { grid-area: foot; display: flex; gap: 16px; align-items: center; padding: 0 10px; background: var(--panel); border-top: 1px solid var(--line); font: 11px var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; }
   #err { color: var(--bad); }
+  input[type=checkbox] { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; margin: 0; border: 1px solid #3a414b; border-radius: 0; background: var(--bg); cursor: pointer; }
+  input[type=checkbox]:checked { background: var(--acc); box-shadow: inset 0 0 0 2px var(--bg); }
   [title] { cursor: help; }
   button[title], select[title], input[title] { cursor: pointer; }
+  /* phone layout (audit S3): one column, 16 px gutter, canvas width-limited at the exact nx:ny aspect,
+     horizontal colorbar, controls folded below; the page scrolls vertically only */
+  @media (max-width: 699px) {
+    html, body { height: auto; overflow-x: hidden; }
+    body { display: flex; flex-direction: column; overflow-y: auto; }
+    #top { flex-wrap: wrap; order: 0; }
+    #main { order: 1; }
+    #side { order: 2; }
+    #foot { order: 3; }
+    #top .brand { display: none; }
+    .tab { padding: 6px 12px; }
+    #top .ctl { padding: 4px 16px; border-right: 0; width: 100%; box-sizing: border-box; border-top: 1px solid var(--line); }
+    #status { margin-left: 0; width: 100%; box-sizing: border-box; flex-wrap: wrap; white-space: normal; gap: 4px 12px; padding: 4px 16px; border-top: 1px solid var(--line); }
+    #main { display: block; padding: 12px 16px 8px; }
+    #wrap { flex-direction: column; gap: 4px; }
+    #cbar { width: 100%; height: 44px; }
+    #cbar canvas { width: 100%; height: 14px; }
+    #cbar > span { top: 16px; left: auto; }
+    #cblo { left: 0 !important; bottom: auto; }
+    #cbmid { left: 50% !important; transform: translateX(-50%); }
+    #cbhi { right: 0; }
+    #cbu { top: 30px !important; bottom: auto; left: 0 !important; }
+    #hint { position: static; transform: none; margin-top: 6px; }
+    #side { border-right: 0; border-top: 1px solid var(--line); overflow: visible; }
+    .sec { padding: 6px 16px 8px; }
+    .row { grid-template-columns: 84px 1fr 70px; }
+    #foot { flex-wrap: wrap; white-space: normal; padding: 4px 16px; gap: 4px 12px; }
+  }
 </style>
 </head>
 <body>

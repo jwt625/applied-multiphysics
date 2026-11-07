@@ -3,7 +3,7 @@
 
 import type { Grid, PaintOp } from "../types.ts";
 import { rasterize } from "../paint.ts";
-import { CX, CY, OPP, W, geq, inletU, lbmDerive, lbmInitial, lbmMask, lbmParams, type LbmDerived } from "../kernels/lbm-common.ts";
+import { CX, CY, NO_LINK, OPP, W, geq, inletU, lbmBoundary, lbmDerive, lbmInitial, lbmMask, lbmParams, type LbmBoundary, type LbmDerived } from "../kernels/lbm-common.ts";
 
 export class LbmCpu {
   readonly grid: Grid;
@@ -15,6 +15,9 @@ export class LbmCpu {
   rho: Float64Array;
   ux: Float64Array;
   uy: Float64Array;
+  bnd: LbmBoundary;
+  /** momentum-exchange force per boundary cell from the last step (Fx, Fy interleaved) */
+  private fcell: Float64Array;
   steps = 0;
 
   constructor(params: Record<string, number>, grid: Grid) {
@@ -28,6 +31,8 @@ export class LbmCpu {
     this.rho = new Float64Array(N).fill(1);
     this.ux = new Float64Array(N);
     this.uy = new Float64Array(N);
+    this.bnd = lbmBoundary(this.p, grid, this.mask);
+    this.fcell = new Float64Array(2 * this.bnd.count);
   }
 
   setParams(p: Record<string, number>): void {
@@ -38,8 +43,11 @@ export class LbmCpu {
   paint(op: PaintOp): void {
     const v = op.tool === "erase" ? 0 : 2;
     rasterize(op, this.grid.nx, this.grid.ny, (c) => {
+      if (this.p.walls === 1 && (c < this.grid.nx || c >= (this.grid.ny - 1) * this.grid.nx)) return;
       this.mask[c] = v;
     });
+    this.bnd = lbmBoundary(this.p, this.grid, this.mask);
+    this.fcell = new Float64Array(2 * this.bnd.count);
   }
 
   step(n: number): void {
@@ -60,6 +68,8 @@ export class LbmCpu {
     const gn = this.gn;
     const mask = this.mask;
     const gi = new Float64Array(9);
+    const lidx = this.bnd.lidx;
+    const qtab = this.bnd.q;
     for (let y = 0; y < ny; y++)
       for (let x = 0; x < nx; x++) {
         const c = y * nx + x;
@@ -70,7 +80,10 @@ export class LbmCpu {
           this.uy[c] = 0;
           continue;
         }
-        // pull streaming with halfway bounce-back
+        // pull streaming: halfway bounce-back on walls, Bouzidi linear interpolation on obstacle links
+        const b = lidx[c]!;
+        let fxa = 0;
+        let fya = 0;
         for (let i = 0; i < 9; i++) {
           let sx = x - CX[i]!;
           let sy = y - CY[i]!;
@@ -78,7 +91,35 @@ export class LbmCpu {
           else sx = Math.min(nx - 1, Math.max(0, sx));
           sy = (sy + ny) % ny;
           const sc = sy * nx + sx;
-          gi[i] = mask[sc] !== 0 ? g[OPP[i]! * N + c]! : g[i * N + sc]!;
+          if (mask[sc] === 0) {
+            gi[i] = g[i * N + sc]!;
+            continue;
+          }
+          const o = OPP[i]!;
+          const go = g[o * N + c]!;
+          if (mask[sc] !== 2 || b === NO_LINK) {
+            gi[i] = go;
+            continue;
+          }
+          const q = qtab[b * 8 + i - 1]!;
+          let v: number;
+          if (q < 0.5) {
+            let fx2 = x + CX[i]!;
+            const fy2 = (y + CY[i]! + ny) % ny;
+            if (periodicX) fx2 = (fx2 + nx) % nx;
+            const ok = fx2 >= 0 && fx2 < nx && mask[fy2 * nx + fx2] === 0;
+            v = ok ? 2 * q * go + (1 - 2 * q) * g[o * N + fy2 * nx + fx2]! : go;
+          } else {
+            v = go / (2 * q) + ((2 * q - 1) / (2 * q)) * g[i * N + c]!;
+          }
+          gi[i] = v;
+          // momentum given to the obstacle: c_o (f*_o + f_i) with c_o = -c_i (full populations f = g + w)
+          fxa -= CX[i]! * (go + v + 2 * W[i]!);
+          fya -= CY[i]! * (go + v + 2 * W[i]!);
+        }
+        if (b !== NO_LINK) {
+          this.fcell[2 * b] = fxa;
+          this.fcell[2 * b + 1] = fya;
         }
         if (inlet && x === nx - 1) {
           // outlet: unknowns 3, 6, 7 from the post-collision state of the source cell (nx-1, y - c_y) with its
@@ -150,26 +191,14 @@ export class LbmCpu {
     this.steps++;
   }
 
-  /** Momentum-exchange force on obstacle cells (mask 2), lattice units, from the post-collision state. */
+  /** Momentum-exchange force on obstacles (mask 2) during the last step, lattice units. */
   force(): [number, number] {
-    const { nx, ny } = this.grid;
-    const N = nx * ny;
     let Fx = 0;
     let Fy = 0;
-    for (let y = 0; y < ny; y++)
-      for (let x = 0; x < nx; x++) {
-        const c = y * nx + x;
-        if (this.mask[c] !== 0) continue;
-        for (let k = 1; k < 9; k++) {
-          const tx = x + CX[k]!;
-          const ty = (y + CY[k]! + ny) % ny;
-          if (tx < 0 || tx >= nx) continue;
-          if (this.mask[ty * nx + tx] !== 2) continue;
-          const f = this.g[k * N + c]! + W[k]!;
-          Fx += 2 * f * CX[k]!;
-          Fy += 2 * f * CY[k]!;
-        }
-      }
+    for (let b = 0; b < this.bnd.count; b++) {
+      Fx += this.fcell[2 * b]!;
+      Fy += this.fcell[2 * b + 1]!;
+    }
     return [Fx, Fy];
   }
 }

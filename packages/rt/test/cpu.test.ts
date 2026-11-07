@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as G from "../src/gates.ts";
 import { rasterize } from "../src/paint.ts";
-import { lbmParams } from "../src/kernels/lbm-common.ts";
+import { dfgGrid, lbmBoundary, lbmMask, lbmParams } from "../src/kernels/lbm-common.ts";
 import { fdtdParams } from "../src/kernels/fdtd-common.ts";
 import { patternClass } from "../src/analysis.ts";
 
@@ -55,4 +55,17 @@ test("rasterize and parameter validation", () => {
   assert.equal(n, 13);
   assert.throws(() => lbmParams({ nope: 1 }));
   assert.throws(() => fdtdParams({ S: 0.8 }));
+});
+
+test("Bouzidi boundary table: every cylinder link has q in (0, 1], halfway (0.5) without Bouzidi", () => {
+  const { grid, params } = dfgGrid(20);
+  for (const bz of [1, 0]) {
+    const p = lbmParams({ ...params, bouzidi: bz });
+    const t = lbmBoundary(p, grid, lbmMask(p, grid));
+    assert.ok(t.count > 0);
+    const qs = Array.from(t.q).filter((q) => q > 0);
+    assert.ok(qs.every((q) => q > 0 && q <= 1));
+    if (bz === 0) assert.ok(qs.every((q) => q === 0.5));
+    else assert.ok(qs.some((q) => Math.abs(q - 0.5) > 0.1));
+  }
 });

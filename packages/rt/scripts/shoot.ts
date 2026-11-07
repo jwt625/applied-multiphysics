@@ -4,7 +4,7 @@
 // runs the in-browser bench and gates. Everything goes to logs/ with a timestamp; the server closes on exit.
 // Usage: node scripts/shoot.ts [--bench] [--gates] [--port 47613] [--no-shots]
 import { createServer, type Server } from "node:http";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -68,7 +68,7 @@ const browser = await chromium.launch({
 });
 const out: Record<string, unknown> = { at: new Date().toISOString(), chrome: browser.version(), url: base };
 try {
-  const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   const logs: string[] = [];
   page.on("console", (m) => logs.push(`${m.type()}: ${m.text()}`));
   page.on("pageerror", (e) => logs.push(`pageerror: ${e.message}`));
@@ -89,20 +89,73 @@ try {
   out.probe = first.probe;
   console.log("probe", JSON.stringify(first.probe));
   if (!args.includes("--no-shots") && (first.probe as { webgpu?: boolean } | undefined)?.webgpu) {
+    // audit S3: desktop 1440x900 and phone 390x844 per kernel; layout metrics checked; one composite PNG per kernel
+    const tmp = process.env.RT_SHOT_TMP ?? join(root, "logs", `.rt-shot-tmp-${stamp}`);
+    await mkdir(tmp, { recursive: true });
     const shots: Array<[string, string]> = [
       ["lbm", "k=lbm&autoplay=1&p.nD=40&p.Re=100&p.uMax=0.1&p.spf=200&frames=250"],
       ["fdtd", "k=fdtd&scene=1&autoplay=1&p.spf=4&frames=300"],
       ["gs", "k=gs&autoplay=1&p.spf=100&frames=100"],
     ];
+    const vps: Array<[string, number, number]> = [["desktop", 1440, 900], ["phone", 390, 844]];
     const files: Record<string, string> = {};
+    const metrics: Array<Record<string, unknown>> = [];
     for (const [name, q] of shots) {
-      const r = await run(q, 180_000);
-      const f = join(root, "logs", `rt-demo-${name}-${stamp}.png`);
-      await page.screenshot({ path: f });
-      files[name] = f;
-      console.log(name, "->", f, r.err ? `err: ${r.err}` : "");
+      const parts: string[] = [];
+      for (const [vp, w, h] of vps) {
+        await page.setViewportSize({ width: w, height: h });
+        const r = await run(q, 180_000);
+        const m = await page.evaluate(() => {
+          const cv = document.getElementById("cv") as HTMLCanvasElement;
+          const b = cv.getBoundingClientRect();
+          const w = window as unknown as { __rtGrid?: { nx: number; ny: number } };
+          return {
+            innerWidth: window.innerWidth,
+            scrollWidth: document.documentElement.scrollWidth,
+            canvasCss: [Math.round(b.width), Math.round(b.height)],
+            canvasLeft: Math.round(b.left),
+            grid: w.__rtGrid ?? null,
+          };
+        });
+        const g = m.grid as { nx: number; ny: number } | null;
+        const aspectErr = g ? (m.canvasCss[0]! / m.canvasCss[1]!) / (g.nx / g.ny) - 1 : NaN;
+        const ok = m.scrollWidth <= m.innerWidth && Math.abs(aspectErr) < 0.02 && (vp !== "phone" || m.canvasLeft >= 15);
+        metrics.push({ kernel: name, viewport: vp, ...m, aspectErr, ok, err: r.err });
+        const f = join(tmp, `${name}-${vp}.png`);
+        if (vp === "phone") {
+          // explicit viewport height = document height instead of fullPage stitching (stitching duplicated content)
+          const H = await page.evaluate(() => document.documentElement.scrollHeight);
+          await page.setViewportSize({ width: w, height: H });
+          await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))));
+          await page.waitForTimeout(300);
+        }
+        await page.screenshot({ path: f });
+        parts.push(f);
+        console.log(name, vp, JSON.stringify({ ...m, aspectErr: +aspectErr.toFixed(4), ok }), r.err ? `err: ${r.err}` : "");
+      }
+      // composite: desktop left, phone (full page) right, on one canvas
+      const imgs = await Promise.all(parts.map(async (f) => "data:image/png;base64," + (await readFile(f)).toString("base64")));
+      await page.goto("about:blank"); // stop the demo's frame loop before compositing (its DOM would be replaced)
+      await page.setViewportSize({ width: 1440 + 390 + 48, height: 900 });
+      await page.setContent(
+        `<html><body style="margin:0;background:#06070a;display:flex;gap:16px;padding:16px;align-items:flex-start">` +
+          `<img src="${imgs[0]}" style="width:1440px;display:block"><img src="${imgs[1]}" style="width:390px;display:block"></body></html>`,
+      );
+      const outPng = join(root, "logs", `rt-demo-${name}-${stamp}.png`);
+      await page.waitForFunction(() => Array.from(document.images).every((i) => i.complete));
+      const H = await page.evaluate(() => document.documentElement.scrollHeight);
+      await page.setViewportSize({ width: 1440 + 390 + 48, height: H });
+      // let Chrome repaint at the new size (without this the area beyond the old viewport repeated the top)
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))));
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: outPng });
+      files[name] = outPng;
+      for (const f of parts) await rm(f);
     }
+    await rm(tmp, { recursive: true, force: true });
     out.shots = files;
+    out.layout = metrics;
+    out.layoutOk = metrics.every((m) => m.ok === true);
   }
   if (args.includes("--bench")) {
     const r = await run("bench=1&sec=1.5", 300_000);

@@ -2,23 +2,45 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Signal and pattern analysis used by the eval gates (Node and browser).
 
-/** Upward zero crossings of (x - mean) after index `from`, linearly interpolated, in sample units. */
-export function upCrossings(x                   , from = 0, to = x.length)           {
+/**
+ * Upward zero crossings of (x - mean) after index `from`, linearly interpolated, in sample units.
+ * With hysteresis h > 0 (Schmitt trigger) a crossing is counted only after the signal has been below -h since the
+ * previous crossing, so small high-frequency noise cannot create extra crossings (audit follow-up 2026-11-06).
+ */
+export function upCrossings(x                   , from = 0, to = x.length, h = 0)           {
   let m = 0;
   for (let i = from; i < to; i++) m += x[i] ;
   m /= Math.max(1, to - from);
   const out           = [];
+  let armed = x[from]  - m < -h;
   for (let i = from + 1; i < to; i++) {
     const a = x[i - 1]  - m;
     const b = x[i]  - m;
-    if (a < 0 && b >= 0) out.push(i - 1 + a / (a - b));
+    if (b < -h) armed = true;
+    if (armed && a < 0 && b >= 0) {
+      out.push(i - 1 + a / (a - b));
+      armed = false;
+    }
   }
   return out;
 }
 
-/** Mean period (samples) from the last `periods` upward zero crossings; NaN if not enough crossings. */
-export function meanPeriod(x                   , from        , to        , periods        )         {
-  const c = upCrossings(x, from, to);
+/** RMS of (x - mean) over [from, to). */
+export function rms(x                   , from = 0, to = x.length)         {
+  let m = 0;
+  for (let i = from; i < to; i++) m += x[i] ;
+  m /= Math.max(1, to - from);
+  let s = 0;
+  for (let i = from; i < to; i++) s += (x[i]  - m) ** 2;
+  return Math.sqrt(s / Math.max(1, to - from));
+}
+
+/**
+ * Mean period (samples) from the last `periods` upward zero crossings in [from, to); NaN if not enough crossings.
+ * Hysteresis = hystFrac x RMS of the window (default 0.25).
+ */
+export function meanPeriod(x                   , from        , to        , periods        , hystFrac = 0.25)         {
+  const c = upCrossings(x, from, to, hystFrac * rms(x, from, to));
   if (c.length < periods + 1) return NaN;
   const a = c[c.length - 1 - periods] ;
   const b = c[c.length - 1] ;

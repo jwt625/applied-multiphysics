@@ -3,7 +3,7 @@
 // Arithmetic order mirrors cpu/grayscott.ts. DevLog-005.
 
 import type { Grid, KernelInfo, KernelView, PaintOp, RealtimeKernelExt, ViewSpec } from "../types.ts";
-import { BufferSet, groups, pipeline, readF32, write } from "../gpu.ts";
+import { BufferSet, checkDevice, groups, guardDevice, pipeline, readF32, scoped, write } from "../gpu.ts";
 import { gsInitial, gsParams } from "./grayscott-common.ts";
 
 export const GS_WGSL = `
@@ -53,9 +53,10 @@ const VIEWS: ViewSpec[] = [
 export class GrayScott implements RealtimeKernelExt {
   readonly id = "gray-scott";
   readonly fidelity = "realtime" as const;
-  grid: Grid = { nx: 0, ny: 0, dx: 1 };
+  grid: Grid = { nx: 0, ny: 0, dx: 1, lengthUnit: "model" };
   p: Record<string, number> = {};
   steps = 0;
+  private disposed = true;
   private device!: GPUDevice;
   private bufs!: BufferSet;
   private uv: GPUBuffer[] = [];
@@ -73,21 +74,25 @@ export class GrayScott implements RealtimeKernelExt {
   async init(device: GPUDevice, params: Record<string, number>, grid: Grid): Promise<void> {
     if (this.bufs) this.dispose();
     this.device = device;
-    this.grid = { ...grid };
+    guardDevice(device);
+    this.grid = { lengthUnit: "model", ...grid };
     this.p = gsParams(params);
     this.steps = 0;
     this.cur = 0;
     const N = grid.nx * grid.ny;
-    const b = (this.bufs = new BufferSet(device));
-    this.uv = [b.storage(2 * N * 4, "gs.A"), b.storage(2 * N * 4, "gs.B")];
-    this.viewBuf = b.storage(N * 4, "gs.view");
-    this.zeroOverlay = b.storage(N * 4, "gs.overlay");
-    this.prm = b.uniform(48, "gs.params");
-    this.qprm = b.uniform(48, "gs.paint");
-    write(device, this.uv[0]!, Float32Array.from(gsInitial(this.p, grid)));
-    this.uploadParams();
+    await scoped(device, "gs.init", () => {
+      const b = (this.bufs = new BufferSet(device));
+      this.uv = [b.storage(2 * N * 4, "gs.A"), b.storage(2 * N * 4, "gs.B")];
+      this.viewBuf = b.storage(N * 4, "gs.view");
+      this.zeroOverlay = b.storage(N * 4, "gs.overlay");
+      this.prm = b.uniform(48, "gs.params");
+      this.qprm = b.uniform(48, "gs.paint");
+      write(device, this.uv[0]!, Float32Array.from(gsInitial(this.p, grid)));
+      this.uploadParams();
+    });
     this.pipe = await pipeline(device, GS_WGSL, "gs.step");
     this.ppipe = await pipeline(device, GS_PAINT_WGSL, "gs.paint");
+    this.disposed = false;
     this.bg = [0, 1].map((k) =>
       device.createBindGroup({
         layout: this.pipe.getBindGroupLayout(0),
@@ -109,6 +114,11 @@ export class GrayScott implements RealtimeKernelExt {
     );
   }
 
+  private live(where: string): void {
+    if (this.disposed) throw new Error(`gray-scott.${where}: kernel not initialized or used after dispose()`);
+    checkDevice(this.device, `gray-scott.${where}`);
+  }
+
   private uploadParams(): void {
     const u = new ArrayBuffer(48);
     const ui = new Uint32Array(u);
@@ -126,6 +136,7 @@ export class GrayScott implements RealtimeKernelExt {
   }
 
   setParams(p: Record<string, number>): void {
+    this.live("setParams");
     this.p = gsParams({ ...this.p, ...p });
     this.uploadParams();
   }
@@ -141,6 +152,7 @@ export class GrayScott implements RealtimeKernelExt {
   }
 
   step(n: number): void {
+    this.live("step");
     const enc = this.device.createCommandEncoder();
     const pass = enc.beginComputePass();
     pass.setPipeline(this.pipe);
@@ -155,6 +167,7 @@ export class GrayScott implements RealtimeKernelExt {
   }
 
   view(): KernelView {
+    this.live("view");
     const N = this.grid.nx * this.grid.ny;
     const enc = this.device.createCommandEncoder();
     enc.copyBufferToBuffer(this.uv[this.cur]!, this.viewMode === 0 ? N * 4 : 0, this.viewBuf, 0, N * 4);
@@ -163,11 +176,13 @@ export class GrayScott implements RealtimeKernelExt {
   }
 
   overlay(): GPUBuffer {
+    this.live("overlay");
     return this.zeroOverlay;
   }
 
   /** Tools: seed (u 0.5, v 0.25) and erase (u 1, v 0); disc shape only. */
   paint(op: PaintOp): void {
+    this.live("paint");
     const [u, v] = op.tool === "erase" ? [1, 0] : [0.5, 0.25];
     const buf = new ArrayBuffer(48);
     const ui = new Uint32Array(buf);
@@ -191,12 +206,16 @@ export class GrayScott implements RealtimeKernelExt {
 
   /** Names: u, v, view. */
   async readback(name: string): Promise<Float32Array> {
+    this.live("readback");
     const N = this.grid.nx * this.grid.ny;
     await this.device.queue.onSubmittedWorkDone();
-    if (name === "u") return readF32(this.device, this.uv[this.cur]!, 0, N * 4);
-    if (name === "v") return readF32(this.device, this.uv[this.cur]!, N * 4, N * 4);
-    if (name === "view") return readF32(this.device, this.viewBuf, 0, N * 4);
-    throw new Error(`gray-scott: unknown readback ${name}`);
+    let out: Float32Array;
+    if (name === "u") out = await readF32(this.device, this.uv[this.cur]!, 0, N * 4);
+    else if (name === "v") out = await readF32(this.device, this.uv[this.cur]!, N * 4, N * 4);
+    else if (name === "view") out = await readF32(this.device, this.viewBuf, 0, N * 4);
+    else throw new Error(`gray-scott: unknown readback ${name}`);
+    this.live("readback");
+    return out;
   }
 
   info(): KernelInfo {
@@ -204,6 +223,7 @@ export class GrayScott implements RealtimeKernelExt {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.bufs?.destroy();
   }
 }

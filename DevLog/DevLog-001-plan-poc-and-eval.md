@@ -151,7 +151,7 @@ Wave 1 reuses existing solvers. Wave 2 needs new physics.
 | H10 | Natural convection in a heated box | heat + NS | CP-01 de Vahl Davis Nu | new | 2 |
 | H11 | Microheater on a Si waveguide: Joule heat, thermal stress, thermo-optic shift | currents + heat + elasticity + modes | CP-03/CP-05-style gates; CP-09 proposed | EO + APA chain | 2 |
 | H12 | Turing patterns (Gray-Scott), live on the GPU | WebGPU reaction-diffusion | TR-03 The Well VRMSE | new rt | 2 |
-| H13 | Wave tank / antenna, live | WebGPU FDTD | RF-04 dipole trend; AC-01 duct | new rt (volna/webantenna MIT as reference) | 2 |
+| H13 | Wave tank / antenna, live | WebGPU FDTD | Changed 2026-11-06 (L6): Yee dispersion vs analytic, CPML reflection, PEC cavity TM11 vs analytic, in place of the RF-04 trend / AC-01 duct gates originally planned | new rt (volna/webantenna MIT as reference) | 2 |
 
 ## 9. Workstreams and lanes (proposed)
 
@@ -203,6 +203,7 @@ Q1 engine home, Q2 language, Q3 hero scope / real-time tier, Q4 geometry scope f
 - [ ] Fresh-context audit after each wave-1 lane hand-off (done: L1, L2, L7a; running: L3, L6, L7b, L7c; queued: L8)
 - [ ] RF-04 (dipole): the 3 % conductance gate rests on L7a's own Hallen moment-method solver, which no published finite-radius table has checked. Set it to `gate: false` until it is cross-checked against a published table (e.g. King's), or against an open MoM code such as NEC-2 run via uv where feasible.
 - [ ] Self-generated references must be cross-checked before they gate: RF-04 (L7a Hallen MoM), WO-04 / WO-61 (L7c plane-wave solver must reproduce MPB at MPB's own tutorial resolution to MPB's printed digits), SC-02 (float128 DEVSIM, same code as the golden: acceptable, since it is the same solver tightened). Until then these targets are `gate: false`, or carry a recorded cross-check.
+- [ ] Wentao review: L6 narrowed the H9 Strouhal gate scope after seeing failures (DevLog-005 s.10.2). The gate is now TRT only, D >= 20, u_max >= 0.025, because BGK diverges at tau 0.54 and a noisy low-u_max signal gave spurious zero crossings; hysteresis was added to the St estimator. Rationale: domain of validity, not tuning to a target. Disclosed; to confirm or reject.
 - [ ] Contracts v1 pass at the end of wave 1: C2 facet blocks, `tagHash`, L3's optional fields into `@amp/spec`, affine units (`degC`, `lbf`), `prepareRun`/`sample` in the C4/C5 text.
 - [ ] Fresh-context audit of the research reports R3-R5 (unaudited at hand-off)
 - [ ] Fresh-context audit of this plan

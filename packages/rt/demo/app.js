@@ -10,6 +10,9 @@ import {
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
+function esc(t) {
+  return String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+}
 const fmt = (v) => {
   if (!Number.isFinite(v)) return String(v);
   const a = Math.abs(v);
@@ -74,7 +77,7 @@ const DEFS = {
     value: { label: "eps_r", min: 1, max: 12, step: 0.1, value: 4, tip: "Relative permittivity for the dielectric tool" },
     presets: [
       ["point source", { scene: 0 }, "Point source in free space"],
-      ["double slit", { scene: 1 }, "Plane wave through two slits in a PEC screen"],
+      ["double slit", { scene: 1 }, "Plane wave through two 36 mm slits, 90 mm apart, in a PEC screen (1.2 and 3 lambda0 at 10 GHz)"],
       ["dielectric lens", { scene: 2 }, "Point source behind a dielectric disc (eps_r 4)"],
       ["parallel plate", { scene: 3 }, "Line source between two PEC plates"],
     ],
@@ -84,11 +87,13 @@ const DEFS = {
       const { nx, ny } = FDTD_GRID;
       if (scene === 1) {
         await k.init(device, { ...base, srcX: 60, srcLine: 1 }, FDTD_GRID);
+        // two 36-cell openings (1.2 lambda0 at 10 GHz, dx 1 mm), centres 90 cells (3 lambda0) apart (audit M1)
         const x = 220;
         const w = 6;
-        k.paint({ tool: "pec", shape: "rect", x0: x, y0: 0, x1: x + w, y1: ny / 2 - 40 });
-        k.paint({ tool: "pec", shape: "rect", x0: x, y0: ny / 2 - 25, x1: x + w, y1: ny / 2 + 25 });
-        k.paint({ tool: "pec", shape: "rect", x0: x, y0: ny / 2 + 40, x1: x + w, y1: ny });
+        const c = ny / 2;
+        k.paint({ tool: "pec", shape: "rect", x0: x, y0: 0, x1: x + w, y1: c - 64 });
+        k.paint({ tool: "pec", shape: "rect", x0: x, y0: c - 26, x1: x + w, y1: c + 26 });
+        k.paint({ tool: "pec", shape: "rect", x0: x, y0: c + 64, x1: x + w, y1: ny });
       } else if (scene === 2) {
         await k.init(device, { ...base, srcX: 140, srcY: ny / 2 }, FDTD_GRID);
         k.paint({ tool: "dielectric", shape: "disc", x0: 230, y0: ny / 2, r: 55, value: 4 });
@@ -129,7 +134,7 @@ const DEFS = {
       return k;
     },
     live(k, P) { k.setParams({ f: P.f, k: P.k }); },
-    phys(k, i, j) { return [i * k.grid.dx, j * k.grid.dx, ""]; },
+    phys(k, i, j) { return [i * k.grid.dx, j * k.grid.dx, k.grid.lengthUnit === "model" ? "model units" : "m"]; },
     dt(k) { return k.p.dt; },
     info(k) {
       const dn = (Math.max(k.p.Du, k.p.Dv) * k.p.dt) / (k.grid.dx * k.grid.dx);
@@ -285,37 +290,53 @@ function setRange(lo, hi) {
   S.dirty = true;
 }
 
+const isPhone = () => window.matchMedia("(max-width: 699px)").matches;
+
 function drawColorbar() {
   const c = $("cbc");
+  const horiz = isPhone();
+  if (c.width !== (horiz ? 256 : 1)) {
+    c.width = horiz ? 256 : 1;
+    c.height = horiz ? 1 : 256;
+  }
   const ctx = c.getContext("2d");
-  for (let y = 0; y < 256; y++) {
-    ctx.fillStyle = colormapCSS(S.map ?? "viridis", 1 - y / 255);
-    ctx.fillRect(0, y, 1, 1);
+  for (let k = 0; k < 256; k++) {
+    ctx.fillStyle = colormapCSS(S.map ?? "viridis", horiz ? k / 255 : 1 - k / 255);
+    if (horiz) ctx.fillRect(k, 0, 1, 1);
+    else ctx.fillRect(0, k, 1, 1);
   }
   const lo = S.renderer.lo;
   const hi = S.renderer.hi;
-  $("cbhi").textContent = fmt(hi);
+  const pct = (f) => (f > 0 ? `<span class="clip" title="fraction of cells beyond this limit (drawn clipped)">${f >= 0.001 ? (100 * f).toFixed(1) : "<0.1"}% clip</span>` : "");
+  $("cbhi").innerHTML = esc(fmt(hi)) + pct(S.clipHi ?? 0);
   $("cbmid").textContent = fmt(0.5 * (lo + hi));
-  $("cblo").textContent = fmt(lo);
+  $("cblo").innerHTML = esc(fmt(lo)) + pct(S.clipLo ?? 0);
   const spec = S.k.views().find((v) => v.id === $("view").value);
-  $("cbu").textContent = spec ? spec.unit : "";
+  $("cbu").textContent = spec ? `[${spec.unit}]` : "";
 }
 
 function layout() {
   const main = $("main");
   const cv = $("cv");
   const { nx, ny } = S.k.grid;
-  const W = main.clientWidth - 90;
-  const H = main.clientHeight - 44;
-  const s = Math.min(W / nx, H / ny);
-  const cw = Math.max(64, Math.floor(nx * s));
-  const ch = Math.max(64, Math.floor(ny * s));
+  // one scale for both axes: the canvas keeps the physical nx:ny aspect exactly (audit S3)
+  let s;
+  if (isPhone()) {
+    s = (document.documentElement.clientWidth - 32) / nx;
+  } else {
+    s = Math.min((main.clientWidth - 144) / nx, (main.clientHeight - 44) / ny);
+  }
+  s = Math.max(s, 1e-3);
+  const cw = Math.max(1, Math.round(nx * s));
+  const ch = Math.max(1, Math.round(ny * s));
   cv.style.width = cw + "px";
   cv.style.height = ch + "px";
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.round(cw * dpr);
   cv.height = Math.round(ch * dpr);
-  $("cbar").style.height = ch + "px";
+  $("cbar").style.height = isPhone() ? "" : ch + "px";
+  $("cbar").style.width = isPhone() ? cw + "px" : "";
+  drawColorbar();
   S.dirty = true;
 }
 
@@ -334,7 +355,9 @@ async function rebuild() {
   S.k?.dispose();
   S.k = null;
   S.k = await def.make(S.device, S.P, S.scene);
-  S.renderer.bind(S.k.view().buffer, S.k.overlay(), S.k.grid.nx, S.k.grid.ny, def.style);
+  S.viewBuf = S.k.view().buffer;
+  window.__rtGrid = { nx: S.k.grid.nx, ny: S.k.grid.ny };
+  S.renderer.bind(S.viewBuf, S.k.overlay(), S.k.grid.nx, S.k.grid.ny, def.style);
   $("auto").checked = def.autoRange;
   buildViews();
   layout();
@@ -447,7 +470,7 @@ function hover(ev) {
   hoverBusy = true;
   hoverBuf ??= S.device.createBuffer({ size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
   const enc = S.device.createCommandEncoder();
-  enc.copyBufferToBuffer(S.k.view().buffer, (j * nx + i) * 4, hoverBuf, 0, 4);
+  enc.copyBufferToBuffer(S.viewBuf, (j * nx + i) * 4, hoverBuf, 0, 4);
   S.device.queue.submit([enc.finish()]);
   const [x, y, u] = DEFS[S.kind].phys(S.k, i, j);
   hoverBuf.mapAsync(GPUMapMode.READ).then(() => {
@@ -479,6 +502,13 @@ async function healthAndRange() {
       if (i % stride === 0) sample.push(Math.abs(v[i]));
     }
     sample.sort((a, b) => a - b);
+    let over = 0;
+    let under = 0;
+    const lo0 = S.renderer.lo;
+    const hi0 = S.renderer.hi;
+    if (!bad) for (let i = 0; i < v.length; i++) { if (v[i] > hi0) over++; else if (v[i] < lo0) under++; }
+    S.clipHi = over / v.length;
+    S.clipLo = under / v.length;
     const m = sample.length ? sample[Math.floor(0.99 * (sample.length - 1))] : 0;
     if (bad) {
       S.running = false;
@@ -489,7 +519,11 @@ async function healthAndRange() {
     if ($("auto").checked && m > 0) {
       if (S.map === "balance") setRange(-m, m);
       else setRange(0, m);
-    }
+    } else drawColorbar();
+  } catch (e) {
+    $("err").textContent = String(e && e.message ? e.message : e);
+    S.running = false;
+    $("run").textContent = "Run";
   } finally {
     S.busy = false;
   }
@@ -499,10 +533,23 @@ let readyAt = Number(qs.get("frames") ?? 0);
 function frame() {
   const now = performance.now();
   if (S.k) {
-    if (S.running) {
+    if (S.running && (S.inflight ?? 0) < 2) {
+      // GPU back-pressure (audit M10): at most two step batches in flight (keeps the GPU fed, bounds the queue);
+      // steps/s counts completed steps
       const n = Math.max(1, Math.round(S.P.spf ?? 1));
-      S.k.step(n);
-      S.stepsWin += n;
+      const k = S.k;
+      try {
+        k.step(n);
+      } catch (e) {
+        S.running = false;
+        $("run").textContent = "Run";
+        $("err").textContent = String(e && e.message ? e.message : e);
+      }
+      S.inflight = (S.inflight ?? 0) + 1;
+      S.device.queue.onSubmittedWorkDone().then(() => {
+        S.inflight -= 1;
+        if (k === S.k) S.stepsWin += n;
+      });
       S.dirty = true;
       if (S.frame % 15 === 0) healthAndRange();
     }
@@ -558,7 +605,6 @@ const LIMIT_LABEL = {
   maxComputeWorkgroupSizeX: "wgSizeX", maxComputeInvocationsPerWorkgroup: "invoc/wg", maxComputeWorkgroupsPerDimension: "wg/dim",
   maxTextureDimension2D: "tex2D", minUniformBufferOffsetAlignment: "uniformAlign",
 };
-const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const bytes = (v) => (v >= 2 ** 30 ? `${(v / 2 ** 30).toFixed(2)} GiB` : v >= 2 ** 20 ? `${(v / 2 ** 20).toFixed(0)} MiB` : String(v));
 
 function showProbe(p) {
@@ -650,7 +696,7 @@ async function main() {
   window.addEventListener("keydown", (e) => {
     if (e.code === "Space" && !(e.target instanceof HTMLInputElement)) { e.preventDefault(); $("run").click(); }
   });
-  window.addEventListener("resize", layout);
+  window.addEventListener("resize", () => { if (S.k) layout(); });
   bindCanvas();
 
   S.P = paramsFor(S.kind, true);

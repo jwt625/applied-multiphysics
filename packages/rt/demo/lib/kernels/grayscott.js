@@ -4,7 +4,7 @@
 // Arithmetic order mirrors cpu/grayscott.ts. DevLog-005.
 
                                                                                                       
-import { BufferSet, groups, pipeline, readF32, write } from "../gpu.js";
+import { BufferSet, checkDevice, groups, guardDevice, pipeline, readF32, scoped, write } from "../gpu.js";
 import { gsInitial, gsParams } from "./grayscott-common.js";
 
 export const GS_WGSL = `
@@ -54,9 +54,10 @@ const VIEWS             = [
 export class GrayScott                              {
            id = "gray-scott";
            fidelity = "realtime"         ;
-  grid       = { nx: 0, ny: 0, dx: 1 };
+  grid       = { nx: 0, ny: 0, dx: 1, lengthUnit: "model" };
   p                         = {};
   steps = 0;
+          disposed = true;
           device            ;
           bufs            ;
           uv              = [];
@@ -74,21 +75,25 @@ export class GrayScott                              {
   async init(device           , params                        , grid      )                {
     if (this.bufs) this.dispose();
     this.device = device;
-    this.grid = { ...grid };
+    guardDevice(device);
+    this.grid = { lengthUnit: "model", ...grid };
     this.p = gsParams(params);
     this.steps = 0;
     this.cur = 0;
     const N = grid.nx * grid.ny;
-    const b = (this.bufs = new BufferSet(device));
-    this.uv = [b.storage(2 * N * 4, "gs.A"), b.storage(2 * N * 4, "gs.B")];
-    this.viewBuf = b.storage(N * 4, "gs.view");
-    this.zeroOverlay = b.storage(N * 4, "gs.overlay");
-    this.prm = b.uniform(48, "gs.params");
-    this.qprm = b.uniform(48, "gs.paint");
-    write(device, this.uv[0] , Float32Array.from(gsInitial(this.p, grid)));
-    this.uploadParams();
+    await scoped(device, "gs.init", () => {
+      const b = (this.bufs = new BufferSet(device));
+      this.uv = [b.storage(2 * N * 4, "gs.A"), b.storage(2 * N * 4, "gs.B")];
+      this.viewBuf = b.storage(N * 4, "gs.view");
+      this.zeroOverlay = b.storage(N * 4, "gs.overlay");
+      this.prm = b.uniform(48, "gs.params");
+      this.qprm = b.uniform(48, "gs.paint");
+      write(device, this.uv[0] , Float32Array.from(gsInitial(this.p, grid)));
+      this.uploadParams();
+    });
     this.pipe = await pipeline(device, GS_WGSL, "gs.step");
     this.ppipe = await pipeline(device, GS_PAINT_WGSL, "gs.paint");
+    this.disposed = false;
     this.bg = [0, 1].map((k) =>
       device.createBindGroup({
         layout: this.pipe.getBindGroupLayout(0),
@@ -110,6 +115,11 @@ export class GrayScott                              {
     );
   }
 
+          live(where        )       {
+    if (this.disposed) throw new Error(`gray-scott.${where}: kernel not initialized or used after dispose()`);
+    checkDevice(this.device, `gray-scott.${where}`);
+  }
+
           uploadParams()       {
     const u = new ArrayBuffer(48);
     const ui = new Uint32Array(u);
@@ -127,6 +137,7 @@ export class GrayScott                              {
   }
 
   setParams(p                        )       {
+    this.live("setParams");
     this.p = gsParams({ ...this.p, ...p });
     this.uploadParams();
   }
@@ -142,6 +153,7 @@ export class GrayScott                              {
   }
 
   step(n        )       {
+    this.live("step");
     const enc = this.device.createCommandEncoder();
     const pass = enc.beginComputePass();
     pass.setPipeline(this.pipe);
@@ -156,6 +168,7 @@ export class GrayScott                              {
   }
 
   view()             {
+    this.live("view");
     const N = this.grid.nx * this.grid.ny;
     const enc = this.device.createCommandEncoder();
     enc.copyBufferToBuffer(this.uv[this.cur] , this.viewMode === 0 ? N * 4 : 0, this.viewBuf, 0, N * 4);
@@ -164,11 +177,13 @@ export class GrayScott                              {
   }
 
   overlay()            {
+    this.live("overlay");
     return this.zeroOverlay;
   }
 
   /** Tools: seed (u 0.5, v 0.25) and erase (u 1, v 0); disc shape only. */
   paint(op         )       {
+    this.live("paint");
     const [u, v] = op.tool === "erase" ? [1, 0] : [0.5, 0.25];
     const buf = new ArrayBuffer(48);
     const ui = new Uint32Array(buf);
@@ -192,12 +207,16 @@ export class GrayScott                              {
 
   /** Names: u, v, view. */
   async readback(name        )                        {
+    this.live("readback");
     const N = this.grid.nx * this.grid.ny;
     await this.device.queue.onSubmittedWorkDone();
-    if (name === "u") return readF32(this.device, this.uv[this.cur] , 0, N * 4);
-    if (name === "v") return readF32(this.device, this.uv[this.cur] , N * 4, N * 4);
-    if (name === "view") return readF32(this.device, this.viewBuf, 0, N * 4);
-    throw new Error(`gray-scott: unknown readback ${name}`);
+    let out              ;
+    if (name === "u") out = await readF32(this.device, this.uv[this.cur] , 0, N * 4);
+    else if (name === "v") out = await readF32(this.device, this.uv[this.cur] , N * 4, N * 4);
+    else if (name === "view") out = await readF32(this.device, this.viewBuf, 0, N * 4);
+    else throw new Error(`gray-scott: unknown readback ${name}`);
+    this.live("readback");
+    return out;
   }
 
   info()             {
@@ -205,6 +224,7 @@ export class GrayScott                              {
   }
 
   dispose()       {
+    this.disposed = true;
     this.bufs?.destroy();
   }
 }

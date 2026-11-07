@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-11-06 |
-| Status | Done for wave 1: three kernels, CPU references, gates passing, demo page verified in headless Chrome; open items in section 9 |
+| Status | Done for wave 1, audit corrections applied (s.10, 2026-11-06 16:39 PST): `pnpm run gates` exit 0 (44 pass, 0 fail, 22 report-only); open items in s.9 |
 | Lane | L6 (wave 1) |
 | Owns | `packages/rt/**`, this file |
 | Plan refs | DevLog-001 A9 (two-tier engine), heroes H9 / H12 / H13, performance targets, section 6 guidelines; CONTRACTS-v0 C1, C5, C9; R4 s.1, 4, 5, 6; R5 s.2; R3 FL-04, TR-03 |
@@ -15,7 +15,7 @@ Three explicit WebGPU (WGSL) kernels behind the C9 `RealtimeKernel` interface. E
 
 | Kernel | Hero | Method | Gates |
 |---|---|---|---|
-| `lbm-d2q9` | H9 (real-time tier) | D2Q9, TRT collision, pull streaming, halfway bounce-back, Zou-He velocity inlet, non-equilibrium-extrapolation outlet at rho = 1, Guo forcing, momentum-exchange force | Poiseuille L2 + convergence; St at Re 100 in DFG 2D-2 vs 0.295-0.305; GPU vs CPU |
+| `lbm-d2q9` | H9 (real-time tier) | D2Q9, TRT collision, pull streaming, halfway bounce-back on walls, Bouzidi interpolated bounce-back on obstacles (s.10), Zou-He velocity inlet, non-equilibrium-extrapolation outlet at rho = 1, Guo forcing, momentum-exchange force | Poiseuille L2 + convergence; St at Re 100 in DFG 2D-2 vs 0.295-0.305; GPU vs CPU |
 | `fdtd-tmz` | H13 | 2D Yee TMz (Ez, Hx, Hy); CPML (Roden-Gedney); PEC mask; eps_r map; point and line soft sources; PEC, CPML or periodic per axis | Yee dispersion relation; CPML normal-incidence reflection < -40 dB; PEC square cavity TM11 vs analytic; GPU vs CPU |
 | `gray-scott` | H12 | Explicit Euler, 5-point Laplacian, periodic | GPU vs CPU after N steps to f32 tolerance; pattern class for 2 (f, k) sets of The Well |
 
@@ -26,7 +26,7 @@ Three explicit WebGPU (WGSL) kernels behind the C9 `RealtimeKernel` interface. E
 | L6-1 | **TRT, not BGK**, with magic parameter Lambda = 3/16. BGK is kept as an option (`collision: 0`) for comparison | With halfway bounce-back, TRT at Lambda = 3/16 places the wall exactly midway for Poiseuille flow, independent of viscosity (Ginzburg and d'Humieres). The BGK wall location drifts with tau. Measured: TRT is exact to 1e-13 in f64, while BGK shows a second-order error (gate 1). TRT is also more robust near tau = 0.5, which a Re slider reaches (tau 0.52 at D = 10 runs stably). Cost: one extra relaxation term per population |
 | L6-2 | Populations stored as deviations `g_i = f_i - w_i` (rho0 = 1), in f32 | Reduces f32 round-off in the density sum (standard practice for single-precision LBM). WGSL has no f64 (R4 s.1.2) |
 | L6-3 | Fused pull-stream-collide, two ping-pong storage buffers, WGSL generated with the 9 directions unrolled | One dispatch per step; no atomics; no dynamic indexing of constant arrays in the hot loop |
-| L6-3b | **Outlet: non-equilibrium extrapolation at rho = 1** (unknowns 3, 6, 7 = equilibrium(1, u_s) + non-equilibrium part of the source cell). Replaces the two outlets tried first | Measured 2026-11-06. (a) Zero-gradient outlet: mean density drifted +6.9 % over 36k steps (mass gain), and c_D was inflated. (b) Zou-He pressure outlet: diverged at D = 10 and raised c_D. (c) This outlet: outlet rho = 1.0000, mean rho stable within 0.2 %, all D stable |
+| L6-3b | **Outlet: non-equilibrium extrapolation at rho = 1, a variant of Guo et al. 2002 (Chinese Physics 11, 366).** Only the unknowns 3, 6, 7 are replaced: equilibrium(rho = 1, u_s) + the post-collision non-equilibrium part of the outlet-column source cell along the link (x = nx-1, y - c_y), not the textbook x = nx-2 neighbour. The audit's independent textbook-NEE code gave the same St to 7e-5 and forces to 0.4 % (audit s.2). Replaces the two outlets tried first | Measured 2026-11-06. (a) Zero-gradient outlet: mean density drifted +6.9 % over 36k steps (mass gain), and c_D was inflated. (b) Zou-He pressure outlet: diverged at D = 10 and raised c_D. (c) This outlet: outlet rho = 1.0000, mean rho stable within 0.2 %, all D stable |
 | L6-4 | FDTD in normalized units: H' = eta0 H, Courant number S = c0 dt / dx (default 0.5) as a parameter; SI in the UI (dx in m, f in Hz, t in s) | Identical update coefficients on CPU and GPU; SI via dx and c0 (an SI-defined constant) |
 | L6-5 | CPML with full-size psi arrays and 1D b/c/kappa arrays per axis; polynomial grading m = 3; sigma_max = 0.8 (m + 1) / (eta0 dx); kappa_max and alpha_max are parameters (defaults 1 and 0) | Branch-free GPU indexing; formulas from Roden and Gedney 2000 / Taflove-Hagness ch. 7 |
 | L6-6 | Gray-Scott in The Well form and units (dt 1, Du 2e-5, Dv 1e-5, dx = 2 / 128); explicit Euler, 5-point Laplacian | Diffusion number Du dt / dx^2 = 0.0819 < 0.25, so dt 1 is stable. The Well's generator is spectral ETDRK4, so a pointwise match to its stored fields is not expected; the gate is pattern class |
@@ -124,7 +124,7 @@ Three explicit WebGPU (WGSL) kernels behind the C9 `RealtimeKernel` interface. E
 
 ## 6. Results
 
-Platform:
+Platform (pre-audit runs; post-audit numbers in s.10):
 - Apple M4 Pro, macOS 15.5. Node 23.7.0 + `webgpu@0.6.2` (Dawn, Metal). Headless Chrome 156.0.8078.80 (WebGPU, Metal).
 - Seven other lanes shared the machine during these runs, so the throughput numbers are lower bounds for an idle machine.
 - Sources: `logs/rt-gates-20261106T234652Z.json` (Node) and `logs/rt-chrome-20261106T234808Z.json` (Chrome).
@@ -156,7 +156,7 @@ Gate 1b, velocity inlet + rho = 1 outlet, profile at mid-length (TRT, tau 0.8, G
 - delta rho scales with the pressure drop, i.e. with u_max L / H^2.
 - The profile shape matches the parabola to 3e-4. The inlet/outlet BCs are therefore not the error source.
 
-Gate 2, DFG 2D-2, Re 100 (GPU, t_end 12 s):
+Gate 2, DFG 2D-2, Re 100 (GPU, t_end 12 s). **Pre-audit table: halfway bounce-back and zero crossings without hysteresis. Superseded by s.10.3**, which also uses the FEATFLOW 2014 references:
 
 | D [cells] | grid | u_max | Mach | tau | collision | St | St (previous 10 periods) | c_D,max | c_L,max | steps | wall [s] | pass |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -255,7 +255,7 @@ Chrome: same classes.
 | Gray-Scott | 2048^2 | 3172 | 13303 | 3385 | 14196 | 96.0 |
 
 Notes:
-- [est] The small-grid figures (for example LBM 4.8 GLUPS at 512 x 256, 12.8 MiB) imply about 400 GB/s at 84 bytes/cell/step. That exceeds DRAM bandwidth, so the working set is presumably served from the on-chip cache. The large-grid figures (about 2.4 GLUPS, about 200 GB/s) are the bandwidth-bound numbers to plan with.
+- [est] Traffic per LBM cell and step is 88 B (9 x 4 B read + 9 x 4 B written + 4 B mask + 12 B macroscopic fields; audit M9). The small-grid figure (4.8 GLUPS at 512 x 256, 12.8 MiB) implies about 425 GB/s, above the M4 Pro's 273 GB/s unified memory bandwidth (Apple newsroom 2024-10-30, https://www.apple.com/vn/newsroom/2024/10/apple-introduces-m4-pro-and-m4-max/, accessed 2026-11-06), so that working set is presumably served from on-chip cache. The large-grid figure (2.4 GLUPS, about 211 GB/s, 77 % of 273 GB/s) is the bandwidth-bound number to plan with.
 - Interactive demo, headless Chrome at 1600 x 900, 60 fps:
   - LBM 881 x 166: 200 steps/frame = 11.9k steps/s, 1.74 GLUPS.
   - FDTD 640 x 400: 4 steps/frame by default (the user sets it).
@@ -278,7 +278,7 @@ Notes:
 - Share link: URL holds the kernel and parameters. Painted geometry is not encoded.
 - Calm start: paused until Run, Space or a draw action.
 - URL flags for automation: `autoplay`, `frames`, `scene`, `bench=1`, `gates=1`.
-- Screenshots (kept): `logs/rt-demo-lbm-20261106T234858Z.png` (vortex street, D 40), `logs/rt-demo-fdtd-20261106T234858Z.png` (double slit, 10 GHz), `logs/rt-demo-gs-20261106T234858Z.png` (Spots, t 9300).
+- Screenshots (kept, post-audit composites: 1440x900 left, 390x844 full page right): `logs/rt-demo-lbm-20261107T003810Z.png` (vortex street, D 40), `logs/rt-demo-fdtd-20261107T003810Z.png` (double slit, 36 mm slits 90 mm apart, 10 GHz), `logs/rt-demo-gs-20261107T003810Z.png` (Spots).
 - Harness: `scripts/shoot.ts`:
   - serves `demo/` from an in-process server on 127.0.0.1:47613 (checked free with `lsof` before each run; the server closes on exit; the port was confirmed free afterwards);
   - sends COOP/COEP headers;
@@ -311,7 +311,7 @@ Notes:
 - MIT references, consulted for algorithm structure only (R4 s.4); no code copied: LennartPaduch/WebLBM (D2Q9 on WebGPU), tomipiriyev/volna and vkopitsa/webantenna (WebGPU FDTD), ylfeid/wavefront (no-build WebGPU ES modules), robert-leitl/webgpu-reaction-diffusion. Unlicensed repos were not used.
 - Algorithms:
   - Yee 1966; Roden and Gedney 2000 (CPML); Taflove and Hagness, Computational Electrodynamics, 3rd ed., ch. 4 (dispersion) and ch. 7 (CPML).
-  - Ginzburg and d'Humieres (TRT, Lambda = 3/16); Zou and He 1997 (velocity BC); Guo, Zheng and Shi 2002 (forcing; non-equilibrium extrapolation); Ladd 1994 (momentum exchange).
+  - Ginzburg and d'Humieres (TRT, Lambda = 3/16); Zou and He 1997 (velocity BC); Guo, Zheng and Shi 2002, Phys. Rev. E 65, 046308 (forcing); Guo, Zheng and Shi 2002, Chinese Physics 11, 366 (non-equilibrium extrapolation boundary); Bouzidi, Firdaouss and Lallemand 2001, Phys. Fluids 13, 3452 (interpolated bounce-back); Ladd 1994 (momentum exchange).
   - Pearson 1993 (Gray-Scott patterns).
   - The references are cited from knowledge of the standard literature; their pages were not re-fetched in this lane.
 
@@ -322,8 +322,8 @@ State: all 8 gate groups pass in Node (Dawn) and in headless Chrome. `pnpm --fil
 How to run (from `packages/rt`):
 
 ```
-pnpm test            # CPU gates + GPU gates (skip without adapter) + emit freshness
-pnpm run gates       # full gate suite -> logs/rt-gates-<ts>.json (about 60 s)
+pnpm test            # CPU gates + GPU gates + emit freshness; no GPU = failure unless AMP_RT_ALLOW_NO_GPU=1
+pnpm run gates       # full gate suite -> logs/rt-gates-<ts>.json (about 5 min); exit 0 pass, 1 error / no GPU, 2 gate missed; --cpu-only, --quick
 pnpm run bench       # Node Dawn throughput -> logs/rt-bench-node-<ts>.json
 pnpm run emit        # after editing src/: regenerate demo/lib
 pnpm run shoot       # headless Chrome: screenshots + bench + gates -> logs/rt-chrome-<ts>.json, logs/rt-demo-*.png
@@ -333,11 +333,191 @@ Open items:
 
 | # | Item | Why |
 |---|---|---|
-| O1 | Interpolated bounce-back (Bouzidi) for curved obstacles, plus a lower-Mach default for the DFG gate run | c_D,max is +5.9 % and c_L,max +12 % vs FEATFLOW at D = 60; FL-04 force bounds would fail |
+| O1 | Done (s.10.3): Bouzidi bounce-back. Remaining: the force error is Mach-limited (+1.0 % c_D,max, +1.1 % c_L,max at D 40, u_max 0.025); a lower-Mach, higher-D run needs tau > 0.52 for stability, which means a larger grid (for example D 80 at u_max 0.025, about 2.3 M steps x 0.58 M cells, about 9 min GPU) | The realtime tier does not meet the FL-04 FEM tolerances (about 1e-3), as expected |
 | O2 | The CPML gate covers normal incidence only. Add an oblique / point-source reflection map and kappa/alpha tuning for evanescent waves | Antenna near fields |
 | O3 | TR-03 VRMSE vs stored The Well frames | Needs the dataset frames from L7c's cache; the explicit Euler + 5-point scheme differs from ETDRK4 spectral, so expect drift (R3) |
 | O4 | The share URL does not encode painted geometry | Needs a spec-level obstacle list (C3 / L2) |
 | O5 | f16 storage for LBM populations (`shader-f16` is available on this adapter) | About 2x bandwidth; needs an accuracy gate first |
 | O6 | Split-step BPM kernel (A9 lists it; R4 s.4) | Not in this lane's task |
 | O7 | Browser support beyond Chrome on macOS (Safari 26+, Firefox 141+) not tested | Only headless Chrome 156 was available for automation |
-| O8 | Fresh-context audit of this lane (DevLog-001 s.6 process) | Coordinator |
+| O8 | Done: audit `DevLog/audits/2026-11-06-L6-rt-audit.md`; corrections in s.10 | |
+| O9 | FDTD source as a current density J_z [A/m^2] (Ez -= dt J / (eps0 eps_r)), so fields are in V/m and A/m instead of a.u. (audit M13) | Absolute units guideline |
+| O10 | **H12 has no dataset gate and no convergence study** (audit S4): TR-03 VRMSE or a structural gate against The Well frames (for example the radially averaged spectrum peak wavelength), plus dt 1 / 0.5 / 0.25 and dx refinement | DevLog-001 s.6: a hero ships only with a passing eval gate and a convergence study |
+| O11 | **H13 gate substitution to record in DevLog-001 (coordinator):** the plan lists "RF-04 dipole trend; AC-01 duct"; L6 gates H13 on analytic FDTD gates instead (Yee dispersion, CPML reflection, PEC cavity TM11 with N^-2 convergence). RF-04 / AC-01 need a 2D-axisym or 3D FDTD or a duct model and are not implemented | Plan change, not yet approved |
+| O12 | Per-hero gate status in the demo next to the `fidelity: realtime` badge, read from the gate JSON (audit S4 suggestion) | Missing evidence should show as unavailable; better done in L5's Play view |
+| O13 | Log toggle for non-negative views (audit M2, second half) | Plots guideline |
+
+## 10. Audit corrections (audit `DevLog/audits/2026-11-06-L6-rt-audit.md`; coordinator instruction 2026-11-06 16:1x PST)
+
+### 10.1 Plan (written 2026-11-06 16:14 PST, before any change)
+
+| Finding | Planned fix |
+|---|---|
+| S1 gate harness never fails | Every gate row gets a numeric threshold and `pass`. `scripts/gates.ts` writes `allPass` and exits 0 (all pass), 1 (error, or no GPU without `--cpu-only`), 2 (a gate missed). DevLog numbers are copied from the script's summary output |
+| S2 GPU errors hidden | `src/gpu.ts` guards every device: uncaptured errors and `device.lost` are recorded and turned into thrown errors at the next `step`/`view`/`readback`. `init()` allocations and pipelines run inside validation + out-of-memory + internal error scopes. Use after `dispose()` throws. `nodeGpu()` keeps the failure reason; GPU tests and gates fail when no GPU is found unless `AMP_RT_ALLOW_NO_GPU=1` (tests) or `--cpu-only` (gates) |
+| S3 demo at 390 px | Below 700 px: one column with a 16 px gutter, the canvas width-limited at the exact nx:ny aspect, a horizontal colorbar, controls folded below, no horizontal page scroll. Verify at 390x844 and 1440x900 with an automated `scrollWidth <= innerWidth` check; keep one composite PNG per kernel |
+| S4 / O1 H9 forces | Bouzidi linear interpolated bounce-back for the cylinder (exact wall fraction q per link), with the momentum-exchange force computed in the step kernel from the actual reflected populations. Report St, c_D,max, c_L,max over D and two Mach numbers. Bounds from `eval/cases/b/FL-04.yaml` as read at run time |
+| S4 H12, H13 | Recorded as open items (H12 dataset gate and convergence study; H13 gate substitution) |
+| M1 | Double-slit openings 36 cells (1.2 lambda0 at 10 GHz), centre spacing 90 cells (3 lambda0) |
+| M2 | Colorbar end marks show the fraction of clipped cells above / below the range; unit shown as `[unit]` |
+| M5 | `Grid.lengthUnit?: "m" \| "model"`; Gray-Scott sets "model"; hover prints the unit |
+| M6 | Force links replaced by a boundary-cell table that grows on demand: no truncation |
+| M7 | `NOTICE` is emitted next to `demo/lib/colormaps.js`; the header points to it; the emit test checks it |
+| M8 | Cite Guo, Zheng, Shi 2002 PRE 65 046308 (forcing) and Guo, Zheng, Shi 2002 Chinese Physics 11 366 (NEE) separately; describe the outlet variant |
+| M3, M4, M9, M10, M11 | Cheap fixes: square checkboxes, empty favicon, 88 B/cell and the bandwidth figure from Apple's spec page or the claim removed, GPU back-pressure in the demo loop, hover reuses the bound view buffer |
+| M12, M13 | Deferred (O4; J_z source in A/m^2 for absolute units, new O9) |
+
+Gate thresholds (new where marked; set 2026-11-06 16:14 PST from DevLog-005 s.3 and the audit's suggestions, not tuned against the new runs):
+
+| Gate | Check | Threshold |
+|---|---|---|
+| 1 | TRT f64 L2 (each H) | < 1e-12 (new) |
+| 1 | BGK f64 order (each doubling) | 2 +- 0.05 (new) |
+| 1 | TRT GPU f32 L2 (each H) | < 1e-4 (new) |
+| 1 | BGK GPU order | 2 +- 0.1 (new) |
+| 1b | L2shape (each run) | < 1e-3 (new) |
+| 2 | St (each row) | 0.295-0.305 (FL-04) |
+| 2 | c_D,max, c_L,max at the gate configuration (finest D, lowest Mach run) | FL-04 bounds as read from the case file at run time |
+| 3 | dispersion vs Yee | CPU < 1e-10 (new), GPU < 1e-4 |
+| 4 | CPML reflection (each row) | < -40 dB |
+| 5 | TM11 error at N = 32 | < 1 %; order 2 +- 0.1 for each doubling (new numeric form of "about N^-2") |
+| 6 | Gray-Scott vs f32 at 1000 steps | < 1e-4 |
+| 7 | pattern class | equals the expected class |
+| 8 | LBM GPU vs CPU | relative < 1e-4 (new); FDTD < 1e-5 (new) |
+
+### 10.2 Progress
+
+- 16:14 PST: Plan and thresholds written (10.1).
+- 16:15-16:20: Bouzidi linear interpolated bounce-back on obstacle links. The force is computed in the step from the actual reflected populations, c_o (f*_o + f_i), with a per-cell boundary table that grows on demand. The CPU reference mirrors it; GPU vs CPU force agrees to 2e-5 relative.
+- 16:21: S2 device guard (`guardDevice`, `checkDevice`, `scoped`, `deviceErrors`); `live()` checks in every kernel method; `nodeGpuError()`.
+- 16:22: S1 thresholds and `pass` in `src/gates.ts`; `scripts/gates.ts` rewritten with exit codes and a summary table.
+- 16:23-16:28: First post-audit run (`logs/rt-gates-20261107T002324Z.json`), exit 2 with two failures:
+  - D 40, u_max 0.0125 (tau 0.51): St 0.861 by zero crossings. Diagnosis (spectrum of the same c_L series): spectral St 0.3014. The first-difference RMS was 5.3x that of a pure sine, giving 56 crossings where 18 were expected, so f32 / acoustic noise was creating extra zero crossings.
+  - BGK at D 40, u_max 0.05 (tau 0.54): diverged at step 8192.
+- 16:28: Changes **after seeing these two failures (disclosed)**:
+  - (a) The St estimator gains hysteresis: a crossing counts only after the signal has been below -0.25 RMS since the previous one. It still uses FL-04's "upward zero crossings of c_L" and applies to every row.
+  - (b) The St gate scope is TRT, D >= 20, u_max >= 0.025. The BGK comparison row, D 10 and u_max 0.0125 are report-only.
+- 16:28-16:33: Second run (`logs/rt-gates-20261107T002841Z.json`): **exit 0, 44 pass, 0 fail, 22 report-only, 0 uncaptured GPU errors**. Node bench rerun (`logs/rt-bench-node-20261107T003259Z.json`).
+- 16:33-16:38: S3 layout and demo minors. The harness now shoots 1440x900 and 390x844 per kernel and checks the layout automatically.
+  - Fixed harness defects: Playwright `fullPage` stitching and a resize without repaint duplicated content in the composites; the demo loop kept running under the composite page (pageerrors and a favicon 404).
+  - Final Chrome run `logs/rt-chrome-20261107T003810Z.json`: layoutOk true, console empty, in-browser gates pass.
+- 16:39: `tsc` clean; `pnpm test` 16/16 (2.7 s); emit in sync.
+
+### 10.3 Results after corrections
+
+DFG 2D-2, Re 100, GPU (Dawn), TRT + Bouzidi unless stated, t_end 12 s. References: FEATFLOW 2014, read at run time from `eval/expected/FL-04.json` (generated_at 2026-11-06T16:16:11-08:00): c_D,max 3.2273926, c_L,max 0.9865707, St 0.301841. Source: `logs/rt-gates-20261107T002841Z.json`.
+
+| D [cells] | u_max | Mach | tau | wall BC | St | St err | c_D,max | c_D err | c_L,max | c_L err | St gate |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 10 | 0.05 | 0.087 | 0.51 | Bouzidi | 0.3056 | +1.25 % | 3.173 | -1.68 % | 0.661 | -33.1 % | report |
+| 20 | 0.05 | 0.087 | 0.52 | Bouzidi | 0.3010 | -0.28 % | 3.322 | +2.92 % | 0.947 | -4.02 % | pass |
+| 40 | 0.05 | 0.087 | 0.54 | Bouzidi | 0.3014 | -0.16 % | 3.309 | +2.52 % | 1.010 | +2.37 % | pass |
+| 60 | 0.05 | 0.087 | 0.56 | Bouzidi | 0.3016 | -0.06 % | 3.295 | +2.09 % | 1.011 | +2.51 % | pass |
+| 80 | 0.05 | 0.087 | 0.58 | Bouzidi | 0.3017 | -0.04 % | 3.293 | +2.04 % | 1.011 | +2.45 % | pass |
+| 40 | 0.1 | 0.173 | 0.58 | Bouzidi | 0.3031 | +0.42 % | 3.365 | +4.27 % | 1.071 | +8.58 % | pass |
+| 40 | 0.025 | 0.043 | 0.52 | Bouzidi | 0.3015 | -0.12 % | 3.261 | +1.04 % | 0.997 | +1.08 % | pass |
+| 40 | 0.0125 | 0.022 | 0.51 | Bouzidi | 0.3015 | -0.13 % | 3.276 | +1.51 % | 1.019 | +3.32 % | report |
+| 40 | 0.05 | 0.087 | 0.54 | halfway | 0.3004 | -0.48 % | 3.368 | +4.36 % | 1.063 | +7.76 % | pass |
+| 40 | 0.05 | 0.087 | 0.54 | BGK, Bouzidi | diverged at step 8192 | | | | | | report |
+
+Reading:
+- **Resolution (u_max 0.05):**
+  - The c_D,max error falls 2.92 / 2.52 / 2.09 / 2.04 % at D 20 / 40 / 60 / 80, toward a Mach-limited floor of about 2 %.
+  - c_L,max settles at about +2.5 % for D >= 40.
+  - St converges to -0.04 % at D 80.
+- **Mach (D 40):**
+  - The c_D,max error is +4.27 / +2.52 / +1.04 % at u_max 0.1 / 0.05 / 0.025, about proportional to Ma^2.
+  - [est] Ma^2 extrapolation from u_max 0.05 and 0.025: c_D,max about 3.245 (+0.55 %), c_L,max about 0.993 (+0.65 %).
+  - At u_max 0.0125 (tau 0.51) the errors grow again (+1.5 %, +3.3 %). [est] The likely cause is the noisier lift signal (see 10.2) and the near-0.5 tau, so the Mach trend cannot be extended there at D 40.
+- **Bouzidi vs halfway at D 40, u_max 0.05:** the c_D,max error drops from 4.36 to 2.52 % and the c_L,max error from 7.76 to 2.37 %.
+
+**Accuracy of the real-time tier (`fidelity: realtime`), H9:**
+
+| Configuration | St | c_D,max | c_L,max | Use |
+|---|---|---|---|---|
+| D 40, u_max 0.025 | -0.12 % | +1.0 % | +1.1 % | best measured; 288k steps, 19 s GPU wall time to t = 12 s |
+| D 40, u_max 0.1 (demo default) | +0.42 % | +4.3 % | +8.6 % | interactive (60 fps, about 12k steps/s in headless Chrome) |
+
+- These errors are against FEATFLOW 2014. FL-04's FEM tolerances (5e-4 to 1.3e-3 relative) are for the rigorous tier, and the real-time tier does not meet them.
+- Only St is gated, at 0.295-0.305; the force errors are report-only.
+- The FL-04 case file was not changed.
+
+Other gates (same run, all pass): Poiseuille, channel 1b, dispersion, CPML, cavity, GPU vs CPU and Gray-Scott values are identical to s.6 to the printed digits. LBM GPU vs CPU, now including the force: max relative 2.8e-5.
+
+Performance after corrections (Node: `logs/rt-bench-node-20261107T003259Z.json`; Chrome 156: `logs/rt-chrome-20261107T003810Z.json`):
+
+| kernel | grid | Node steps/s | Node MLUPS | Chrome steps/s | Chrome MLUPS | GPU MiB |
+|---|---|---|---|---|---|---|
+| LBM D2Q9 | 512 x 256 | 33867 | 4439 | 33269 | 4361 | 12.8 |
+| LBM D2Q9 | 1024 x 512 | 5040 | 2643 | 5364 | 2812 | 48.8 |
+| LBM D2Q9 | 2048 x 1024 | 1133 | 2377 | 1159 | 2431 | 192.8 |
+| FDTD TMz | 512^2 | 20600 | 5400 | 20192 | 5293 | 12.3 |
+| FDTD TMz | 1024^2 | 3113 | 3264 | 3151 | 3304 | 48.4 |
+| FDTD TMz | 2048^2 | 720 | 3020 | 718 | 3012 | 192.4 |
+| Gray-Scott | 256^2 | 225103 | 14752 | 227259 | 14894 | 1.5 |
+| Gray-Scott | 1024^2 | 26197 | 27470 | 26311 | 27589 | 24.0 |
+| Gray-Scott | 2048^2 | 3248 | 13624 | 3313 | 13897 | 96.0 |
+
+Demo (headless Chrome, 1440x900, DFG D 40, u_max 0.1, 200 steps/frame): 60 fps, 12.0k completed steps/s, 1.75 GLUPS (final composite `logs/rt-demo-lbm-20261107T003810Z.png`), with back-pressure (at most two step batches in flight).
+- A first version allowed only one batch in flight and halved the rate (31 fps, 6.2k steps/s); two batches restore the rate.
+- The phone status in the composites (about 15 fps) was sampled while the page was paused and resized for capture, so it is not a performance figure.
+
+Layout check (S3, from the harness): at 1440x900 and 390x844, every kernel has scrollWidth = innerWidth (no horizontal scroll). The phone canvas is at x = 16 px. The canvas aspect matches nx:ny to within 1.7 %, measured on the CSS box including the 1 px border.
+
+### 10.4 Dispositions
+
+- **S1.** **Fixed.**
+  - Thresholds: `THRESHOLDS` in `src/gates.ts`, with `pass` per row (L8 can read them).
+  - `scripts/gates.ts`: summary table, `allPass`, exit 0 / 1 / 2, and a final check for zero uncaptured GPU errors.
+  - Gate 1 / 1b thresholds were written in 10.1 before the run.
+  - Scope change for gate 2 after the first run: disclosed in 10.2.
+  - Where: `src/gates.ts`, `scripts/gates.ts`
+- **S2.** **Fixed.**
+  - Every kernel method checks for use after `dispose()` and for prior uncaptured errors or device loss (`checkDevice`), and `readback` checks again after mapping.
+  - `init` allocations and pipelines run inside validation, out-of-memory and internal scopes.
+  - `nodeGpu()` keeps the reason (`nodeGpuError`).
+  - The GPU tests fail without an adapter unless `AMP_RT_ALLOW_NO_GPU=1`.
+  - Gates exit 1 without a GPU unless `--cpu-only`.
+  - New test: bad WGSL rejects, and `step` / `readback` after `dispose()` throw.
+  - Where: `src/gpu.ts`, `src/node-gpu.ts`, kernels, `test/gpu.test.ts`
+- **S3.** **Fixed.**
+  - Below 700 px: one column with a 16 px gutter; the canvas is width-limited at the exact nx:ny aspect (one scale for both axes; no separate minimum per axis); horizontal colorbar; controls below; status and footer wrap.
+  - Verified automatically at 390x844 and 1440x900 (10.3); one composite PNG per kernel kept.
+  - Where: `demo/index.html`, `demo/app.js`, `scripts/shoot.ts`
+- **S4 / O1 (H9).** **Fixed in part.**
+  - Bouzidi bounce-back is in.
+  - Errors and convergence are reported against FEATFLOW 2014 (10.3). The realtime-tier accuracy is stated there.
+  - Forces are report-only, per the coordinator's instruction.
+  - Where: `src/kernels/lbm*.ts`, `src/cpu/lbm.ts`
+- **S4 (H12, H13).** **Open, recorded:** O10 (H12 dataset gate and convergence study), O11 (H13 gate substitution to record in DevLog-001), O12 (per-hero gate status in the UI)
+  - Where: s.9
+- **M1.** **Fixed:** 36-cell slits (1.2 lambda0 at 10 GHz), 90 cells (3 lambda0) apart. The composite shows two-slit interference
+  - Where: `demo/app.js`
+- **M2.** **Fixed in part:**
+  - clipped-fraction marks at both colorbar ends;
+  - unit shown as `[unit]`;
+  - log toggle deferred (O13).
+  - Where: `demo/app.js`, `demo/index.html`
+- **M3.** **Fixed:** square custom checkboxes
+  - Where: `demo/index.html`
+- **M4.** **Fixed:** `<link rel="icon" href="data:,">`. The final Chrome console is empty
+  - Where: `demo/index.html`
+- **M5.** **Fixed:** `Grid.lengthUnit?: "m" \| "model"`. Gray-Scott sets "model"; the hover prints "model units"
+  - Where: `src/types.ts`, kernels, `demo/app.js`
+- **M6.** **Fixed:** the force-link list is replaced by a boundary-cell table that grows on demand (no truncation). `info().boundaryCells` reports its size
+  - Where: `src/kernels/lbm.ts`
+- **M7.** **Fixed:** `NOTICE` (MIT text) is copied to `demo/NOTICE` by the emit script and checked by the emit test. The colormaps header points to it
+  - Where: `scripts/emit-browser.ts`, `NOTICE`, `src/colormaps.ts`
+- **M8.** **Fixed:** Guo et al. 2002 PRE (forcing) and Chinese Physics (NEE) cited separately; the outlet variant described in L6-3b
+  - Where: s.2, s.8
+- **M9.** **Fixed:** 88 B/cell/step, and 273 GB/s from Apple's newsroom (s.6.4)
+  - Where: s.6.4
+- **M10.** **Fixed:** at most two step batches in flight; steps/s counts completed steps
+  - Where: `demo/app.js`
+- **M11.** **Fixed:** hover copies from the view buffer cached at bind time
+  - Where: `demo/app.js`
+- **M12.** **Deferred:** O4
+  - Where: s.9
+- **M13.** **Deferred:** O9
+  - Where: s.9
+- **Audit s.5 note: the force kernel adds w_k in f32.** **Superseded:** the force is now accumulated per boundary cell in the step (g + w per link). Effect not re-measured

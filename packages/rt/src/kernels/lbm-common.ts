@@ -28,7 +28,11 @@ export const LBM_DEFAULTS: Record<string, number> = {
   Uref: 0, // physical mean inflow velocity, m/s, for display units; 0 = lattice units
   probeX: -1, // probe cell for the uy time series; -1 none
   probeY: -1,
+  bouzidi: 1, // 1 Bouzidi linear interpolated bounce-back on obstacle links (cylinder: exact wall fraction q; painted: q = 0.5); 0 halfway
 };
+
+/** Marker for "no boundary entry" in the per-cell boundary index. */
+export const NO_LINK = 0xffffffff;
 
 export interface LbmDerived {
   tau: number;
@@ -102,6 +106,72 @@ export function lbmMask(p: Record<string, number>, grid: Grid): Uint32Array {
       }
   }
   return m;
+}
+
+export interface LbmBoundary {
+  /** per cell: index into the boundary table, or NO_LINK */
+  lidx: Uint32Array;
+  /** per boundary cell, 8 entries (directions 1..8): wall fraction q in (0, 1] for pulled direction i whose source
+   * cell x - c_i is an obstacle (mask 2); 0 when that link is not an obstacle link */
+  q: Float64Array;
+  count: number;
+}
+
+/**
+ * Boundary table for obstacle links (mask 2). q is the fraction of the link from the fluid node x towards the
+ * solid node x - c_i at which the wall lies (Bouzidi, Firdaouss, Lallemand 2001). For links into the initial
+ * cylinder (node inside the disc) q comes from the exact circle intersection; otherwise q = 0.5 (halfway).
+ */
+export function lbmBoundary(p: Record<string, number>, grid: Grid, mask: Uint32Array): LbmBoundary {
+  const { nx, ny } = grid;
+  const N = nx * ny;
+  const lidx = new Uint32Array(N).fill(NO_LINK);
+  const qs: number[] = [];
+  const periodicX = p.inlet !== 1;
+  const R = p.cylR ?? 0;
+  const cxC = p.cylX ?? 0;
+  const cyC = p.cylY ?? 0;
+  const useB = p.bouzidi === 1;
+  let count = 0;
+  for (let y = 0; y < ny; y++)
+    for (let x = 0; x < nx; x++) {
+      const c = y * nx + x;
+      if (mask[c] !== 0) continue;
+      const row = [0, 0, 0, 0, 0, 0, 0, 0];
+      let any = false;
+      for (let i = 1; i < 9; i++) {
+        let sx = x - CX[i]!;
+        const sy = (y - CY[i]! + ny) % ny;
+        if (periodicX) sx = (sx + nx) % nx;
+        else sx = Math.min(nx - 1, Math.max(0, sx));
+        if (mask[sy * nx + sx] !== 2) continue;
+        any = true;
+        let q = 0.5;
+        const sdx = x - CX[i]! - cxC;
+        const sdy = y - CY[i]! - cyC;
+        if (useB && R > 0 && sdx * sdx + sdy * sdy < R * R) {
+          // |d + t e|^2 = R^2 with d = x - C, e = -c_i; smallest root in (0, 1]
+          const dx = x - cxC;
+          const dy = y - cyC;
+          const ex = -CX[i]!;
+          const ey = -CY[i]!;
+          const a = ex * ex + ey * ey;
+          const b = dx * ex + dy * ey;
+          const cc = dx * dx + dy * dy - R * R;
+          const disc = b * b - a * cc;
+          if (disc >= 0) {
+            const t = (-b - Math.sqrt(disc)) / a;
+            if (t > 0 && t <= 1) q = Math.max(1e-6, t);
+          }
+        }
+        row[i - 1] = q;
+      }
+      if (any) {
+        lidx[c] = count++;
+        qs.push(...row);
+      }
+    }
+  return { lidx, q: Float64Array.from(qs), count };
 }
 
 /** Equilibrium deviation g_eq_i = f_eq_i - w_i. */
