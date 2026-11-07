@@ -14,6 +14,7 @@ import { magnetostaticsModule as ms0 } from './magnetostatics/index.ts';
 import { emModes as modes0 } from './modes/index.ts';
 import { emwModule as emw0 } from './em3d/index.ts';
 import { acousticsModule as ac0 } from './acoustics/index.ts';
+import { emwAxisymModule as emax0 } from './em-axisym/index.ts';
 import { specReadiness, type ReadinessNeeds } from './common/ctx.ts';
 
 export type SolutionExt = Solution & { notes?: string[]; normalization?: string };
@@ -25,10 +26,12 @@ const NEEDS: Record<string, ReadinessNeeds> = {
   magnetostatics: { props: ['mu_r'] },
   'em-modes': { props: [] },             // n or eps_r: checked by the module (either one)
   emw: { props: ['eps_r', 'mu_r'], eigen: true },
+  'emw-axisym': { props: ['eps_r', 'mu_r'], eigen: true },
   acoustics: { props: ['c'], propsIfMulti: ['rho'], eigen: true },
 };
 
 export const NORMALIZATION: Record<string, string> = {
+  'emw-axisym': 'E_rphiz per mode is M-orthonormal over the meridional section: int eps_r (|E_t|^2 + E_phi^2) r dr dz = 1 V^2 m (the azimuthal factor pi or 2 pi omitted; arbitrary sign)',
   emw: 'E (NED coefficients and E_nodal) per mode is M-orthonormal: int eps_r E . E dV = 1 V^2 m (arbitrary amplitude and sign)',
   acoustics: 'p per mode is M-orthonormal: int p^2 / (rho c^2) dV = 1 (rho = 1 kg/m^3 when a single fluid has no density); arbitrary sign',
   'em-modes': 'fields per mode scaled to max |E| = 1 V/m over the triangle centroids (EO convention: E_t, H_t real, E_z = j ez, H_z = j hz)',
@@ -67,8 +70,9 @@ export const magnetostaticsModule = wrap(ms0);
 export const emModes = wrap(modes0);
 export const emwModule = wrap(emw0);
 export const acousticsModule = wrap(ac0);
+export const emwAxisymModule = wrap(emax0);
 
-export const modules: PhysicsModule[] = [heatModule, elasticModule, electrostaticsModule, magnetostaticsModule, emModes, emwModule, acousticsModule];
+export const modules: PhysicsModule[] = [heatModule, elasticModule, electrostaticsModule, magnetostaticsModule, emModes, emwModule, acousticsModule, emwAxisymModule];
 export const registry: Record<string, PhysicsModule> = Object.fromEntries(modules.map((x) => [x.type, x]));
 
 export { solveHeat, SIGMA_SB, type HeatProblem, type HeatBc } from './heat/index.ts';
@@ -78,6 +82,7 @@ export { solveMagnetostatics, type MagnetostaticsProblem } from './magnetostatic
 export { solveModes } from './modes/index.ts';
 export { solveCavity } from './em3d/index.ts';
 export { solveAcousticModes } from './acoustics/index.ts';
+export { solveAxisymModes, reconstruct3D } from './em-axisym/index.ts';
 export { prepareRun, type PrepareArgs, type CaseCtx, type MaterialLibrary } from './prepare.ts';
 export { physicsRegistry, registerPhysics, L4_REGISTRATIONS, RESULT_NAMES } from './registrations.ts';
 export { ENGINE, PHYSICS_VERSION } from './common/solution.ts';

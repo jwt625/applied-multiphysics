@@ -20,7 +20,7 @@ import { boxMesh } from './common/mesh.ts';
 
 const NEEDS: Record<string, string[]> = {
   heat: ['k', 'rho', 'cp'], elastic: ['E', 'nu', 'alpha'], electrostatics: ['eps_r'], magnetostatics: ['mu_r'],
-  'em-modes': ['n', 'eps_r'], emw: ['eps_r', 'tan_delta', 'mu_r'], acoustics: ['c', 'rho'],
+  'em-modes': ['n', 'eps_r'], emw: ['eps_r', 'tan_delta', 'mu_r'], 'emw-axisym': ['eps_r', 'mu_r'], acoustics: ['c', 'rho'],
 };
 /** Case-file property names per spec property (the eval cases use 'c' for the specific heat in heat cases). */
 const CASE_ALIAS: Record<string, Record<string, string[]>> = { heat: { cp: ['cp', 'c'] } };
@@ -96,6 +96,7 @@ function scaleSpecMesh(raw: Record<string, unknown>, f: number): Record<string, 
 }
 
 const chains = new Map<string, Mesh[]>();
+const lastHash = new Map<string, { hash: string; f: number }>();
 const MAX_CHAINS = 8;
 
 function baseMesh(raw: Record<string, unknown>, spec: Spec, type: string, notes: string[]): { m: Mesh; refine: (m: Mesh) => Mesh } {
@@ -108,7 +109,7 @@ function baseMesh(raw: Record<string, unknown>, spec: Spec, type: string, notes:
   if (G.dim === 3 && G.solids.length === 1 && G.solids[0]!.type === 'box' && order === 2) {
     // P2 on a structured Kuhn-split tet10 box (common/mesh.ts boxMesh; @amp/mesh meshes boxes as hex8 only)
     const s = G.solids[0]!;
-    const hmax = R.q(((spec.mesh ?? {}) as { size?: { hmax?: unknown } }).size?.hmax);
+    const hmax = R.q(((raw.mesh ?? {}) as { size?: { hmax?: unknown } }).size?.hmax);
     const n = (r: [number, number]) => Math.max(1, Math.ceil((r[1] - r[0]) / hmax - 1e-9));
     const m = boxMesh({ x: s.x, y: s.y, z: s.z, nx: n(s.x), ny: n(s.y), nz: n(s.z), cell: 'tet10', id: s.id });
     notes.push('mesh: tet10 Kuhn box (packages/physics common/mesh.ts boxMesh), nested levels by refineUniform');
@@ -116,7 +117,7 @@ function baseMesh(raw: Record<string, unknown>, spec: Spec, type: string, notes:
   }
   if (G.dim === 3 && G.solids.length === 1 && G.solids[0]!.type === 'cylinder') {
     const c = G.solids[0]!;
-    const hmax = R.q(((spec.mesh ?? {}) as { size?: { hmax?: unknown } }).size?.hmax);
+    const hmax = R.q(((raw.mesh ?? {}) as { size?: { hmax?: unknown } }).size?.hmax);
     const m = meshCylinder(c, { mesh2d: { hmax }, dz: hmax, cell: 'tet4', order });
     return { m, refine: (x) => refineUniform(x, { project: cylinderSideProjector(x, c) }) };
   }
@@ -143,7 +144,13 @@ function levelMesh(raw: Record<string, unknown>, spec: Spec, type: string, f: nu
     return chain[k]!;
   }
   if (f !== 1) notes.push(`mesh: hFactor ${f} is not a power of 1/2 (or no nested refinement for this cell type): re-meshed with scaled sizes, levels are not nested`);
-  return baseMesh(scaleSpecMesh(raw, f), spec, type, notes).m;
+  const m = baseMesh(scaleSpecMesh(raw, f), spec, type, notes).m;
+  // a level identical to the previous one is reported (L8 'no_change'; I1 bug report)
+  const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type });
+  const prev = lastHash.get(key);
+  if (prev && prev.hash === m.hash && prev.f !== f) notes.push(`mesh warning: hFactor ${f} gives the same mesh as hFactor ${prev.f} (hash ${m.hash.slice(0, 12)})`);
+  lastHash.set(key, { hash: m.hash, f });
+  return m;
 }
 
 // --------------------------------------------------------------------------------------------------- materials

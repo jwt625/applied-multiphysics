@@ -301,3 +301,56 @@ physics 39/39 (new: test/followup2.test.ts 6: compileField, field Dirichlet in t
 - AC-02: box-acoustics now meshes as tet10 P2 by default (`physics.settings.order`, 1 or 2); the sim at its own hmax gives f_1 171.500, f_2 214.376 Hz in 0.93 s end to end.
 - Time study: `{start, stop, dt, method, output?}` bound (bdf1, bdf2, crank-nicolson). `{expr, unit}` fields work for heat T, q, h (space), T_ext, T_amb, Q, T0, elastic traction / pressure, electrostatic V.
 - Solutions now carry `notes` and `normalization`; readiness reports N/A inputs (call it on `ctx.spec` after prepareRun).
+
+## 8. Follow-up 3: H5 cylinder cavity (2026-11-06 17:05-17:20 PST)
+
+Plan (written before coding): (B) a 2D axisymmetric Maxwell eigen solver per azimuthal order m as a separate physics `emw-axisym`, gated on RF-21 and cross-checked against the 3D ND2 solver; (A) a third nested curved tet10 level of the 3D path, measured for time and memory.
+
+### 8.1 Path B formulation (`src/em-axisym/index.ts`)
+
+E = (E_r cos m phi, E_phi sin m phi, E_z cos m phi). With e_t = (E_r, E_z) and w = r E_phi the curl components are (curl E)_phi = dE_r/dz - dE_z/dr = curl_t e_t, (curl E)_r = -q_z / r, (curl E)_z = q_r / r with q = m e_t + grad w. After the phi integration (factor pi, or 2 pi for m = 0, common to both forms):
+- a(E, F) = int (1/mu_r) [ curl_t e_t curl_t f_t r + q(E) . q(F) / r ] dr dz
+- b(E, F) = int eps_r [ e_t . f_t r + w v / r ] dr dz, eigenvalue k0^2.
+Discretisation: e_t in Nedelec first kind order p, w in hierarchical Lagrange order p (@amp/core fem/hcurl `ndBasis` / `h1Basis` on triangles: grad P_p is in ND_p, so the kernel {e_t = -grad(phi)/m, w = phi} (m >= 1) or {e_t = grad(psi), w = 0} (m = 0) is represented exactly and removed by an M-orthogonal projector built from the discrete gradient). Constraints: PEC tangential e_t = 0 and w = 0; axis: w = 0 and, for m >= 1, E_z = 0. Quadrature: 49-point collapsed Gauss (no point on r = 0). Fields: nodal (E_r, E_phi, E_z) per mode on the meridional mesh (`E_rphiz`), `reconstruct3D(m, Erphiz, point)` for 3D display. Registered as physics `emw-axisym` (settings `azimuthal: [m, ...]`, `order`), so the 3D `emw` path is unchanged.
+
+### 8.2 Path B result (gate `gates/rf-axisym.ts`, log `logs/l4-rf-axisym-20261107T011149Z.jsonl`)
+
+Meridional rectangle [0, a] x [0, d] (exact for the cylinder), tri3, nested by refineUniform, ND2 + P2, m = 0, 1, 2, case shift 2.5 GHz, shared rule with order 4 (band 0.25), case tolerance rel 1e-5 (unchanged).
+
+| Target | Levels L2 / L3 / L4 (DOF summed over m: 5,123 / 20,995 / 84,995) rel err | Richardson value rel err | p_obs | Status |
+|---|---|---|---|---|
+| f_TM010 | 1.1e-6 / 7.0e-8 / 4.5e-9 | 3.8e-11 | 4.02 | pass |
+| f_TE111 | 2.5e-5 / 1.8e-6 / 1.3e-7 | -3.6e-9 | 3.81 | pass |
+| f_TM011 | 3.3e-7 / 2.0e-8 / 1.2e-9 | 5.9e-12 | 4.04 | pass |
+| f_TM110 | 4.8e-6 / 2.9e-7 / 1.8e-8 | 4.9e-10 | 4.06 | pass |
+| f_TE211 | 2.0e-5 / 1.3e-6 / 8.3e-8 | -1.1e-9 | 3.94 | pass |
+| f_TE011 | 1.7e-4 / 1.2e-5 / 8.1e-7 | -1.7e-8 | 3.85 | pass |
+
+Wall time (Node, all three m per level): L2 0.14 s, L3 0.50 s, L4 1.90 s; the three verdict levels 2.54 s; time to accuracy (first single level with all six within 1e-5): L4, 1.90 s. **H5 meets RF-21 at 1e-5 and < 5 s on path B** (Node; browser not measured). With 4 levels (finest 21k DOF, 0.70 s) TE011's finest level is 1.19e-5, outside the budget, so 5 levels are the default.
+Cross-check with the 3D ND2 solver (rings N = 4-6, modes that pass there): TM010 axisym 2.903636072 vs 3D 2.903636937 GHz (rel -3.0e-7), TM011 3.468175213 vs 3.468174645 GHz (rel 1.6e-7); each difference equals the 3D error, i.e. the two solvers agree within the 3D accuracy.
+The axisymmetric values also settle the R3 RF-01 question: Palace's table (2.903605 GHz for TM010) differs from the converged value 2.903636072 GHz by -1.1e-5; the exact Bessel-zero value of L7a (2.9036360723 GHz) is reproduced to 4e-11.
+Tests: `test/followup3.test.ts` (spec path prepareRun + `emw-axisym` run: TM010 and TE111 of a cylinder within 2e-4 on a coarse mesh; reconstruct3D).
+
+### 8.3 Path A (3D reference, third nested level)
+
+Run: `gates/rf-01.ts --mesh nested --base 1.5 --nlev 3` under `/usr/bin/time -l` (logs `logs/l4-rf01-20261107T011215Z.jsonl`, console + memory `logs/l4-rf01-nested3-20261107T0113Z.log`). Solver: the existing direct shift-invert (supernodal LDL^T); the iterative variant (GMRES or LOBPCG with the core AMS preconditioner and p-MG to order 2) is NOT implemented in this pass (it needs the em3d-shaped AMS / p-MG context wired to this space; DevLog-002 refactor proposal 7).
+
+| Level | Tets | ND2 DOF | Wall | factor / solve |
+|---|---|---|---|---|
+| 0 | 720 | 3,662 | 0.44 s | 0.05 / 0.19 s |
+| 1 | 5,760 | 32,804 | 4.9 s | 1.9 / 2.2 s |
+| 2 | 46,080 | 276,968 | 266.9 s | 208.7 / 51.3 s |
+
+Memory: maximum resident set 4.32 GB (peak footprint 5.67 GB) for level 2. The V8 heap stayed under the 1.5 GB cap; the factor lives in typed arrays outside the heap. This exceeds the lane's memory envelope on the shared machine, so it is a one-off measurement, not a gate to repeat.
+Result (shared rule, order 4): TM010 -4.1e-8 (p 4.05), TE111 -1.6e-7 (3.92), TM011 -1.8e-7 (3.97), TM110 1.1e-7 (3.92), TE211 -6.1e-7 (3.77) pass; TE011 Richardson -2.0e-6 (p 3.76) but finest level 1.44e-5 outside the budget: FAIL. Path A therefore meets 5 of 6 modes in 272 s and 4.3 GB; all six need a fourth nested level (about 2.2e6 DOF), only reachable with the iterative AMS path.
+
+I1 bug (folded in): for the emw cylinder, `prepareRun` read hmax from the validated (unscaled) spec instead of the scaled one, so a non-power-of-2 hFactor re-meshed at the original size (14,882 DOF at hFactor 1 and 0.6667). Fixed (`src/prepare.ts`: the cylinder and tet10-box branches read the scaled mesh block); a note "mesh warning: hFactor x gives the same mesh as hFactor y" is added when two consecutive re-meshed levels are identical; test `test/followup3.test.ts` asserts that hFactor 0.6667 and 0.5 change the mesh.
+
+### 8.4 Which path meets which gate
+
+| Gate | Path B (axisym, browser path) | Path A (3D) |
+|---|---|---|
+| RF-21, all six modes, rel 1e-5, order-4 Richardson in band, finest within budget | pass (2.54 s for the verdict levels, Node) | 5 of 6 (TE011 finest 1.44e-5), 272 s, 4.3 GB RSS |
+| < 5 s | yes (Node) | no |
+
+Tests 2026-11-06 17:20 PST: physics 42/42 (followup3: 3), post 4/4; tsc clean (physics, post). `gates/run-all.ts` includes `rf-axisym.ts`.

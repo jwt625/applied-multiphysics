@@ -24,6 +24,9 @@ export const L4_REGISTRATIONS: Registration[] = [
     settings: z.strictObject({ order: z.union([z.literal(1), z.literal(2)]).optional() }) },
   { kind: 'physics', type: 'acoustics', ...own, dims: ['2d', '2d-axisym', '3d'], description: 'Pressure acoustics eigenfrequencies; order 2 (default) = P2 on tet10 / tri6, order 1 = P1 / Q1 hex',
     settings: z.strictObject({ order: z.union([z.literal(1), z.literal(2)]).optional() }) },
+  { kind: 'physics', type: 'emw-axisym', ...own, dims: ['2d-axisym'], description: 'Electromagnetic eigenmodes of a body of revolution, per azimuthal order m (meridional Nedelec + Lagrange); the 3D emw path stays available',
+    settings: z.strictObject({ azimuthal: z.array(z.number().int().min(0).max(64)).min(1), order: z.union([z.literal(1), z.literal(2)]).optional() }) },
+  { kind: 'bc', type: 'pec', ...own, for: ['emw-axisym'], select: ['bnd'], description: 'Perfect electric conductor, n x E = 0 (meridional boundary)' },
   { kind: 'bc', type: 'terminal', ...own, for: ['electrostatics'], select: ['bnd'], description: 'Conductor surface; one row/column of the capacitance matrix' },
   { kind: 'bc', type: 'ground', ...own, for: ['electrostatics'], select: ['bnd'], description: 'V = 0' },
   { kind: 'bc', type: 'potential', ...own, for: ['electrostatics'], select: ['bnd'], settings: z.strictObject({ V: field('V', { vars: 'space' }) }) },
@@ -37,7 +40,8 @@ export const RESULT_NAMES: Record<string, { fields: string[]; scalars: string[] 
   electrostatics: { fields: ['V'], scalars: ['C_<i>_<j>', 'C_per_m', 'L_per_m', 'Z0'] },
   magnetostatics: { fields: ['A_phi', 'Br', 'Bz', 'normB'], scalars: ['W_m', 'L_<i>_<j>'] },
   'em-modes': { fields: ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'normE'], scalars: ['neff_<k>', 'teFraction_<k>', 'ng_<k>', 'powerW_<k>', 'lossDbPerM_<k>'] },
-  emw: { fields: ['E'], scalars: ['f_<k>', 'Q_<k>'] },
+  emw: { fields: ['E', 'E_nodal'], scalars: ['f_<k>', 'Q_<k>'] },
+  'emw-axisym': { fields: ['E_rphiz (meridional E_r, E_phi, E_z; 3D: reconstruct3D)'], scalars: ['f_<k>', 'm_<k>', 'ezFraction_<k>'] },
   acoustics: { fields: ['p'], scalars: ['f_<k>'] },
 };
 

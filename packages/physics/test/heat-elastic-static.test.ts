@@ -132,6 +132,6 @@ test('magnetostatics axisym: long solenoid sheet, B inside = mu0 n I', async () 
 test('registry: L4 registrations validate the kirsch-plate example; every module has a type', () => {
   const reg = physicsRegistry();
   assert.ok(reg.get('physics', 'electrostatics'));
-  assert.equal(new Set(modules.map((x) => x.type)).size, 7);
+  assert.equal(new Set(modules.map((x) => x.type)).size, modules.length); assert.ok(modules.some((x) => x.type === 'emw-axisym'));
   void validateSpec; void prepareRun;
 });
