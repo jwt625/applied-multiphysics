@@ -15,12 +15,12 @@
     "gates": "nice -n 10 node --max-old-space-size=1536 gates/run-all.ts"
   },
   "dependencies": {
-    "@amp/core": "link:../core",
-    "@amp/spec": "link:../spec",
-    "@amp/geom": "link:../geom",
-    "@amp/mesh": "link:../mesh",
-    "zod": "link:../spec/node_modules/zod",
-    "@amp/materials": "link:../materials"
+    "@amp/core": "workspace:*",
+    "@amp/spec": "workspace:*",
+    "@amp/geom": "workspace:*",
+    "@amp/mesh": "workspace:*",
+    "zod": "4.6.7",
+    "@amp/materials": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

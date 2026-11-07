@@ -13,10 +13,10 @@
     "check": "tsc -p . --noEmit"
   },
   "dependencies": {
-    "@amp/core": "link:../core",
-    "@amp/spec": "link:../spec",
-    "@amp/physics": "link:../physics",
-    "@amp/mesh": "link:../mesh"
+    "@amp/core": "workspace:*",
+    "@amp/spec": "workspace:*",
+    "@amp/physics": "workspace:*",
+    "@amp/mesh": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

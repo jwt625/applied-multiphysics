@@ -17,40 +17,46 @@ importers:
 
   apps/web:
     dependencies:
+      '@amp/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@amp/core':
-        specifier: link:../../packages/core
+        specifier: workspace:*
         version: link:../../packages/core
       '@amp/geom':
-        specifier: link:../../packages/geom
+        specifier: workspace:*
         version: link:../../packages/geom
       '@amp/materials':
-        specifier: link:../../packages/materials
+        specifier: workspace:*
         version: link:../../packages/materials
       '@amp/mesh':
-        specifier: link:../../packages/mesh
+        specifier: workspace:*
         version: link:../../packages/mesh
       '@amp/physics':
-        specifier: link:../../packages/physics
+        specifier: workspace:*
         version: link:../../packages/physics
       '@amp/post':
-        specifier: link:../../packages/post
+        specifier: workspace:*
         version: link:../../packages/post
       '@amp/rt':
-        specifier: link:../../packages/rt
+        specifier: workspace:*
         version: link:../../packages/rt
       '@amp/spec':
-        specifier: link:../../packages/spec
+        specifier: workspace:*
         version: link:../../packages/spec
+      '@anthropic-ai/sdk':
+        specifier: 1.1.0
+        version: 1.1.0(zod@4.6.7)
       three:
         specifier: 0.187.0
         version: 0.187.0
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: 4.0.0
-        version: 4.0.0(@sveltejs/kit@3.0.0(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))
+        version: 4.0.0(@sveltejs/kit@3.0.0(@opentelemetry/api@1.10.0)(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))
       '@sveltejs/kit':
         specifier: 3.0.0
-        version: 3.0.0(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1))
+        version: 3.0.0(@opentelemetry/api@1.10.0)(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1))
       '@sveltejs/vite-plugin-svelte':
         specifier: 7.3.1
         version: 7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1))
@@ -188,23 +194,23 @@ importers:
   packages/physics:
     dependencies:
       '@amp/core':
-        specifier: link:../core
+        specifier: workspace:*
         version: link:../core
       '@amp/geom':
-        specifier: link:../geom
+        specifier: workspace:*
         version: link:../geom
       '@amp/materials':
-        specifier: link:../materials
+        specifier: workspace:*
         version: link:../materials
       '@amp/mesh':
-        specifier: link:../mesh
+        specifier: workspace:*
         version: link:../mesh
       '@amp/spec':
-        specifier: link:../spec
+        specifier: workspace:*
         version: link:../spec
       zod:
-        specifier: link:../spec/node_modules/zod
-        version: link:../spec/node_modules/zod
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: 24.19.2
@@ -216,16 +222,16 @@ importers:
   packages/post:
     dependencies:
       '@amp/core':
-        specifier: link:../core
+        specifier: workspace:*
         version: link:../core
       '@amp/mesh':
-        specifier: link:../mesh
+        specifier: workspace:*
         version: link:../mesh
       '@amp/physics':
-        specifier: link:../physics
+        specifier: workspace:*
         version: link:../physics
       '@amp/spec':
-        specifier: link:../spec
+        specifier: workspace:*
         version: link:../spec
     devDependencies:
       '@types/node':
@@ -257,6 +263,19 @@ importers:
         version: 4.6.7
 
 packages:
+
+  '@anthropic-ai/sdk@1.1.0':
+    resolution: {integrity: sha512-Op/fKMsfVwFCfObc87leLOFlORE0RjOvLzRzPCWWLI7Ww6bobpKR6YmYC8ZYgulRh+m2a/3/61VUXoWHFtCXIw==}
+    hasBin: true
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
+  '@babel/runtime@7.29.13':
+    resolution: {integrity: sha512-v+oN26xP4YIlQsbQ/CbTH1WG5m/l/DjKKZNy/Kp3f/AFvbgt7Em/D0FeMM3O2hX0YzeN2M16W8lOpyhIkfCBcQ==}
+    engines: {node: '>=6.9.0'}
 
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
@@ -445,6 +464,10 @@ packages:
   '@nodable/entities@3.1.0':
     resolution: {integrity: sha512-LsS/DjHr+uDM647Gru/cA8+J3a3HfhttwCKLyuoyN7yXTFCxKBtSgMQBvrW9yNPa2/zDRUNuGPaH5QUFoa4arQ==}
 
+  '@opentelemetry/api@1.10.0':
+    resolution: {integrity: sha512-lMkyes8iHrG+mk6WH7X70MdCLI2RS0FwNBY1PyQ8UemaijE2m5mv5A0Niy3HtbYTFrgkUEQjFMXmSAk2hQDuPQ==}
+    engines: {node: '>=8.0.0'}
+
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
 
@@ -543,6 +566,9 @@ packages:
 
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
+
+  '@stablelib/base64@1.0.1':
+    resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -682,6 +708,9 @@ packages:
       '@typescript-eslint/types':
         optional: true
 
+  fast-sha256@1.3.0:
+    resolution: {integrity: sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ==}
+
   fast-xml-builder@1.3.1:
     resolution: {integrity: sha512-pIM/1n3ntFXKYrUZwW7QCK0gAW7XY+wzj1YMIV3tLDvPj/V+zTGJK5e3/4WJfwj0qWw2ElNXiTixda/R+3YSug==}
 
@@ -721,6 +750,10 @@ packages:
 
   is-unsafe@2.0.3:
     resolution: {integrity: sha512-ZBllczCCO267vgdFb6Tq3pv+LhHaCiGMdr+ZsuL+OopruAg7S+3ZDs1vD0RPC0uSrkjzbraxaGjtX1YBxjPeFQ==}
+
+  json-schema-to-ts@3.1.1:
+    resolution: {integrity: sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g==}
+    engines: {node: '>=16'}
 
   ktx-parse@1.1.0:
     resolution: {integrity: sha512-mKp3y+FaYgR7mXWAbyyzpa/r1zDWeaunH+INJO4fou3hb45XuNSwar+7llrRyvpMWafxSIi99RNFJ05MHedaJQ==}
@@ -914,6 +947,9 @@ packages:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
 
+  standardwebhooks@1.1.1:
+    resolution: {integrity: sha512-bCbX9ZEyFkWPsRz7Bl3NuQUJohmwGSev/yhr7vhaGPlc4AfIrspIRa6cPTBuI1ItmrTDJ4d/S2hCsfe4+vQGnQ==}
+
   strnum@2.5.1:
     resolution: {integrity: sha512-UM4nTLWzQiDBseVxUGxN0wJzIk0UU89Qi7pKXz9qISo+lhviJikTuikBsK/oFRlpvYHvSdz0TVoLyQ+sEpYwxA==}
 
@@ -939,6 +975,9 @@ packages:
   totalist@3.0.1:
     resolution: {integrity: sha512-sf4i37nQ2LBx4m3wB74y+ubopq6W/dIzXg0FDGjsYnZHVa1Da8FH853wlL2gtUhg+xJXjfk3kUZS3BRoQeoQBQ==}
     engines: {node: '>=6'}
+
+  ts-algebra@2.0.0:
+    resolution: {integrity: sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw==}
 
   tslib@2.9.1:
     resolution: {integrity: sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==}
@@ -1024,6 +1063,16 @@ packages:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
+
+  '@anthropic-ai/sdk@1.1.0(zod@4.6.7)':
+    dependencies:
+      '@opentelemetry/api': 1.10.0
+      json-schema-to-ts: 3.1.1
+      standardwebhooks: 1.1.1
+    optionalDependencies:
+      zod: 4.6.7
+
+  '@babel/runtime@7.29.13': {}
 
   '@dimforge/rapier3d-compat@0.12.0': {}
 
@@ -1183,6 +1232,8 @@ snapshots:
 
   '@nodable/entities@3.1.0': {}
 
+  '@opentelemetry/api@1.10.0': {}
+
   '@oxc-project/types@0.156.0': {}
 
   '@polka/url@1.0.0-next.29': {}
@@ -1234,17 +1285,19 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
+  '@stablelib/base64@1.0.1': {}
+
   '@standard-schema/spec@1.1.0': {}
 
   '@sveltejs/acorn-typescript@1.0.13(acorn@8.19.0)':
     dependencies:
       acorn: 8.19.0
 
-  '@sveltejs/adapter-static@4.0.0(@sveltejs/kit@3.0.0(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))':
+  '@sveltejs/adapter-static@4.0.0(@sveltejs/kit@3.0.0(@opentelemetry/api@1.10.0)(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))':
     dependencies:
-      '@sveltejs/kit': 3.0.0(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1))
+      '@sveltejs/kit': 3.0.0(@opentelemetry/api@1.10.0)(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1))
 
-  '@sveltejs/kit@3.0.0(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1))':
+  '@sveltejs/kit@3.0.0(@opentelemetry/api@1.10.0)(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1)))(svelte@5.57.1)(typescript@5.9.3)(vite@8.3.2(@types/node@24.19.2)(yaml@2.9.1))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
       '@standard-schema/spec': 1.1.0
@@ -1258,6 +1311,7 @@ snapshots:
       svelte: 5.57.1
       vite: 8.3.2(@types/node@24.19.2)(yaml@2.9.1)
     optionalDependencies:
+      '@opentelemetry/api': 1.10.0
       typescript: 5.9.3
 
   '@sveltejs/load-config@0.2.3': {}
@@ -1338,6 +1392,8 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  fast-sha256@1.3.0: {}
+
   fast-xml-builder@1.3.1:
     dependencies:
       path-expression-matcher: 1.6.2
@@ -1372,6 +1428,11 @@ snapshots:
       '@types/estree': 1.0.10
 
   is-unsafe@2.0.3: {}
+
+  json-schema-to-ts@3.1.1:
+    dependencies:
+      '@babel/runtime': 7.29.13
+      ts-algebra: 2.0.0
 
   ktx-parse@1.1.0: {}
 
@@ -1574,6 +1635,11 @@ snapshots:
 
   source-map-js@1.2.2: {}
 
+  standardwebhooks@1.1.1:
+    dependencies:
+      '@stablelib/base64': 1.0.1
+      fast-sha256: 1.3.0
+
   strnum@2.5.1:
     dependencies:
       anynum: 1.0.1
@@ -1619,6 +1685,8 @@ snapshots:
       picomatch: 4.0.7
 
   totalist@3.0.1: {}
+
+  ts-algebra@2.0.0: {}
 
   tslib@2.9.1:
     optional: true
