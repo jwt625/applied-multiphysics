@@ -2935,6 +2935,28 @@ def apply_audit(d: dict) -> dict:
         )
     if cid == "HT-61":  # m4
         d["bcs"] = d["bcs"] + [{"selection": "domain", "type": "source", "value": 1.0, "note": "-lap u = f, f = 1"}]
+    # I1 engine wiring (DevLog-014 s.5 item 8): spec pointers and extract lines, preserved by this builder
+    wiring = {
+        "EM-02": ("sims/two-spheres.yaml", {"C_aa": {"kind": "scalar", "name": "C_ta_ta"},
+                                            "C_bb": {"kind": "scalar", "name": "C_tb_tb"},
+                                            "C_ab": {"kind": "scalar", "name": "C_ta_tb"}}),
+        "EM-03": ("sims/coplanar-rings.yaml", {"M_ab_filament_exact": {"kind": "scalar", "name": "L_ra_rb"},
+                                               "M_ab": {"kind": "scalar", "name": "L_ra_rb"},
+                                               "L_aa": {"kind": "scalar", "name": "L_ra_ra"},
+                                               "L_bb": {"kind": "scalar", "name": "L_rb_rb"}}),
+        "RF-01": ("sims/cylinder-cavity.yaml", {"f_TM010": {"kind": "eigen", "floor": 1.0e6, "index": 0},
+                                                "f_TE111": {"kind": "eigen", "floor": 1.0e6, "index": 1},
+                                                "f_TE011": {"kind": "eigen", "floor": 1.0e6, "index": 11},
+                                                "Q_d": {"kind": "scalar", "name": "Q_0"}}),
+    }
+    if cid in wiring:
+        d["spec"], ex = wiring[cid]
+        for r in d["references"]:
+            if r.get("metric_id") in ex:
+                r["extract"] = ex[r["metric_id"]]
+        if cid == "RF-01":
+            d["notes"] = (d.get("notes") or []) + ["Q_c_TE011 and Q_TE011_copper need a surface-impedance BC, not yet "
+                                                   "in the engine: these targets stay pending (DevLog-014 s.5 item 8)."]
     # every target gets an explicit, unique metric_id (L8 loader: engine looks targets up by metric_id)
     used = {r["metric_id"] for r in d["references"] if r.get("metric_id")}
     prefix = {"WO-05": "meep_", "WO-04": "mpb_", "WO-61": "mpb_"}.get(cid, "")

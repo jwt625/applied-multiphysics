@@ -37,6 +37,7 @@ references:
   expected: {file: eval/expected/EM-03.json, metric_id: M_ab_filament_exact}
   provenance: {citation: Maxwell mutual inductance of coaxial coplanar loops (this lane), locator: palace docs/src/examples/rings.md
       L42 (inputs), accessed: null, generator: validation/c/gen_palace.py}
+  extract: {kind: scalar, name: L_ra_rb}
 - quantity: M_ab
   metric_id: M_ab
   value: 1.9739208799572496e-12
@@ -51,6 +52,7 @@ references:
   provenance: {citation: 'Biot-Savart small-loop limit, Palace docs', locator: 'palace docs/src/examples/rings.md L28-30,
       L73-75', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
   note: small-loop limit printed by Palace; 0.38 % below the exact filament-loop value
+  extract: {kind: scalar, name: L_ra_rb}
 - quantity: L_aa
   metric_id: L_aa
   value: 4.1785366513873915e-11
@@ -64,6 +66,7 @@ references:
   expected: {file: eval/expected/EM-03.json, metric_id: L_aa}
   provenance: {citation: 'thin-ring self inductance, Palace docs ref. [1]', locator: 'palace docs/src/examples/rings.md L35-39,
       L79-83', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
+  extract: {kind: scalar, name: L_ra_ra}
 - quantity: L_bb
   metric_id: L_bb
   value: 7.072050415971537e-10
@@ -76,6 +79,7 @@ references:
   expected: {file: eval/expected/EM-03.json, metric_id: L_bb}
   provenance: {citation: 'thin-ring self inductance, Palace docs ref. [1]', locator: 'palace docs/src/examples/rings.md L35-39,
       L79-83', accessed: null, generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
+  extract: {kind: scalar, name: L_rb_rb}
 reference_results:
 - {solver: Palace v0.19.0 regression gold (coarse CI mesh), M_11_H: 4.271797046795e-11, M_12_H: 1.960101643863e-12, M_22_H: 7.139527404879e-10,
   locator: test/data/regression/ref/rings/terminal-M.csv}
@@ -91,7 +95,7 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/coplanar-rings.yaml}
+spec: sims/coplanar-rings.yaml
 missing: []
 assumptions: ['rings.md L29 prints M_ab = mu0 pi r_b^2 / (2 r_a); the printed 1.973921 pH equals mu0 pi r_a^2 / (2 r_b), used
     here (docs typo).']

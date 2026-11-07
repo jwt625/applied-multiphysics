@@ -216,3 +216,23 @@ All corrections live in `validation/c/build_cases.py::apply_audit()` (keyed by c
   - run MPB itself (conda only, not allowed here) at resolutions 32, 64 and 128 and show convergence to the PWE values; or
   - add MPB's grid plus subpixel-averaging discretization to an independent solver, reproduce the resolution-32 digits, then refine.
 - Checks: validate_cases.py 0 errors; L8 dry-run 0 loader errors / 0 warnings, exit 0 (`logs/eval-20261106T163407.jsonl`).
+
+### Engine wiring and first engine runs (2026-11-06 17:24-17:27 PST)
+
+- Applied I1's lines (DevLog-014 s.5 item 8) through `build_cases.py::apply_audit()` (the "wiring" block), so they survive `--force` rebuilds:
+  - EM-02: `spec: sims/two-spheres.yaml`, C_aa/C_bb/C_ab -> scalars C_ta_ta / C_tb_tb / C_ta_tb.
+  - EM-03: `spec: sims/coplanar-rings.yaml`, M_ab_filament_exact and M_ab -> L_ra_rb, L_aa -> L_ra_ra, L_bb -> L_rb_rb.
+  - RF-01: `spec: sims/cylinder-cavity.yaml`, eigen floor 1e6 Hz, index 0 / 1 / 11, Q_d -> Q_0.
+  - Q_c_TE011 and Q_TE011_copper stay pending: the engine has no surface-impedance BC yet.
+- Checks: validate_cases.py 36 cases / 104 references / 0 errors.
+- `node packages/eval/src/cli.ts --case <ID>` on the engine (worker, 3 levels):
+
+| Case | Result | Values (engine vs reference) | Log |
+|---|---|---|---|
+| EM-02 | pass (3/3) | C_aa 1.230522e-12 vs 1.230518e-12 F (3.6e-6); C_bb 2.431577e-12 vs 2.431543e-12 (1.4e-5); C_ab -4.945538e-13 vs -4.945668e-13 (2.6e-5) | `logs/eval-20261106T172438.jsonl`, `logs/eval-c-engine-EM-02-*.log` |
+| EM-03 | pass (3 gated + 1 info) | M_ab 1.982604e-12 vs exact filament 1.981370e-12 H (6.2e-4, within 5e-3; small-loop 1.973921e-12 is info); L_aa 4.180659e-11 vs 4.178537e-11 (5.1e-4); L_bb 7.072076e-10 vs 7.072050e-10 (3.6e-6) | `logs/eval-20261106T172439.jsonl` |
+| RF-01 | timeout (6/6 targets) | worker limit 120 s (20 x budget_s) hit on the 3D `cylinder-cavity.yaml` levels; no error message beyond the timeout | `logs/eval-20261106T172450.jsonl`, `logs/eval-c-engine-RF-01-*.log` |
+
+- RF-01 next step (coordinator or I1 decision):
+  - point the frequencies at `sims/cylinder-cavity-axisym.yaml`, as RF-21 does (they are informative duplicates anyway), and keep 3D only for the impedance-wall Q once that BC exists; or
+  - raise RF-01's `speed.budget_s.browser` (now 2 s) so the worker limit covers the 3D levels.
