@@ -12,7 +12,9 @@ source:
   doi: 10.1007/978-3-322-89849-4_39
   open_access: false
   open_copy: {url: "https://www2.karlin.mff.cuni.cz/~hron/NMMO403/dfg_benchmark_results.pdf", note: "author-group course copy; rights not stated", cache: cache/eval-b/schafer-turek-1996/dfg_benchmark_results.pdf, sha256: e020ab261b2d3a0675edb89c9c5af8b1383ee0584d89f12e3a7dce988be5465b}
-  reference_page: {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_benchmark2_re100.html", cache: cache/eval-b/featflow/dfg_benchmark2_re100.html, sha256: de8e16e39e9094dda650bfd75098839780996e6b8eff69084fb37f39bb34c525}
+  reference_pages:
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/media/dfg_bench2new_2d/20141124_dfg_bench2_official.zip", cache: cache/eval-b/featflow-dfg2-2014/20141124_dfg_bench2_official.zip, sha256: 08db59605b2f60efc512d2bbc79628ea5d1cc720c0986938a16920884a0215be, where: "logs/results_cc2d_bench2_referencenew/bdforces_q2_lv*_dt*, pointvalues_q2_lv*_dt*", note: "FEATFLOW 2D-2 page, 'New reference results' (higher-order line integration)"}
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_benchmark2_re100.html", cache: cache/eval-b/featflow/dfg_benchmark2_re100.html, sha256: de8e16e39e9094dda650bfd75098839780996e6b8eff69084fb37f39bb34c525}
 geometry:
   kind: analytic
   spec: {channel_m: [2.2, 0.41], cylinder: {center_m: [0.2, 0.2], radius_m: 0.05}}
@@ -28,46 +30,51 @@ study: {type: transient, t_end: 30.0, dt_out: 0.01, note: "time step is a solver
 references:
   - quantity: c_D_max
     definition: "max of 2 F_D / (rho Ubar^2 D) over one period, Ubar = 1.0"
-    value: null
+    value: 3.2273926
     unit: "1"
-    tolerance: {rule: within_bounds}
+    tolerance: {rel: 5.0e-4, note: "2 x (level spread L5-L6 + time-step spread dt2-dt4) of the 2014 data = 4.8e-4 (factor 2 is an assumption)"}
     bounds: [3.22, 3.24]
-    basis: P
+    expected: {metric_id: c_D_max}
+    basis: D
     form: benchmark
-    extraction: tabulated
-    provenance: {citation: "Schafer-Turek 1996 Table 4", locator: "open copy p.13, Table 4 bound rows", accessed: 2026-11-06}
+    extraction: {method: computed, from: "2014 FEATFLOW time series"}
+    provenance: {citation: "FEATFLOW 2D-2 'New reference results' (2014-11-24), Q2/P1disc, level 6, finest time step", locator: "20141124_dfg_bench2_official.zip, logs/results_cc2d_bench2_referencenew/bdforces_q2_lv6_dt4 (lv5_dt4 and lv6_dt2 for the spread); extrema by validation/b/featflow_dfg2.py", accessed: 2026-11-06, url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/media/dfg_bench2new_2d/20141124_dfg_bench2_official.zip", generator: validation/b/gen_expected.py}
   - quantity: c_L_max
     definition: "max of 2 F_L / (rho Ubar^2 D) over one period"
-    value: null
+    value: 0.9865707
     unit: "1"
-    tolerance: {rule: within_bounds, note: "flag: FEATFLOW level 6 gives 0.9859, below the 1996 lower bound 0.99; gate reported, not enforced, until the 2D-2 c_L,max reference is settled (John 2004 / FEATFLOW 2014 'new reference results' zip, not fetched)"}
-    bounds: [0.99, 1.01]
-    basis: P
+    tolerance: {rel: 1.3e-3, note: "2 x (level spread 3.8e-4 + time-step spread 2.4e-4) / value = 1.24e-3 (factor 2 is an assumption). The 1996 bounds [0.99, 1.01] exclude this converged value and are kept as reference_results only"}
+    expected: {metric_id: c_L_max}
+    basis: D
     form: benchmark
-    extraction: tabulated
-    provenance: {citation: "Schafer-Turek 1996 Table 4", locator: "open copy p.13, Table 4 bound rows", accessed: 2026-11-06}
+    extraction: {method: computed, from: "2014 FEATFLOW time series"}
+    provenance: {citation: "FEATFLOW 2D-2 'New reference results' (2014-11-24), Q2/P1disc, level 6, finest time step", locator: "20141124_dfg_bench2_official.zip, logs/results_cc2d_bench2_referencenew/bdforces_q2_lv6_dt4 (lv5_dt4 and lv6_dt2 for the spread); extrema by validation/b/featflow_dfg2.py", accessed: 2026-11-06, url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/media/dfg_bench2new_2d/20141124_dfg_bench2_official.zip", generator: validation/b/gen_expected.py}
   - quantity: St
-    definition: "D f / Ubar, f from the lift signal"
-    value: null
+    definition: "D f / Ubar, f from upward zero crossings of c_L"
+    value: 0.301841
     unit: "1"
-    tolerance: {rule: within_bounds}
+    tolerance: {rel: 6.0e-4, note: "2 x (level + time-step spread) = 5.4e-4 (assumption factor 2); only about 3 periods are stored"}
     bounds: [0.295, 0.305]
-    basis: P
+    expected: {metric_id: St}
+    basis: D
     form: benchmark
-    extraction: tabulated
-    provenance: {citation: "Schafer-Turek 1996 Table 4", locator: "open copy p.13, Table 4 bound rows", accessed: 2026-11-06}
+    extraction: {method: computed, from: "2014 FEATFLOW time series"}
+    provenance: {citation: "FEATFLOW 2D-2 'New reference results' (2014-11-24), Q2/P1disc, level 6, finest time step", locator: "20141124_dfg_bench2_official.zip, logs/results_cc2d_bench2_referencenew/bdforces_q2_lv6_dt4 (lv5_dt4 and lv6_dt2 for the spread); extrema by validation/b/featflow_dfg2.py", accessed: 2026-11-06, url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/media/dfg_bench2new_2d/20141124_dfg_bench2_official.zip", generator: validation/b/gen_expected.py}
   - quantity: delta_p_half_period
     definition: "p(0.15, 0.2) - p(0.25, 0.2) at t = t0 + 1/(2f), t0 at c_L max (1996 definition, sec. 2.2 b)"
-    value: null
+    value: 2.4848227
     unit: "Pa (rho = 1)"
-    tolerance: {rule: within_bounds}
+    tolerance: {rel: 8.0e-4, note: "2 x (level + time-step spread) = 8.0e-4 (assumption factor 2)"}
     bounds: [2.46, 2.50]
-    basis: P
+    expected: {metric_id: delta_p_half_period}
+    basis: D
     form: benchmark
-    extraction: tabulated
-    provenance: {citation: "Schafer-Turek 1996 Table 4", locator: "open copy p.13, Table 4; definition p.4", accessed: 2026-11-06}
+    extraction: {method: computed, from: "2014 FEATFLOW pointvalues time series"}
+    provenance: {citation: "FEATFLOW 2D-2 'New reference results' (2014-11-24), Q2/P1disc, level 6, finest time step", locator: "20141124_dfg_bench2_official.zip, logs/results_cc2d_bench2_referencenew/pointvalues_q2_lv6_dt4 (lv5_dt4 and lv6_dt2 for the spread); extrema by validation/b/featflow_dfg2.py", accessed: 2026-11-06, url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/media/dfg_bench2new_2d/20141124_dfg_bench2_official.zip", generator: validation/b/gen_expected.py}
 reference_results:
-  - {solver: "FEATFLOW Q2/P1disc, level 6, k = 1/200", c_D_max: 3.2200, c_L_max: 0.9859, St: 0.30188, locator: "FEATFLOW 2D-2 page, 'Exemplary Results' tables 1-3"}
+  - {solver: "Schafer-Turek 1996 bounds", c_D_max: [3.22, 3.24], c_L_max: [0.99, 1.01], St: [0.295, 0.305], delta_p: [2.46, 2.50], locator: "open copy p.13, Table 4 bound rows"}
+  - {solver: "FEATFLOW 2D-2 page 'Exemplary Results' (older integration), level 6, k = 1/200", c_D_max: 3.2200, c_L_max: 0.9859, St: 0.30188, locator: "FEATFLOW 2D-2 page tables 1-3"}
+  - {solver: "FEATFLOW 2014 new reference, all levels and time steps", note: "eval/expected/FL-04.json inputs.all_levels"}
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
   budget_s: {browser: null, native: null}
@@ -82,6 +89,6 @@ rights:
   forbidden: [copy_text, copy_figures, copy_input_files]
 hero: {suitable: true, why: "R3 hero H9 (vortex street); replay or WebGPU tier", visual: [vorticity, velocity_magnitude]}
 missing:
-  - {input: "phase definition of t0: 1996 uses c_L max, FEATFLOW uses c_L min", assumption: "1996 definition for delta_p; both for the force maxima (phase-independent)"}
+  - {input: "phase definition of t0: 1996 uses c_L max, FEATFLOW uses c_L min", assumption: "1996 definition for delta_p (as computed in eval/expected/FL-04.json); force maxima are phase-independent"}
 assumptions:
-  - "Bounds are the gate; FEATFLOW values are informative."
+  - "Gate: FEATFLOW 2014 new reference results (level 6, finest dt), which FEATFLOW states are of higher quality than its older table; the 1996 bounds stay as reference results (audit 2026-11-06 B1)."

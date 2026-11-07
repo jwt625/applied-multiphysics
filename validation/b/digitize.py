@@ -17,7 +17,9 @@ Steps per panel:
   7. Uncertainty (standard, k = 1) per point, in data units:
         u_q    = 0.5 px / sqrt(3)            quantization (uniform over one pixel)
         u_line = (thickness / 2) / sqrt(3)  line width (centre anywhere inside the stroke, uniform)
-        u_cal  = sqrt(fit RMS residual (n - 2 dof)^2 + (|b| 0.5 px / sqrt3)^2)   tick localization included
+        u_cal  = sqrt(fit RMS residual (n - 2 dof)^2 + (|b| 0.5 px / sqrt3)^2) for >= 3 calibration pairs; with 2 pairs
+                 (only if the spec sets allow_two_ticks) the two tick localizations are propagated through the line
+        floors : line-width term uses max(stroke, median stroke) (overlaps only thin a stroke); u_y >= 1 pixel
         u_y    = |dy/dpx| * sqrt(u_q^2 + u_line^2) (+) u_cal_y ; at a requested x, the x uncertainty is propagated
                  through the local slope: u = sqrt(u_y^2 + (slope * u_x)^2). Expanded U = 2 u.
   8. Output JSON (points, samples, calibration, uncertainties, source sha256, ISO timestamp) and an overlay PNG.
@@ -195,7 +197,8 @@ def ocr_per_tick(arr: np.ndarray, fr: dict, ticks: list[float], axis: str, work:
     return res
 
 
-def calibrate(ticks: list[float], expected: list[float], ocr: list[dict], axis: str, scale: str) -> dict:
+def calibrate(ticks: list[float], expected: list[float], ocr: list[dict], axis: str, scale: str,
+              allow_two: bool = False) -> dict:
     """Assign label values to tick pixel positions, fit the linear map, return calibration dict."""
     key = "cy" if axis == "y" else "cx"
     pairs, labels_from = [], "ocr"
@@ -233,12 +236,27 @@ def calibrate(ticks: list[float], expected: list[float], ocr: list[dict], axis: 
         vv = np.log10(val) if scale == "log" else val
         b, a = np.polyfit(px, vv, 1)
     resid = vv - (a + b * px)
+    if len(px) < 3 and not allow_two:
+        raise SystemExit(f"{axis}: only {len(px)} calibration pairs; need >= 3, or set allow_two_ticks in the spec "
+                         "(then a two-point scale term is added)")
     rms_fit = float(np.sqrt(np.sum(resid ** 2) / (len(px) - 2))) if len(px) > 2 else 0.0
     u_tick = abs(float(b)) * 0.5 / math.sqrt(3)  # tick centre localization, one pixel uniform
     rms = math.sqrt(rms_fit ** 2 + u_tick ** 2)
     return {"a": float(a), "b": float(b), "scale": scale, "pairs": [[float(p), float(v)] for p, v in pairs],
             "rms_resid": rms, "rms_fit": rms_fit, "u_tick": u_tick, "n_pairs": len(px),
             "labels_from": labels_from, "n_ticks": len(ticks)}
+
+
+def u_cal_at(cal: dict, px: np.ndarray) -> np.ndarray:
+    """Calibration standard uncertainty at pixel positions. >= 3 pairs: fit RMS (+) tick localization.
+    2 pairs: no residual exists, so propagate the localization of both ticks (u_tick_px each) through the line:
+    u = |b| u_tick_px sqrt((p - p1)^2 + (p - p2)^2) / |p2 - p1| (zero only at no point; grows outside the ticks)."""
+    px = np.asarray(px, float)
+    if cal["n_pairs"] >= 3:
+        return np.full_like(px, cal["rms_resid"])
+    (p1, _), (p2, _) = cal["pairs"][:2]
+    ut = 0.5 / math.sqrt(3)
+    return abs(cal["b"]) * ut * np.sqrt((px - p1) ** 2 + (px - p2) ** 2) / abs(p2 - p1)
 
 
 def to_data(cal: dict, px: np.ndarray) -> np.ndarray:
@@ -276,7 +294,8 @@ def process_panel(arr: np.ndarray, panel: dict, cals: dict, work: Path, ocr_on: 
     yocr = ocr_per_tick(arr, fr, yt, "y", work, panel["name"] + "_y", tuple(panel.get("y_label_box", (120, 22, 4, 0))))  \
         if ocr_on else []
     out["y_ocr"] = [[o["value"], round(o["cx"], 1), round(o["cy"], 1)] for o in yocr]
-    out["y_cal"] = calibrate(yt, panel["y_ticks"], yocr, "y", panel.get("y_scale", "linear"))
+    out["y_cal"] = calibrate(yt, panel["y_ticks"], yocr, "y", panel.get("y_scale", "linear"),
+                             bool(panel.get("allow_two_ticks", False)))
     if panel.get("x_from"):
         out["x_cal"] = cals[panel["x_from"]]
         out["x_cal_note"] = f"x calibration shared with panel {panel['x_from']} (same page pixels)"
@@ -290,7 +309,8 @@ def process_panel(arr: np.ndarray, panel: dict, cals: dict, work: Path, ocr_on: 
         if len(xocr) < 2 and ocr_on:
             xocr = ocr_per_tick(arr, fr, xt, "x", work, panel["name"] + "_x", tuple(panel.get("x_label_box", (0, 40, 3, 45))))
         out["x_ocr"] = [[o["value"], round(o["cx"], 1), round(o["cy"], 1)] for o in xocr]
-        out["x_cal"] = calibrate(xt, panel["x_ticks"], xocr, "x", panel.get("x_scale", "linear"))
+        out["x_cal"] = calibrate(xt, panel["x_ticks"], xocr, "x", panel.get("x_scale", "linear"),
+                                 bool(panel.get("allow_two_ticks", False)))
     cals[panel["name"]] = out["x_cal"]
     xc, yc = out["x_cal"], out["y_cal"]
     if xc["scale"] != "linear" or yc["scale"] != "linear":
@@ -307,9 +327,13 @@ def process_panel(arr: np.ndarray, panel: dict, cals: dict, work: Path, ocr_on: 
         thick = np.array([p["thick"] for p in pts], float)
         x = to_data(xc, cols)
         y = to_data(yc, rows)
-        u_line_px = (thick / 2) / math.sqrt(3)
-        u_y = np.sqrt((abs(yc["b"]) ** 2) * (uq ** 2 + u_line_px ** 2) + yc["rms_resid"] ** 2)
-        u_x = math.sqrt((abs(xc["b"]) * uq) ** 2 + xc["rms_resid"] ** 2)
+        # overlap floor: another curve or a legend can hide part of a stroke, which only thins it, so the line-width
+        # term never drops below the median stroke of this curve, and u_y never below one pixel
+        thick_eff = np.maximum(thick, np.median(thick))
+        u_line_px = (thick_eff / 2) / math.sqrt(3)
+        u_y = np.sqrt((abs(yc["b"]) ** 2) * (uq ** 2 + u_line_px ** 2) + u_cal_at(yc, rows) ** 2)
+        u_y = np.maximum(u_y, abs(yc["b"]))
+        u_x = float(math.sqrt((abs(xc["b"]) * uq) ** 2 + float(np.median(u_cal_at(xc, cols))) ** 2))
         samples = []
         for xs in cv.get("sample_x", []):
             if xs < x.min() or xs > x.max():
@@ -412,7 +436,7 @@ def selftest(out_dir: Path) -> int:
     w, h = im.size
     sample_x = [5.0, 15.0, 33.0, 50.0, 64.0]
     spec = {
-        "id": "selftest", "source": {"image": str(png)}, "crop_px": [0, 0, w, h],
+        "id": "selftest", "source": {"image": str(png.resolve())}, "crop_px": [0, 0, w, h],
         "panels": [{"name": "p", "box_px": [60, 10, w - 10, h - 40], "x_ticks": [10, 20, 30, 40, 50, 60],
                     "y_ticks": [0, 2, 4, 6], "tick_len_px": 6, "y_edge_ticks": True,
                     "curves": [{"name": "c", "rgb": [0, 114, 189], "tol": 60, "sample_x": sample_x}]}],

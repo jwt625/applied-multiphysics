@@ -2,8 +2,9 @@ schema: amp-eval/0
 id: CP-42
 class: b
 title: Si optomechanical crystal nanobeam (Eichenfield et al. 2009, Device 1), breathing-mode ladder frequencies
-status: unvalidated
-untestable_reason: null
+status: untestable
+untestable_reason: "the defect-region hole geometry was measured per hole from SEM and is not tabulated (arXiv p.7 appendix); with an ideal taper the expected frequency offset is percent-level (estimate), larger than the 0.9-2.0 % spacing of breathing modes 1-5 (Table I)"
+activation: "per-hole defect geometry, or a sensitivity study showing the ideal-taper model reproduces Table I spacings to better than 0.4 %"
 physics: [solid-modal, coupled-optomech]
 dimension: 3D
 units: SI
@@ -29,11 +30,22 @@ references:
     at: {mode: [1, 2, 3, 4, 5]}
     value: [2.254e+9, 2.275e+9, 2.294e+9, 2.322e+9, 2.369e+9]
     unit: Hz
-    tolerance: {rel: 5.0e-3, note: "proposed (assumption). Mode 1 is fitted (E tuned to it), so modes 2-5 relative to mode 1 are the informative part"}
+    tolerance: {rel: 2.0e-2, note: "informative: mode 1 is fitted (E tuned to it, p.7), so absolute values carry little information"}
+    gate: false
     basis: P
     form: paper_sim
     extraction: tabulated
     provenance: {citation: "Eichenfield et al. 2009", locator: "arXiv p.9, Table I, column nu_m (simulated; tilde = measured)", accessed: 2026-11-06}
+  - quantity: f_ratio_to_mode1
+    definition: "f_n / f_1 of the simulated breathing modes n = 2-5; modes identified by displacement symmetry (breathing family), not by sort order"
+    at: {mode: [2, 3, 4, 5]}
+    value: [1.009317, 1.017746, 1.030169, 1.051020]
+    unit: "1"
+    tolerance: {abs: 4.0e-3, note: "below half the smallest adjacent ratio spacing (0.0084, modes 2-3), so a pass cannot come from a mode swap; derived here"}
+    basis: D
+    form: paper_sim
+    extraction: {method: derived, from: "Table I simulated frequencies, f_n / f_1 rounded to 6 decimals"}
+    provenance: {citation: "Eichenfield et al. 2009 Table I", locator: "arXiv p.9, Table I, column nu_m", accessed: null}
   - quantity: m_eff_breathing_modes
     definition: "simulated motional mass, modes 1-5 (max |Q| normalization, appendix D)"
     at: {mode: [1, 2, 3, 4, 5]}

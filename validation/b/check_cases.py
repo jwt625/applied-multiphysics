@@ -3,13 +3,16 @@
 Checks per case (eval/cases/b/*.yaml): class b; id equals file name; new IDs in 41-59 unless carried from R3;
 source.citation and source.doi (or 'N/A' with open_copy); source.open_access boolean; every reference has
 extraction and provenance.locator; every `missing` item is {input, assumption}; no 'FILL' placeholders;
-every `cache:` path exists with a sidecar whose sha256 matches the case.
+every `cache:` path exists, its sidecar sha256 equals the case sha256 and the sha256 of the cached file itself;
+every tolerance states its basis (a `note`, or `bounds` / a rule); untestable cases carry untestable_reason and
+activation.
 
-Usage: uv run --no-project --with pyyaml python validation/b/check_cases.py [--table]
+Usage (from validation/): uv run python b/check_cases.py [--table]
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -52,7 +55,12 @@ def check(f: Path) -> tuple[list[str], dict]:
         errs.append("source.doi")
     if not isinstance(s.get("open_access"), bool):
         errs.append("source.open_access not boolean")
+    if c.get("status") == "untestable" and not (c.get("untestable_reason") and c.get("activation")):
+        errs.append("untestable without untestable_reason and activation")
     for r in c.get("references", []):
+        tol = r.get("tolerance") or {}
+        if not (tol.get("note") or r.get("bounds") or "rule" in tol):
+            errs.append(f"reference {r.get('id', r.get('quantity'))}: tolerance basis not stated")
         if "extraction" not in r:
             errs.append(f"reference {r.get('quantity')}: no extraction")
         if not (r.get("provenance") or {}).get("locator"):
@@ -66,7 +74,9 @@ def check(f: Path) -> tuple[list[str], dict]:
             if not side.exists():
                 errs.append(f"cache sidecar missing: {d['cache']} (cache/ is local only)")
             elif json.loads(side.read_text())["sha256"] != d["sha256"]:
-                errs.append(f"sha256 mismatch: {d['cache']}")
+                errs.append(f"sha256 mismatch (case vs sidecar): {d['cache']}")
+            elif hashlib.sha256((ROOT / d["cache"]).read_bytes()).hexdigest() != d["sha256"]:
+                errs.append(f"sha256 mismatch (cached file changed): {d['cache']}")
     return errs, c
 
 

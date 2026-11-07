@@ -16,14 +16,14 @@ source:
     - {where: "T. Gjesdal, C. E. Wasberg, O. Andreassen, Spectral element simulations of buoyancy-driven flow, arXiv physics/0305049 (2003), Table 1 (de Vahl Davis and Hortmann et al. 1990 rows)", url: "https://arxiv.org/pdf/physics/0305049", cache: cache/eval-b/devahldavis-retab/arxiv-physics-0305049.pdf, sha256: f422f19dc4ccad541e05d40843440e3df273cb2bc9dac272576c1b26378a24ab, licence: "arXiv non-exclusive distribution licence"}
     - {where: "P. Lallemand, F. Dubois, Comparison of simulations of convective flows, arXiv 1401.0188v2 (2018), Table 1 (de Vahl Davis and Le Quere 1991 columns)", url: "https://arxiv.org/pdf/1401.0188", cache: cache/eval-b/devahldavis-retab/arxiv-1401.0188.pdf, sha256: 5f8762f9c6dc90715b9e939c5f25f8ec61a43572fef4ef5c4f23a32eb10b3354, licence: "arXiv non-exclusive distribution licence"}
   secondary_references:
-    - {citation: "M. Hortmann, M. Peric, G. Scheuerer, Finite volume multigrid prediction of laminar natural convection: bench-mark solutions, Int. J. Numer. Meth. Fluids 11, 189-207 (1990)", doi: N/A, open_access: false}
-    - {citation: "P. Le Quere, Accurate solutions to the square thermally driven cavity at high Rayleigh number, Computers & Fluids 20, 29-41 (1991)", doi: N/A, open_access: false}
+    - {citation: "M. Hortmann, M. Peric, G. Scheuerer, Finite volume multigrid prediction of laminar natural convection: bench-mark solutions, Int. J. Numer. Meth. Fluids 11, 189-207 (1990)", doi: 10.1002/fld.1650110206, open_access: false}
+    - {citation: "P. Le Quere, Accurate solutions to the square thermally driven cavity at high Rayleigh number, Computers & Fluids 20, 29-41 (1991)", doi: 10.1016/0045-7930(91)90025-d, open_access: false}
 geometry:
   kind: analytic
   spec: {cavity: "unit square, side L", gravity: "-y"}
   symmetry: none
 materials:
-  fluid: {model: boussinesq, Pr: 0.71, Ra: [1.0e+4, 1.0e+5, 1.0e+6], source: "Gjesdal et al. arXiv physics/0305049 p.6 (problem statement)"}
+  fluid: {model: boussinesq, Pr: 0.71, Ra: [1.0e+4, 1.0e+5, 1.0e+6], source: "Gjesdal et al. arXiv physics/0305049v1 p.5 (problem statement)"}
 bcs:
   - {selection: left, type: temperature, expr: "T_hot"}
   - {selection: right, type: temperature, expr: "T_cold"}

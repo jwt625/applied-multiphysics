@@ -12,8 +12,10 @@ source:
   doi: 10.1007/978-3-322-89849-4_39
   open_access: false
   open_copy: {url: "https://www2.karlin.mff.cuni.cz/~hron/NMMO403/dfg_benchmark_results.pdf", note: "author-group course copy; rights not stated", cache: cache/eval-b/schafer-turek-1996/dfg_benchmark_results.pdf, sha256: e020ab261b2d3a0675edb89c9c5af8b1383ee0584d89f12e3a7dce988be5465b}
-  reference_page: {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_benchmark3_re100.html", cache: cache/eval-b/featflow/dfg_benchmark3_re100.html, sha256: 5275756482a88ffcd5867d48b59bce7a918d22f5b2ad6a1a69aadc525f531751}
-  later_reference: {citation: "V. John, Reference values for drag and lift of a two-dimensional time-dependent flow around a cylinder, Int. J. Numer. Meth. Fluids 44, 777-788 (2004)", doi: 10.1002/fld.679, open_access: false}
+  later_reference: {citation: "V. John, Reference values for drag and lift of a two-dimensional time-dependent flow around a cylinder, Int. J. Numer. Meth. Fluids 44, 777-788 (2004)", doi: 10.1002/fld.679, open_access: true, note: "gate reference for this case (audit 2026-11-06 B2)"}
+  reference_pages:
+    - {url: "https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_benchmark3_re100.html", cache: cache/eval-b/featflow/dfg_benchmark3_re100.html, sha256: 5275756482a88ffcd5867d48b59bce7a918d22f5b2ad6a1a69aadc525f531751}
+    - {where: "John 2004 author-hosted PDF, eqs. (8)-(10), p.784-785", url: "https://wias-berlin.de/people/john/ELECTRONIC_PAPERS/Joh04.IJNMF.pdf", note: "author-hosted publisher PDF; rights not stated", cache: cache/eval-b/john-2004/john-2004.pdf, sha256: 953f4cdd9b06a2f29471af88bf5f08fdcb098eae316511dceae56ee790d412e3}
 geometry:
   kind: analytic
   spec: {channel_m: [2.2, 0.41], cylinder: {center_m: [0.2, 0.2], radius_m: 0.05}}
@@ -28,37 +30,38 @@ initial: {u: 0, v: 0, p: 0, source: "Schafer-Turek 1996 sec. 2.2 c (open copy p.
 study: {type: transient, t_end: 8.0, dt_out: 0.01}
 references:
   - quantity: c_D_max
-    definition: "max over 0 <= t <= 8 of 2 F_D / (rho Ubar(t)^2 D) with the constant Ubar = 1.0 (2 Um / 3)"
-    value: 2.9437637214
+    definition: "max over 0 <= t <= 8 of 2 F_D / (rho Ubar^2 D), constant Ubar = 1.0 (John eqs. 2-5: prefactor 20 = 2 / (L U^2), L = 0.1, U = 1); John: t(c_D,max) = 3.93625 s"
+    value: 2.950921575
     unit: "1"
-    tolerance: {rel: 2.0e-3, note: "proposed (assumption); FEATFLOW levels 5 -> 6 change 2.9364 -> 2.9438 (0.25 %)"}
+    tolerance: {rel: 1.0e-3, note: "John 2004 p.785 emphasizes relative errors below 0.1 % for drag; his reference error is < 5e-7 (p.784)"}
     bounds: [2.93, 2.97]
     basis: P
     form: benchmark
-    extraction: tabulated
-    provenance: {citation: "FEATFLOW 2D-3 page (level 6, dt 1/1600, t = 3.9365625 s); bounds Schafer-Turek 1996 Table 5", locator: "FEATFLOW 'Exemplary Results' table; open copy p.14 Table 5", accessed: 2026-11-06}
+    extraction: text
+    provenance: {citation: "John 2004, eq. (8)", locator: "IJNMF 44, p.784 eq. (8) (author PDF page 8)", accessed: 2026-11-06}
   - quantity: c_L_max
-    definition: "max over 0 <= t <= 8 of 2 F_L / (rho Ubar^2 D)"
-    value: 0.47748781595
+    definition: "max over 0 <= t <= 8 of 2 F_L / (rho Ubar^2 D); John: t(c_L,max) = 5.693125 s"
+    value: 0.47795
     unit: "1"
-    tolerance: {rel: 5.0e-3, note: "proposed (assumption)"}
+    tolerance: {rel: 1.0e-2, note: "John 2004 p.785 emphasizes relative errors below 1 % for lift; his reference interval is [0.4779, 0.4780] (p.784)"}
     bounds: [0.47, 0.49]
     basis: P
     form: benchmark
-    extraction: tabulated
-    provenance: {citation: "FEATFLOW 2D-3 page (level 6, t = 5.6928125 s); bounds Schafer-Turek 1996 Table 5", locator: "FEATFLOW table; open copy p.14 Table 5", accessed: 2026-11-06}
+    extraction: text
+    provenance: {citation: "John 2004, eq. (9)", locator: "IJNMF 44, p.784 eq. (9)", accessed: 2026-11-06}
   - quantity: delta_p_t8
-    definition: "|p(0.15, 0.2) - p(0.25, 0.2)| at t = 8 s (sign: see assumptions)"
-    value: 0.11154138872
+    definition: "p(0.15, 0.2) - p(0.25, 0.2) at t = 8 s (signed)"
+    value: -0.1116
     unit: "Pa (rho = 1)"
-    tolerance: {rel: 5.0e-3, note: "proposed (assumption)"}
-    bounds: [0.105, 0.115]
+    tolerance: {rel: 1.0e-2, note: "John 2004 p.785 emphasizes relative errors below 1 % for the pressure difference; stated deviation < 1e-4 (p.785)"}
+    bounds: [-0.115, -0.105]
     basis: P
     form: benchmark
-    extraction: tabulated
-    provenance: {citation: "FEATFLOW 2D-3 page level 6; 1996 Table 5 lists -0.1150 / -0.1050", locator: "FEATFLOW table; open copy p.14 Table 5", accessed: 2026-11-06}
+    extraction: text
+    provenance: {citation: "John 2004, eq. (10)", locator: "IJNMF 44, p.785 eq. (10) (author PDF page 9)", accessed: 2026-11-06}
 reference_results:
-  - {solver: "FEATFLOW levels 1-6, dt 1/1600", note: "c_D_max 2.3078 / 2.8120 / 2.8877 / 2.9210 / 2.9364 / 2.9438"}
+  - {solver: "FEATFLOW 2D-3 page, levels 1-6, dt 1/1600", c_D_max: [2.3078383956, 2.8119800271, 2.8876944780, 2.9210042217, 2.9364004145, 2.9437637214], c_L_max_L6: 0.47748781595, delta_p_t8_L6: 0.11154138872, note: "still converging in c_D (L6 is 0.24 % below John); its delta_p sign is opposite to John and the 1996 bounds (FEATFLOW sign convention), magnitude agrees"}
+  - {solver: "Schafer-Turek 1996 bounds", c_D_max: [2.93, 2.97], c_L_max: [0.47, 0.49], delta_p_t8: [-0.115, -0.105], locator: "open copy p.14 Table 5"}
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
   budget_s: {browser: null, native: null}
@@ -72,7 +75,7 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: "8 s transient; replay only", visual: [vorticity]}
-missing:
-  - {input: "sign convention of delta_p at t = 8 s: 1996 Table 5 bounds are negative, FEATFLOW lists +0.1115", assumption: "gate on the magnitude; resolve against John 2004 (manual download)"}
+missing: []
 assumptions:
-  - "Coefficients use the constant Ubar = 1.0 (FEATFLOW page definition), not the instantaneous inflow mean."
+  - "Coefficients use the constant Ubar = 1.0 (John 2004 and the 1996 definition), not the instantaneous inflow mean."
+  - "Gate moved from FEATFLOW level 6 to John 2004 (audit 2026-11-06 B2); delta_p sign settled as negative."

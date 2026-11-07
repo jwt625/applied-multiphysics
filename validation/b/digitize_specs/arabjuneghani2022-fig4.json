@@ -76,7 +76,9 @@
             66
           ]
         }
-      ]
+      ],
+      "allow_two_ticks": true,
+      "allow_two_ticks_reason": "the 50 ohm tick is hidden under both curves; OCR reads 60 and 40 only"
     },
     {
       "name": "alpha",

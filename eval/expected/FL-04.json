@@ -1,0 +1,253 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "FL-04",
+  "class": "b",
+  "generator": "validation/b/gen_expected.py (fl04) + validation/b/featflow_dfg2.py",
+  "command": "cd validation && uv run python b/gen_expected.py",
+  "method": "Extrema over the stored 1 s window (t 9-10 s, about 3 periods) of bdforces_q2_lv*_dt* (c_D, c_L) and pointvalues (p(0.15, 0.2) - p(0.25, 0.2)); St from upward zero crossings of c_L, Ubar 1, D 0.1; dp at t0 + 1/(2f) with t0 at the first c_L maximum (1996 definition). Proposed tolerance = 2 x (level spread + time-step spread), an assumption.",
+  "inputs": {
+    "zip": "cache/eval-b/featflow-dfg2-2014/20141124_dfg_bench2_official.zip",
+    "zip_sha256": "08db59605b2f60efc512d2bbc79628ea5d1cc720c0986938a16920884a0215be",
+    "url": "https://wwwold.mathematik.tu-dortmund.de/~featflow/media/dfg_bench2new_2d/20141124_dfg_bench2_official.zip",
+    "all_levels": {
+      "lv2_dt1": {
+        "c_D_max": 3.1469378845,
+        "c_L_max": 0.97329140829,
+        "St": 0.2989255880672312,
+        "periods_used": 2,
+        "t_range": [
+          9.005,
+          9.995
+        ],
+        "n": 100,
+        "dp_half_period": 2.561618458158028
+      },
+      "lv2_dt2": {
+        "c_D_max": 3.1471792627,
+        "c_L_max": 0.977130064,
+        "St": 0.29984866579320196,
+        "periods_used": 2,
+        "t_range": [
+          9.00125,
+          9.99875
+        ],
+        "n": 400,
+        "dp_half_period": 2.562988852720413
+      },
+      "lv2_dt4": {
+        "c_D_max": 3.1471882744,
+        "c_L_max": 0.97738563655,
+        "St": 0.29990688446280056,
+        "periods_used": 2,
+        "t_range": [
+          9.0003125,
+          9.9996875
+        ],
+        "n": 1600,
+        "dp_half_period": 2.5619184085107984
+      },
+      "lv3_dt1": {
+        "c_D_max": 3.2093759175,
+        "c_L_max": 0.97937597094,
+        "St": 0.3009549406814153,
+        "periods_used": 2,
+        "t_range": [
+          9.005,
+          9.995
+        ],
+        "n": 100,
+        "dp_half_period": 2.4945892130901632
+      },
+      "lv3_dt2": {
+        "c_D_max": 3.2094541359,
+        "c_L_max": 0.98287473751,
+        "St": 0.3019266273117526,
+        "periods_used": 2,
+        "t_range": [
+          9.00125,
+          9.99875
+        ],
+        "n": 400,
+        "dp_half_period": 2.4957702888450646
+      },
+      "lv3_dt4": {
+        "c_D_max": 3.2094530021,
+        "c_L_max": 0.98308752737,
+        "St": 0.30198757472595705,
+        "periods_used": 2,
+        "t_range": [
+          9.0003125,
+          9.9996875
+        ],
+        "n": 1600,
+        "dp_half_period": 2.4954492217920383
+      },
+      "lv4_dt1": {
+        "c_D_max": 3.2232368811,
+        "c_L_max": 0.98121524447,
+        "St": 0.3009009055732654,
+        "periods_used": 2,
+        "t_range": [
+          9.005,
+          9.995
+        ],
+        "n": 100,
+        "dp_half_period": 2.486243962093694
+      },
+      "lv4_dt2": {
+        "c_D_max": 3.2232862168,
+        "c_L_max": 0.98463976551,
+        "St": 0.30187300922859456,
+        "periods_used": 2,
+        "t_range": [
+          9.00125,
+          9.99875
+        ],
+        "n": 400,
+        "dp_half_period": 2.487233506174515
+      },
+      "lv4_dt4": {
+        "c_D_max": 3.2232848183,
+        "c_L_max": 0.98485889776,
+        "St": 0.301934009647858,
+        "periods_used": 2,
+        "t_range": [
+          9.0003125,
+          9.9996875
+        ],
+        "n": 1600,
+        "dp_half_period": 2.4868400960828154
+      },
+      "lv5_dt1": {
+        "c_D_max": 3.2265975169,
+        "c_L_max": 0.98256002485,
+        "St": 0.3008303313903982,
+        "periods_used": 2,
+        "t_range": [
+          9.005,
+          9.995
+        ],
+        "n": 100,
+        "dp_half_period": 2.485455429001065
+      },
+      "lv5_dt2": {
+        "c_D_max": 3.2266139798,
+        "c_L_max": 0.98594249654,
+        "St": 0.3018004515995067,
+        "periods_used": 2,
+        "t_range": [
+          9.00125,
+          9.99875
+        ],
+        "n": 400,
+        "dp_half_period": 2.484679120554484
+      },
+      "lv5_dt4": {
+        "c_D_max": 3.2266183053,
+        "c_L_max": 0.98619484017,
+        "St": 0.3018614375696105,
+        "periods_used": 2,
+        "t_range": [
+          9.0003125,
+          9.9996875
+        ],
+        "n": 1600,
+        "dp_half_period": 2.48523341630183
+      },
+      "lv6_dt1": {
+        "c_D_max": 3.2272992236,
+        "c_L_max": 0.98295406087,
+        "St": 0.3008073250461545,
+        "periods_used": 2,
+        "t_range": [
+          9.005,
+          9.995
+        ],
+        "n": 100,
+        "dp_half_period": 2.484936311765465
+      },
+      "lv6_dt2": {
+        "c_D_max": 3.2273892186,
+        "c_L_max": 0.98633407886,
+        "St": 0.30178003674115583,
+        "periods_used": 2,
+        "t_range": [
+          9.00125,
+          9.99875
+        ],
+        "n": 400,
+        "dp_half_period": 2.484235026981124
+      },
+      "lv6_dt4": {
+        "c_D_max": 3.2273925778,
+        "c_L_max": 0.98657070159,
+        "St": 0.3018410066645505,
+        "periods_used": 2,
+        "t_range": [
+          9.0003125,
+          9.9996875
+        ],
+        "n": 1600,
+        "dp_half_period": 2.484822683685141
+      }
+    }
+  },
+  "generated_at": "2026-11-06T16:16:11-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "pillow": "13.0.0",
+    "tesseract": "5.5.3",
+    "pdftoppm (poppler)": "26.10.0"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "targets": [
+    {
+      "metric_id": "c_D_max",
+      "value": 3.2273926,
+      "unit": "1",
+      "precision": {
+        "method": "FEATFLOW Q2/P1disc level 6, finest time step (dt index 4)",
+        "level_spread_L5_L6": 0.00077427,
+        "dt_spread_dt2_dt4": 3.36e-06,
+        "proposed_rel_tol": 0.000482
+      }
+    },
+    {
+      "metric_id": "c_L_max",
+      "value": 0.9865707,
+      "unit": "1",
+      "precision": {
+        "method": "FEATFLOW Q2/P1disc level 6, finest time step (dt index 4)",
+        "level_spread_L5_L6": 0.00037586,
+        "dt_spread_dt2_dt4": 0.00023662,
+        "proposed_rel_tol": 0.001242
+      }
+    },
+    {
+      "metric_id": "St",
+      "value": 0.301841,
+      "unit": "1",
+      "precision": {
+        "method": "FEATFLOW Q2/P1disc level 6, finest time step (dt index 4)",
+        "level_spread_L5_L6": 2.043e-05,
+        "dt_spread_dt2_dt4": 6.097e-05,
+        "proposed_rel_tol": 0.000539
+      }
+    },
+    {
+      "metric_id": "delta_p_half_period",
+      "value": 2.4848227,
+      "unit": "Pa (rho = 1)",
+      "precision": {
+        "method": "FEATFLOW Q2/P1disc level 6, finest time step (dt index 4)",
+        "level_spread_L5_L6": 0.00041073,
+        "dt_spread_dt2_dt4": 0.00058766,
+        "proposed_rel_tol": 0.000804
+      }
+    }
+  ]
+}

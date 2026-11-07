@@ -8,11 +8,15 @@
   "inputs": {
     "digitized": "validation/b/digitized/arabjuneghani2022-fig4.json",
     "source_sha256": "85e8f54cd71d1c99ce5615f9c4fa9b12ca39b1c6d2bccea3d34c345285aa57d8",
-    "digitized_at": "2026-11-06T15:41:49-08:00"
+    "digitized_at": "2026-11-06T16:15:58-08:00"
   },
-  "generated_at": "2026-11-06T15:42:03-08:00",
+  "generated_at": "2026-11-06T16:16:11-08:00",
   "versions": {
-    "python": "3.12.11"
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "pillow": "13.0.0",
+    "tesseract": "5.5.3",
+    "pdftoppm (poppler)": "26.10.0"
   },
   "platform": {
     "system": "Darwin",
@@ -48,8 +52,8 @@
       "what": "measured RF effective index at 50 GHz",
       "precision": {
         "method": "digitized (validation/b/digitize.py)",
-        "u_k1": 0.010842,
-        "U_k2": 0.021684
+        "u_k1": 0.01159,
+        "U_k2": 0.023181
       }
     },
     {
@@ -59,8 +63,8 @@
       "what": "measured Z_m at 40 GHz",
       "precision": {
         "method": "digitized (validation/b/digitize.py)",
-        "u_k1": 0.068396,
-        "U_k2": 0.136791
+        "u_k1": 0.202311,
+        "U_k2": 0.404621
       }
     },
     {
@@ -70,8 +74,8 @@
       "what": "paper-simulated Z_m at 40 GHz",
       "precision": {
         "method": "digitized (validation/b/digitize.py)",
-        "u_k1": 0.204082,
-        "U_k2": 0.408163
+        "u_k1": 0.202196,
+        "U_k2": 0.404392
       }
     },
     {
@@ -84,7 +88,7 @@
       "what": "min / max over 2.34-66.58 GHz",
       "precision": {
         "method": "digitized",
-        "u_k1_median": 0.204082
+        "u_k1_median": 0.202185
       }
     },
     {
@@ -97,7 +101,7 @@
       "what": "min / max over 2.34-66.58 GHz",
       "precision": {
         "method": "digitized",
-        "u_k1_median": 0.204082
+        "u_k1_median": 0.2022
       }
     }
   ]

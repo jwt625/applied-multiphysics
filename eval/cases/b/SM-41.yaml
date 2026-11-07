@@ -4,8 +4,8 @@ class: b
 title: Turek-Hron CSM1 and CSM2, elastic flag under gravity, steady, geometrically nonlinear
 status: unvalidated
 untestable_reason: null
-physics: [coupled-fsi]
-tags: [csm-substep, solid-nonlinear-requested]
+physics: [solid-nonlinear]
+tags: [csm-substep]
 dimension: 2D
 units: SI
 source:
@@ -31,10 +31,10 @@ bcs:
 initial: null
 study: {type: parametric, param: case, values: [CSM1, CSM2], each: stationary}
 references:
-  - {quantity: u_x_A, case: {id: CSM1}, definition: "x-displacement of A", value: -7.18767e-3, unit: m, tolerance: {rel: 1.0e-3, after: richardson}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM1, level 5+1 (435,776 dof), column 'ux of A [x 10^-3]'", accessed: 2026-11-06}}
-  - {quantity: u_y_A, case: {id: CSM1}, definition: "y-displacement of A", value: -66.1023e-3, unit: m, tolerance: {rel: 1.0e-3, after: richardson}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM1, level 5+1", accessed: 2026-11-06}}
-  - {quantity: u_x_A, case: {id: CSM2}, definition: "x-displacement of A", value: -0.469000e-3, unit: m, tolerance: {rel: 2.0e-3, after: richardson}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM2, level 5+1", accessed: 2026-11-06}}
-  - {quantity: u_y_A, case: {id: CSM2}, definition: "y-displacement of A", value: -16.9739e-3, unit: m, tolerance: {rel: 1.0e-3, after: richardson}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM2, level 5+1", accessed: 2026-11-06}}
+  - {quantity: u_x_A, case: {id: CSM1}, definition: "x-displacement of A", value: -7.18767e-3, unit: m, tolerance: {rel: 1.0e-3, after: richardson, note: "proposed (assumption); FEATFLOW 4+3 vs 5+1 differ by 1.4e-5 relative"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM1, level 5+1 (435,776 dof), column 'ux of A [x 10^-3]'", accessed: 2026-11-06}}
+  - {quantity: u_y_A, case: {id: CSM1}, definition: "y-displacement of A", value: -66.1023e-3, unit: m, tolerance: {rel: 1.0e-3, after: richardson, note: "proposed (assumption); FEATFLOW 5+0 vs 5+1 differ by 2.1e-5 relative"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM1, level 5+1", accessed: 2026-11-06}}
+  - {quantity: u_x_A, case: {id: CSM2}, definition: "x-displacement of A", value: -0.469000e-3, unit: m, tolerance: {rel: 2.0e-3, after: richardson, note: "proposed (assumption); small component, FEATFLOW 5+0 vs 5+1 differ by 4.1e-5 relative"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM2, level 5+1", accessed: 2026-11-06}}
+  - {quantity: u_y_A, case: {id: CSM2}, definition: "y-displacement of A", value: -16.9739e-3, unit: m, tolerance: {rel: 1.0e-3, after: richardson, note: "proposed (assumption); FEATFLOW 5+0 vs 5+1 differ by 2.4e-5 relative"}, basis: P, form: benchmark, extraction: tabulated, provenance: {citation: "FEATFLOW 'CSM tests' page", locator: "Results for CSM2, level 5+1", accessed: 2026-11-06}}
 reference_results:
   - {solver: "FEATFLOW levels 2+0 .. 5+1", note: "CSM1 u_y(A) -66.0263e-3 .. -66.1023e-3"}
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
@@ -53,5 +53,5 @@ hero: {suitable: false, why: "structure-only verification step before FSI", visu
 missing:
   - {input: "CSM3 (dynamic) time steps: the three result blocks on the page lost their dt labels in text extraction", assumption: "CSM3 not included; add after reading the page images"}
 assumptions:
-  - "Structure-only sub-test of the Turek-Hron FSI benchmark, tagged coupled-fsi because the schema has no geometrically nonlinear solid tag; tag solid-nonlinear requested (DevLog-007 contract requests)."
+  - "Structure-only sub-test of the Turek-Hron FSI benchmark (tag solid-nonlinear, added to the schema after CR-1)."
   - "Linear elasticity would give a different u_x(A) (geometric nonlinearity matters at 66 mm tip deflection on 350 mm)."

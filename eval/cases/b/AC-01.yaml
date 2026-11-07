@@ -12,7 +12,7 @@ source:
   doi: 10.3813/AAA.918875
   open_access: false
   open_copy: null
-  note: "R3 read eq. 2 / sec. 4.1 from a 'personal use only' PDF on 2026-11-06; L7b could not locate an open copy (search 2026-11-06). The EAA 'Linear Acoustics 1: Ducts' record (Zenodo 10.5281/zenodo.8419858) returned HTTP 403 (anti-bot) and was not retried"
+  note: "R3 read eq. 2 / sec. 4.1 from a 'personal use only' PDF on 2026-11-06; L7b could not locate an open copy (search 2026-11-06). The EAA 'Linear Acoustics 1: Ducts' record (Zenodo 10.5281/zenodo.8419858) returned HTTP 403 (anti-bot) and was not retried. The 2026-11-06 audit could not re-read it either (mediatum.ub.tum.de 429); geometry digits (3.4 m, 0.2 m) rest on R3 alone"
 geometry:
   kind: analytic
   spec: {duct_length_m: 3.4, cross_section_m: [0.2, 0.2]}

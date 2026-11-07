@@ -14,6 +14,7 @@ source:
   open_copy: null
   retabulation:
     - {where: "Erturk, Dursun, ZAMM 87, 377-392 (2007), doi:10.1002/zamm.200610322, arXiv physics/0505121, Table 1 (row 'Botella & Peyret [4]')", url: "https://arxiv.org/pdf/physics/0505121", cache: cache/eval-b/erturk-dursun-2005/erturk-dursun-2005.pdf, sha256: a0a18519af90908cf7d27c4700362335591c7e68969574f36b05abbca6d04bf8, licence: "arXiv non-exclusive distribution licence"}
+    - {where: "Erturk, Corke, Gokcol, Int. J. Numer. Meth. Fluids 48, 747-774 (2005), arXiv cs/0411047, Tables 6-7 (601 x 601 profiles; independent consistency check of the extrema)", url: "https://arxiv.org/pdf/cs/0411047", cache: cache/eval-b/erturk-corke-gokcol-2005/erturk-corke-gokcol.pdf, sha256: 293b42bd5149a01b0471e44c5f1aa44772a7c03a9cf970e7a97d03c71f83911d, licence: "arXiv non-exclusive distribution licence"}
     - {where: "INS2D case_files/LDC/LDC_pp.m lines 229-234 (Re 1000 'exact' extrema)", url: "https://raw.githubusercontent.com/bsanderse/INS2D/master/case_files/LDC/LDC_pp.m", cache: cache/eval-b/ins2d/LDC_pp.m, sha256: 26aa754900d50d40add1a7deb1a2b5aea7f9c61df8c8a3363bc8bbe3adc38509, licence: LGPL-3.0}
 geometry:
   kind: analytic
@@ -31,7 +32,7 @@ references:
     definition: "|stream function| at the primary vortex centre (psi = 0 on the walls)"
     value: 0.1189366
     unit: "1"
-    tolerance: {rel: 1.0e-3, after: richardson, note: "proposed (assumption); Erturk-Dursun report <0.18 % spread among accurate solvers (arXiv v2 p.8 text: less than 0.18 % in psi and 0.14 % in omega vs Botella-Peyret)"}
+    tolerance: {rel: 1.0e-3, after: richardson, note: "proposed (assumption). Tighter than the 0.18 % (psi) / 0.14 % (omega) spread of finite-difference solvers vs Botella-Peyret (Erturk-Dursun arXiv v2 p.8), on purpose: the reference is spectral and the gate applies to the Richardson-extrapolated value"}
     basis: S
     form: paper_sim
     extraction: tabulated
@@ -62,7 +63,7 @@ references:
     basis: S
     form: paper_sim
     extraction: tabulated
-    provenance: {citation: "INS2D LDC_pp.m (attribution to Botella-Peyret inferred: the file loads 'BP' data, line 7; lines 231-233 do not name the source)", locator: "LDC_pp.m L231 umax_exact = 0.3885698 (INS2D lid moves in -x: it plots -uGhia, L117; sign converted here)", accessed: 2026-11-06}
+    provenance: {citation: "INS2D LDC_pp.m; attribution to Botella-Peyret is inferred only from commented-out lines (L7 '% run(results/LDC/BP.m)', L117 '% plot(-uGhia, ...)'); L231-233 do not name a source", locator: "LDC_pp.m L231 umax_exact = 0.3885698 compared with the minimum of u on the vertical centreline (L93-108), so the value is |u_min|; sign set here for a +x lid. Consistent with Erturk-Corke-Gokcol arXiv cs/0411047 p.32 Table 6, Re 1000: u(0.18) = -0.3869, u(0.16) = -0.3854", accessed: 2026-11-06}
   - quantity: v_max_horizontal_centreline
     definition: "max over x of v(x, 0.5)"
     value: 0.3769447
@@ -71,7 +72,7 @@ references:
     basis: S
     form: paper_sim
     extraction: tabulated
-    provenance: {citation: "INS2D LDC_pp.m", locator: "LDC_pp.m L233 vmax_exact", accessed: 2026-11-06}
+    provenance: {citation: "INS2D LDC_pp.m (source not named, see u_min)", locator: "LDC_pp.m L233 vmax_exact; consistent with Erturk-Corke-Gokcol arXiv cs/0411047 p.33 Table 7, Re 1000: v(0.150) = 0.3756", accessed: 2026-11-06}
   - quantity: v_min_horizontal_centreline
     definition: "min over x of v(x, 0.5)"
     value: -0.5270771
@@ -80,7 +81,7 @@ references:
     basis: S
     form: paper_sim
     extraction: tabulated
-    provenance: {citation: "INS2D LDC_pp.m", locator: "LDC_pp.m L232 vmin_exact", accessed: 2026-11-06}
+    provenance: {citation: "INS2D LDC_pp.m (source not named, see u_min)", locator: "LDC_pp.m L232 vmin_exact; consistent with Erturk-Corke-Gokcol arXiv cs/0411047 p.33 Table 7, Re 1000: v(0.910) = -0.5263", accessed: 2026-11-06}
 reference_results:
   - {solver: "Erturk-Dursun 2007, 513 x 513, 2nd order", psi: 0.11872, omega: 2.06476, centre: [0.5313, 0.5645], locator: "arXiv physics/0505121v2 Table 1"}
   - {solver: "Schreiber-Keller (extrapolated)", psi: 0.11894, omega: 2.0677, locator: "same table"}

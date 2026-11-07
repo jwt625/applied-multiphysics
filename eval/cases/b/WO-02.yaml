@@ -53,7 +53,7 @@ rights:
 hero: {suitable: true, why: "R3 hero H4", visual: [E_field_components]}
 missing:
   - {input: "polarization of the tabulated mode (quasi-TE or quasi-TM)", assumption: "fundamental vector mode with the highest n_eff (femwell takes modes[0])"}
-  - {input: "Hadley's computational window and boundary condition", assumption: "femwell window (18 um x 14 um) with a sensitivity check on window size"}
+  - {input: "Hadley's computational window and boundary condition", assumption: "femwell window (18 um wide, 10 um substrate + 3 um cover = 13 um tall) with a sensitivity check on window size"}
   - {input: "whether 'rib height 1 um' is total height (femwell) or above the slab", assumption: "total height from the substrate top (femwell geometry)"}
 assumptions:
   - "R3 WO-02 included the metal-box square core; it is split into WO-41."

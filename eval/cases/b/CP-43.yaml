@@ -26,8 +26,8 @@ study: {type: stationary, note: "electrostatics + optical mode at 1957 nm + EO o
 references:
   - {quantity: VpiL_push_pull, definition: "DC half-wave voltage-length product of the push-pull MZM, designed cross-section", value: 4.06, unit: V cm, tolerance: {rel: 1.0e-1, note: "atlas tolerance"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Pan 2021 via eo-modulator-atlas pan2021-a targets", locator: "paper p.3 Sec. 2; Fig. 2(c) (g = 6.5 um, h = 300 nm)", accessed: 2026-11-06}}
   - {quantity: n_g_optical, definition: "optical group index of the TE0 mode", value: 2.276, unit: "1", tolerance: {abs: 0.05, note: "atlas tolerance; depends on LN indices the paper does not give"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Pan 2021 via atlas", locator: "paper p.4 Fig. 4(c)", accessed: 2026-11-06}}
-  - {quantity: Z0_real, definition: "Re Z0 plateau of the GSG line", value: 50.0, unit: ohm, tolerance: {abs: 2.0, note: "atlas tolerance"}, basis: P, form: paper_sim, extraction: digitized, provenance: {citation: "Pan 2021 via atlas", locator: "paper Fig. 4(a)", accessed: 2026-11-06}}
-  - {quantity: VpiL_measured, definition: "measured DC VpiL of the fabricated device", value: 3.67, unit: V cm, tolerance: {rel: 1.5e-1}, gate: false, basis: P, form: paper_measured, extraction: text, note: "atlas marks it non-comparable: LN constants at 1957 nm unverified; fabricated electrodes wider than designed", provenance: {citation: "Pan 2021 via atlas devices.csv pan2021-a", locator: "atlas data/devices.csv field vpil_dc_vcm", accessed: 2026-11-06}}
+  - {quantity: Z0_real, definition: "Re Z0 of the GSG line (design target: the paper text states only 'good matching with 50 Ohm')", value: 50.0, unit: ohm, tolerance: {abs: 2.0, note: "atlas tolerance; informative until Fig. 4(a) is digitized with validation/b/digitize.py"}, gate: false, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Pan 2021 via atlas", locator: "paper p.3 text (eo-modulator-atlas references/pan2021/text.md L143-145); curve in Fig. 4(a)", accessed: 2026-11-06}}
+  - {quantity: VpiL_measured, definition: "measured DC VpiL of the fabricated device", value: 3.67, unit: V cm, tolerance: {rel: 1.5e-1, note: "atlas tolerance; informative (non-comparable per the atlas)"}, gate: false, basis: P, form: paper_measured, extraction: text, note: "atlas marks it non-comparable: LN constants at 1957 nm unverified; fabricated electrodes wider than designed", provenance: {citation: "Pan 2021 via atlas devices.csv pan2021-a", locator: "atlas data/devices.csv field vpil_dc_vcm", accessed: 2026-11-06}}
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -38,7 +38,7 @@ speed:
 dataset: null
 spec: {status: pending, ref: sims/CP-43.yaml, reason: "atlas config not yet ported to amp-spec/0 (C8); EO chain port is a later lane"}
 rights:
-  source_license: "Optics Express open access; atlas data GPL-3.0 (same owner)"
+  source_license: "Optics Express open access (Optica OA licence); atlas sims/ and data/ carry no licence file (only eo-modulator-atlas engine/ is GPL-3.0); same owner, internal use"
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: "chain validation, not a scene", visual: [E_static, optical_mode]}

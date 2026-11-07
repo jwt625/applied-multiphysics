@@ -2,8 +2,9 @@ schema: amp-eval/0
 id: CP-08
 class: b
 title: Si optomechanical crystal nanobeam (Chan et al. 2012), simulated optical and breathing-mode frequencies and g_0
-status: unvalidated
-untestable_reason: null
+status: untestable
+untestable_reason: "the a(x) taper (Fig. 2(a) only), the number of mirror and defect cells and the centre-hole rh are not tabulated (arXiv v1 p.2-3), so the cavity cannot be rebuilt"
+activation: "a/a_nominal digitized from arXiv 1206.2099 Fig. 2(a) with validation/b/digitize.py, plus cell counts from the same figure"
 physics: [coupled-optomech]
 dimension: 3D
 units: SI
@@ -37,7 +38,7 @@ references:
   - {quantity: Q_optical_radiation, definition: "radiation-limited optical Q (simulated)", value: 2.2e+7, unit: "1", tolerance: {rule: {type: range, range: [1.0e+7, 5.0e+7], note: "order-of-magnitude check (assumption); radiation Q is mesh- and boundary-sensitive"}}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
   - {quantity: f_mech, definition: "omega_m / 2 pi of the breathing mode (simulated)", value: 5.7e+9, unit: Hz, tolerance: {rel: 2.0e-2, note: "proposed (assumption); paper quotes 2 significant figures"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
   - {quantity: m_eff, definition: "motional mass (paper ref. 10 convention)", value: 127.0e-18, unit: kg, tolerance: {rel: 5.0e-2, note: "proposed (assumption)"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3 (127 fg)", accessed: 2026-11-06}}
-  - {quantity: g0_total, definition: "g / 2 pi, zero-point optomechanical coupling, moving boundary + photoelastic", value: 770.0e+3, unit: Hz, tolerance: {rel: 1.0e-1, note: "proposed (assumption); photoelastic part is sensitive to p_ij"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
+  - {quantity: g0_total, definition: "g / 2 pi, zero-point optomechanical coupling, moving boundary + photoelastic", value: 770.0e+3, unit: Hz, tolerance: {rel: 1.0e-1, note: "proposed (assumption); photoelastic part is sensitive to p_ij. The paper's parts sum to 790 kHz (-90 + 880), not 770 (arXiv v1 p.3); the 10 % tolerance covers the difference"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
   - {quantity: g0_moving_boundary, definition: "moving-boundary part of g / 2 pi", value: -90.0e+3, unit: Hz, tolerance: {rel: 2.0e-1, note: "proposed (assumption)"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
   - {quantity: g0_photoelastic, definition: "photoelastic part of g / 2 pi", value: 880.0e+3, unit: Hz, tolerance: {rel: 1.0e-1, note: "proposed (assumption)"}, basis: P, form: paper_sim, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.3", accessed: 2026-11-06}}
   - {quantity: f_mech_measured, definition: "measured breathing-mode frequency (fabricated device)", value: 5.1e+9, unit: Hz, tolerance: {rel: 1.5e-1, note: "informative: fabricated geometry differs from the design"}, gate: false, basis: P, form: paper_measured, extraction: text, provenance: {citation: "Chan et al. 2012", locator: "arXiv v1 p.1 abstract; p.3 Fig. 4 caption", accessed: 2026-11-06}}

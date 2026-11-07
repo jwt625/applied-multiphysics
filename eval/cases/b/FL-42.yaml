@@ -2,8 +2,9 @@ schema: amp-eval/0
 id: FL-42
 class: b
 title: Backward-facing step, expansion ratio 2, reattachment length x_r vs Re 100-1000 (Erturk 2008)
-status: unvalidated
-untestable_reason: null
+status: untestable
+untestable_reason: "Erturk 2008 inlet location / profile, outlet length and x_r normalization are not verified (paper closed access, locators in `missing`); Lethe uniform-inlet results differ from Erturk by 0.8 % (Re 100) and 3.9 % (Re 1000) (Lethe doc 2d-backward-facing-step.rst L276, L286), more than the 1 % tolerance"
+activation: "read Erturk 2008 sec. 2 (inlet, outlet, normalization) after manual download; candidate open cross-check Fomin and Fomina 2017, Comput. Contin. Mech. 10(3), journal.permsc.ru CCMv10n3a21 (not fetched)"
 physics: [laminar-ns]
 dimension: 2D
 units: SI
