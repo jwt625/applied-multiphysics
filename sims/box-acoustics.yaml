@@ -28,8 +28,22 @@ mesh:
 studies:
   - {id: eig, type: eigen, physics: [ac], settings: {nModes: 11}}
 results:
-  - {id: freqs, type: table, data: eig, expr: ac.freq, unit: Hz}
-  - {id: p_mode, type: plot3d, data: eig, expr: ac.p, unit: Pa, step: 1}
+  datasets:
+    - {id: sol_eig, type: solution, data: eig}
+  evaluations:
+    - id: ev_eig
+      data: sol_eig
+      items:
+        - {id: freqs, type: global, expr: ac.freq, unit: Hz}
+  tables:
+    - {id: tbl_eig, from: ev_eig}
+  plots:
+    - id: p_mode
+      type: plot3d
+      data: sol_eig
+      steps: 1
+      items:
+        - {id: p_mode_surf, type: surface, expr: ac.p, unit: Pa}
 provenance:
   values:
     params.Lx: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}

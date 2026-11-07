@@ -10,6 +10,7 @@ import { classifyString, resolveQuantity, QuantityError, NA } from './quantity.t
 import { units, expressionRefs, evaluateExpression, FIELD_SYMBOLS, type ScopeValue } from './units.ts';
 import { parseEntityId, entityOverlaps, type EntityKind } from './ids.ts';
 import type { Registry, CheckContext, PathKey, SpaceDim, Registration } from './registry.ts';
+import { checkResults, type ResultDimResolver, type ResultsBlock } from './results.ts';
 
 export interface SpecIssue {
   /** 'notice': informational, does not make the spec invalid (absent = error). */
@@ -217,7 +218,7 @@ const describeInput = (x: unknown): string => (x === null ? 'null' : Array.isArr
 // ---- cross references ------------------------------------------------------------------------------------------
 const spaceOf = (g: Spec['geometry']): SpaceDim => (g.dim === 1 ? '1d' : g.dim === 2 ? (g.axisym ? '2d-axisym' : '2d') : '3d');
 
-function crossCheck(spec: Spec, reg: Registry, scope: ReadonlyMap<string, ScopeValue>, issues: SpecIssue[]): void {
+function crossCheck(spec: Spec, reg: Registry, scope: ReadonlyMap<string, ScopeValue>, issues: SpecIssue[], failed: ReadonlySet<string>, opts: ValidateOptions): void {
   const data = spec as unknown as Record<string, unknown>;
   const space = spaceOf(spec.geometry);
   const ids = new Map<string, PathKey[]>();
@@ -321,12 +322,9 @@ function crossCheck(spec: Spec, reg: Registry, scope: ReadonlyMap<string, ScopeV
 
   spec.mesh?.refine?.forEach((r, i) => checkSel(r.select, ['mesh', 'refine', i, 'select']));
 
-  spec.results?.forEach((r, i) => {
-    const path: PathKey[] = ['results', i];
-    addId(r.id, path);
-    if (!studyMap.has(r.data)) issues.push(issue([...path, 'data'], 'unknown_study', `no study '${r.data}'`));
-    checkSel(r.select, [...path, 'select']);
-  });
+  if (spec.results) {
+    for (const r of checkResults(spec.results as ResultsBlock, { spec, scope, failed, addId, checkSel, resultDims: opts.resultDims ?? null })) issues.push(issue(r.path, r.code, r.message));
+  }
 
   for (const key of Object.keys(spec.provenance?.values ?? {})) {
     if (!resolveDotted(data, key)) issues.push(issue(['provenance', 'values', key], 'unresolved_path', `provenance path '${key}' does not resolve`));
@@ -356,7 +354,11 @@ function crossCheck(spec: Spec, reg: Registry, scope: ReadonlyMap<string, ScopeV
 
 /** Library of materials/ ids (the @amp/materials Library satisfies it), injected so refs can be checked. */
 export interface MaterialIndex { ids(): readonly string[] }
-export interface ValidateOptions { materials?: MaterialIndex | null }
+export interface ValidateOptions {
+  materials?: MaterialIndex | null;
+  /** Dimensions of physics result names, for unit checks of result expressions that name fields (CONTRACTS C10). */
+  resultDims?: ResultDimResolver | null;
+}
 
 const rawSpace = (data: unknown): SpaceDim | null => {
   const g = isObj(data) && isObj(data.geometry) ? data.geometry : null;
@@ -379,7 +381,7 @@ export function validateSpec(data: unknown, reg: Registry, opts: ValidateOptions
       if (typeof pid === 'string' && !i.message.includes(`physics '${pid}'`)) i.message += ` [physics '${pid}']`;
     }
   }
-  if (r.success) crossCheck(r.data, reg, params.scope, issues);
+  if (r.success) crossCheck(r.data, reg, params.scope, issues, params.failed, opts);
   if (r.success && opts.materials) {
     const known = new Set(opts.materials.ids());
     r.data.materials?.forEach((m, i) => {

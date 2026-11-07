@@ -50,7 +50,14 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [solid]}
 results:
-  - {id: sxx_map, type: plot2d, data: std1, expr: solid.sxx, unit: MPa}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  plots:
+    - id: sxx_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: sxx_map_surf, type: surface, expr: solid.sxx, unit: MPa}
 provenance:
   values:
     params.a: {basis: benchmark, source: "eval/cases/a/SM-01.yaml geometry.spec.hole_radius_m (validation/a/gen_solid.py SM01)", date: 2026-11-06}

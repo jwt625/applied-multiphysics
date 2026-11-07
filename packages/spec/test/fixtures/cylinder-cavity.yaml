@@ -27,8 +27,22 @@ mesh:
 studies:
   - {id: eig, type: eigen, physics: [rf], settings: {nModes: 16}}
 results:
-  - {id: freqs, type: table, data: eig, expr: rf.freq, unit: GHz}
-  - {id: E_mode, type: plot3d, data: eig, expr: rf.normE, unit: V/m, step: 0}
+  datasets:
+    - {id: sol_eig, type: solution, data: eig}
+  evaluations:
+    - id: ev_eig
+      data: sol_eig
+      items:
+        - {id: freqs, type: global, expr: rf.freq, unit: GHz}
+  tables:
+    - {id: tbl_eig, from: ev_eig}
+  plots:
+    - id: E_mode
+      type: plot3d
+      data: sol_eig
+      steps: 0
+      items:
+        - {id: E_mode_surf, type: surface, expr: rf.normE, unit: V/m}
 provenance:
   values:
     params.a: {basis: benchmark, source: "R3 RF-01 (Palace docs cylinder.md L26-28)", date: 2026-11-06}

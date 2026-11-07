@@ -26,7 +26,14 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [es]}
 results:
-  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_map_surf, type: surface, expr: es.V, unit: V}
 provenance:
   values:
     params.a: {basis: benchmark, source: "eval/cases/a/EM-01.yaml geometry.spec.inner_radius_m (R3 s.3.3)", date: 2026-11-06}

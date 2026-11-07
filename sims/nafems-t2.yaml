@@ -26,7 +26,14 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [ht]}
 results:
-  - {id: T_B, type: probe, data: std1, expr: ht.T, unit: K, at: ["L", "w/2"]}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: T_B_pt, type: cutpoint, data: sol_std1, points: [[L, w/2]]}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: T_B, type: point, data: T_B_pt, expr: ht.T, unit: K}
 provenance:
   values:
     params.L: {basis: benchmark, source: "eval/cases/a/HT-03.yaml geometry.spec.rod_m (NAFEMS T2, R3 s.3.1)", date: 2026-11-06}

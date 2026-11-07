@@ -29,7 +29,14 @@ mesh:
 studies:
   - {id: tr, type: time, physics: [ht], settings: {start: "0 s", stop: "32 s", dt: "0.05 s", method: bdf2, output: ["32 s"]}}
 results:
-  - {id: T_probe, type: probe, data: tr, expr: ht.T, unit: degC, at: ["0.08 m", "w/2"]}
+  datasets:
+    - {id: sol_tr, type: solution, data: tr}
+    - {id: T_probe_pt, type: cutpoint, data: sol_tr, points: [["0.08 m", w/2]]}
+  evaluations:
+    - id: ev_tr
+      data: sol_tr
+      items:
+        - {id: T_probe, type: point, data: T_probe_pt, expr: ht.T, unit: degC}
 provenance:
   values:
     params.L: {basis: benchmark, source: "eval/cases/a/HT-02.yaml geometry.spec.bar_m (NAFEMS T3 via Altair OS-V 0110, R3 s.3.1)", date: 2026-11-06}

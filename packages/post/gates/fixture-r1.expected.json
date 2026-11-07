@@ -1,0 +1,7 @@
+{
+  "fixture": "packages/post/gates/fixture-r1.ts gate7Fixture()",
+  "sha256": "b913438eacde4cbf13b0ab52a9a8a0bb72969b5bb051cc65d47ca0e6eefcd822",
+  "count": 1899,
+  "engine": "Node v23.7.0 (V8), 2026-11-06",
+  "note": "SHA-256 over the little-endian Float64 bytes of fixtureValues(); the browser post worker must reproduce it bit for bit (gate 7, R2 lane). crypto.subtle needs a secure context (https or localhost)."
+}

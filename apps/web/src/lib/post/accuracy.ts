@@ -65,7 +65,7 @@ export function caseConvergence(caseId: string, data: Record<string, unknown> | 
 }
 
 /** Headline quantity of one level: spec unit for headlines; eigen: every solver mode (Hz), with m for axisymmetric solves. */
-export async function levelValues(def: AccuracyDef, sol: Solution, mesh: Mesh, params: Map<string, ParamInfo>, results: unknown[], post: PostClient): Promise<{ values: number[]; unit: string; tags?: number[] }> {
+export async function levelValues(def: AccuracyDef, sol: Solution, mesh: Mesh, params: Map<string, ParamInfo>, results: unknown, post: PostClient): Promise<{ values: number[]; unit: string; tags?: number[] }> {
 	const q = def.quantity;
 	if ('eigen' in q) {
 		if (sol.steps?.kind !== 'eigen') return { values: [], unit: 'Hz' };
@@ -74,7 +74,7 @@ export async function levelValues(def: AccuracyDef, sol: Solution, mesh: Mesh, p
 		return { values, unit: sol.steps.unit || 'Hz', ...(m.every((x) => typeof x === 'number') ? { tags: m as number[] } : {}) };
 	}
 	if ('scalar' in q) { const v = sol.scalars[q.scalar]; return typeof v?.value === 'number' ? { values: [v.value], unit: v.unit || '1' } : { values: [], unit: '1' }; }
-	const h = (await headlines(results as Parameters<typeof headlines>[0], sol, mesh, params, post)).find((x) => x.id === q.headline);
+	const h = (await headlines(results, sol, mesh, params, post)).find((x) => x.id === q.headline);
 	return h && h.value !== null ? { values: [h.value], unit: h.unit || '1' } : { values: [], unit: '1' };
 }
 

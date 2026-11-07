@@ -37,7 +37,14 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [es]}
 results:
-  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_map_surf, type: surface, expr: es.V, unit: V}
 provenance:
   values:
     params.a: {basis: benchmark, source: "eval/cases/c/EM-02.yaml geometry.spec.sphere_a (Palace docs spheres.md)", date: 2026-11-06}

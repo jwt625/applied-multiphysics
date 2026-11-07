@@ -8,7 +8,7 @@
 // Bounds: model calls, tool calls, repairs, optional token and cost caps. Every model call emits a budget event with
 // tokens and an estimated cost (estimate; N/A for models without a price entry).
 
-import { specHash } from '@amp/spec';
+import { specHash, resultNodes } from '@amp/spec';
 import { SYSTEM_PROMPT } from './prompt.ts';
 import { toolDefinitions } from './tools/defs.ts';
 import { toolText, untrustedBlock, structuredIssues } from './untrusted.ts';
@@ -115,7 +115,7 @@ export class Agent {
       materials: arr('materials').map((m) => ({ id: m.id, ref: m.ref ?? null, select: m.select ?? [] })),
       physics: arr('physics').map((p) => ({ id: p.id, type: p.type, bcs: (Array.isArray(p.bcs) ? (p.bcs as Array<Record<string, unknown>>) : []).map((b) => `${String(b.id)}:${String(b.type)}`) })),
       studies: arr('studies').map((t) => `${String(t.id)}:${String(t.type)}`),
-      results: arr('results').map((r) => String(r.id)),
+      results: resultNodes(data.results).map((r) => `${r.id}:${r.type}`),
       validation: { ok: v.ok, issues: v.issues },
       lastRuns: s.results.studies().map((id) => { const r = s.results.get(id)!; return { study: id, ok: r.outcome.ok, at: r.at }; }),
     };

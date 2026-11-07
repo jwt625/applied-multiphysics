@@ -56,7 +56,7 @@ physics:  [ { id: solid1, type: elastic, select: [dom:plate], settings: {...},
 couplings: [ { id: th2sm, type: thermal-expansion, from: heat1, to: solid1 } ]
 mesh:     { size: {...}, refine: [ {select: [...], h: "a/10"} ] }
 studies:  [ { id: std1, type: stationary | eigen | time | frequency | parametric, settings: {...} } ]
-results:  [ { id: pg1, type: plot2d | plot3d | plot1d | table, data: std1, expr: "solid.mises", unit: MPa, ... } ]
+results:  { datasets: [...], evaluations: [...], tables: [...], plots: [...] }   # grouped object, C10 (was a flat list until 2026-11-06)
 provenance: { values: { "materials.0.override.E": {basis: textbook, source: "...", date: 2026-11-06} } }
 assumptions: [ ... ]
 missing: [ ... ]
@@ -138,6 +138,72 @@ interface RealtimeKernel {
 ```
 
 A CPU reference implementation of the same kernel, small grids only and runnable in Node, exists for every kernel so the eval harness can gate it without a GPU.
+
+## C10 Results model (`results` in amp-spec/0)
+
+Authority: `packages/spec/src/results.ts` (zod schema built into the spec schema, cross-reference checks, expression vocabulary, reader helpers); design in DevLog-023 s.3, lane log DevLog-025. This section is a summary.
+
+```yaml
+results:
+  datasets:    [ {id, type: solution | cutpoint | cutline | edge | cutplane | revolve | mirror | join, data (join: a, b), ...} ]
+  evaluations: [ {id, data?, steps?, items: [ {id, type: point | global | integral | average | max | min | measure, ...} ]} ]
+  tables:      [ {id, from: <evaluation group>, orient?: rows | columns} ]
+  plots:       [ {id, type: plot1d | plot2d | plot3d, data?, steps?, items: [...]} ]
+```
+
+- Every node: `id` (one namespace with the whole spec, so `@id` patch paths work: `/results/plots/@pg/items/@surf/expr`), `label?`, `enabled?` (false: the node and its readers are not computed). Datasets, plot groups and all items are discriminated by `type`; evaluation groups and tables have no `type`.
+- `data` names a dataset everywhere, except on a `solution` dataset, where it names a study. Items without `data` use their group's.
+- `steps`: `all | first | last | <index> | [indices] | {values, unit}`; absent = all steps of the source. Indices always count the stored steps of the root study's solution (not the positions inside a dataset's own `steps`); an item's `steps` replaces its group's, a group's replaces its dataset's. `{values, unit}` must be in s for time studies and Hz for frequency studies.
+- Exports: not in the schema (no export of any kind, DevLog-023 s.5.1); the key `exports` is reserved and rejected as an unknown key until an export stage adds it.
+- Deferred kinds (added later as additive changes): datasets surface, grid, parametric curve / surface, sector; cut-line `parallel`; plot groups polar, smith; attributes filter, transparency; join ops other than `difference`.
+
+Datasets (shape = dimension of the data / number of coordinates):
+
+| type | source | shape | key fields |
+|---|---|---|---|
+| solution | a study | geometry dim / dim (axisym kept); carries geometry entities | `steps?` |
+| cutpoint | domain-like or cutplane | points | `points: [vector m]` (length = coordinates of the source) |
+| cutline | 2D / 3D domain-like or cutplane | line | `from`, `to` (vector m), `n?` (absent = element-crossing points) |
+| edge | solution or join of solutions (entities) | line | `select`: `bnd` curves in 2D, `edg` in 3D |
+| cutplane | 3D domain-like | surface in 3D | `point` (3), `normal` (3, dimensionless), `offsets?` (m) |
+| revolve | axisymmetric domain-like | volume in 3D | `start?` (rad, absent = 0), `sweep` (0 < sweep <= 2 pi), `layers` |
+| mirror | dim >= 2 | as the source, no entities | `planes: [{point?, normal}]` (1-3), `parity?: {<physics>.<field>[.<comp>]: [+-1 per plane]}` |
+| join | two datasets of one shape | as `a` | `a`, `b`, `op: difference` |
+
+"Domain-like" = dimension equal to the number of coordinates (solution, revolve, mirror / join of those). Dataset chains are acyclic.
+
+Items and the datasets they accept:
+
+| item | dataset |
+|---|---|
+| evaluation `point` | cutpoint |
+| evaluation `global` | any (module scalars of its root study; no coordinates) |
+| evaluation `integral`, `average`, `measure` | solution / join with `over` (required, explicit selection), or a line, surface or volume dataset without entities (cutline, edge, cutplane, revolve, mirror) and without `over` |
+| evaluation `max`, `min` (`method`: nodal, quad, points or lattice; required) | as integral, and also cutpoint |
+| plot1d `linegraph` (`x`: `arc` or an expression) | any line dataset (cutline, edge; a 1D solution) |
+| plot1d `pointgraph` | cutpoint |
+| plot1d `global` | any |
+| plot1d `tablegraph` | a table (`columns?` = its evaluation items) |
+| plot2d `surface contour arrow streamline maxmin mesh deformation height` | 2D dataset (solution 2D / axisym, cutplane, mirror / join 2D) |
+| plot2d `point` | cutpoint in the group's space |
+| plot2d `line` (`select?: bnd`), plot3d `line` (`select?: edg`) | solution / join with entities |
+| plot3d `surface slice isosurface volume arrow streamline maxmin mesh deformation` | 3D dataset (solution 3D, revolve, mirror / join 3D) |
+
+A plot2d / plot3d group needs `data` of its dimension; plot1d groups have optional `data`. `deformation` and `height` are attributes of their group. Plot `maxmin` items require `method` too (each max / min states its method).
+
+Expression vocabulary (result expressions, `ResultExpr`):
+
+- Field and module-scalar names `<physics id>.<name>`, with an optional component `.x .y .z` (`.r .phi .z` on axisymmetric models). The physics must be solved by the root study of the dataset. Bare field names are not accepted (the migration prefixed them). A physics id with `-` cannot be named (the expression grammar reads `-` as minus): use ids without `-` for physics that results refer to.
+- Params and `pi`; coordinates in m: `x y r` (2D), `r z` (axisymmetric), `x y z r` (3D; `r` = sqrt(x^2 + y^2) on planar models); `t` (s) only on time-study datasets; no coordinates in `global` items.
+- Functions: those of `@amp/core/expr` (abs real imag conj sqrt exp log log10 sin cos tan atan2 min max if) and `d(f, v)`, the derivative of f along the coordinate v, evaluated per element (discontinuous across elements; @amp/post rewrites it before compiling).
+- Units: an expression without field names is dimension-checked against its `unit`. Field units are not in the registry yet, so expressions that name fields are checked only when a `resultDims` resolver is injected (`ValidateOptions.resultDims`); otherwise the evaluator (@amp/post) checks them. Not unit-checked at all in the spec yet: `integral` (unit = expression x m^k) and `measure` (m^k), whose k depends on the selection kind and the axisymmetric weight, and the vector items `arrow`, `streamline`, `deformation`.
+
+Values and artifacts:
+
+- Values are never stored in the spec. Tables, evaluation values, sampled arrays and plot data live in session memory only (DevLog-023 s.5.1 Q2).
+- An artifact is keyed by `artifactKey(nodeHash, runId)`. `resultNodeHash(spec, id)` = sha-256 of the canonical JSON of the node, everything it reads (its group's defaults, its items, the dataset chain, a table's evaluation group) and the params those reference. `runId(run)` = sha-256 of the canonical C5 RunRecord.
+- Edits under `results` invalidate stage `plots` only (C7). `changedResultNodes(before, after)` lists the nodes to recompute (dependents follow through the hashes).
+- Honesty rules carry over (DevLog-023 s.3.1): a plot is drawn only on its own mesh; stale or coarse results are badged; eigenmodes are drawn normalized; each max / min states its method; range rules are stated; unavailable is never shown as a value.
 
 ## Changelog
 
@@ -228,3 +294,9 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - The harness runs readiness after prepareRun (L8).
   - Eval cases may set `convergence.h_factors` (e.g. [1, 0.5, 0.25]) and per-target expected orders (I1 for classes a and b).
   - `@amp/physics` no longer depends on `@amp/post` (accepted).
+- 2026-11-06 22:56 PST, from R0 (DevLog-025):
+  - C3: `results` is a grouped object `{datasets, evaluations, tables, plots}` that mirrors the model tree (Wentao, DevLog-023 s.5.1 Q1), replacing the flat list. New contract C10 (above) defines the node kinds, dataset compatibility, the expression vocabulary and value artifacts keyed by (node hash, run id). No export nodes (s.5.1 Q2): `exports` is reserved and rejected.
+  - Migration: every `sims/*.yaml` with results (35) and the 6 spec test fixtures, by `packages/spec/scripts/migrate-results.ts` (rerunnable, comment-preserving). No eval case embeds a spec (all reference `sims/` or are pending), so none changed. Provenance keys into legacy results were rewritten (`results.T_E.at` -> `results.datasets.T_E_pt.points.0`, 3 files).
+  - Readers: `headlineItems`, `surfaceItems`, `resultUnits`, `resultNodes` in `@amp/spec`; apps/web headlines, Graphics, tree, Play, the parametric single-run rewrite and the agent digest / `list_entities` use them. `packages/eval` does not read spec results (no change).
+  - `ValidateOptions.resultDims` (optional): a resolver of physics result dimensions; requested from L4 / R1 so field expressions get unit checks.
+  - JSON Schema size bound of the spec tests: 41053 -> 65536 B (62947 B with the results model).

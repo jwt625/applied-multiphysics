@@ -26,8 +26,21 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [ht]}
 results:
-  - {id: u_max, type: table, data: std1, expr: ht.T_max, unit: K}
-  - {id: u_map, type: plot2d, data: std1, expr: ht.T, unit: K}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: u_max, type: global, expr: ht.T_max, unit: K}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: u_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: u_map_surf, type: surface, expr: ht.T, unit: K}
 provenance:
   values:
     params.L: {basis: benchmark, source: "eval/cases/c/HT-61.yaml geometry.spec.domain [0, 1] x [0, 1]", date: 2026-11-06}

@@ -15,7 +15,7 @@ test('diffPatch reproduces the target and round-trips through the op log and the
   const b = structuredClone(a);
   b.params.D.value = 7;
   b.mesh.refine[0].h = 'D/30';
-  b.results.push({ id: 'syy', type: 'plot2d', data: 'std1', expr: 'solid.syy', unit: 'MPa' });
+  b.results.plots.push({ id: 'syy', type: 'plot2d', data: 'sol_std1', items: [{ id: 'syy_surf', type: 'surface', expr: 'solid.syy', unit: 'MPa' }] });
   delete b.description;
   const p = diffPatch(a, b);
   assert.equal(p.length, 4);

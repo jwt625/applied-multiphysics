@@ -11,6 +11,7 @@ import { ENTITY_ID, ENTITY_KINDS, ISO_DATE, MATERIAL_REF, NODE_ID, PARAM_NAME, D
 import { classifyString, quantityRefs, resolveQuantity, resolveField, dimMatches, dimMismatchMessage, unitlessMessage, type QuantityInput, type DimSpec } from './quantity.ts';
 import { units, expressionRefs, FIELD_SYMBOLS, type ScopeValue, type Dim } from './units.ts';
 import type { Registry, Registration, RegKind, SpaceDim } from './registry.ts';
+import { buildResultsSchema } from './results.ts';
 
 export const SCHEMA_ID = 'amp-spec/0';
 
@@ -315,22 +316,6 @@ export const meshSchema = z.strictObject({
   budget: z.strictObject({ maxNodes: z.number().int().positive().optional(), maxDof: z.number().int().positive().optional() }).optional(),
 });
 
-export const RESULT_TYPES = ['plot1d', 'plot2d', 'plot3d', 'table', 'scalar', 'probe'] as const;
-
-export const resultSchema = z.strictObject({
-  id: nodeId,
-  type: z.enum(RESULT_TYPES),
-  label: freeText(200).optional(),
-  data: nodeId,
-  expr: z.string().min(1).max(2000).optional(),
-  unit: unitString.optional(),
-  select: selection().optional(),
-  at: vector('m').optional(),
-  step: z.number().int().nonnegative().optional(),
-}).superRefine((r, ctx) => {
-  if (r.type === 'probe' && !r.at) ctx.addIssue({ code: 'custom', message: "a probe needs 'at'", path: ['at'] });
-});
-
 // ---- registered parts -----------------------------------------------------------------------------------------
 export interface Parts {
   feature: z.ZodType;
@@ -341,6 +326,9 @@ export interface Parts {
 }
 
 const label = freeText(200).meta({ id: 'Label', 'x-amp-untrusted': true }).optional();
+
+/** Grouped results block (results.ts, CONTRACTS C10): datasets, evaluation groups, tables, plot groups. */
+export const resultsSchema = buildResultsSchema({ nodeId, label, unitString, quantity, vector, selection });
 const openSettings = z.record(z.string(), z.unknown());
 
 const genericBc = z.strictObject({ id: nodeId, type: typeName, label, select: selection(), settings: openSettings.optional() });
@@ -379,7 +367,7 @@ function specFromParts<P extends Parts>(p: P) {
     couplings: z.array(p.coupling as P['coupling']).optional(),
     mesh: meshSchema.optional(),
     studies: z.array(p.study as P['study']).optional(),
-    results: z.array(resultSchema).optional(),
+    results: resultsSchema.optional(),
     provenance: z.strictObject({ values: z.record(dottedPath, provenanceEntry) }).optional(),
     assumptions: z.array(assumptionEntry).optional(),
     missing: z.array(missingEntry).optional(),
@@ -395,7 +383,7 @@ export type BcNode = z.infer<typeof genericBc>;
 export type CouplingNode = z.infer<typeof GENERIC_PARTS.coupling>;
 export type StudyNode = z.infer<typeof GENERIC_PARTS.study>;
 export type MaterialNode = NonNullable<Spec['materials']>[number];
-export type ResultNode = z.infer<typeof resultSchema>;
+export type ResultsNode = z.infer<typeof resultsSchema>;
 export type MeshBlock = z.infer<typeof meshSchema>;
 export type ParamDef = z.infer<typeof paramSchema>;
 export type ProvenanceEntry = z.infer<typeof provenanceEntry>;

@@ -33,7 +33,15 @@ mesh:
 studies:
   - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 1}}
 results:
-  - {id: neff, type: table, data: modes, expr: ewg.neff_0, unit: "1"}
+  datasets:
+    - {id: sol_modes, type: solution, data: modes}
+  evaluations:
+    - id: ev_modes
+      data: sol_modes
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+  tables:
+    - {id: tbl_modes, from: ev_modes}
 provenance:
   values:
     params.t_core: {basis: benchmark, source: "eval/cases/a/WO-01.yaml geometry.spec.core_thickness_m", date: 2026-11-06}

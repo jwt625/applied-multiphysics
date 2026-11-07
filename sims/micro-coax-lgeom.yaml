@@ -31,8 +31,21 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [es]}
 results:
-  - {id: L_per_m, type: table, data: std1, expr: es.L_per_m, unit: nH/m}
-  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: L_per_m, type: global, expr: es.L_per_m, unit: nH/m}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_map_surf, type: surface, expr: es.V, unit: V}
 provenance:
   values:
     params.a: {basis: benchmark, source: "eval/cases/c/EM-61.yaml geometry.spec.a_m (coaxial.md, RG-401/U diameter 0.0645 in read in um)", date: 2026-11-06}

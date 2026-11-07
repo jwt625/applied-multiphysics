@@ -32,9 +32,22 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [ht]}
 results:
-  - {id: T_center, type: table, data: std1, expr: ht.T_max, unit: K}
-  - {id: T_surface, type: table, data: std1, expr: ht.T_min, unit: K}
-  - {id: T_map, type: plot2d, data: std1, expr: ht.T, unit: K}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: T_center, type: global, expr: ht.T_max, unit: K}
+        - {id: T_surface, type: global, expr: ht.T_min, unit: K}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: T_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: T_map_surf, type: surface, expr: ht.T, unit: K}
 provenance:
   values:
     params.r0: {basis: benchmark, source: "eval/cases/c/CP-03.yaml geometry.spec.r0_m (VM58 via gen_suites.py)", date: 2026-11-06}

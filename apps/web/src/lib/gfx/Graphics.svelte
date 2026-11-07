@@ -22,6 +22,7 @@
 	import { autoDeformScale, bbox3 } from '../post/solid3d';
 	import { revolvedValues, type RevolvedSurface } from '../post/revolve';
 	import { headlines } from '../post/headline';
+	import { headlineItems, resultUnits, surfaceItems } from '@amp/spec';
 	import { friendlyIssues } from '../state/issues';
 	import type { Layer2D, ScaleMode } from './renderer2d';
 	import type { Drawable } from './viewer3d';
@@ -145,10 +146,10 @@
 	const fieldList = $derived((sol?.fields ?? []).map((f, i) => ({ f, i })));
 	const names = $derived([...new Set(fieldList.map((x) => x.f.name))]);
 	const exprIs = (expr: string | undefined, name: string | undefined) => !!expr && !!name && (expr === name || expr.endsWith(`.${name}`));
-	type ResultNode = { id: string; type: string; expr?: string; unit?: string; step?: number };
-	const resultsSpec = $derived(((s.model.data as { results?: ResultNode[] } | null)?.results ?? []));
-	/** the spec's own plot result names the field to open on (audit M6) */
-	const plotResult = $derived(resultsSpec.find((r) => (r.type === 'plot2d' || r.type === 'plot3d') && names.some((n) => exprIs(r.expr, n))) ?? null);
+	/** the spec's results block (CONTRACTS C10) */
+	const resultsSpec = $derived((s.model.data as { results?: unknown } | null)?.results ?? null);
+	/** the spec's own 2D / 3D surface plot names the field to open on (audit M6) */
+	const plotResult = $derived(surfaceItems(resultsSpec).find((r) => names.some((n) => exprIs(r.expr, n))) ?? null);
 	const drawableSpace = (f: FieldData | null | undefined) => !!f && (f.space === 'H1P1' || f.space === 'H1P2' || f.space === 'DG0');
 	const field = $derived.by((): FieldData | null => {
 		if (!fieldList.length) return null;
@@ -183,7 +184,7 @@
 			for (let i = 0; i < n; i++) mx = Math.max(mx, Math.abs(scalarAt(field, i, field.components > 1 ? comp : 0)));
 			return { a: mx > 0 ? 1 / mx : 1, b: 0, unit: '', note: `normalized eigenmode: max |${field.name}| = 1 (the amplitude of an eigenmode is arbitrary)${solNorm ? `. Solver normalization: ${solNorm}` : ''}` };
 		}
-		const u = resultsSpec.find((r) => exprIs(r.expr, field?.name))?.unit ?? field?.unit;
+		const u = resultUnits(resultsSpec).find((r) => exprIs(r.expr, field?.name))?.unit ?? field?.unit;
 		return { ...displayScale(u), note: '' };
 	});
 	const lu = $derived(lengthUnit(m2 ? Math.max(m2.bbox[2] - m2.bbox[0], m2.bbox[3] - m2.bbox[1]) : mesh ? bbox3(mesh.nodes).diag : 1));
@@ -304,8 +305,8 @@
 	let bandOn = $state(true);
 	$effect(() => {
 		const so = sol, me = mesh, params = s.activeParams;
-		const results = (resultsSpec as unknown as Parameters<typeof headlines>[0]).filter((r) => r.type === 'probe');
-		if (!so || !me || me.dim !== 2 || !params || !results.length) { probePts = []; return; }
+		const results = resultsSpec;
+		if (!so || !me || me.dim !== 2 || !params || !headlineItems(results).some((r) => r.type === 'point')) { probePts = []; return; }
 		void headlines(results, so, me, params, s.post).then((h) => {
 			if (s.solution !== so) return;
 			probePts = h.filter((x) => x.at && x.value !== null).map((x) => ({ id: x.id, v: x.value!, x: x.at![0], y: x.at![1], label: `${x.label} ${fmt(x.value!, 4)}${x.unit ? ` ${unitLabel(x.unit)}` : ''}`, tip: `probe ${x.label}: ${x.tip}` }));
@@ -479,7 +480,8 @@
 			solSeen = sol;
 			if (!first && untrack(() => step) < (sol.steps?.values.length ?? 0)) return;
 			const v = sol.steps?.kind === 'eigen' ? sol.steps.values : null;
-			const want = plotResult?.step ?? (v ? v.findIndex((x) => x > 0) : 0);
+			const ps = plotResult?.step;
+			const want = ps === 'last' ? (sol.steps?.values.length ?? 1) - 1 : (ps ?? (v ? v.findIndex((x) => x > 0) : 0));
 			step = want > 0 ? want : 0;
 		}
 	});

@@ -38,9 +38,22 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [es]}
 results:
-  - {id: C_per_m, type: table, data: std1, expr: es.C_per_m, unit: pF/m}
-  - {id: Z0, type: table, data: std1, expr: es.Z0, unit: ohm}
-  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: C_per_m, type: global, expr: es.C_per_m, unit: pF/m}
+        - {id: Z0, type: global, expr: es.Z0, unit: ohm}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_map_surf, type: surface, expr: es.V, unit: V}
 provenance:
   values:
     params.S: {basis: benchmark, source: "eval/cases/c/RF-62.yaml geometry.spec.S_m (atlas K6a.yaml)", date: 2026-11-06}

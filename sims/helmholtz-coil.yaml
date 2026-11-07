@@ -38,8 +38,20 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [mf]}
 results:
-  - {id: B_center, type: probe, data: std1, expr: mf.Bz, unit: uT, at: ["0 m", "0 m"]}
-  - {id: B_map, type: plot2d, data: std1, expr: mf.normB, unit: uT}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: B_center_pt, type: cutpoint, data: sol_std1, points: [["0 m", "0 m"]]}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: B_center, type: point, data: B_center_pt, expr: mf.Bz, unit: uT}
+  plots:
+    - id: B_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: B_map_surf, type: surface, expr: mf.normB, unit: uT}
 provenance:
   values:
     params.R: {basis: benchmark, source: "R3 EM-04 (Biot-Savart closed form)", date: 2026-11-06}

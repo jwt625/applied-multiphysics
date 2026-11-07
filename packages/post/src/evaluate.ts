@@ -18,7 +18,8 @@ export class Locator {
   private lo: Float64Array; private hi: Float64Array;
   private g0: number[]; private gs: number[]; private gn: number[];
   private bucketCells: Int32Array; private bucketPtr: Int32Array;
-  private boxes: Float64Array;
+  /** padded bounding box per cell: dim lows then dim highs (2 * dim per cell) */
+  readonly boxes: Float64Array;
   tol = 1e-10;
   constructor(mesh: Mesh) {
     this.mesh = mesh;
@@ -35,7 +36,11 @@ export class Locator {
       boxes[2 * dim * c + d] = a - pad; boxes[2 * dim * c + dim + d] = b + pad;
       if (a < this.lo[d]!) this.lo[d] = a; if (b > this.hi[d]!) this.hi[d] = b;
     }
-    const per = Math.max(1, Math.round(Math.pow(nc / 2, 1 / dim)));
+    // buckets per axis: the integer nearest to (nc / 2)^(1 / dim), by integer search (no Math.pow: same grid, hence
+    // the same cell for points on shared edges, in every JS engine; DevLog-026 gate 7)
+    const target = nc / 2, powi = (b: number) => (dim === 3 ? b * b * b : b * b);
+    let fl = 0; while (powi(fl + 1) <= target) fl++;
+    const per = Math.max(1, powi(fl + 0.5) <= target ? fl + 1 : fl);
     this.g0 = Array.from(this.lo); this.gn = Array(dim).fill(per);
     this.gs = this.gn.map((n, d) => Math.max((this.hi[d]! - this.lo[d]!) / n, 1e-300));
     const nb = this.gn.reduce((a, b) => a * b, 1);

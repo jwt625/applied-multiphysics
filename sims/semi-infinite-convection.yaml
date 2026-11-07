@@ -31,7 +31,15 @@ mesh:
 studies:
   - {id: tr, type: time, physics: [ht], settings: {start: "0 s", stop: "2000 s", dt: "1 s", method: bdf2, output: ["2000 s"]}}
 results:
-  - {id: T_probes, type: table, data: tr, expr: ht.T, unit: degC}
+  datasets:
+    - {id: sol_tr, type: solution, data: tr}
+  evaluations:
+    - id: ev_tr
+      data: sol_tr
+      items:
+        - {id: T_probes, type: global, expr: ht.T, unit: degC}
+  tables:
+    - {id: tbl_tr, from: ev_tr}
 provenance:
   values:
     params.L: {basis: benchmark, source: "eval/cases/a/HT-04.yaml geometry.spec.domain_m (truncation chosen by L7a, effect below tolerance)", date: 2026-11-06}

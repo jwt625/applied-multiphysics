@@ -5,7 +5,7 @@
 	// Every drag is one coalesced operation in the same op log as the workbench.
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { units } from '@amp/spec';
+	import { resultUnits, units } from '@amp/spec';
 	import { loadSimText } from '../sims';
 	import { loadPhysics, moduleList } from '../engine/physics';
 	import { appRegistry } from '../engine/registry';
@@ -192,7 +192,7 @@
 	let playing = $state(false);
 	const ranges: Record<string, 'full' | 'robust'> = { 'helmholtz-coil': 'robust' };
 	/** temperatures shown in degC when the model reports its own results in degC (display only; SI in the tooltip) */
-	const degC = $derived(((data?.results ?? []) as Array<{ unit?: string }>).some((r) => r.unit === 'degC'));
+	const degC = $derived(resultUnits(data?.results).some((r) => r.unit === 'degC'));
 	const solState = $derived(!s?.solution ? '' : s.staleSolution ? 'stale' : s.solutionCoarse ? 'coarse' : '');
 </script>
 

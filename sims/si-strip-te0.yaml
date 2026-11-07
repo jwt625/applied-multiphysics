@@ -35,9 +35,22 @@ mesh:
 studies:
   - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 2}}
 results:
-  - {id: neff, type: table, data: modes, expr: ewg.neff_0, unit: "1"}
-  - {id: ng, type: table, data: modes, expr: ewg.ng_0, unit: "1"}
-  - {id: E_map, type: plot2d, data: modes, expr: ewg.normE, unit: V/m}
+  datasets:
+    - {id: sol_modes, type: solution, data: modes}
+  evaluations:
+    - id: ev_modes
+      data: sol_modes
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: ng, type: global, expr: ewg.ng_0, unit: "1"}
+  tables:
+    - {id: tbl_modes, from: ev_modes}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
 provenance:
   values:
     params.w_core: {basis: benchmark, source: "eval/cases/c/WO-65.yaml geometry.spec.core_um [0.5, 0.22]", date: 2026-11-06}

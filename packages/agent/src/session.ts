@@ -8,6 +8,7 @@
 import {
   keysOf, getAt, schemaAt, specHash, isoNow, parseEntityId, REG_KINDS, ENTITY_LIST,
   type OpLog, type Registry, type BuiltGeometry, type JsonPatchOp, type PathKey,
+  resultNodes,
 } from '@amp/spec';
 import { TOOL_INPUTS, NAV_TOOLS, type ToolName, type ToolInput } from './tools/schemas.ts';
 import { toolText, structuredIssues, TrustBoundaryError } from './untrusted.ts';
@@ -345,7 +346,7 @@ export class AgentSession {
         if (want('materials')) out.materials = arr('materials').map((m) => ({ id: m.id, ref: m.ref ?? null, select: m.select ?? [] }));
         if (want('physics')) out.physics = arr('physics').map((p) => ({ id: p.id, type: p.type, select: p.select ?? [], bcs: (Array.isArray(p.bcs) ? (p.bcs as Array<Record<string, unknown>>) : []).map((b) => ({ id: b.id, type: b.type, select: b.select ?? [] })) }));
         if (want('studies')) out.studies = arr('studies').map((t) => ({ id: t.id, type: t.type, physics: t.physics ?? [] }));
-        if (want('results')) out.results = arr('results').map((r) => ({ id: r.id, type: r.type, data: r.data ?? null, expr: r.expr ?? null }));
+        if (want('results')) out.results = resultNodes(s.results).map((r) => ({ id: r.id, section: r.section, type: r.type, pointer: r.idPointer, data: r.node.data ?? null, expr: r.node.expr ?? null }));
         if (want('geometry')) {
           const t = this.geometry()?.table;
           out.geometry = t ? { domains: t.domains.map((e) => e.id), boundaries: t.boundaries.map((e) => e.id), edges: (t.edges ?? []).map((e) => e.id), points: (t.points ?? []).map((e) => e.id) } : 'unavailable: geometry not built yet';

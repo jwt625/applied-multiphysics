@@ -33,8 +33,19 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [solid]}
 results:
-  - {id: sxx, type: plot2d, data: std1, expr: solid.sxx, unit: MPa}
-  - {id: kt, type: scalar, data: std1, expr: "max(solid.sxx)/sigma_inf", unit: "1", select: ["bnd:hole.edge"]}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: kt, type: max, expr: solid.sxx/sigma_inf, unit: "1", over: ["bnd:hole.edge"], method: nodal}
+  plots:
+    - id: sxx
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: sxx_surf, type: surface, expr: solid.sxx, unit: MPa}
 provenance:
   values:
     materials.steel.override.E: {basis: benchmark, source: "eval/cases/a/SM-01.yaml materials.plate.E (synthetic; Kirsch stresses do not depend on E, nu). materials/structural-steel E, nu depend on T and the spec has no temperature for an elastic study (DevLog-014 s.5)", date: 2026-11-06}

@@ -25,8 +25,9 @@ test('apply, undo, redo: text byte-identical, comments kept, hashes chained, val
   assert.deepEqual(a.invalidates, ['geometry', 'mesh', 'solution', 'plots']);
   assert.ok(log.text.includes('D: {value: 8, unit: mm, range: [1, 10]'));
   assert.ok(log.text.includes('# x = 0 symmetry plane'));
-  const b = await log.apply([{ op: 'add', path: '/results/-', value: { id: 'mises', type: 'plot2d', data: 'std1', expr: 'solid.mises', unit: 'MPa' } }], user);
+  const b = await log.apply([{ op: 'add', path: '/results/plots/-', value: { id: 'mises', type: 'plot2d', data: 'sol_std1', items: [{ id: 'mises_surf', type: 'surface', expr: 'solid.mises', unit: 'MPa' }] } }], user);
   assert.deepEqual(b.invalidates, ['plots']);
+  assert.equal(b.validation.ok, true, b.validation.errors.join('; '));
   const c = await log.apply([{ op: 'replace', path: '/mesh/size/hmax', value: 5 }], user);
   assert.equal(c.validation.ok, false, 'invalid edits are recorded, not refused (D3)');
   assert.match(c.validation.errors[0]!, /mesh\.size\.hmax: unitless value 5/);

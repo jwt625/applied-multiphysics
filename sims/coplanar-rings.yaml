@@ -38,7 +38,14 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [mf]}
 results:
-  - {id: B_map, type: plot2d, data: std1, expr: mf.normB, unit: T}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  plots:
+    - id: B_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: B_map_surf, type: surface, expr: mf.normB, unit: T}
 provenance:
   values:
     params.ra: {basis: benchmark, source: "eval/cases/c/EM-03.yaml geometry.spec.ring_a (Palace docs rings.md)", date: 2026-11-06}

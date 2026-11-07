@@ -44,9 +44,22 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [es]}
 results:
-  - {id: Z0, type: table, data: std1, expr: es.Z0, unit: ohm}
-  - {id: C_per_m, type: table, data: std1, expr: es.C_per_m, unit: pF/m}
-  - {id: V_map, type: plot2d, data: std1, expr: es.V, unit: V}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: Z0, type: global, expr: es.Z0, unit: ohm}
+        - {id: C_per_m, type: global, expr: es.C_per_m, unit: pF/m}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_map_surf, type: surface, expr: es.V, unit: V}
 provenance:
   values:
     params.w: {basis: benchmark, source: "eval/cases/c/RF-03.yaml geometry.spec.trace_w_m (Palace cpw.md)", date: 2026-11-06}

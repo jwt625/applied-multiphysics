@@ -26,8 +26,20 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [ht]}
 results:
-  - {id: T_E, type: probe, data: std1, expr: ht.T, unit: degC, at: ["0.6 m", "0.2 m"]}
-  - {id: T_map, type: plot2d, data: std1, expr: ht.T, unit: degC}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: T_E_pt, type: cutpoint, data: sol_std1, points: [["0.6 m", "0.2 m"]]}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: T_E, type: point, data: T_E_pt, expr: ht.T, unit: degC}
+  plots:
+    - id: T_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: T_map_surf, type: surface, expr: ht.T, unit: degC}
 provenance:
   values:
     params.Lx: {basis: benchmark, source: "eval/cases/a/HT-01.yaml geometry.spec.plate_m (NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4)", date: 2026-11-06}
@@ -36,7 +48,7 @@ provenance:
     physics.ht.bcs.base.settings.T: {basis: benchmark, source: "eval/cases/a/HT-01.yaml bcs[0] (373.15 K = 100 C)", date: 2026-11-06}
     physics.ht.bcs.film.settings.h: {basis: benchmark, source: "eval/cases/a/HT-01.yaml bcs[2].h", date: 2026-11-06}
     physics.ht.bcs.film.settings.T_ext: {basis: benchmark, source: "eval/cases/a/HT-01.yaml bcs[2].T_inf (0 C)", date: 2026-11-06}
-    results.T_E.at: {basis: benchmark, source: "eval/cases/a/HT-01.yaml geometry.spec.points_m.E", date: 2026-11-06}
+    results.datasets.T_E_pt.points.0: {basis: benchmark, source: "eval/cases/a/HT-01.yaml geometry.spec.points_m.E", date: 2026-11-06}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice; the harness refines it by convergence.ratio_min per level"}
 assumptions:
   - {text: "2D conduction per unit depth; no internal heat source", paths: [physics.ht]}

@@ -48,8 +48,22 @@ studies:
       sweep:
         - {param: t_slab, values: ["0.1 um", "0.2 um", "0.3 um", "0.4 um", "0.5 um", "0.6 um", "0.7 um"]}
 results:
-  - {id: neff, type: table, data: sweep_t, expr: ewg.neff, unit: "1"}
-  - {id: E_map, type: plot2d, data: modes, expr: ewg.normE, unit: V/m}
+  datasets:
+    - {id: sol_sweep_t, type: solution, data: sweep_t}
+    - {id: sol_modes, type: solution, data: modes}
+  evaluations:
+    - id: ev_sweep_t
+      data: sol_sweep_t
+      items:
+        - {id: neff, type: global, expr: ewg.neff, unit: "1"}
+  tables:
+    - {id: tbl_sweep_t, from: ev_sweep_t}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
 provenance:
   values:
     params.lambda0: {basis: benchmark, source: "R3 WO-02 (femwell benchmarks re-tabulating Hadley, JLT 20:1219)", date: 2026-11-06}

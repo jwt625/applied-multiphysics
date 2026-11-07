@@ -91,7 +91,7 @@ test('selections: entity grammar, kinds per node type, feature existence, materi
   assert.deepEqual(codes(edit(KIRSCH, '{id: sym_y,', '{id: sym_x,')), ['duplicate_id physics.0.bcs.1.id']);
   assert.deepEqual(codes(edit(KIRSCH, 'tools: [hole]', 'tools: [hole2]')), ['unknown_feature geometry.features.2.settings.tools.0']);
   assert.deepEqual(codes(edit(KIRSCH, '{id: std1, type: stationary, physics: [solid]}', '{id: std1, type: stationary, physics: [solid2]}')), ['unknown_physics studies.0.physics.0']);
-  assert.deepEqual(codes(edit(KIRSCH, 'data: std1, expr: solid.sxx', 'data: std2, expr: solid.sxx')), ['unknown_study results.0.data']);
+  assert.deepEqual(codes(edit(KIRSCH, '{id: sol_std1, type: solution, data: std1}', '{id: sol_std1, type: solution, data: std2}')), ['unknown_study results.datasets.0.data']);
 });
 
 test('registry: unknown types are named, physics vs geometry dimension checked, new types need no core edit', () => {
@@ -161,7 +161,8 @@ test('JSON Schema export: one generated schema, dimensional quantities exclude b
   assert.equal(defs['Quantity_m']?.['x-amp-quantity'], 'm');
   assert.ok(forms('Quantity_m').length === 3 && !forms('Quantity_m').some((b) => b.type === 'number'), 'length quantity admits no bare number');
   assert.ok(forms('Quantity_1').some((b) => b.type === 'number'), 'dimensionless quantity admits a number');
-  assert.ok(text.length < 41053, `JSON Schema below the audited size (${text.length} B)`);
+  // bound raised from 41053 B (L2 audit) to 65536 B for the results model (R0, DevLog-025 s.3, 2026-11-06: 62947 B)
+  assert.ok(text.length < 65536, `JSON Schema below the size bound (${text.length} B)`);
   assert.ok(text.includes('"x-amp-selection"'));
   assert.ok(text.includes('"additionalProperties":false'));
   for (const t of ['elastic', 'heat', 'magnetostatics', 'em-modes', 'emw', 'acoustics']) assert.ok(text.includes(`"const":"${t}"`), t);

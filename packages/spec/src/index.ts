@@ -15,5 +15,6 @@ export * from './oplog.ts';
 export * from './run-record.ts';
 export * from './untrusted.ts';
 export * from './selection.ts';
+export * from './results.ts';
 export type * from './types/index.ts';
 export * from './core-types.ts';

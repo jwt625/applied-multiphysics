@@ -353,7 +353,7 @@ export class Session {
 
 	/** Spec text of one run of a parametric study: swept params set, the parametric study removed (not logged). */
 	private async runText(par: NonNullable<ReturnType<typeof parametricOf>>, values: Record<string, number>, base: { text: string; data: unknown; params: Map<string, ParamInfo> | undefined }): Promise<string> {
-		const data = base.data as { params?: Record<string, unknown>; studies?: Array<{ id?: string }>; results?: Array<{ data?: string }>; provenance?: { values?: Record<string, unknown> }; assumptions?: Array<{ paths?: unknown[] }>; missing?: unknown[] };
+		const data = base.data as { params?: Record<string, unknown>; studies?: Array<{ id?: string }>; results?: { datasets?: Array<{ type?: string; data?: string }> }; provenance?: { values?: Record<string, unknown> }; assumptions?: Array<{ paths?: unknown[] }>; missing?: unknown[] };
 		const esc = (k: string) => k.replace(/~/g, '~0').replace(/\//g, '~1');
 		const patch: JsonPatchOp[] = [];
 		for (const [k, v] of Object.entries(values)) {
@@ -365,8 +365,8 @@ export class Session {
 				patch.push({ op: 'replace', path: `/params/${esc(k)}`, value: unit ? { value: v, unit } : v });
 			}
 		}
-		// results that read the parametric study read its inner study in the single run
-		(data.results ?? []).forEach((r, i) => { if (r?.data === par.id) patch.push({ op: 'replace', path: `/results/${i}/data`, value: par.inner }); });
+		// solution datasets of the parametric study read its inner study in the single run (results C10)
+		(Array.isArray(data.results?.datasets) ? data.results.datasets : []).forEach((d, i) => { if (d?.type === 'solution' && d.data === par.id) patch.push({ op: 'replace', path: `/results/datasets/${i}/data`, value: par.inner }); });
 		// provenance, assumption and missing paths into the removed study would no longer resolve (validation error)
 		const inStudy = (path: unknown) => typeof path === 'string' && (path === `studies.${par.id}` || path.startsWith(`studies.${par.id}.`) || path === `studies.${par.index}` || path.startsWith(`studies.${par.index}.`));
 		for (const k of Object.keys(data.provenance?.values ?? {})) if (inStudy(k)) patch.push({ op: 'remove', path: `/provenance/values/${esc(k)}` });
@@ -571,7 +571,7 @@ export class Session {
 		this.stopRefine();
 		const tok = ++this.accToken;
 		const conv = caseConvergence(this.caseInfo?.id ?? 'N/A', this.caseInfo?.data ?? null, def.metric);
-		const results = ((this.model.data as { results?: unknown[] } | null)?.results ?? []);
+		const results = (this.model.data as { results?: unknown } | null)?.results ?? null;
 		const startedAt = performance.now();
 		const rec = async (h: number, sol: Solution, mesh: Mesh, ms: number): Promise<LevelRecord> => ({ h, dof: sol.stats.dof, ms, ...(await levelValues(def, sol, mesh, params, results, this.post)), meshHash: mesh.hash, cells: mesh.cells.domain.length });
 		const levels: LevelRecord[] = [await rec(1, sol0, mesh0, ms0)];

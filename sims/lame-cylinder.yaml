@@ -42,11 +42,26 @@ mesh:
 studies:
   - {id: std1, type: stationary, physics: [solid]}
 results:
-  - {id: u_A, type: probe, data: std1, expr: solid.u, unit: m, at: ["a", "0 m"]}
-  - {id: u_B, type: probe, data: std1, expr: solid.u, unit: m, at: ["b", "0 m"]}
-  - {id: sxx_A, type: probe, data: std1, expr: solid.sxx, unit: MPa, at: ["a", "0 m"]}
-  - {id: syy_A, type: probe, data: std1, expr: solid.syy, unit: MPa, at: ["a", "0 m"]}
-  - {id: mises_map, type: plot2d, data: std1, expr: solid.mises, unit: MPa}
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: u_A_pt, type: cutpoint, data: sol_std1, points: [[a, "0 m"]]}
+    - {id: u_B_pt, type: cutpoint, data: sol_std1, points: [[b, "0 m"]]}
+    - {id: sxx_A_pt, type: cutpoint, data: sol_std1, points: [[a, "0 m"]]}
+    - {id: syy_A_pt, type: cutpoint, data: sol_std1, points: [[a, "0 m"]]}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: u_A, type: point, data: u_A_pt, expr: solid.u, unit: m}
+        - {id: u_B, type: point, data: u_B_pt, expr: solid.u, unit: m}
+        - {id: sxx_A, type: point, data: sxx_A_pt, expr: solid.sxx, unit: MPa}
+        - {id: syy_A, type: point, data: syy_A_pt, expr: solid.syy, unit: MPa}
+  plots:
+    - id: mises_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: mises_map_surf, type: surface, expr: solid.mises, unit: MPa}
 provenance:
   values:
     params.a: {basis: benchmark, source: "eval/cases/a/SM-21.yaml geometry.spec.inner_radius (inferred in the case from the ANALYTIQUE values; case assumptions)", date: 2026-11-06}

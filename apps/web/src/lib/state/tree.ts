@@ -47,7 +47,16 @@ export function buildTree(data: unknown, issues: readonly SpecIssue[]): TreeNode
 		out.push(node('mesh', '/mesh', 'Mesh', s(m.mesher), ch, ['size', 'refine']));
 	}
 	if (Array.isArray(data.studies)) out.push(node('studies', '/studies', 'Studies', '', list('study', '/studies', arr(data.studies))));
-	if (Array.isArray(data.results)) out.push(node('results', '/results', 'Results', '', list('result', '/results', arr(data.results))));
+	// results (CONTRACTS C10): one node per dataset, evaluation group, table and plot group, items under their group
+	if (isObj(data.results)) {
+		const r = data.results;
+		const ch: TreeNode[] = [];
+		for (const sec of ['datasets', 'evaluations', 'tables', 'plots'] as const) {
+			const grouped = sec === 'evaluations' || sec === 'plots';
+			ch.push(...list('result', `/results/${sec}`, arr(r[sec]), (o, i) => (grouped ? list('result', `/results/${sec}/${i}/items`, arr(o.items)) : []), grouped ? ['items'] : undefined));
+		}
+		out.push(node('results', '/results', 'Results', '', ch, ['datasets', 'evaluations', 'tables', 'plots']));
+	}
 	if (isObj(data.provenance)) out.push(node('provenance', '/provenance', 'Provenance', String(Object.keys((data.provenance.values as O) ?? {}).length)));
 	if (Array.isArray(data.assumptions)) out.push(node('assumptions', '/assumptions', 'Assumptions', String(data.assumptions.length)));
 	if (Array.isArray(data.missing)) out.push(node('missing', '/missing', 'Missing', String(data.missing.length)));

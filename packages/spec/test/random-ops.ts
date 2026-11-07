@@ -145,14 +145,19 @@ export function validEdit(r: () => number, spec: AnyObj, n: number): JsonPatchOp
       return [{ op: 'move', from: `${pp}/bcs/${anchor ? `@${x.e.id}` : x.i}`, path: `${pp}/bcs/${to}` }];
     }
     if (u < 0.72 && spec.studies?.length) {
-      const res = { id: `r${n}`, type: r() < 0.5 ? 'plot2d' : 'table', data: spec.studies[0].id, expr: 'x', unit: '1' };
-      return spec.results ? [{ op: 'add', path: '/results/-', value: res }] : [{ op: 'add', path: '/results', value: [res] }];
+      // grouped results (C10): a plot group on the first dataset, or a solution dataset when there is none
+      const ds = spec.results?.datasets?.[0]?.id;
+      const res = ds
+        ? { sec: 'plots', node: { id: `r${n}`, type: 'plot2d', data: ds, items: [{ id: `r${n}_s`, type: 'surface', expr: 'x', unit: r() < 0.5 ? 'm' : '1' }] } }
+        : { sec: 'datasets', node: { id: `r${n}`, type: 'solution', data: spec.studies[0].id } };
+      if (!spec.results) return [{ op: 'add', path: '/results', value: { [res.sec]: [res.node] } }];
+      return spec.results[res.sec] ? [{ op: 'add', path: `/results/${res.sec}/-`, value: res.node }] : [{ op: 'add', path: `/results/${res.sec}`, value: [res.node] }];
     }
     if (u < 0.78) {
-      const g = generated(spec.results, 'r');
+      const g = generated(spec.results?.plots, 'r');
       if (!g.length) continue;
       const x = g[Math.floor(r() * g.length)]!;
-      return [{ op: 'remove', path: `/results/${anchor ? `@${x.e.id}` : x.i}` }];
+      return [{ op: 'remove', path: `/results/plots/${anchor ? `@${x.e.id}` : x.i}` }];
     }
     if (u < 0.9) {
       const nodes: string[] = [];

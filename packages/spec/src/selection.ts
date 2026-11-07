@@ -10,6 +10,7 @@ import type { EntityTable } from './types/mesh.ts';
 import type { Spec } from './schema.ts';
 import { issue, type SpecIssue } from './validate.ts';
 import type { PathKey } from './registry.ts';
+import { resultSelections } from './results.ts';
 
 export type EntityListName = 'domains' | 'boundaries' | 'edges' | 'points';
 export const ENTITY_LIST: Record<EntityKind, EntityListName> = { dom: 'domains', bnd: 'boundaries', edg: 'edges', pnt: 'points' };
@@ -28,7 +29,7 @@ export function selectionsOf(spec: Spec): Array<{ path: PathKey[]; ids: string[]
     p.bcs?.forEach((b, j) => out.push({ path: ['physics', i, 'bcs', j, 'select'], ids: b.select }));
   });
   spec.mesh?.refine?.forEach((r, i) => out.push({ path: ['mesh', 'refine', i, 'select'], ids: r.select }));
-  spec.results?.forEach((r, i) => { if (r.select) out.push({ path: ['results', i, 'select'], ids: r.select }); });
+  out.push(...resultSelections(spec.results));
   return out;
 }
 
