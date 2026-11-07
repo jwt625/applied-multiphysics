@@ -20,7 +20,7 @@ export interface TimingSummary {
   stages_median_ms: Record<string, number>;  // per stage (Solution.timing), median over timed runs
 }
 
-export interface TimeOptions { warmup?: number; repeats?: number; now?: () => number }
+export interface TimeOptions { warmup?: number; repeats?: number; now?: () => number; setup?: () => void }
 
 /** Time an async function. If it returns an object with `timing` (C5 Solution), stage times are aggregated. */
 export async function timeRuns<T>(fn: () => Promise<T> | T, opts: TimeOptions = {}): Promise<{ summary: TimingSummary; last: T }> {
@@ -31,6 +31,7 @@ export async function timeRuns<T>(fn: () => Promise<T> | T, opts: TimeOptions = 
   const stages: Array<Record<string, number>> = [];
   let last: T | undefined;
   for (let i = 0; i < warmup + repeats; i++) {
+    opts.setup?.();   // untimed per-run preparation (e.g. resetting the initial guess)
     const t0 = now();
     last = await fn();
     const dt = now() - t0;

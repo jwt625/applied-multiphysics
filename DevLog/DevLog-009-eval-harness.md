@@ -6,7 +6,7 @@
 | Lane | L8 (evaluation harness) |
 | Owns | `packages/eval/**`, `eval/schema/**`, `eval/README.md`, this file |
 | Reads | DevLog-001 (A5, A12, targets, M1), CONTRACTS-v0 (C1, C4, C5, C8), R3 s.2 and s.5, `eval/cases/**`, `eval/expected/**`, sibling `validation/` dirs (read-only) |
-| Status | Hand-off 2026-11-06 15:58 PST (engine run waits for `@amp/physics` index + `prepareRun`) |
+| Status | Audit pass 2026-11-06 16:28 PST (section 9); engine path wired, no case runnable yet (all specs pending) |
 
 ## 1. Plan (written 2026-11-06 15:13 PST, before code)
 
@@ -113,8 +113,11 @@ Expected JSON (`amp-eval-expected/0`, written by L7a, not owned by L8): the load
 - 2026-11-06 15:44 PST: TS field port + gate 26/26 (section 5.4). Tests 51/51.
 - 2026-11-06 15:45 PST: dry run over 49 cases: 0 loader errors (section 6).
 - 2026-11-06 15:47 PST: L7b CR-1 / CR-2 adopted (S32; documented in `eval/README.md`). Dry run still 0 errors over 49 cases.
-- 2026-11-06 15:56 PST: L7c's 36 cases arrived; full validation over 85 cases (section 6): 3 loader errors (SM-07 stale metric ids), self-check 1 fail (SM-06 FV12 modes 7-9).
 - 2026-11-06 15:48 PST: `@amp/spec` (L2 done) wired: C4/C5 types from `packages/spec/src/types` (relative type import until `@amp/eval` lists `@amp/spec`), spec loading through `parseSpecText` (sims/ files) / `validateSpec` (embedded) with the `@amp/physics` spec registry when exported, else `@amp/spec/provisional` `wave1Registry()`; unit conversion through the spec units API (affine degC; smoke 373.15 K -> 100 degC; `lbf` unknown to core units: SM-03 `F_cr_lbf` is gate false); meta platform from `probePlatform()`. Smoke: all 6 `sims/*.yaml` parse ok with the wave-1 registry. Test fixtures carry a mock `@amp/spec`. Tests 52/52.
+- 2026-11-06 15:56 PST: L7c's 36 cases arrived; full validation over 85 cases (section 6): 3 loader errors (SM-07 stale metric ids), self-check 1 fail (SM-06 FV12 modes 7-9).
+- 2026-11-06 16:15 PST: fresh-context audit received (`DevLog/audits/2026-11-06-L8-eval-harness-audit.md`: 5 blocking, 7 significant, 11 minor). Coordinator relays: canonical hooks are L4's (contract changelog 16:15), metric_id-only lookup, rights-tag enum with `reference_by_hash` -> hash, L4's oscillatory fallback request (DevLog-010 s.5 item 3), real engine run. Corrections in section 9.
+- 2026-11-06 16:27 PST: `@amp/physics` index (7 modules, `prepareRun`, `physicsRegistry`, `RESULT_NAMES`) and `@amp/post` `sample` load in the harness. End-to-end smoke in a scratch root (AC-02 with `spec: sims/box-acoustics.yaml`, links to the real packages): the worker ran 3 levels; every target pending because the module emits `f_0 .. f_4` and the case asks for `f_mode1 .. f_mode10` (naming mismatch L4 / L7a, section 6).
+- 2026-11-06 16:28 PST: audit pass done. Tests 66/66; tsc clean; CLI modes re-run (section 9.3).
 
 ## 5. Results
 
@@ -136,7 +139,7 @@ Command: `nice -n 10 node --max-old-space-size=1536 packages/eval/src/cli.ts --b
 
 Problem: unit cube, Q1 hex, manufactured u = sin(pi x) sin(pi y) sin(pi z). BP1-style = mass, BP3-style = stiffness with u = 0 on the boundary. Throughput = Jacobi-PCG, 50 fixed iterations, DOF (free nodes) x iterations / median solve time; 1 warm-up + median of 5. Time-to-accuracy = MG-PCG to rtol 1e-10, wall = assemble + constrain + MG setup + solve, median of 5, tolerance 1e-3 on max relative nodal error.
 
-| bench | n | DOF | Jacobi-PCG solve ms (median) | MDOF/s | MG-PCG it | pipeline ms (median) | max rel nodal err |
+| bench (BP-style, non-conforming) | n | DOF (free nodes) | Jacobi-PCG solve ms (median) | MDOF/s (free) | MG-PCG it | pipeline ms (median) | max rel nodal err |
 |---|---|---|---|---|---|---|---|
 | BP1 | 8 | 729 | 0.73 | 49.9 | 1 | 7.65 | 3.929e-2 |
 | BP1 | 16 | 4,913 | 4.54 | 54.1 | 1 | 33.35 | 9.682e-3 |
@@ -153,7 +156,7 @@ Derived: rate fit of the nodal error 2.009 (BP1) and 2.005 (BP3), r2 1.0000 (Q1 
 
 After the coordinator's note that L1 is done (DevLog-002). Command as above with `--sizes 8,16,32,64,96`. Records `logs/bench-poisson-20261106T153702.jsonl`, console `logs/eval-bench-20261106T153702.log`. Same machine, shared load.
 
-| bench | n | DOF | Jacobi-PCG solve ms | MDOF/s | MG-PCG it | pipeline ms | max rel nodal err |
+| bench (BP-style, non-conforming) | n | DOF (free nodes) | Jacobi-PCG solve ms | MDOF/s (free) | MG-PCG it | pipeline ms | max rel nodal err |
 |---|---|---|---|---|---|---|---|
 | BP1 | 8 | 729 | 0.69 | 52.5 | 1 | 8.26 | 3.929e-2 |
 | BP1 | 16 | 4,913 | 4.40 | 55.8 | 1 | 30.88 | 9.682e-3 |
@@ -174,7 +177,7 @@ Coordinator decision 2026-11-06 item 2. Port: `packages/eval/src/fields/` (speci
 
 Result: 26/26 fields pass (8 cases at default parameters, plus WO-03 absorbing m = 1.5 + 1i, FL-01 Re 40, TR-01 Pe 100). Worst pointwise: EM-04 B_rho 2.44e-13, WO-03[m=1.5+1i] Ey 2.44e-13, WO-03 Ey 5.5e-14; most fields 1e-16 to 1e-14; Kovasznay, Poiseuille, EOF bit-identical.
 
-Finding during the gate: the first port computed K and E by the AGM (E = K (1 - sum)); E was off by 3.7e-15 relative at m = 0.050, and the near-axis B_rho (cancellation in -K + c E, about 1e3 x) missed the gate at 5.8e-12. Switched to Carlson RF / RD (K - E = (m/3) RD(0, 1 - m, 1), DLMF 19.25.1): K, E match mpmath (30 digits) to 1 ulp. At the worst point (rho 5 mm, z 30 mm) mpmath gives 2.36823546193752e-8 T; the Python CLI is 2.5e-13 off it, so the residual 2.4e-13 is the Python side's rounding.
+Finding during the gate: the first port computed K and E by the AGM (E = K (1 - sum)); E was off by 3.7e-15 relative at m = 0.050, and the near-axis B_rho (cancellation in -K + c E, about 1e3 x) missed the gate at 5.8e-12. Switched to Carlson RF / RD (K - E = (m/3) RD(0, 1 - m, 1), DLMF 19.25.1): K, E match mpmath (30 digits) to <= 2 ulp for m <= 0.999; the audit (40 digits) found E at 1.07e-15 relative (about 5 ulp) at m = 0.999999, so the claim is <= 5 ulp for m <= 1 - 1e-6 (audit M7). At the worst point (rho 5 mm, z 30 mm) mpmath gives 2.36823546193752e-8 T; the Python CLI is 2.5e-13 off it, so the residual 2.4e-13 is the Python side's rounding.
 
 Wiring: `--fields python` (default, `uv run` of the CLI) or `--fields ts` (port, browser-safe) for `extract.kind: field` targets.
 
@@ -215,29 +218,104 @@ Dry run `logs/eval-20261106T155629.jsonl`: 85 cases, 298 targets; **3 loader err
 
 Engine: `@amp/physics` has `src/common`, `src/em3d`, `src/modes` but no `src/index.ts` yet (L4 in progress at 15:56), so every case is pending on the engine path; the harness loads it automatically once `index.ts` exports `modules` + `prepareRun`.
 
+### 2026-11-06 16:28 PST (85 cases, 295 targets; after the audit corrections)
+
+Dry run `logs/eval-20261106T162834-2.jsonl`: 20 loader errors, 140 warnings; exit 1.
+
+| Lane | Loader errors | Fix |
+|---|---|---|
+| L7a | `SM-06.yaml` 14 (7 targets x 2): scalar eigen targets without `extract.index` (B4) and `floor` + `offset: 3` together (double skip) | `extract: {kind: eigen, floor: 0.01, index: k}`, k = 0..6 for modes 4..10 (3 rigid modes dropped by the floor), no offset |
+| L7c | `FL-07.yaml` 1: `reference_by_hash` without `dataset.hash` | add `dataset.hash` (sha256 / md5 of the AirfRANS archive) |
+| L7c | `SC-02.yaml` 5: `expected.metric_id 'J_top_0.1V' .. '0.5V'` not in `eval/expected/SC-02.json` | regenerate the expected JSON or rename the ids |
+| L7b / L7c (and L7a) | 140 warnings: 128+ targets without `metric_id` | add `metric_id` (slug); until then they stay pending on the engine path |
+
+Engine run `logs/eval-20261106T162834.jsonl` (real `@amp/physics`, worker isolation): 0 workers started, because every case has `spec: {status: pending}`.
+
+| class | cases pass | fail | pending | error | timeout | targets pending |
+|---|---|---|---|---|---|---|
+| a | 0 | 0 | 28 | 1 (SM-06) | 0 | 123 |
+| b | 0 | 0 | 20 | 0 | 0 | 93 |
+| c | 0 | 0 | 34 | 2 (FL-07, SC-02) | 0 | 79 |
+| all | 0 | 0 | 82 | 3 | 0 | 295 |
+
+Self-check `--adapter expected` `logs/eval-20261106T162835.jsonl`: 33 pass, 0 fail, 49 pending, 3 error (the loader errors); targets 134 pass, 0 fail, 145 pending, 16 info.
+
+Cross-lane naming finding (engine smoke): `acoustics` emits `f_0 .. f_4`, AC-02 asks for `f_mode1 .. f_mode10`; `RESULT_NAMES` uses `f_<k>`, `neff_<k>`, `C_<i>_<j>`, while L7a ids are `f_mode1`, `neff_TE0`, `C_per_m` (the last matches). L4 and L7a need one naming rule (contracts v1); the harness reports the mismatch as pending, it does not map names.
+
 ## 7. Contract requests
 
 To the coordinator (CONTRACTS-v0 owner):
 
-0. **`@amp/spec` dependency**: add `"@amp/spec": "workspace:*"` to `packages/eval/package.json` and re-install; then `src/contract-shim.ts` and `src/registry.ts` switch from the relative type import `../../spec/src/types/index.ts` to `@amp/spec/types` (runtime access already goes through the workspace resolver). Not edited by L8 to keep the root lockfile consistent.
+0. **`@amp/spec` dependency** (resolved 16:0x: in `package.json`; types now import from `@amp/spec/types`): add `"@amp/spec": "workspace:*"` to `packages/eval/package.json` and re-install; then `src/contract-shim.ts` and `src/registry.ts` switch from the relative type import `../../spec/src/types/index.ts` to `@amp/spec/types` (runtime access already goes through the workspace resolver). Not edited by L8 to keep the root lockfile consistent.
 1. **C1 runtime dependency**: `yaml` (^2.9.1, same as `@amp/spec`) for `@amp/eval` (case parsing with source positions for `file:line:col` errors). Installed into `packages/eval/node_modules` only (`--ignore-workspace`, no lockfile); a workspace `pnpm install` by the coordinator will replace it. Dev deps: `typescript` 5.9.3, `@types/node` ^22.
 2. **C4 hook for the harness**: `@amp/physics` exports `modules: PhysicsModule[]` (or `registry`) and `prepareRun({case, spec, physicsId, level, hFactor, signal}) -> Promise<RunContext>` that builds geometry and mesh with the mesh size scaled by `hFactor`. Without it every case stays `pending` ("registered but no prepareRun hook"). The harness never meshes on its own.
 3. **C5 units** (resolved 15:48 for degC through `@amp/spec` units): remaining gap `lbf` (SM-03 `F_cr_lbf`, gate false) and L7a's `length` passthrough for SM-21 (DevLog-006 s.5 item 7): unknown units make the target an `error`; L7a can restate SM-21 in SI.
 4. **C5 sampling hook**: `@amp/post` exports `sample(solution, mesh, field, points, component?) -> Float64Array` for `extract.kind: probe | field`. Until then those targets are `pending`.
 5. **C8 additions (additive)**: (a) the `spec` pending shape `{status: pending, reason, ref?}`; (b) the expected-file format `amp-eval-expected/0` as L7a writes it (`case, generator, command, generated_at, versions, targets[{metric_id, value, unit, ...}]`) recorded in C8; (c) JSONL lines carry `kind` (`meta | target | case | issues | speed | summary`); target lines keep the C8 minimum `{case, target, value, ref, tol, pass, time_ms, dof, run}` plus diagnostics (`status, reason, diff, err_abs, err_rel, limit, u_num, richardson, rate, eigen, field, levels`).
 
-## 8. Hand-off (2026-11-06 15:58 PST)
+## 8. Hand-off (2026-11-06 15:58 PST; refreshed 16:28)
 
 Done:
 - `eval/schema/amp-eval-0.schema.json` (authoritative per CONTRACTS-v0 changelog 15:45), changelog S1-S32 in section 3.
 - `packages/eval` (3,647 lines TS incl. tests): loader + dependency-free validator (`file:line:col /pointer [severity keyword] message`), metrics, speed, evaluate, runner, registry/engine source, adapters (expected self-check, python `uv run`, exact-field bridge), TS exact-field port `src/fields/`, report (JSONL per C8 + markdown summary), CLI, `bench/poisson.ts` (BP1/BP3-style), `bench/fields-crosscheck.ts` (gate), `eval/README.md`.
-- Gates: unit tests 52/52 (loader 17, metrics 16, speed 5, cli 10, fields 4); dry run over all 85 cases: 3 loader errors, listed (L7a SM-07); speed harness on `@amp/core` measured (sections 5.2, 5.3: BP3-style r_max 52.4 MDOF/s, Q1 rate 2.004, T_tol(1e-3) 654 ms at n = 64); TS field port 26/26 fields within 1e-12 of the Python CLI (worst 2.44e-13).
+- Gates (refreshed 16:28 after the audit pass): unit tests 66/66 (loader 17, metrics 21, speed 5, cli 10, engine 9, fields 4); dry run over 85 cases: 20 loader errors listed per lane (section 6, 16:28); speed harness on `@amp/core` (section 9.3: BP3-style r_max 52.25 MDOF/s on all nodes, 45.63 on free unknowns; Q1 rate 2.004); TS field port 26/26 within 1e-12 (worst 2.44e-13).
 
 Open:
-- Engine path: no case has run on the engine yet; needs `packages/physics/src/index.ts` exporting `modules` (or a module map) and `prepareRun(args)` (contract request 2), and L2 sims ids in the cases (`spec` is pending in 82 of 85 cases). Then: `node packages/eval/src/cli.ts --speed` for time-to-accuracy per case.
-- `probe` / `field` extraction needs `@amp/post` `sample(...)` (contract request 4); `extract` blocks are not yet written in the cases (field names in C5 not fixed).
-- L7a: SM-07 stale metric ids; SM-06 FV12 modes 7-9 generator vs TNSB 0.8-1.0 %.
+- Engine path: wired to L4's hooks and `@amp/post` `sample` (worker per case); no repo case is runnable yet because every `spec` is pending (L2 sims ids not in the cases) and metric names differ between L4 and L7a (section 6, 16:28).
+- Next wave (audit S7): browser runner (Worker Source, TS fields port, `crossOriginIsolated` and timer clamping in meta, M10 minimum sample duration), report page, dataset adapter (The Well / PDEBench, VRMSE / nRMSE vs our own convergence floor), multiphysics orchestration (cases with more than one physics entry stay pending).
+- L7a: SM-06 extract (index, no double skip); L7c: FL-07 hash, SC-02 expected ids; all lanes: metric_id on every target.
 - Not built (DevLog-001 lane table mentions them; not in this task): browser runner page and report page. `src/index.ts` exports only Worker-safe modules, so a browser runner can reuse loader / metrics / evaluate / runner / report / fields with its own Source.
 - `packages/eval/node_modules/.pnpm` holds the residue of the 15:20 isolated install (unused since the root install symlinks into the root store; gitignored); safe to delete with a clean workspace install.
 
 How to resume: read sections 3, 6, 7; run `node packages/eval/src/cli.ts --dry-run` (exit 0 when no loader errors), `cd packages/eval && node --test --test-concurrency=1 test/*.test.ts`, `node packages/eval/bench/fields-crosscheck.ts`, `nice -n 10 node --max-old-space-size=1536 packages/eval/src/cli.ts --bench all`.
+
+## 9. Audit corrections (audit `DevLog/audits/2026-11-06-L8-eval-harness-audit.md`, applied 2026-11-06 16:15-16:28 PST)
+
+### 9.1 Dispositions
+
+| # | Finding | Disposition | Where / evidence |
+|---|---|---|---|
+| B1 | No timeout or isolation | Fixed. Each engine case runs in a `worker_threads` Worker with `resourceLimits.maxOldGenerationSizeMb` (`--max-mem`, default 1536) and a wall-clock limit (`--timeout`, else from `budget_s`, capped by `--timeout-cap`, default 600 s); `AbortSignal.timeout` passed to `prepareRun`. Hang / busy loop -> status `timeout`, never-settling promise -> `error` ("worker exited without a result"), heap overrun -> `error` ("out of memory"); all exit 1 with a log line. `process.exitCode = 1` until `main()` completes | `src/registry.ts` `runWorker`, `caseTimeoutMs`; `src/engine-worker.ts`; `test/engine.test.ts` (4 tests: unsettled promise 0.1 s, busy loop and timer hang timed out at 1.5 s, heap cap 64 MB) |
+| B2 | Broken engine import exits 0 | Fixed. A present but failing `@amp/physics` or `@amp/post` (or no `sample` export) sets `loadError`: every case is `error` in run and dry run, exit 1. An absent package directory stays pending. `--strict` makes a gated pending target exit 1 | `loadDefaultRegistry`, `workspace.ts` `absent`; `exitCode(…, {strict})`; test B2, B3 |
+| B3 | Lookup by `quantity` | Fixed. Lookup by `metric_id` only (or `extract.name`); schema pattern = slug grammar; a target without one is a loader warning and pending on the engine path; a metric not in L4's `RESULT_NAMES` (with `<x>` wildcards) or not produced is pending with the reason | `extractFromSolution`, `EngineSource.observe`; schema `metric_id.pattern`; test B3 |
+| B4 | SM-06 eigen extraction, double skip | Fixed in the harness: `extract.index` (position after floor / offset) for scalar eigen targets (`selectEigen`); loader errors for a scalar eigen target without `index` and for `floor` + `offset` together. SM-06 itself needs L7a's edit (section 6, 16:28) | `metrics.ts` `selectEigen`; `loader.ts`; known-answer test "B4" (FV12-like list with 3 rigid modes) |
+| B5 | Hook signatures | Adapted to L4: `prepareRun` called as `(args)` or `(spec, caseCtx)` by arity (L4 accepts both); `physicsRegistry()` used as the spec registry; `RESULT_NAMES` used for B3; `@amp/post` `sample(solution, field, points, {mesh, component})` as implemented (the changelog text says `sample(solution, mesh, field, points, component?)`; L4's code takes the mesh in the options object, and the harness follows the code). The level's `ctx.mesh` is passed to `sample` inside the worker | `callPrepare`, `extractFromSolution`; tests B5 (two-parameter prepareRun, field target through a mock `sample` that requires the mesh) |
+| S1 | NaN dropped silently | Fixed. Any non-finite value on any level fails with the level named; field targets fail on non-finite samples unless `extract.max_dropped`; non-finite computed eigenvalues fail the match | `evaluate.ts`; test "non-finite values" |
+| S2 | Eigen arrays skip Richardson | Fixed. Every level is matched, then each mode is extrapolated; a degenerate cluster is extrapolated through its mean and members keep the finest split | `evaluateEigenArray`; test "S2" (irregular split 1e-3 / 1e-4 / 6e-4: mean exact to 1e-12) |
+| S3 | Richardson passes outside the asymptotic range | Fixed. Pass needs f_ext and the finest level within the budget and `|p_obs / expected - 1| <= order_band` (default 0.25, `order_check: false` to report only) | `richardsonGate`; schema `convergence.order_band / order_check`; test "Richardson gate" |
+| S4 | Run record unchecked | Fixed. Every level's record: `engine, specHash, meshHash` non-empty, `startedAt` ISO 8601 with offset, `platform.runtime`, `fidelity`, and `run.meshHash == Solution.meshHash`; else the case is an error. Per-level `{level, dof, meshHash, wall_ms}` kept in `levelRuns` and target `levels` | `checkRunRecord`; test S4 |
+| S5 | Cold time-to-accuracy | Fixed. `--speed` times every level (1 warm-up + median of 5) inside the worker; `protocol: warmup1_median5_per_level` | `engine-worker.ts`, `runner.ts` |
+| S6 | Missing native budget blocks | Fixed by marking pending: `meets_budget` is judged on T_tol (cumulative over levels for Richardson targets) against `budget_s.native` only; without one it is `null` with `budget_note`. No browser-to-native scaling factor is used, because none has been measured (it would be an invented number) | `runner.ts`; test "--speed" |
+| S7 | Browser runner, report page, dataset adapter, multiphysics | Open, next wave (section 8) | |
+| Output | Unique log names; BP label; BP3 DOF | Fixed. `writeUnique` (flag `wx`, `-2`, `-3` suffix) for eval, bench and crosscheck logs; bench records carry `bench: bp1-style / bp3-style`, `conforming_ceed: false`, `dof_all` and `dof_free`, with throughput on both | `node-io.ts`; `bench/poisson.ts`; test M1 |
+| M1 | Overwrite on same-second runs | Fixed (above) | |
+| M2 | Misleading NaN reason | Fixed: `non-finite value at level k of n` | |
+| M3 | Rule plus rel / abs ignored on scalars | Fixed: both apply | test "M3" |
+| M4 | `info` not printed | Fixed: CLI line prints info and timeout counts | |
+| M5 | Bench DOF counting, timed allocation, label | Fixed: both DOF counts; the initial guess is reset outside the timer (`timeRuns` `setup`); pcg's 4 work vectors are still allocated inside it (core API, stated in the header) | |
+| M6 | NaN strings in JSONL | Documented (README) | |
+| M7 | Stale DevLog, shim path, ulp claim | Fixed: numbers refreshed (sections 6, 8, 9.3), log order, shim imports `@amp/spec/types`, ulp claim restated (5.4) | |
+| M8 | "expected number, got number" | Fixed: "got non-finite number NaN" | `schema-validate.ts` |
+| M9 | `time_ms` undocumented | Documented (README): sum of all accuracy levels | |
+| M10 | Minimum sample duration | Open (browser runner) | |
+| M11 | Subsequence with fewer computed modes | Fixed: alignment with skips on both sides, partial assignment kept | test "M11" |
+| L4 request | HT-01 non-nested levels marked fail ("oscillatory") | Fixed: an oscillatory / non-converging sequence is never extrapolated with an assumed order; Richardson is reported unavailable and the target is gated on the finest value within the budget plus non-increasing |error| (`richardson_fallback: finest+monotone`); applies to scalars, element-wise arrays and eigen clusters | `fallbackGate`; tests in "Richardson gate" |
+| Coordinator | Rights tags | Fixed: `$defs/rightsItem` is an enum of the 14 tags in use with descriptions (schema description, README table); `reference_by_hash` in `allowed` without `dataset.hash` (`sha256:<64 hex>` or `md5:<32 hex>`) is a loader error. The relayed list said `cite_value`; the cases (85) and the earlier vocabulary use `cite_values`, which is kept | schema, `loader.ts`, README |
+
+### 9.2 Not changed
+
+- The changelog's `sample(solution, mesh, field, points, component?)` text versus L4's code `sample(solution, field, points, {mesh, component})`: the harness follows the code (coordinator: L4's implementation is canonical); the contracts-v1 text should be aligned.
+- Metric naming across L4 / L7a (`f_<k>` vs `f_mode<k>`): reported, not mapped.
+
+### 9.3 Re-runs after the corrections (2026-11-06 16:28-16:30 PST)
+
+| Command | Result | Records |
+|---|---|---|
+| `node --test test/*.test.ts` (packages/eval) | 66 tests, 66 pass (loader 17, metrics 21, speed 5, cli 10, engine 9, fields 4), 5.8 s | |
+| `tsc -p . --noEmit` | 0 errors | |
+| `cli.ts` (engine) | 85 cases: 0 pass, 0 fail, 82 pending, 3 error, 0 timeout; exit 1 (loader errors) | `logs/eval-20261106T162834.jsonl` |
+| `cli.ts --dry-run` | same counts; exit 1 | `logs/eval-20261106T162834-2.jsonl` (same-second run, suffix) |
+| `cli.ts --adapter expected` | 33 pass, 0 fail, 49 pending, 3 error; targets 134 pass, 0 fail, 145 pending, 16 info | `logs/eval-20261106T162835.jsonl` |
+| `bench/fields-crosscheck.ts` | 26/26 fields within 1e-12 | `logs/fields-crosscheck-20261106T162841.jsonl` |
+| `cli.ts --bench all --sizes 8,16,32,64,96` | BP1-style r_max 50.87 MDOF/s (all = free, no Dirichlet), BP3-style 52.25 all nodes (n_0.8 4,913) / 45.63 free (n_0.8 29,791); rates 2.007 / 2.004; T_tol(1e-3) 711.5 / 756.4 ms single (shared machine, 7 lanes) | `logs/bench-poisson-20261106T162848.jsonl` |
+| scratch engine smoke (AC-02 -> `sims/box-acoustics.yaml`) | worker ran 3 levels on the real `@amp/physics`; targets pending on metric names | scratchpad only |

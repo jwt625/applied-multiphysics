@@ -6,7 +6,7 @@ import type { LoadedCase } from './loader.ts';
 import type { TargetObservation } from './evaluate.ts';
 import type { RunRecord } from './contract-shim.ts';
 
-export interface SpeedRecord {
+export interface LevelTimingSummary {
   level: number;
   dof: number | null;
   warmup_ms: number[];
@@ -15,17 +15,27 @@ export interface SpeedRecord {
   mad_ms: number;
   stages_median_ms: Record<string, number>;
   iterations: number | null;
-  budget_s?: number;
-  meets_budget?: boolean | null;   // only at a level that meets the tolerance (R3 s.5.3 item 5)
+}
+
+/** --speed: 1 warm-up + median of 5 at every mesh level (audit S5; protocol recorded). */
+export interface SpeedRecord {
+  protocol: 'warmup1_median5_per_level';
+  levels: LevelTimingSummary[];
+  budget_s?: number;               // native budget; the browser budget belongs to the browser runner (audit S6)
+  budget_note?: string;
+  t_tol_ms?: number | null;        // time to reach every gated tolerance (cumulative over levels for richardson)
+  meets_budget?: boolean | null;   // null when pending (no native budget, or a gated target not passing)
 }
 
 export type CaseObservation =
   | { kind: 'pending'; reason: string }
   | { kind: 'error'; reason: string }
+  | { kind: 'timeout'; reason: string }
   | {
       kind: 'observed';
       targets: Record<string, TargetObservation | { pending: string } | { error: string }>;
       run: RunRecord | Record<string, unknown>;
+      levelRuns?: Array<{ level: number; dof: number; meshHash: string; wall_ms: number }>;
       dim?: number;
       speed?: SpeedRecord;
     };
@@ -40,7 +50,7 @@ export interface Source {
   name: string;
   describe(): string;
   /** What would happen for this case without running it (dry run). */
-  plan(lc: LoadedCase): Promise<{ runnable: boolean; reason: string }>;
+  plan(lc: LoadedCase): Promise<{ runnable: boolean; reason: string; error?: boolean }>;
   observe(lc: LoadedCase, opts: ObserveOptions): Promise<CaseObservation>;
 }
 

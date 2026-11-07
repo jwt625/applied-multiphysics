@@ -100,22 +100,54 @@ const ref = (tol: Reference['tolerance'], extra: Partial<Reference> = {}): Refer
   quantity: 'q', unit: '1', tolerance: tol, basis: 'D', form: 'closed_form', provenance: { citation: 'c', locator: 'l', accessed: '2026-11-06' }, ...extra,
 });
 
-test('evaluateTarget: Richardson pass with GCI band, order flag, oscillatory fail, finest-level fail', () => {
+test('evaluateTarget: Richardson gate (audit S3): extrapolated and finest in budget, order band, oscillatory', () => {
   const h = [0.4, 0.2, 0.1];
   const lv = h.map((x) => ({ value: 1 + 0.5 * x * x, h: x, wall_ms: 1 }));
-  const r = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: lv });
+  const r = evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lv }, { expectedOrder: 2 });
   assert.equal(r.status, 'pass'); close(r.value as number, 1, 1e-13); assert.equal(r.time_ms, 3);
-  close(r.rate!.rate, 2, 1e-9);
-  // u_num = GCI_fine * |f_fine| = 1.25 * (0.015 / 1.005) / 3 * 1.005 = 6.25e-3, reported next to the 1e-3 budget
-  close(r.u_num!, 6.25e-3, 1e-10); close(r.limit!, 1e-3);
-  const o = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: h.map((x) => ({ value: 1 + x, h: x })) }, { expectedOrder: 2 });
-  assert.equal(o.status, 'pass'); close(o.order_ratio!, 0.5, 1e-9); assert.match(o.reason!, /not asymptotic/);
+  close(r.rate!.rate, 2, 1e-9); close(r.order_ratio!, 1, 1e-9);
+  // u_num = GCI_fine * |f_fine| = 1.25 * (0.015 / 1.005) / 3 * 1.005 = 6.25e-3, reported next to the budget
+  close(r.u_num!, 6.25e-3, 1e-10); close(r.limit!, 1e-2);
+  // finest level 1.005 outside a 1e-3 budget: fail although f_ext is exact
+  const fin = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: lv }, { expectedOrder: 2 });
+  assert.equal(fin.status, 'fail'); assert.match(fin.reason!, /finest level/);
+  // observed order 1 vs expected 2 (ratio 0.5, band 0.25): fail; with order_check false: pass
+  const lo = h.map((x) => ({ value: 1 + 0.01 * x, h: x }));
+  const o = evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lo }, { expectedOrder: 2 });
+  assert.equal(o.status, 'fail'); close(o.order_ratio!, 0.5, 1e-9); assert.match(o.reason!, /not asymptotic/);
+  assert.equal(evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lo }, { expectedOrder: 2, orderCheck: false }).status, 'pass');
+  assert.equal(evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }), 1, { levels: lo }, { expectedOrder: 2, orderBand: 0.6 }).status, 'pass');
+  // oscillatory (non-nested meshes): fallback = finest within budget + |error| non-increasing (L4 DevLog-010 s.5)
   const osc = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1, 0.9, 1.05].map((v, i) => ({ value: v, h: h[i]! })) });
-  assert.equal(osc.status, 'fail'); assert.match(osc.reason!, /oscillatory/);
+  assert.equal(osc.status, 'fail'); assert.match(osc.reason!, /oscillatory.*fallback/);
+  const fb = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-3, 1 - 2e-4, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) }, { expectedOrder: 2 });
+  assert.equal(fb.status, 'pass'); assert.equal(fb.richardson_fallback, 'finest+monotone'); assert.match(fb.reason!, /richardson unavailable \(oscillatory\)/);
+  const nm = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [1 + 1e-4, 1 - 2e-4, 1 + 1.5e-6].map((v, i) => ({ value: v, h: h[i]! })) });
+  assert.equal(nm.status, 'fail'); assert.match(nm.reason!, /not monotone/);
   const f = evaluateTarget(ref({ rel: 1e-3 }), 1, { levels: lv });
   assert.equal(f.status, 'fail'); close(f.diff!, 0.005);
   const info = evaluateTarget(ref({ rel: 1e-3 }, { gate: false }), 1, { levels: lv });
   assert.equal(info.status, 'info'); assert.equal(info.pass, false);
+});
+
+test('evaluateTarget: non-finite values fail the target with the level named (audit S1, M2)', () => {
+  const n = evaluateTarget(ref({ rel: 1e-3, after: 'richardson' }), 1, { levels: [{ value: 1.1, h: 0.4 }, { value: NaN, h: 0.2 }, { value: 1.0, h: 0.1 }] });
+  assert.equal(n.status, 'fail'); assert.match(n.reason!, /non-finite value at level 2 of 3/);
+  const a = evaluateTarget(ref({ abs: 1 }), [1, 2], { levels: [{ value: [1, Infinity] }] });
+  assert.equal(a.status, 'fail');
+  const fs = evaluateTarget(ref({ rel: 0.5 }, { extract: { kind: 'field', field: 'u', samples_key: 'k' } }), undefined, { levels: [{ value: { values: [1, NaN, NaN, NaN] } }] }, { refSamples: [1, 2, 3, 4] });
+  assert.equal(fs.status, 'fail'); assert.match(fs.reason!, /non-finite samples/);
+  const ok = evaluateTarget(ref({ rel: 0.5 }, { extract: { kind: 'field', field: 'u', samples_key: 'k', max_dropped: 3 } }), undefined, { levels: [{ value: { values: [1, NaN, NaN, NaN] } }] }, { refSamples: [1, 2, 3, 4] });
+  assert.equal(ok.status, 'pass');
+  const e = evaluateTarget(ref({ rel: 1e-3 }, { extract: { kind: 'eigen' } }), [1, 2], { levels: [{ value: [1, 2, NaN] }] });
+  assert.equal(e.status, 'fail'); assert.match(e.reason!, /non-finite eigenvalues/);
+});
+
+test('evaluateTarget: rule plus rel / abs applies both on the scalar path (audit M3)', () => {
+  const lv = [0.4, 0.2, 0.1].map((x) => ({ value: 0.5 * x * x, h: x }));
+  const r = evaluateTarget(ref({ abs: 1e-3, rule: { type: 'rate', min: 1.9 } }), 0, { levels: lv });
+  assert.equal(r.status, 'fail'); assert.match(r.reason!, /tolerance missed/);
+  assert.equal(evaluateTarget(ref({ abs: 1e-2, rule: { type: 'rate', min: 1.9 } }), 0, { levels: lv }).status, 'pass');
 });
 
 test('evaluateTarget: eigen array, element-wise array, field samples', () => {
@@ -143,9 +175,10 @@ test('evaluateTarget: element-wise Richardson on arrays; exact boundary stations
   const h = [0.4, 0.2, 0.1];
   const ex = [1, 0.5, 0];
   const lv = h.map((x) => ({ value: ex.map((v, i) => (i === 0 ? v : v + 0.3 * x * x)), h: x }));
-  const r = evaluateTarget(ref({ abs: 1e-6, after: 'richardson' }), ex, { levels: lv });
+  const r = evaluateTarget(ref({ abs: 5e-3, after: 'richardson' }), ex, { levels: lv });
   assert.equal(r.status, 'pass');
   close((r.value as number[])[1]!, 0.5, 1e-12);
+  assert.equal(evaluateTarget(ref({ abs: 1e-6, after: 'richardson' }), ex, { levels: lv }).status, 'fail');
 });
 
 test('evaluateTarget: range rule on bounds without a reference value', () => {
@@ -161,5 +194,35 @@ test('evaluateTarget: sequence rules with a single value are pending, not fail',
   assert.equal(b.status, 'pending');
   const c = evaluateTarget(ref({ rule: { type: 'rate', min: 1.9 } }, { extract: { kind: 'field', field: 'u', samples_key: 'k' } }), undefined, { levels: [{ value: { values: [1] } }] }, { refSamples: [1] });
   assert.equal(c.status, 'pending');
+});
+
+test('B4 known answer: scalar eigen targets by index after floor; floor + offset double skip', () => {
+  // free plate: 3 rigid modes (~1e-6), then 1.62, 2.36, 2.92 (FV12-like list)
+  const comp = [2.92, 1e-6, 1.62, -2e-6, 2.36, 3e-7];
+  const t = (index: number, v: number) => evaluateTarget(ref({ rel: 1e-3 }, { extract: { kind: 'eigen', floor: 0.01, index } }), v, { levels: [{ value: comp }] });
+  assert.equal(t(0, 1.62).status, 'pass'); assert.equal(t(1, 2.36).status, 'pass'); assert.equal(t(2, 2.92).status, 'pass');
+  assert.equal(t(3, 4.0).status, 'fail');
+  assert.equal(evaluateTarget(ref({ rel: 1e-3 }, { extract: { kind: 'eigen', floor: 0.01 } }), 1.62, { levels: [{ value: comp }] }).status, 'error');
+  // the old encoding: floor and offset 3 together skip the rigid modes twice -> unmatched
+  const dbl = evaluateTarget(ref({ rel: 1e-3 }, { extract: { kind: 'eigen', floor: 0.01, offset: 3 } }), [1.62, 2.36], { levels: [{ value: comp }] });
+  assert.equal(dbl.status, 'fail');
+  assert.equal(evaluateTarget(ref({ rel: 1e-3 }, { extract: { kind: 'eigen', offset: 3 } }), [1.62, 2.36], { levels: [{ value: comp }] }).status, 'pass');
+});
+
+test('S2: eigen Richardson after matching; degenerate pair extrapolated as a subspace (cluster mean)', () => {
+  // f0 = [1, 2, 2]; the degenerate pair splits by +-s(h) with an irregular s, mean converges as h^2
+  const h = [0.4, 0.2, 0.1], s = [1e-3, 1e-4, 6e-4];
+  const lv = h.map((x, i) => ({ value: [1 + 0.5 * x * x, 2 + 0.5 * x * x - s[i]!, 2 + 0.5 * x * x + s[i]!, 9], h: x }));
+  const r = evaluateTarget(ref({ rel: 1e-2, after: 'richardson' }, { extract: { kind: 'eigen', match: 'subsequence' } }), [1, 2, 2], { levels: lv }, { expectedOrder: 2 });
+  assert.equal(r.status, 'pass');
+  const v = r.value as number[];
+  close(v[0]!, 1, 1e-12);
+  close((v[1]! + v[2]!) / 2, 2, 1e-12);       // cluster mean extrapolated exactly
+  close(v[2]! - v[1]!, 2 * 6e-4, 1e-9);       // finest split kept
+});
+
+test('M11: subsequence matching with fewer computed than reference values keeps the partial assignment', () => {
+  const m = matchEigen([1.0001, 3.0002], [1, 2, 3], { rel: 1e-3 }, { match: 'subsequence' });
+  assert.equal(m.pairs.length, 2); assert.deepEqual(m.unmatched_refs, [1]); assert.equal(m.pass, false);
 });
 

@@ -5,7 +5,7 @@
 import type { Reference } from './loader.ts';
 import { targetId } from './loader.ts';
 import {
-  checkField, checkScalar, convergenceRateFit, evalRule, fieldError, hFromDof, matchEigen, richardson,
+  checkField, checkScalar, convergenceRateFit, evalRule, fieldError, hFromDof, matchEigen, richardson, selectEigen,
   type EigenMatch, type FieldError, type RateFit, type Richardson, type RuleResult, type ScalarCheck,
 } from './metrics.ts';
 
@@ -19,6 +19,7 @@ export interface LevelObservation {
   wall_ms?: number;
   stages?: Record<string, number>;
   iterations?: number;
+  meshHash?: string;
 }
 
 export interface TargetObservation {
@@ -27,7 +28,7 @@ export interface TargetObservation {
   unit?: string;
 }
 
-export type TargetStatus = 'pass' | 'fail' | 'pending' | 'error' | 'info';
+export type TargetStatus = 'pass' | 'fail' | 'pending' | 'error' | 'info' | 'timeout';
 
 export interface TargetResult {
   target: string;
@@ -48,12 +49,13 @@ export interface TargetResult {
   u_num?: number | null;        // Richardson GCI band of the finest level (absolute)
   order_ratio?: number;         // p_obs / expected_order
   richardson?: Richardson;
+  richardson_fallback?: 'finest+monotone';
   rate?: RateFit;
   elements?: ScalarCheck[];
   eigen?: EigenMatch;
   field?: FieldError & { metric: string; measured: number; limit: number; pass: boolean };
   rule?: RuleResult;
-  levels?: Array<{ dof?: number; h?: number; value: number | number[] | null; err?: number; wall_ms?: number }>;
+  levels?: Array<{ dof?: number; h?: number; value: number | number[] | null; err?: number; wall_ms?: number; meshHash?: string }>;
   time_ms: number | null;
   dof: number | null;
 }
@@ -69,33 +71,82 @@ export function pendingTarget(r: Reference, ref: number | number[] | undefined, 
   };
 }
 
+export interface EvaluateOptions {
+  dim?: number;
+  refSamples?: number[];
+  expectedOrder?: number;
+  safetyFactor?: number;
+  /** allowed relative departure |p_obs / expected_order - 1| (audit S3); default 0.25 */
+  orderBand?: number;
+  /** false: do not gate the observed order (convergence.order_check) */
+  orderCheck?: boolean;
+}
+
+const finiteVal = (v: ObservedValue): boolean =>
+  typeof v === 'number' ? Number.isFinite(v) : Array.isArray(v) ? v.every((x) => Number.isFinite(x)) : true;
+
+/**
+ * Richardson gate (audit S3): pass needs (1) |f_ext - ref| within the budget, (2) the finest level within the budget
+ * (never pass on an unconverged mesh, R3 s.5.3 item 5) and (3) the observed order within `orderBand` of the expected
+ * order when one is stated and the check is on.
+ */
+function richardsonGate(ri: Richardson, ref: number, tol: Reference['tolerance'], opts: EvaluateOptions): { ext: ScalarCheck; fine: ScalarCheck; orderOk: boolean; ratio: number | null; reasons: string[] } {
+  const ext = checkScalar(ri.f_ext ?? NaN, ref, tol);
+  const fine = checkScalar(ri.f_fine, ref, tol);
+  const band = opts.orderBand ?? 0.25;
+  const ratio = opts.expectedOrder !== undefined && ri.p_obs !== null ? ri.p_obs / opts.expectedOrder : null;
+  const reasons: string[] = [];
+  let orderOk = true;
+  if (opts.orderCheck !== false && opts.expectedOrder !== undefined) {
+    if (ratio === null) reasons.push(`order not observed (${ri.p_obs_reason ?? 'fewer than 3 levels'}); assumed ${opts.expectedOrder}`);
+    else if (Math.abs(ratio - 1) > band) { orderOk = false; reasons.push(`observed order ${ri.p_obs!.toPrecision(3)} vs expected ${opts.expectedOrder} (band ${band}): not asymptotic`); }
+  } else if (opts.expectedOrder === undefined) reasons.push('no expected_order: order not gated');
+  if (!fine.pass) reasons.push(`finest level ${ri.f_fine.toPrecision(6)} outside the budget (|diff| ${fine.abs_err.toPrecision(3)} > ${fine.limit.toPrecision(3)})`);
+  return { ext, fine, orderOk, ratio, reasons };
+}
+
+/**
+ * Fallback when Richardson is unavailable (oscillatory or non-converging sequence, e.g. non-nested meshes; L4
+ * DevLog-010 s.5 item 3): gate on the finest value against the budget plus a monotone error, |e_k| non-increasing
+ * over the levels. Richardson is reported as unavailable with the reason; this is not a fail by itself.
+ */
+function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], why: string): { fine: ScalarCheck; monotone: boolean; reason: string } {
+  const fine = checkScalar(vals[vals.length - 1]!, ref, tol);
+  const e = vals.map((v) => Math.abs(v - ref));
+  let monotone = true;
+  for (let i = 1; i < e.length; i++) if (e[i]! > e[i - 1]! * (1 + 1e-12) + 1e-300) monotone = false;
+  const reason = `richardson unavailable (${why}); fallback: finest value ${fine.pass ? 'within' : 'outside'} the budget, |error| ${monotone ? 'non-increasing' : 'not monotone'} over ${vals.length} levels`;
+  return { fine, monotone, reason };
+}
+
+const FALLBACK_REASONS = new Set(['oscillatory', 'not_converged']);
+
 /**
  * ref: reference value (scalar or array). refSamples: reference field samples for extract.kind = field.
  * dim: spatial dimension used for h = DOF^(-1/dim) when levels carry no h.
  */
-export function evaluateTarget(
-  r: Reference, ref: number | number[] | undefined, obs: TargetObservation,
-  opts: { dim?: number; refSamples?: number[]; expectedOrder?: number; safetyFactor?: number } = {},
-): TargetResult {
+export function evaluateTarget(r: Reference, ref: number | number[] | undefined, obs: TargetObservation, opts: EvaluateOptions = {}): TargetResult {
   const base = pendingTarget(r, ref, '');
   delete base.reason;
   const gated = r.gate !== false;
-  const lv = obs.levels;
+  let lv = obs.levels;
   if (!lv.length) return pendingTarget(r, ref, 'no observed levels', 'error');
-  const fine = lv[lv.length - 1]!;
   const time = lv.reduce((s, l) => s + (l.wall_ms ?? 0), 0);
-  const withTime = { ...base, time_ms: lv.some((l) => l.wall_ms !== undefined) ? time : null, dof: fine.dof ?? null };
+  const withTime = { ...base, time_ms: lv.some((l) => l.wall_ms !== undefined) ? time : null, dof: lv[lv.length - 1]!.dof ?? null };
   const verdict = (pass: boolean, extra: Partial<TargetResult>): TargetResult => ({
     ...withTime, ...extra, pass, status: gated ? (pass ? 'pass' : 'fail') : 'info',
   });
   const tol = r.tolerance;
   const hs = lv.map((l) => l.h ?? (l.dof !== undefined && opts.dim ? hFromDof(l.dof, opts.dim) : NaN));
+  const levelRows = (vals: Array<number | number[] | null>, errs?: number[]) => lv.map((l, i) => ({ dof: l.dof, h: hs[i], value: vals[i] ?? null, ...(errs ? { err: errs[i] } : {}), wall_ms: l.wall_ms, ...(l.meshHash ? { meshHash: l.meshHash } : {}) }));
 
   // Field targets: error at sample points
-  if (isSamples(fine.value) || r.extract?.kind === 'field') {
+  if (isSamples(lv[lv.length - 1]!.value) || r.extract?.kind === 'field') {
+    const fine = lv[lv.length - 1]!;
     const rs = opts.refSamples;
     if (!rs) return pendingTarget(r, ref, 'no reference samples', 'error');
     if (!isSamples(fine.value)) return pendingTarget(r, ref, 'observation is not field samples', 'error');
+    if (rs.some((x) => !Number.isFinite(x))) return pendingTarget(r, ref, 'reference samples contain NaN / Inf', 'error');
     const fe = fieldError(fine.value.values, rs);
     const isRate = tol.rule?.type === 'rate';
     if (isRate && lv.length < 2) return pendingTarget(r, ref, `rule 'rate' needs >= 2 mesh levels, got ${lv.length}`);
@@ -105,19 +156,38 @@ export function evaluateTarget(
     const errs = lv.map((l) => (isSamples(l.value) ? fieldError(l.value.values, rs)[key] : NaN));
     const rate = lv.length >= 2 ? convergenceRateFit(hs, errs) : undefined;
     const rr = isRate ? evalRule(tol.rule!, [], rate ? { rate: rate.rate } : {}) : undefined;
-    const pass = (chk ? chk.pass : true) && (rr ? rr.pass : true);
+    // S1: a non-finite sample (outside the mesh, NaN) fails unless extract.max_dropped allows it
+    const allowed = r.extract?.max_dropped ?? 0;
+    const droppedPerLevel = lv.map((l) => (isSamples(l.value) ? l.value.values.filter((x) => !Number.isFinite(x)).length : 0));
+    const dropOk = droppedPerLevel.every((d) => d <= allowed);
+    const pass = (chk ? chk.pass : true) && (rr ? rr.pass : true) && dropOk && fe.n > 0;
     return verdict(pass, {
       value: null, ref: null, field: { ...fe, metric: key, measured: fe[key], limit: chk?.limit ?? NaN, pass: chk?.pass ?? true },
       ...(chk ? { limit: chk.limit } : {}), ...(rate ? { rate } : {}), ...(rr ? { rule: rr } : {}),
-      levels: lv.map((l, i) => ({ dof: l.dof, h: hs[i], value: null, err: errs[i], wall_ms: l.wall_ms })),
+      ...(!dropOk ? { reason: `non-finite samples ${droppedPerLevel.join('/')} per level > max_dropped ${allowed}` } : {}),
+      levels: levelRows(lv.map(() => null), errs),
     });
+  }
+
+  // S1 / M2: any non-finite value on any level fails the target, with the level named
+  const bad = lv.findIndex((l) => !finiteVal(l.value));
+  if (bad >= 0 && r.extract?.kind !== 'eigen') return verdict(false, { value: null, ref: ref ?? null, reason: `non-finite value at level ${bad + 1} of ${lv.length}` });
+
+  // B4: scalar eigen target = position `index` in the sorted list after floor and offset
+  if (r.extract?.kind === 'eigen' && !Array.isArray(ref)) {
+    const idx = r.extract.index;
+    if (idx === undefined) return pendingTarget(r, ref, 'scalar eigen target needs extract.index', 'error');
+    const sel = lv.map((l) => (Array.isArray(l.value) ? selectEigen(l.value, idx, { ...(r.extract!.floor !== undefined ? { floor: r.extract!.floor } : {}), ...(r.extract!.offset !== undefined ? { offset: r.extract!.offset } : {}) }) : { value: l.value as number }));
+    const why = sel.findIndex((x) => x.reason !== undefined || !Number.isFinite(x.value));
+    if (why >= 0) return verdict(false, { value: null, ref: ref ?? null, reason: `level ${why + 1}: ${sel[why]!.reason ?? 'non-finite eigenvalue'}` });
+    lv = lv.map((l, i) => ({ ...l, value: sel[i]!.value }));
   }
 
   const needsRef = !(tol.rule && ((tol.rule.type === 'range' && (tol.rule.range || r.bounds)) || (tol.rule.type === 'sign' && tol.rule.sign) || tol.rule.type === 'monotonic') && tol.rule.of !== 'error');
   if (ref === undefined && needsRef) return pendingTarget(r, ref, 'no reference value (value or expected)', 'error');
-  const fv = fine.value as number | number[];
+  const fv = lv[lv.length - 1]!.value as number | number[];
 
-  // Rules
+  // Rules (M3: a rel / abs tolerance given next to the rule is applied too, to the finest value)
   if (tol.rule) {
     let vals = Array.isArray(fv) ? fv : tol.rule.type === 'monotonic' ? lv.map((l) => l.value as number) : [fv];
     // Rules over a sequence (coordinator decision 2026-11-06): a single value cannot decide them -> pending
@@ -133,67 +203,144 @@ export function evaluateTarget(
       rate = convergenceRateFit(hs, lv.map((l) => (l.value as number) - ref));
     }
     const rr = evalRule(tol.rule, vals, { ...(typeof ref === 'number' ? { ref } : {}), ...(r.bounds ? { bounds: r.bounds } : {}), ...(rate ? { rate: rate.rate } : {}) });
-    return verdict(rr.pass, { value: fv, ref: ref ?? null, rule: rr, ...(rate ? { rate } : {}) });
+    const tolChk = (tol.rel !== undefined || tol.abs !== undefined) && typeof ref === 'number' && typeof fv === 'number' ? checkScalar(fv, ref, tol) : null;
+    return verdict(rr.pass && (tolChk ? tolChk.pass : true), {
+      value: fv, ref: ref ?? null, rule: rr, ...(rate ? { rate } : {}),
+      ...(tolChk ? { diff: tolChk.diff, err_abs: tolChk.abs_err, err_rel: tolChk.rel_err, limit: tolChk.limit, limit_basis: tolChk.limit_basis } : {}),
+      ...(tolChk && !tolChk.pass ? { reason: 'rule passed, rel / abs tolerance missed' } : {}),
+    });
   }
 
   if (ref === undefined) return pendingTarget(r, ref, 'no reference value (value or expected)', 'error');
+  const after = obs.exact ? 'none' : (tol.after ?? 'finest');
 
-  // Arrays: eigenvalues (sorted with multiplicity) or element-wise points
+  // Arrays: eigenvalues (matched per level, sorted with multiplicity) or element-wise points
   if (Array.isArray(ref)) {
     if (!Array.isArray(fv)) return pendingTarget(r, ref, 'reference is an array, observation is a scalar', 'error');
-    if (r.extract?.kind === 'eigen') {
-      const em = matchEigen(fv, ref, tol, {
-        ...(r.extract.offset !== undefined ? { offset: r.extract.offset } : {}),
-        ...(r.extract.floor !== undefined ? { floor: r.extract.floor } : {}),
-        ...(r.extract.match ? { match: r.extract.match } : {}),
-      });
-      const worst = em.pairs.reduce((m, p) => Math.max(m, p.rel_err), 0);
-      return verdict(em.pass, { value: em.pairs.map((p) => p.value), ref, eigen: em, err_rel: worst, ...(em.unmatched_refs.length ? { reason: `${em.unmatched_refs.length} reference modes unmatched` } : {}) });
-    }
+    if (r.extract?.kind === 'eigen') return evaluateEigenArray(r, ref, lv, hs, after === 'richardson', opts, verdict);
+    if (bad >= 0) return verdict(false, { value: null, ref, reason: `non-finite value at level ${bad + 1} of ${lv.length}` });
     if (fv.length !== ref.length) return pendingTarget(r, ref, `observed ${fv.length} values, reference has ${ref.length}`, 'error');
     let cmp = fv;
     let riEl: Richardson[] | undefined;
-    if (!obs.exact && tol.after === 'richardson') {
+    const reasons: string[] = [];
+    let extraOk = true;
+    if (after === 'richardson') {
       // element-wise Richardson over the levels (each level must give the same number of values)
       if (!hs.every(Number.isFinite)) return pendingTarget(r, ref, 'richardson needs h or dof per level', 'error');
       if (lv.some((l) => !Array.isArray(l.value) || (l.value as number[]).length !== ref.length)) return pendingTarget(r, ref, 'richardson on arrays needs the same length on every level', 'error');
-      riEl = ref.map((_, i) => richardson(lv.map((l) => (l.value as number[])[i]!), hs, { ...(opts.expectedOrder !== undefined ? { assumedOrder: opts.expectedOrder } : {}) }));
-      const bad = riEl.findIndex((x) => x.f_ext === null);
-      if (bad >= 0) {
-        // stations where the levels agree exactly (e.g. boundary values) have no order: keep the finest value
-        const exactAll = riEl.every((x, i) => x.f_ext !== null || (x.p_obs_reason === 'no_change'));
-        if (!exactAll) return { ...withTime, pass: false, status: gated ? 'fail' : 'info', reason: `richardson unavailable at element ${bad} (${riEl[bad]!.p_obs_reason ?? '?'})`, value: fv, ref };
-      }
+      riEl = ref.map((_, i) => richardson(lv.map((l) => (l.value as number[])[i]!), hs, { ...(opts.expectedOrder !== undefined ? { assumedOrder: opts.expectedOrder } : {}) }))
+        .map((x) => (x.p_obs === null && FALLBACK_REASONS.has(x.p_obs_reason ?? '') ? { ...x, f_ext: null } : x));
+      const unavailable = riEl.findIndex((x) => x.f_ext === null && x.p_obs_reason !== 'no_change' && !FALLBACK_REASONS.has(x.p_obs_reason ?? ''));
+      if (unavailable >= 0) return verdict(false, { value: fv, ref, reason: `richardson unavailable at element ${unavailable} (${riEl[unavailable]!.p_obs_reason ?? '?'})` });
       cmp = riEl.map((x, i) => x.f_ext ?? fv[i]!);
+      riEl.forEach((x, i) => {
+        if (x.f_ext !== null || !FALLBACK_REASONS.has(x.p_obs_reason ?? '')) return;
+        const fb = fallbackGate(lv.map((l) => (l.value as number[])[i]!), ref[i]!, tol, x.p_obs_reason!);
+        if (!fb.monotone) { extraOk = false; reasons.push(`element ${i}: ${fb.reason}`); } else reasons.push(`element ${i}: ${fb.reason}`);
+      });
+      // stations where the levels agree exactly (boundary values) have no order: their finest value is compared
+      riEl.forEach((x, i) => {
+        if (x.f_ext === null) return;
+        const g = richardsonGate(x, ref[i]!, tol, opts);
+        if (!g.orderOk || !g.fine.pass) { extraOk = false; reasons.push(`element ${i}: ${g.reasons.join('; ')}`); }
+      });
     }
     const els = cmp.map((v, i) => checkScalar(v, ref[i]!, tol));
     const worst = els.reduce((a, b) => (b.abs_err - b.limit > a.abs_err - a.limit ? b : a));
-    return verdict(els.every((e) => e.pass), { value: cmp, ref, elements: els, ...(riEl ? { u_num: Math.max(...riEl.map((x) => x.u_abs ?? 0)) } : {}), diff: worst.diff, err_abs: worst.abs_err, err_rel: worst.rel_err, limit: worst.limit, limit_basis: worst.limit_basis });
+    return verdict(els.every((e) => e.pass) && extraOk, {
+      value: cmp, ref, elements: els, ...(riEl ? { u_num: Math.max(...riEl.map((x) => x.u_abs ?? 0)) } : {}),
+      diff: worst.diff, err_abs: worst.abs_err, err_rel: worst.rel_err, limit: worst.limit, limit_basis: worst.limit_basis,
+      ...(reasons.length ? { reason: reasons.slice(0, 3).join(' | ') } : {}),
+    });
   }
 
   // Scalars
   if (Array.isArray(fv)) return pendingTarget(r, ref, 'reference is a scalar, observation is an array', 'error');
   const vals = lv.map((l) => l.value as number);
-  const levels = lv.map((l, i) => ({ dof: l.dof, h: hs[i], value: vals[i]!, err: vals[i]! - ref, wall_ms: l.wall_ms }));
+  const levels = levelRows(vals, vals.map((v) => v - ref));
   const rate = lv.length >= 2 && hs.every(Number.isFinite) ? convergenceRateFit(hs, vals.map((v) => v - ref)) : undefined;
-  const after = obs.exact ? 'none' : (tol.after ?? 'finest');
   if (after === 'richardson') {
     if (!hs.every(Number.isFinite)) return pendingTarget(r, ref, 'richardson needs h or dof per level', 'error');
     const ri = richardson(vals, hs, { ...(opts.expectedOrder !== undefined ? { assumedOrder: opts.expectedOrder } : {}), ...(opts.safetyFactor !== undefined ? { fs: opts.safetyFactor } : {}) });
-    if (ri.f_ext === null) {
-      return { ...withTime, pass: false, status: gated ? 'fail' : 'info', reason: `richardson unavailable (${ri.p_obs_reason ?? 'fewer than 2 levels'})`, value: vals[vals.length - 1]!, ref, richardson: ri, levels, ...(rate ? { rate } : {}) };
+    if (ri.f_ext === null || (ri.p_obs === null && FALLBACK_REASONS.has(ri.p_obs_reason ?? ''))) {
+      // an assumed order never extrapolates an oscillatory / non-converging sequence (only a 2-level study)
+      if (ri.p_obs_reason && FALLBACK_REASONS.has(ri.p_obs_reason)) {
+        const fb = fallbackGate(vals, ref, tol, ri.p_obs_reason);
+        return verdict(fb.fine.pass && fb.monotone, { value: fb.fine.value, ref, diff: fb.fine.diff, err_abs: fb.fine.abs_err, err_rel: fb.fine.rel_err, limit: fb.fine.limit, limit_basis: fb.fine.limit_basis, richardson: ri, richardson_fallback: 'finest+monotone', levels, ...(rate ? { rate } : {}), reason: fb.reason });
+      }
+      return verdict(false, { value: vals[vals.length - 1]!, ref, richardson: ri, levels, ...(rate ? { rate } : {}), reason: `richardson unavailable (${ri.p_obs_reason ?? 'fewer than 2 levels'})` });
     }
-    const c = checkScalar(ri.f_ext, ref, tol);
-    // Pass on the extrapolated value. u_num = GCI band of the finest level (Celik eq. 5), reported next to the
-    // budget; p_obs / expected_order flags data outside the asymptotic range (reported, not gated).
-    const pr = opts.expectedOrder !== undefined && ri.p_obs !== null ? ri.p_obs / opts.expectedOrder : null;
-    return verdict(c.pass, {
-      value: ri.f_ext, ref, diff: c.diff, err_abs: c.abs_err, err_rel: c.rel_err, limit: c.limit, limit_basis: c.limit_basis,
-      u_num: ri.u_abs, richardson: ri, levels, ...(rate ? { rate } : {}),
-      ...(pr !== null ? { order_ratio: pr } : {}),
-      ...(pr !== null && Math.abs(pr - 1) > 0.25 ? { reason: `observed order ${ri.p_obs!.toPrecision(3)} vs expected ${opts.expectedOrder}: not asymptotic` } : {}),
+    const g = richardsonGate(ri, ref, tol, opts);
+    return verdict(g.ext.pass && g.fine.pass && g.orderOk, {
+      value: ri.f_ext, ref, diff: g.ext.diff, err_abs: g.ext.abs_err, err_rel: g.ext.rel_err, limit: g.ext.limit, limit_basis: g.ext.limit_basis,
+      u_num: ri.u_abs, richardson: ri, levels, ...(rate ? { rate } : {}), ...(g.ratio !== null ? { order_ratio: g.ratio } : {}),
+      ...(g.reasons.length ? { reason: g.reasons.join('; ') } : {}),
     });
   }
   const c = checkScalar(vals[vals.length - 1]!, ref, tol);
   return verdict(c.pass, { value: c.value, ref, diff: c.diff, err_abs: c.abs_err, err_rel: c.rel_err, limit: c.limit, limit_basis: c.limit_basis, ...(lv.length > 1 ? { levels } : {}), ...(rate ? { rate } : {}) });
+}
+
+/**
+ * Eigen arrays (audit S2): match every level to the reference list, then (after: richardson) extrapolate each
+ * reference mode. A degenerate reference cluster (equal values) is a subspace: its sorted matched values are
+ * extrapolated through the cluster mean, and each member keeps its finest-level offset from the mean (the split).
+ */
+function evaluateEigenArray(
+  r: Reference, ref: number[], lv: LevelObservation[], hs: number[], extrapolate: boolean, opts: EvaluateOptions,
+  verdict: (pass: boolean, extra: Partial<TargetResult>) => TargetResult,
+): TargetResult {
+  const tol = r.tolerance;
+  const mo = { ...(r.extract!.offset !== undefined ? { offset: r.extract!.offset } : {}), ...(r.extract!.floor !== undefined ? { floor: r.extract!.floor } : {}), ...(r.extract!.match ? { match: r.extract!.match } : {}) };
+  const ms = lv.map((l) => matchEigen(Array.isArray(l.value) ? l.value : [l.value as number], ref, tol, mo));
+  const fine = ms[ms.length - 1]!;
+  const badLevel = ms.findIndex((m) => m.n_nonfinite > 0 || m.unmatched_refs.length > 0);
+  if (badLevel >= 0) {
+    const m = ms[badLevel]!;
+    return verdict(false, { value: fine.pairs.map((p) => p.value), ref, eigen: fine, reason: `level ${badLevel + 1}: ${m.n_nonfinite ? `${m.n_nonfinite} non-finite eigenvalues` : `${m.unmatched_refs.length} reference modes unmatched`}` });
+  }
+  if (!extrapolate || lv.length < 2) {
+    const worst = fine.pairs.reduce((a, p) => Math.max(a, p.rel_err), 0);
+    return verdict(fine.pass, { value: fine.pairs.map((p) => p.value), ref, eigen: fine, err_rel: worst });
+  }
+  if (!hs.every(Number.isFinite)) return pendingTarget(r, ref, 'richardson needs h or dof per level', 'error');
+  const matched = ms.map((m) => { const v = new Array<number>(ref.length); for (const p of m.pairs) v[p.ref_index] = p.value; return v; });
+  const dr = 1e-9;
+  const order = ref.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+  const ext = new Array<number>(ref.length);
+  const ris: Richardson[] = [];
+  const reasons: string[] = [];
+  let ok = true;
+  for (let k = 0; k < order.length;) {
+    let e = k + 1;
+    while (e < order.length && Math.abs(order[e]!.v - order[k]!.v) <= dr * Math.abs(order[k]!.v)) e++;
+    const idx = order.slice(k, e).map((o) => o.i);
+    const sortedPerLevel = matched.map((v) => idx.map((i) => v[i]!).sort((a, b) => a - b));
+    const means = sortedPerLevel.map((s) => s.reduce((a, b) => a + b, 0) / s.length);
+    const ri0 = richardson(means, hs, { ...(opts.expectedOrder !== undefined ? { assumedOrder: opts.expectedOrder } : {}) });
+    const ri = ri0.p_obs === null && FALLBACK_REASONS.has(ri0.p_obs_reason ?? '') ? { ...ri0, f_ext: null } : ri0;
+    ris.push(ri);
+    if (ri.f_ext === null) {
+      idx.forEach((i) => { ext[i] = matched[matched.length - 1]![i]!; });
+      if (ri.p_obs_reason && FALLBACK_REASONS.has(ri.p_obs_reason)) {
+        const fb = fallbackGate(means, order[k]!.v, tol, ri.p_obs_reason);
+        if (!fb.monotone) ok = false;
+        reasons.push(`mode(s) ${idx.join(',')}: ${fb.reason}`);
+      } else { ok = false; reasons.push(`mode(s) ${idx.join(',')}: richardson unavailable (${ri.p_obs_reason ?? '?'})`); }
+    }
+    else {
+      const g = richardsonGate(ri, order[k]!.v, tol, opts);
+      if (!g.orderOk || !g.fine.pass) { ok = false; reasons.push(`mode(s) ${idx.join(',')}: ${g.reasons.join('; ')}`); }
+      const fineSorted = sortedPerLevel[sortedPerLevel.length - 1]!, fineMean = means[means.length - 1]!;
+      idx.forEach((i, j) => { ext[i] = ri.f_ext! + (fineSorted[j]! - fineMean); });
+    }
+    k = e;
+  }
+  const els = ext.map((v, i) => checkScalar(v, ref[i]!, tol));
+  const worst = els.reduce((a, b) => (b.abs_err - b.limit > a.abs_err - a.limit ? b : a));
+  return verdict(ok && els.every((x) => x.pass), {
+    value: ext, ref, eigen: fine, elements: els, u_num: Math.max(...ris.map((x) => x.u_abs ?? 0)),
+    diff: worst.diff, err_abs: worst.abs_err, err_rel: worst.rel_err, limit: worst.limit, limit_basis: worst.limit_basis,
+    ...(reasons.length ? { reason: reasons.slice(0, 3).join(' | ') } : {}),
+  });
 }

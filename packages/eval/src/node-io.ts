@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Node-only file access: repo root discovery, case discovery, expected JSON lookup, log paths.
 
-import { existsSync, readdirSync, readFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLASSES, parseCase, type LoadedCase } from './loader.ts';
@@ -93,4 +93,21 @@ export function repoCommit(root = REPO_ROOT): string {
     }
     return 'nocommit';
   } catch { return 'unknown'; }
+}
+
+/**
+ * Write `<dir>/<stem><suffix>` files without overwriting (audit M1): the first free counter N ('' then -2, -3, ...)
+ * for which none of the suffixes exists is used, and each file is created with flag 'wx'. Returns the paths.
+ */
+export function writeUnique(dir: string, stem: string, files: Array<{ suffix: string; text: string }>): string[] {
+  for (let n = 1; n < 1000; n++) {
+    const tag = n === 1 ? '' : `-${n}`;
+    const paths = files.map((f) => join(dir, `${stem}${tag}${f.suffix}`));
+    if (paths.some((p) => existsSync(p))) continue;
+    try {
+      files.forEach((f, i) => writeFileSync(paths[i]!, f.text, { flag: 'wx' }));
+      return paths;
+    } catch (e) { if ((e as { code?: string }).code !== 'EEXIST') throw e; }
+  }
+  throw new Error(`writeUnique: no free name for ${stem} in ${dir}`);
 }

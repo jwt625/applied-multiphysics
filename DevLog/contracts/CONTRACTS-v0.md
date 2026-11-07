@@ -208,3 +208,8 @@ A CPU reference implementation of the same kernel, small grids only and runnable
   - Assigned to L3: nested `refineUniform` and a curved tet10 cylinder mesher.
   - Assigned to L8: Richardson fallback on non-nested meshes.
   - Deferred to after M2: the C2 facet-block change; `facets2` stays until then.
+- 2026-11-06 16:32 PST, metric-naming rule (from the L8 audit fixes):
+  - Physics modules publish a documented result vocabulary (`RESULT_NAMES` in `@amp/physics`): `<physics>.<quantity>` (e.g. `acoustics.eigenfrequency`, `elastic.mises_max`, `heat.T`), with arrays for eigen and sweep results. Module-local names like `f_0` are not part of the contract.
+  - Eval targets keep a case-level slug `metric_id` and map to engine output through `extract: {result: <RESULT_NAME>, index | at | select, reduce?}`. The mapping lives in the case, not in the module.
+  - `sample` signature as implemented by L4: `sample(sol, field, points, {mesh})`. This changelog entry supersedes the 16:15 text.
+  - Rights tag `cite_values` (plural, already used by 85 cases) is canonical, superseding `cite_value` in the earlier entry.

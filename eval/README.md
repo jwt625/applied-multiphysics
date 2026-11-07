@@ -28,13 +28,19 @@ node packages/eval/bench/fields-crosscheck.ts           # gate: TS port vs field
 node packages/eval/src/cli.ts --speed                   # + 1 warm-up and median of 5 on the finest level, time-to-accuracy
 node packages/eval/src/cli.ts --bench all --sizes 8,16,32,64   # BP1/BP3-style Poisson throughput on @amp/core
 node packages/eval/src/cli.ts --json                    # machine-readable result on stdout
+node packages/eval/src/cli.ts --strict                  # a gated target left pending is an error (exit 1)
+node packages/eval/src/cli.ts --timeout 120 --max-mem 1536   # per-case wall clock (s) and worker heap cap (MB)
 ```
 
 Heavy runs: prefix `nice -n 10` and add `node --max-old-space-size=1536`.
 
-Exit codes: `0` every gated target passed (pending allowed), `1` error (loader, run, usage), `2` a gated target missed. Errors take precedence over misses.
+Exit codes: `0` every gated target passed (pending allowed unless `--strict`), `1` error (loader, run, usage, run record, a present but broken `@amp/physics` / `@amp/post`, a timeout), `2` a gated target missed. Errors take precedence over misses. The process exit code is 1 until the run completes, so a drained event loop never looks like a pass.
 
-Outputs (not committed, `logs/` is ignored): `logs/eval-YYYYMMDDTHHMMSS.jsonl` (one `meta` line, one `target` line per target with the C8 fields `{case, target, value, ref, tol, pass, time_ms, dof, run}` plus diagnostics, `speed` lines, one `summary` line) and `logs/eval-YYYYMMDDTHHMMSS-summary.md` (pass / fail / pending / error counts per class and per physics tag, missed targets with budget, errors with file:line, pending grouped by reason). Bench: `logs/bench-poisson-YYYYMMDDTHHMMSS.jsonl`.
+Engine path: each case runs in its own `worker_threads` Worker (`packages/eval/src/engine-worker.ts`) with a heap cap (`--max-mem`, default 1536 MB) and a wall-clock limit: `--timeout S`, else 20 x `speed.budget_s` (native, else browser) per level, at least 30 s per level, 60 s per level without a budget, x 7 with `--speed`, capped at `--timeout-cap` (default 600 s). A hang or busy loop is `timeout`, a never-settling promise or a heap overrun is `error`; both exit 1 with a log line. Hooks (L4): `@amp/physics` `modules`, `registry`, `prepareRun` (`(args)` or `(spec, caseCtx)`), `physicsRegistry()` and `RESULT_NAMES`; `@amp/post` `sample(solution, field, points, {mesh, component})`, called with the level's own mesh. Every level's run record must carry `engine, specHash, meshHash, startedAt` (ISO 8601 with offset), `platform.runtime` and `fidelity`, else the case is an error.
+
+Outputs (not committed, `logs/` is ignored; a name that exists already gets a `-2`, `-3`, ... suffix, nothing is overwritten): `logs/eval-YYYYMMDDTHHMMSS.jsonl` (one `meta` line, one `target` line per target with the C8 fields `{case, target, value, ref, tol, pass, time_ms, dof, run}` plus diagnostics, `speed` lines, one `summary` line) and `logs/eval-YYYYMMDDTHHMMSS-summary.md` (pass / fail / pending / error counts per class and per physics tag, missed targets with budget, errors with file:line, pending grouped by reason). Bench: `logs/bench-poisson-YYYYMMDDTHHMMSS.jsonl`.
+
+JSONL notes: non-finite numbers are written as the strings `"NaN"`, `"Infinity"`, `"-Infinity"`. `time_ms` on a target line is the sum of the wall times (prepare + run) of every mesh level of the accuracy runs; with `--speed` the `speed` line carries the per-level medians (`protocol: warmup1_median5_per_level`), `t_tol_ms` (time to reach every gated tolerance; cumulative over the levels for Richardson targets) and `meets_budget` against `budget_s.native` only (pending without one). Bench records carry `bench: bp1-style | bp3-style` and `conforming_ceed: false`.
 
 ## Writing a case
 
@@ -80,12 +86,38 @@ Class-b `source` block (primary publication; schema `properties.source`, strict 
 
 fileRef = `{url?, where?, version?, cache?, sha256?, licence?, note?}`; `sha256` is 64 hex digits of the cached copy (`cache/` is not committed). citationRef = `{citation, doi?, open_access?, note?}`.
 
+Rights tags (`rights.allowed` / `rights.forbidden`; enum in the schema, `$defs/rightsItem`):
+
+| Tag | Meaning |
+|---|---|
+| `cite_values` | cite the numbers with their locator |
+| `re_derive_setup` | re-derive geometry, BCs and materials from the original reference |
+| `copy_text` | copy text verbatim |
+| `copy_text_without_attribution` | copy text without attribution |
+| `copy_with_attribution` | copy content with attribution (permissive or copyleft-compatible licence) |
+| `copy_figures` | copy figures |
+| `copy_input_files` | copy input decks, meshes or model files |
+| `copy_code` | copy source code |
+| `copy_data` | copy data files into the repo |
+| `copy_booklet_content` | copy NAFEMS booklet content |
+| `copy_v_doc_text` | copy Code_Aster V-documentation text (GNU FDL) |
+| `redistribute_data` | redistribute the data files |
+| `redistribute_data_without_attribution` | redistribute the data without attribution |
+| `reference_by_hash` | keep the data out of the repo and reference it by manifest + hash; requires dataset.hash |
+
+`reference_by_hash` in `allowed` is a loader error without `dataset.hash` (`sha256:<64 hex>` or `md5:<32 hex>`).
+
 Units: a Solution value is converted to the target unit with the `@amp/spec` units API (`@amp/core/units` plus affine `degC`); different dimensions or an unknown unit (e.g. `lbf`) make the target an `error`.
 
+Target lookup: by `metric_id` only (slug `[A-Za-z][A-Za-z0-9_.+-]*`), as the `Solution.scalars` key unless `extract.name` is given. A target without `metric_id` is a loader warning and stays pending on the engine path; a metric the module does not declare in `RESULT_NAMES` or does not produce is pending with the reason.
+
 How a target is judged:
-- `after: richardson`: observed order from the three finest levels (Celik et al. 2008, fixed point for non-constant ratios), Richardson value from the two finest, pass on `|f_ext - ref| <= budget`. The GCI band of the finest level (`u_num`, safety factor 1.25 with observed order, 3.0 with an assumed order) and `p_obs / expected_order` are reported next to the budget.
+- `after: richardson`: observed order from the three finest levels (Celik et al. 2008, fixed point for non-constant ratios), Richardson value from the two finest. Pass needs all of: `|f_ext - ref| <= budget`, the finest level within the budget, and `|p_obs / expected_order - 1| <= convergence.order_band` (default 0.25; `order_check: false` reports it only). The GCI band of the finest level (`u_num`, safety factor 1.25 with an observed order, 3.0 with an assumed order) is reported next to the budget. An oscillatory or non-converging sequence (e.g. non-nested meshes) is never extrapolated with an assumed order: Richardson is reported unavailable and the target is gated on the finest value plus a non-increasing |error| over the levels (`richardson_fallback: finest+monotone`).
 - `after: finest` (default): the finest level is compared.
-- Arrays: element-wise, or `extract.kind: eigen` (both lists sorted, degenerate values repeated; `match: subsequence` tolerates spurious modes; `floor` drops rigid-body / null modes).
+- Arrays: element-wise, or `extract.kind: eigen` (both lists sorted, degenerate values repeated; `match: subsequence` tolerates spurious and missing modes; `floor` drops rigid-body / null modes, `offset` skips more after the floor: use one of them, not both). With `after: richardson` every level is matched first; a degenerate reference cluster is extrapolated through its mean, each member keeping its finest-level split.
+- Scalar eigen targets: `extract: {kind: eigen, floor: <f>, index: <k>}` takes position k (0-based) of the sorted list after floor / offset.
+- NaN or Inf on any level fails the target with the level named; a field target fails on non-finite samples unless `extract.max_dropped` allows them.
+- A rule with `rel` / `abs` next to it: both apply.
 - Fields: `extract.kind: field` with `samples_key` (points + values in the expected JSON) or `evaluator: validation/a/fields.py` + `points`; relative L2 (`norm: l2`) or max (`norm: max`) over the sample points.
 - `gate: false`: reported as `info`, never the gate.
 - Sequence rules (`rate`, `monotonic`) with a single value (one level, the expected self-check) are `pending`, not `fail`.

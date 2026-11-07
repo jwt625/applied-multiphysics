@@ -769,7 +769,8 @@
         "metric_id": {
           "type": "string",
           "minLength": 1,
-          "description": "target id shared with eval/expected/<id>.json targets[].metric_id; target id = id, else metric_id, else quantity"
+          "description": "target id (slug grammar [A-Za-z][A-Za-z0-9_.+-]*, contract changelog 16:15). The engine looks targets up by metric_id only (Solution.scalars key unless extract.name); a target without one is pending on the engine path",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.+-]*$"
         },
         "expected": {
           "type": "object",
@@ -1056,7 +1057,7 @@
         "offset": {
           "type": "integer",
           "minimum": 0,
-          "description": "eigen: index of the first reference mode in the sorted list"
+          "description": "eigen: values skipped after floor (use floor or offset to skip rigid modes, not both)"
         },
         "floor": {
           "type": "number",
@@ -1072,6 +1073,16 @@
           "type": "string",
           "minLength": 1,
           "description": "field: case key of the evaluator when it differs from the case id (e.g. FL-01-pois)"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "eigen, scalar target: 0-based position in the ascending computed list after floor and offset"
+        },
+        "max_dropped": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "field: non-finite samples allowed per level (default 0)"
         }
       },
       "additionalProperties": false
@@ -1115,6 +1126,15 @@
         },
         "note": {
           "type": "string"
+        },
+        "order_band": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "allowed |p_obs / expected_order - 1| for a Richardson pass (default 0.25)"
+        },
+        "order_check": {
+          "type": "boolean",
+          "description": "false: the observed order is reported, not gated"
         }
       },
       "additionalProperties": false
@@ -1213,7 +1233,9 @@
           "type": "string"
         },
         "hash": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^(sha256:[0-9a-f]{64}|md5:[0-9a-f]{32})$",
+          "description": "hash of the referenced file, sha256:<64 hex> or md5:<32 hex> (as the host publishes it)"
         },
         "url": {
           "type": "string"
@@ -1281,9 +1303,23 @@
       "additionalProperties": false
     },
     "rightsItem": {
-      "type": "string",
-      "pattern": "^[a-z][a-z0-9_]*$",
-      "description": "snake_case tag; common: cite_values, re_derive_setup, copy_text, copy_figures, copy_input_files, copy_code, copy_data, redistribute_data"
+      "enum": [
+        "cite_values",
+        "re_derive_setup",
+        "copy_text",
+        "copy_text_without_attribution",
+        "copy_with_attribution",
+        "copy_figures",
+        "copy_input_files",
+        "copy_code",
+        "copy_data",
+        "copy_booklet_content",
+        "copy_v_doc_text",
+        "redistribute_data",
+        "redistribute_data_without_attribution",
+        "reference_by_hash"
+      ],
+      "description": "Rights tag vocabulary (contract changelog 2026-11-06 16:1x; coordinator 16:3x). cite_values: cite the numbers with their locator; re_derive_setup: re-derive geometry, BCs and materials from the original reference; copy_text: copy text verbatim; copy_text_without_attribution: copy text without attribution; copy_with_attribution: copy content with attribution (permissive or copyleft-compatible licence); copy_figures: copy figures; copy_input_files: copy input decks, meshes or model files; copy_code: copy source code; copy_data: copy data files into the repo; copy_booklet_content: copy NAFEMS booklet content; copy_v_doc_text: copy Code_Aster V-documentation text (GNU FDL); redistribute_data: redistribute the data files; redistribute_data_without_attribution: redistribute the data without attribution; reference_by_hash: keep the data out of the repo and reference it by manifest + hash; requires dataset.hash"
     },
     "hero": {
       "type": [

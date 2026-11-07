@@ -49,8 +49,8 @@ export function toJsonl(meta: RunMeta, results: CaseResult[]): string {
   return lines.map((l) => JSON.stringify(plain(l))).join('\n') + '\n';
 }
 
-type Counts = { pass: number; fail: number; pending: number; error: number; info: number };
-const zero = (): Counts => ({ pass: 0, fail: 0, pending: 0, error: 0, info: 0 });
+type Counts = { pass: number; fail: number; pending: number; error: number; info: number; timeout: number };
+const zero = (): Counts => ({ pass: 0, fail: 0, pending: 0, error: 0, info: 0, timeout: 0 });
 
 export interface Summary {
   cases: Counts;
@@ -78,10 +78,10 @@ export function summarize(results: CaseResult[]): Summary {
   return s;
 }
 
-const row = (k: string, c: Counts, t: Counts) => `| ${k} | ${c.pass} | ${c.fail} | ${c.pending} | ${c.error} | ${t.pass} | ${t.fail} | ${t.pending} | ${t.error} | ${t.info} |`;
+const row = (k: string, c: Counts, t: Counts) => `| ${k} | ${c.pass} | ${c.fail} | ${c.pending} | ${c.error} | ${c.timeout} | ${t.pass} | ${t.fail} | ${t.pending} | ${t.error} | ${t.info} |`;
 const head = (k: string) => [
-  `| ${k} | cases pass | fail | pending | error | targets pass | fail | pending | error | info |`,
-  '|---|---|---|---|---|---|---|---|---|---|',
+  `| ${k} | cases pass | fail | pending | error | timeout | targets pass | fail | pending | error | info |`,
+  '|---|---|---|---|---|---|---|---|---|---|---|',
 ];
 
 function num(x: unknown): string {
@@ -145,12 +145,15 @@ export function toMarkdown(meta: RunMeta, results: CaseResult[], jsonlName: stri
   }
   const sp = results.filter((r) => r.speed);
   if (sp.length) {
-    L.push('## Speed (warm-up 1, median of 5)', '', '| case | dof | median ms | MAD ms | iterations | budget s | meets budget | stages (median ms) |', '|---|---|---|---|---|---|---|---|');
-    for (const r of sp) {
-      const x = r.speed!;
-      L.push(`| ${r.case} | ${num(x.dof)} | ${num(x.median_ms)} | ${num(x.mad_ms)} | ${num(x.iterations)} | ${num(x.budget_s)} | ${x.meets_budget === undefined ? 'N/A' : String(x.meets_budget)} | ${Object.entries(x.stages_median_ms).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ')} |`);
+    L.push('## Speed (1 warm-up + median of 5 at every level)', '', '| case | level | dof | median ms | MAD ms | iterations | stages (median ms) |', '|---|---|---|---|---|---|---|');
+    for (const r of sp) for (const x of r.speed!.levels) {
+      L.push(`| ${r.case} | ${x.level + 1} | ${num(x.dof)} | ${num(x.median_ms)} | ${num(x.mad_ms)} | ${num(x.iterations)} | ${Object.entries(x.stages_median_ms).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ')} |`);
     }
+    L.push('', '| case | T_tol ms | native budget s | meets budget | note |', '|---|---|---|---|---|');
+    for (const r of sp) { const x = r.speed!; L.push(`| ${r.case} | ${num(x.t_tol_ms)} | ${num(x.budget_s)} | ${x.meets_budget === null || x.meets_budget === undefined ? 'pending' : String(x.meets_budget)} | ${x.budget_note ?? ''} |`); }
     L.push('');
   }
+  const to = results.filter((r) => r.status === 'timeout');
+  if (to.length) { L.push('## Timeouts', ''); for (const r of to) L.push(`- ${r.case}: ${r.reason ?? ''}`); L.push(''); }
   return L.join('\n');
 }

@@ -41,6 +41,8 @@ export interface Extract {
   params?: Record<string, unknown>;
   offset?: number;
   floor?: number;
+  index?: number;
+  max_dropped?: number;
   match?: 'sorted' | 'subsequence';
 }
 export interface Reference {
@@ -77,7 +79,7 @@ export interface EvalCase {
   references: Reference[];
   convergence?: {
     levels_min?: number; ratio_min?: number; method?: 'richardson_gci' | 'rate_fit' | 'none';
-    safety_factor?: number; expected_order?: number; h_factors?: number[];
+    safety_factor?: number; expected_order?: number; h_factors?: number[]; order_band?: number; order_check?: boolean;
   } | null;
   speed?: { budget_s?: { browser?: number; native?: number }; report?: string[]; reference_timings?: unknown[] | null } | null;
   adapter?: { python?: { script: string; args?: string[] } } | null;
@@ -286,6 +288,17 @@ function semanticChecks(
     if (Array.isArray(r.value) && Array.isArray(r.at) && r.at.length !== r.value.length) {
       at(`${p}/at`, 'at-length', `at has ${r.at.length} entries, value has ${r.value.length}`);
     }
+    if (r.extract?.kind === 'eigen') {
+      if (r.extract.floor !== undefined && (r.extract.offset ?? 0) > 0) {
+        at(`${p}/extract`, 'eigen-double-skip', `floor and offset both skip leading modes (offset applies after floor): keep one`);
+      }
+      if (typeof r.value === 'number' && r.extract.index === undefined) {
+        at(`${p}/extract`, 'eigen-index', `scalar eigen target needs extract.index (0-based position in the sorted list after floor / offset)`);
+      }
+    }
+    if (r.metric_id === undefined) {
+      at(`${p}`, 'metric-id', `no metric_id: the engine looks targets up by metric_id only; this target stays pending on the engine path`, 'warning');
+    }
     if (r.extract?.kind === 'field' && !r.extract.samples_key && !(r.extract.evaluator && r.extract.points)) {
       at(`${p}/extract`, 'extract-field', `extract kind 'field' needs samples_key, or evaluator + points`);
     }
@@ -326,6 +339,11 @@ function semanticChecks(
       }
     }
   });
+  const rights = c.rights as { allowed?: unknown[]; forbidden?: unknown[] } | undefined;
+  if (Array.isArray(rights?.allowed) && rights.allowed.includes('reference_by_hash')) {
+    const h = (c.dataset as { hash?: unknown } | null | undefined)?.hash;
+    if (typeof h !== 'string' || !h.length) at(c.dataset ? '/dataset' : '/rights/allowed', 'reference-by-hash', `rights tag reference_by_hash requires dataset.hash (sha256:<64 hex> or md5:<32 hex>)`);
+  }
   if (c.convergence?.h_factors && c.convergence.levels_min !== undefined && c.convergence.h_factors.length < c.convergence.levels_min) {
     at('/convergence/h_factors', 'levels', `h_factors has ${c.convergence.h_factors.length} levels, levels_min is ${c.convergence.levels_min}`);
   }

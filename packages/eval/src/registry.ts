@@ -1,23 +1,32 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Physics registry hook and the engine source. A case runs on the engine when its spec is available and a
-// `@amp/physics` module (C4) is registered for every physics entry; otherwise it is recorded as `pending` with the
-// reason. Context building (geometry -> mesh -> RunContext) is delegated to a `prepare` hook supplied by
-// `@amp/physics` (export `prepareRun`) or by the caller; the harness has no physics or meshing of its own.
+// `@amp/physics` module (C4) is registered for its physics entry; otherwise it is `pending` with the reason. A
+// present but broken `@amp/physics` / `@amp/post` is an `error` (audit B2). Every engine case runs in its own
+// worker_threads Worker (engine-worker.ts) with a wall-clock timeout and a heap cap (audit B1). Context building is
+// L4's `prepareRun` (one object argument, or `(spec, caseCtx)` when it declares two parameters); sampling is
+// `@amp/post` `sample(solution, field, points, {mesh, component})` with the level's mesh kept next to its Solution
+// (audit B5). Targets are looked up by `metric_id` only (audit B3).
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PhysicsModule, RunContext, Solution } from './contract-shim.ts';
-import type { Spec } from '../../spec/src/types/index.ts';
+import type { Spec } from './contract-shim.ts';
 import type { EvalCase, LoadedCase, Reference } from './loader.ts';
 import { targetId } from './loader.ts';
 import type { LevelObservation, TargetObservation } from './evaluate.ts';
 import { REPO_ROOT } from './node-io.ts';
 import { dimOf, type CaseObservation, type ObserveOptions, type Source, type SpeedRecord } from './source.ts';
-import { timeRuns } from './speed.ts';
+import { Worker } from 'node:worker_threads';
 import { importWorkspace } from './workspace.ts';
 
 export interface PrepareArgs { case: EvalCase; spec: Spec; physicsId: string; level: number; hFactor: number; signal: AbortSignal }
-export type PrepareFn = (args: PrepareArgs) => Promise<RunContext>;
+export type PrepareFn = ((args: PrepareArgs) => Promise<RunContext>) | ((spec: Spec, caseCtx: Omit<PrepareArgs, 'spec'>) => Promise<RunContext>);
+
+/** Call prepareRun in either form: `(args)` (one object) or `(spec, caseCtx)` (two parameters, contract changelog 16:0x). */
+export function callPrepare(prep: PrepareFn, a: PrepareArgs): Promise<RunContext> {
+  if (prep.length >= 2) { const { spec, ...rest } = a; return (prep as (s: Spec, c: Omit<PrepareArgs, 'spec'>) => Promise<RunContext>)(spec, rest); }
+  return (prep as (x: PrepareArgs) => Promise<RunContext>)(a);
+}
 
 export interface Registry {
   modules: Map<string, PhysicsModule>;
@@ -25,7 +34,11 @@ export interface Registry {
   specRegistry?: unknown;   // @amp/spec Registry exported by @amp/physics (specRegistry), else the provisional wave-1 one
   origin: string;          // where the modules came from
   version: string;
+  loadError?: string;      // present but broken @amp/physics or @amp/post (audit B2)
+  sample?: SampleFn;       // @amp/post sample
+  resultNames?: Record<string, { fields: string[]; scalars: string[] }>;
 }
+export type SampleFn = (sol: Solution, field: string, points: number[][], o?: { mesh?: unknown; component?: number }) => ArrayLike<number>;
 
 export function emptyRegistry(origin = 'none'): Registry {
   return { modules: new Map(), prepare: null, origin, version: '0.0.0' };
@@ -55,13 +68,26 @@ export function registryFromExports(ex: Record<string, unknown>, origin: string,
   const isSpecReg = (x: unknown) => !!x && typeof x === 'object' && typeof (x as { get?: unknown }).get === 'function' && typeof (x as { list?: unknown }).list === 'function' && typeof (x as { register?: unknown }).register === 'function';
   if (isSpecReg(ex.specRegistry)) reg.specRegistry = ex.specRegistry;
   else if (isSpecReg(r)) reg.specRegistry = r;
+  else if (typeof ex.physicsRegistry === 'function') {
+    // L4: physicsRegistry() builds the @amp/spec Registry with L4's registrations over the provisional wave-1 seed
+    try { const pr = (ex.physicsRegistry as () => unknown)(); if (isSpecReg(pr)) reg.specRegistry = pr; } catch { /* left to the provisional registry */ }
+  }
+  // L4: RESULT_NAMES[type] = {fields, scalars}; '<x>' segments are wildcards (e.g. 'C_<i>_<j>')
+  if (ex.RESULT_NAMES && typeof ex.RESULT_NAMES === 'object') reg.resultNames = ex.RESULT_NAMES as Record<string, { fields: string[]; scalars: string[] }>;
   return reg;
 }
 
 export async function loadDefaultRegistry(root = REPO_ROOT): Promise<{ registry: Registry; reason: string }> {
   const r = await importWorkspace('@amp/physics', root);
-  if (!r.mod) return { registry: emptyRegistry('@amp/physics unavailable'), reason: r.reason };
-  return { registry: registryFromExports(r.mod, `@amp/physics (${r.path})`, r.version ?? '0.0.0'), reason: 'ok' };
+  let registry: Registry;
+  if (!r.mod) {
+    registry = emptyRegistry('@amp/physics unavailable');
+    if (!r.absent) registry.loadError = r.reason;
+  } else registry = registryFromExports(r.mod, `@amp/physics (${r.path})`, r.version ?? '0.0.0');
+  const post = await importWorkspace<{ sample?: SampleFn }>('@amp/post', root);
+  if (post.mod && typeof post.mod.sample === 'function') registry.sample = post.mod.sample;
+  else if (!post.absent) registry.loadError = [registry.loadError, post.mod ? '@amp/post: no sample export' : post.reason].filter(Boolean).join('; ');
+  return { registry, reason: registry.loadError ?? (r.mod ? 'ok' : r.reason) };
 }
 
 // ---- @amp/spec runtime (spec parsing / validation, affine-aware units), loaded lazily by file path ------------
@@ -104,28 +130,55 @@ export function convertUnit(value: number, from: string | undefined, to: string)
   } catch (e) { return { error: `unit conversion '${a}' -> '${b}': ${(e as Error).message}` }; }
 }
 
-/** Read one target value from a Solution (C5). */
-export function extractFromSolution(sol: Solution, r: Reference): { value: number | number[] } | { pending: string } | { error: string } {
+/** Read one target value from a Solution (C5) by metric_id (audit B3); probe / field through @amp/post `sample`. */
+export function extractFromSolution(
+  sol: Solution, r: Reference, o: { mesh?: unknown; sample?: SampleFn; points?: number[][] } = {},
+): { value: number | number[] | { values: number[] } } | { pending: string } | { error: string } {
   const ex = r.extract ?? { kind: 'scalar' as const };
+  const conv = (v: number, from: string | undefined): number | { error: string } => { const c = convertUnit(v, from, r.unit); return 'error' in c ? c : c.value; };
   if (ex.kind === 'scalar') {
-    const name = ex.name ?? r.quantity;
+    const name = ex.name ?? r.metric_id;
+    if (!name) return { pending: 'no metric_id: targets are looked up by metric_id only' };
     const s = sol.scalars?.[name];
-    if (!s) return { error: `Solution.scalars has no '${name}' (has: ${Object.keys(sol.scalars ?? {}).join(', ') || 'none'})` };
-    const cv = convertUnit(s.value, s.unit, r.unit);
-    return 'error' in cv ? cv : { value: cv.value };
+    if (!s) return { pending: `module produced no metric '${name}' (has: ${Object.keys(sol.scalars ?? {}).join(', ') || 'none'})` };
+    const v = conv(s.value, s.unit);
+    return typeof v === 'number' ? { value: v } : v;
   }
   if (ex.kind === 'eigen' || ex.kind === 'steps') {
     if (!sol.steps) return { error: 'Solution.steps absent' };
     if (ex.kind === 'eigen' && sol.steps.kind !== 'eigen') return { error: `Solution.steps.kind is '${sol.steps.kind}', not 'eigen'` };
     const out: number[] = [];
-    for (const v of sol.steps.values) {
-      const cv = convertUnit(v, sol.steps.unit, r.unit);
-      if ('error' in cv) return cv;
-      out.push(cv.value);
-    }
+    for (const v of sol.steps.values) { const c = conv(v, sol.steps.unit); if (typeof c !== 'number') return c; out.push(c); }
     return { value: out };
   }
-  return { pending: `extract kind '${ex.kind}' needs a probe / sampling hook (@amp/post), not wired yet` };
+  // probe / field: values at points from @amp/post, with the level's mesh
+  if (!o.sample) return { pending: `extract kind '${ex.kind}' needs @amp/post sample (not available)` };
+  const field = ex.field ?? ex.name;
+  if (!field) return { error: `extract kind '${ex.kind}' needs field` };
+  const pts = ex.kind === 'probe' ? (ex.point ? [ex.point] : null) : (o.points ?? ex.points ?? null);
+  if (!pts) return { error: `extract kind '${ex.kind}' has no sample points` };
+  const fd = sol.fields?.find((f) => f.name === field);
+  if (!fd) return { pending: `module produced no field '${field}' (has: ${(sol.fields ?? []).map((f) => f.name).join(', ') || 'none'})` };
+  let vals: ArrayLike<number>;
+  try { vals = o.sample(sol, field, pts, { ...(o.mesh !== undefined ? { mesh: o.mesh } : {}), ...(ex.component !== undefined ? { component: ex.component } : {}) }); }
+  catch (e) { return { error: `sample(${field}): ${(e as Error).message}` }; }
+  const out: number[] = [];
+  for (const v of Array.from(vals)) { const c = Number.isFinite(v) ? conv(v, fd.unit) : v; if (typeof c !== 'number') return c; out.push(c); }
+  return ex.kind === 'probe' ? { value: out[0]! } : { value: { values: out } };
+}
+
+const ISO_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)$/;
+/** C5 / A5 run-record check (audit S4): required keys and formats; returns the problems. */
+export function checkRunRecord(run: unknown, meshHash?: string): string[] {
+  const p: string[] = [];
+  const r = (run ?? {}) as Record<string, unknown>;
+  for (const k of ['engine', 'specHash', 'meshHash']) if (typeof r[k] !== 'string' || !(r[k] as string).length) p.push(`${k} missing`);
+  if (typeof r.startedAt !== 'string' || !ISO_OFFSET.test(r.startedAt)) p.push('startedAt not ISO 8601 with offset');
+  const pl = r.platform as { runtime?: unknown } | undefined;
+  if (!pl || (pl.runtime !== 'node' && pl.runtime !== 'browser')) p.push('platform.runtime missing');
+  if (r.fidelity !== 'rigorous' && r.fidelity !== 'realtime') p.push('fidelity not rigorous | realtime');
+  if (meshHash !== undefined && typeof r.meshHash === 'string' && r.meshHash !== meshHash) p.push(`run.meshHash ${r.meshHash} != Solution.meshHash ${meshHash}`);
+  return p;
 }
 
 export function hFactorsFor(c: EvalCase): number[] {
@@ -163,20 +216,41 @@ function physicsEntries(spec: Spec): Array<{ id: string; type: string }> {
   return ph.filter((p) => p && typeof p === 'object').map((p) => ({ id: String((p as { id?: unknown }).id ?? ''), type: String((p as { type?: unknown }).type ?? '') }));
 }
 
+export interface EngineOptions { timeoutS?: number; timeoutCapS?: number; maxOldMb?: number }
+
+/** Wall-clock limit of a case (audit B1): 20 x budget_s (native, else browser) per level, at least 30 s per level,
+ *  60 s per level without a budget; x 7 runs per level with --speed; capped (default 600 s); --timeout overrides. */
+export function caseTimeoutMs(c: EvalCase, levels: number, speed: boolean, o: EngineOptions = {}): number {
+  if (o.timeoutS !== undefined) return o.timeoutS * 1000;
+  const b = c.speed?.budget_s?.native ?? c.speed?.budget_s?.browser ?? null;
+  const per = b ? Math.max(30, 20 * b) : 60;
+  return Math.min(per * levels * (speed ? 7 : 1), o.timeoutCapS ?? 600) * 1000;
+}
+
+export interface WorkerTarget { tid: string; ref: Reference; points?: number[][] }
+export interface WorkerResult {
+  ok: true;
+  targets: Record<string, TargetObservation | { pending: string } | { error: string }>;
+  levels: Array<{ level: number; hFactor: number; dof: number; meshHash: string; run: unknown; wall_ms: number; stages: Record<string, number>; iterations?: number }>;
+  speed?: SpeedRecord;
+}
+
 export class EngineSource implements Source {
   name = 'engine';
   reg: Registry;
   regReason: string;
   root: string;
-  constructor(reg: Registry, regReason = 'ok', root = REPO_ROOT) { this.reg = reg; this.regReason = regReason; this.root = root; }
+  opts: EngineOptions;
+  constructor(reg: Registry, regReason = 'ok', root = REPO_ROOT, opts: EngineOptions = {}) { this.reg = reg; this.regReason = regReason; this.root = root; this.opts = opts; }
 
   describe(): string {
     const types = [...this.reg.modules.keys()];
-    return `engine: ${this.reg.origin}; modules: ${types.join(', ') || 'none'}${this.regReason !== 'ok' ? ` (${this.regReason})` : ''}; prepare: ${this.reg.prepare ? 'yes' : 'no'}`;
+    return `engine: ${this.reg.origin}; modules: ${types.join(', ') || 'none'}${this.regReason !== 'ok' ? ` (${this.regReason})` : ''}; prepare: ${this.reg.prepare ? 'yes' : 'no'}; sample: ${this.reg.sample ? 'yes' : 'no'}; isolation: worker per case`;
   }
 
   private async select(lc: LoadedCase): Promise<{ module: PhysicsModule; spec: Spec; physicsId: string } | { pending: string } | { error: string }> {
     const c = lc.data!;
+    if (this.reg.loadError) return { error: `engine load failed: ${this.reg.loadError}` };
     if (c.spec && typeof c.spec === 'object' && 'status' in c.spec && c.spec.status === 'pending') return { pending: `spec pending: ${c.spec.reason}` };
     if (!this.reg.modules.size) return { pending: `no physics modules registered (${this.regReason})` };
     const rs = await resolveSpec(c, this.root, this.reg.specRegistry);
@@ -186,17 +260,17 @@ export class EngineSource implements Source {
     if (entries.length > 1) return { pending: `spec has ${entries.length} physics entries; multiphysics orchestration is not wired in the harness` };
     const e = entries[0]!;
     const m = this.reg.modules.get(e.type);
-    if (!m) return { pending: `no physics module registered for '${e.type}' (${this.reg.modules.size ? `registered: ${[...this.reg.modules.keys()].join(', ')}` : this.regReason})` };
+    if (!m) return { pending: `no physics module registered for '${e.type}' (registered: ${[...this.reg.modules.keys()].join(', ')})` };
     const rd = m.readiness(rs.spec, e.id);
     if (!rd.ready) return { pending: `module '${e.type}' not ready: ${rd.reasons.join('; ')}` };
     if (!this.reg.prepare) return { pending: `module '${e.type}' registered but no prepareRun hook to build the RunContext (mesh)` };
     return { module: m, spec: rs.spec, physicsId: e.id };
   }
 
-  async plan(lc: LoadedCase): Promise<{ runnable: boolean; reason: string }> {
+  async plan(lc: LoadedCase): Promise<{ runnable: boolean; reason: string; error?: boolean }> {
     const s = await this.select(lc);
-    if ('module' in s) return { runnable: true, reason: `run '${s.module.type}' on ${hFactorsFor(lc.data!).length} level(s)` };
-    return { runnable: false, reason: 'pending' in s ? s.pending : `error: ${s.error}` };
+    if ('module' in s) return { runnable: true, reason: `run '${s.module.type}' on ${hFactorsFor(lc.data!).length} level(s) in a worker` };
+    return 'pending' in s ? { runnable: false, reason: s.pending } : { runnable: false, reason: s.error, error: true };
   }
 
   async observe(lc: LoadedCase, opts: ObserveOptions): Promise<CaseObservation> {
@@ -204,47 +278,61 @@ export class EngineSource implements Source {
     const s = await this.select(lc);
     if ('pending' in s) return { kind: 'pending', reason: s.pending };
     if ('error' in s) return { kind: 'error', reason: s.error };
-    const signal = opts.signal ?? new AbortController().signal;
     const factors = hFactorsFor(c);
-    const sols: Array<{ sol: Solution; wall_ms: number }> = [];
-    const runLevel = async (level: number): Promise<{ sol: Solution; wall_ms: number }> => {
-      const t0 = performance.now();
-      const ctx = await this.reg.prepare!({ case: c, spec: s.spec, physicsId: s.physicsId, level, hFactor: factors[level]!, signal });
-      const sol = await s.module.run(ctx);
-      return { sol, wall_ms: performance.now() - t0 };
-    };
-    try {
-      for (let i = 0; i < factors.length; i++) {
-        opts.log?.(`${c.id}: level ${i + 1}/${factors.length} (h factor ${factors[i]})`);
-        sols.push(await runLevel(i));
-      }
-    } catch (e) {
-      return { kind: 'error', reason: `run failed: ${(e as Error).message}` };
-    }
-    const targets: Record<string, TargetObservation | { pending: string } | { error: string }> = {};
+    const targets: WorkerTarget[] = [];
+    const pre: Record<string, { pending: string }> = {};
+    const rn = this.reg.resultNames?.[s.module.type];
+    const known = (names: string[], x: string) => names.some((n) => new RegExp(`^${n.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/<[^>]+>/g, '[^_]+')}$`).test(x));
     for (const r of c.references) {
-      const levels: LevelObservation[] = [];
-      let bad: { pending: string } | { error: string } | null = null;
-      for (const { sol, wall_ms } of sols) {
-        const ex = extractFromSolution(sol, r);
-        if (!('value' in ex)) { bad = ex; break; }
-        levels.push({ value: ex.value, dof: sol.stats.dof, wall_ms, stages: sol.timing, ...(sol.stats.iterations !== undefined ? { iterations: sol.stats.iterations } : {}) });
+      if (!r.metric_id && !r.extract?.name) { pre[targetId(r)] = { pending: 'no metric_id: targets are looked up by metric_id only' }; continue; }
+      // B3: the metric must be one the module declares (RESULT_NAMES), else pending with the reason
+      const kind = r.extract?.kind ?? 'scalar';
+      if (rn && (kind === 'scalar' || kind === 'probe' || kind === 'field')) {
+        const name = kind === 'scalar' ? (r.extract?.name ?? r.metric_id!) : (r.extract?.field ?? r.extract?.name ?? '');
+        const list = kind === 'scalar' ? rn.scalars : rn.fields;
+        if (!known(list, name)) { pre[targetId(r)] = { pending: `module '${s.module.type}' does not produce ${kind === 'scalar' ? 'scalar' : 'field'} '${name}' (declares: ${list.join(', ') || 'none'})` }; continue; }
       }
-      targets[targetId(r)] = bad ?? { levels };
+      const pts = r.extract?.kind === 'field' ? (r.extract.points ?? samplePoints(lc.expected, r.extract.samples_key)) : undefined;
+      targets.push({ tid: targetId(r), ref: r, ...(pts ? { points: pts } : {}) });
     }
-    let speed: SpeedRecord | undefined;
-    if (opts.speed) {
-      const last = factors.length - 1;
-      const t = await timeRuns(async () => (await runLevel(last)).sol, { warmup: 1, repeats: 5 });
-      const sol = t.last;
-      speed = {
-        level: last, dof: sol.stats.dof, warmup_ms: t.summary.warmup_ms, samples_ms: t.summary.samples_ms,
-        median_ms: t.summary.median_ms, mad_ms: t.summary.mad_ms, stages_median_ms: t.summary.stages_median_ms,
-        iterations: sol.stats.iterations ?? null,
-        ...(c.speed?.budget_s?.native !== undefined ? { budget_s: c.speed.budget_s.native } : {}),
-      };
-    }
+    const timeoutMs = caseTimeoutMs(c, factors.length, !!opts.speed, this.opts);
+    opts.log?.(`${c.id}: worker, ${factors.length} level(s), timeout ${(timeoutMs / 1000).toFixed(0)} s, heap cap ${this.opts.maxOldMb ?? 1536} MB`);
+    const res = await runWorker({ root: this.root, caseData: c, spec: s.spec, physicsId: s.physicsId, type: s.module.type, factors, speed: !!opts.speed, targets, timeoutMs }, timeoutMs, this.opts.maxOldMb ?? 1536);
+    if (res.kind === 'timeout') { opts.log?.(`${c.id}: TIMEOUT after ${(timeoutMs / 1000).toFixed(1)} s, worker terminated`); return { kind: 'timeout', reason: `timeout after ${(timeoutMs / 1000).toFixed(1)} s (worker terminated)` }; }
+    if (res.kind === 'error') { opts.log?.(`${c.id}: ${res.reason}`); return { kind: 'error', reason: res.reason }; }
+    const w = res.result;
+    // S4: run record of every level
+    const rrProblems = w.levels.flatMap((l) => checkRunRecord(l.run, l.meshHash).map((p) => `level ${l.level + 1}: ${p}`));
+    if (rrProblems.length) return { kind: 'error', reason: `run record invalid (A5/C5): ${rrProblems.slice(0, 4).join('; ')}` };
     const dim = dimOf(c.dimension);
-    return { kind: 'observed', targets, run: sols[sols.length - 1]!.sol.run, ...(dim !== undefined ? { dim } : {}), ...(speed ? { speed } : {}) };
+    return {
+      kind: 'observed', targets: { ...pre, ...w.targets }, run: w.levels[w.levels.length - 1]!.run as Record<string, unknown>,
+      levelRuns: w.levels.map((l) => ({ level: l.level, dof: l.dof, meshHash: l.meshHash, wall_ms: l.wall_ms })),
+      ...(dim !== undefined ? { dim } : {}), ...(w.speed ? { speed: w.speed } : {}),
+    };
   }
+}
+
+function samplePoints(expected: unknown, key: string | undefined): number[][] | undefined {
+  if (!key) return undefined;
+  let cur: unknown = expected;
+  for (const part of key.split('.')) cur = cur && typeof cur === 'object' ? (cur as Record<string, unknown>)[part] : undefined;
+  const pts = (cur as { points?: unknown } | undefined)?.points;
+  return Array.isArray(pts) ? (pts as number[][]) : undefined;
+}
+
+/** Run one case in a Worker. A hang, a busy loop or a never-settling promise ends as `timeout` or `error`. */
+export function runWorker(data: Record<string, unknown>, timeoutMs: number, maxOldMb: number): Promise<{ kind: 'result'; result: WorkerResult } | { kind: 'timeout' } | { kind: 'error'; reason: string }> {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v: Parameters<typeof resolve>[0]) => { if (!done) { done = true; clearTimeout(timer); resolve(v); } };
+    const w = new Worker(new URL('./engine-worker.ts', import.meta.url), { workerData: data, resourceLimits: { maxOldGenerationSizeMb: maxOldMb } });
+    const timer = setTimeout(() => { void w.terminate(); finish({ kind: 'timeout' }); }, timeoutMs);
+    w.on('message', (m: WorkerResult | { ok: false; error: string }) => {
+      finish(m.ok ? { kind: 'result', result: m } : { kind: 'error', reason: m.error });
+      void w.terminate();
+    });
+    w.on('error', (e: Error & { code?: string }) => finish({ kind: 'error', reason: e.code === 'ERR_WORKER_OUT_OF_MEMORY' ? `out of memory (heap cap ${maxOldMb} MB)` : `worker error: ${e.message}` }));
+    w.on('exit', (code) => finish({ kind: 'error', reason: `worker exited (code ${code}) without a result: a never-settling promise or an exit inside the module` }));
+  });
 }

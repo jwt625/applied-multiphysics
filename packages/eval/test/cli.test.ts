@@ -34,7 +34,7 @@ test('exit 0: engine run passes via Richardson; JSONL + summary written with C8 
     const tl = lines.find((l) => l.kind === 'target');
     for (const k of ['case', 'target', 'value', 'ref', 'tol', 'pass', 'time_ms', 'dof', 'run']) assert.ok(k in tl, `C8 field ${k}`);
     assert.equal(tl.run.engine, '@amp/physics@mock');
-    assert.match(readFileSync(join(fx.out, files[0]!), 'utf8'), /\| a \| 1 \| 0 \| 0 \| 0 \| 1 \|/);
+    assert.match(readFileSync(join(fx.out, files[0]!), 'utf8'), /\| a \| 1 \| 0 \| 0 \| 0 \| 0 \| 1 \|/);
   } finally { fx.cleanup(); }
 });
 
@@ -111,17 +111,25 @@ test('usage errors exit 1; real process exit codes', () => {
   } finally { fx.cleanup(); }
 });
 
-test('--speed: warm-up + median of 5 on the finest level, time-to-accuracy per target', async () => {
+test('--speed: warm-up + median of 5 at every level, T_tol against the native budget', async () => {
   const fx = makeRoot();
   try {
     fx.write('eval/cases/a/XX-01.yaml', caseYaml({ tol: '{rel: 1.0e-3}', extra: 'speed: {budget_s: {native: 1.0}}\n' }));
     const { code, out } = await run(['--root', fx.root, '--no-log', '--speed']);
     assert.equal(code, 0);
-    const sp = (out.results[0] as unknown as { speed: { samples_ms: number[]; warmup_ms: number[]; dof: number; meets_budget: boolean; time_to_accuracy: Record<string, { reached: boolean; level: number }> } }).speed;
-    assert.equal(sp.samples_ms.length, 5); assert.equal(sp.warmup_ms.length, 1);
-    assert.equal(sp.dof, 1600); assert.equal(sp.meets_budget, true);
+    type Sp = { protocol: string; levels: Array<{ samples_ms: number[]; warmup_ms: number[]; dof: number }>; meets_budget: boolean | null; t_tol_ms: number | null; time_to_accuracy: Record<string, { reached: boolean; level: number }> };
+    const sp = (out.results[0] as unknown as { speed: Sp }).speed;
+    assert.equal(sp.protocol, 'warmup1_median5_per_level');
+    assert.equal(sp.levels.length, 3);
+    for (const l of sp.levels) { assert.equal(l.samples_ms.length, 5); assert.equal(l.warmup_ms.length, 1); }
+    assert.equal(sp.levels[2]!.dof, 1600); assert.equal(sp.meets_budget, true); assert.ok(typeof sp.t_tol_ms === 'number');
     // q(h) - 1 = 0.1 h^2 with h = 0.1, 0.05, 0.025: 1e-3, 2.5e-4, 6.25e-5 vs budget 1e-3 -> level 0 already meets it
     assert.equal(sp.time_to_accuracy.q!.reached, true); assert.equal(sp.time_to_accuracy.q!.level, 0);
+    // no native budget: the speed check is pending, not a pass
+    fx.write('eval/cases/a/XX-01.yaml', caseYaml({ tol: '{rel: 1.0e-3}', extra: 'speed: {budget_s: {browser: 1.0}}\n' }));
+    const b = await run(['--root', fx.root, '--no-log', '--speed']);
+    const sb = (b.out.results[0] as unknown as { speed: Sp & { budget_note: string } }).speed;
+    assert.equal(sb.meets_budget, null); assert.match(sb.budget_note, /no budget_s.native/);
   } finally { fx.cleanup(); }
 });
 

@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-export function caseYaml(over: { id?: string; cls?: string; ref?: number; tol?: string; spec?: string; extra?: string; refExtra?: string } = {}): string {
+export function caseYaml(over: { metricId?: string; id?: string; cls?: string; ref?: number; tol?: string; spec?: string; extra?: string; refExtra?: string } = {}): string {
   const id = over.id ?? 'XX-01';
   return `schema: amp-eval/0
 id: ${id}
@@ -18,6 +18,7 @@ units: SI
 spec: ${over.spec ?? '{schema: amp-spec/0, physics: [{id: p1, type: mock}]}'}
 references:
   - quantity: q
+    metric_id: ${over.metricId ?? 'q'}
     value: ${over.ref ?? 1.0}
     unit: "1"
     tolerance: ${over.tol ?? '{rel: 1.0e-3, after: richardson}'}
@@ -30,7 +31,7 @@ ${over.extra ?? ''}`;
 }
 
 // Mock physics: q(h) = 1 + 0.1 h^2 with h = hFactor / 10, DOF = 1 / h^2 (2D), so Richardson recovers 1 exactly.
-const MOCK_PHYSICS = `
+export const MOCK_PHYSICS = `
 export const modules = [{
   type: 'mock', dims: ['2d'],
   readiness: () => ({ ready: true, reasons: [] }),
@@ -64,7 +65,7 @@ const MOCK_SPEC_PROV = `export function wave1Registry() { return { get() {}, lis
 
 export interface Fixture { root: string; out: string; write(rel: string, text: string): void; cleanup(): void }
 
-export function makeRoot(opts: { physics?: boolean } = {}): Fixture {
+export function makeRoot(opts: { physics?: boolean; physicsSrc?: string } = {}): Fixture {
   const root = mkdtempSync(join(tmpdir(), 'amp-eval-test-'));
   const out = join(root, 'out');
   mkdirSync(out, { recursive: true });
@@ -76,7 +77,7 @@ export function makeRoot(opts: { physics?: boolean } = {}): Fixture {
   write('packages/spec/src/prov.mjs', MOCK_SPEC_PROV);
   if (opts.physics !== false) {
     write('packages/physics/package.json', JSON.stringify({ name: '@amp/physics', version: '0.0.0-mock', type: 'module', exports: { '.': './src/index.mjs' } }));
-    write('packages/physics/src/index.mjs', MOCK_PHYSICS);
+    write('packages/physics/src/index.mjs', opts.physicsSrc ?? MOCK_PHYSICS);
   }
   return { root, out, write, cleanup: () => rmSync(root, { recursive: true, force: true }) };
 }

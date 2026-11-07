@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { REPO_ROOT } from './node-io.ts';
 
-export interface Resolved<T = Record<string, unknown>> { mod: T | null; reason: string; path?: string; version?: string }
+/** absent: the package directory does not exist (a legitimate pre-landing state); otherwise a null mod is a broken package. */
+export interface Resolved<T = Record<string, unknown>> { mod: T | null; reason: string; path?: string; version?: string; absent?: boolean }
 
 function entryOf(pkg: Record<string, unknown>, sub: string): string | undefined {
   const ex = pkg.exports as unknown;
@@ -47,7 +48,7 @@ export async function importWorkspace<T = Record<string, unknown>>(spec: string,
   if (!m) return { mod: null, reason: `not a workspace package: ${spec}` };
   const dir = join(root, 'packages', m[1]!);
   const pj = join(dir, 'package.json');
-  if (!existsSync(pj)) return { mod: null, reason: `${spec}: packages/${m[1]}/package.json not found` };
+  if (!existsSync(pj)) return { mod: null, reason: `${spec}: packages/${m[1]}/package.json not found`, absent: true };
   let pkg: Record<string, unknown>;
   try { pkg = JSON.parse(readFileSync(pj, 'utf8')); } catch (e) { return { mod: null, reason: `${spec}: bad package.json (${(e as Error).message})` }; }
   const candidates = [entryOf(pkg, m[2] ?? ''), ...(m[2] ? [] : ['src/index.ts', 'src/index.mjs', 'index.mjs', 'index.ts'])].filter(Boolean) as string[];

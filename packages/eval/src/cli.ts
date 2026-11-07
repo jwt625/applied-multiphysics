@@ -11,7 +11,7 @@ import { join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { formatIssue } from './loader.ts';
-import { REPO_ROOT, isoWithOffset, loadCases, logsDir, repoCommit, timestampStamp } from './node-io.ts';
+import { REPO_ROOT, isoWithOffset, loadCases, logsDir, repoCommit, timestampStamp, writeUnique } from './node-io.ts';
 import { EngineSource, loadDefaultRegistry } from './registry.ts';
 import { ExpectedSource } from './adapters/expected.ts';
 import { PythonSource } from './adapters/python.ts';
@@ -24,7 +24,7 @@ const HARNESS_VERSION = '0.0.0';
 
 const USAGE = `usage: node packages/eval/src/cli.ts [--class a|b|c] [--case ID] [--tag physics] [--dry-run] [--speed] [--json]
        [--adapter engine|expected|python] [--fields python|ts] [--bench bp1|bp3 [--sizes 8,16,32]] [--root DIR] [--out DIR] [--no-log]
-exit: 0 pass (pending allowed), 1 error, 2 target missed`;
+exit: 0 pass (pending allowed unless --strict), 1 error / timeout / engine load failure, 2 target missed`;
 
 export interface CliIO { out: (s: string) => void; err: (s: string) => void }
 const STDIO: CliIO = { out: (s) => { process.stdout.write(s); }, err: (s) => { process.stderr.write(s); } };
@@ -37,7 +37,7 @@ export async function main(argv: string[], io: CliIO = STDIO): Promise<number> {
       options: {
         class: { type: 'string' }, case: { type: 'string' }, tag: { type: 'string' },
         'dry-run': { type: 'boolean' }, speed: { type: 'boolean' }, json: { type: 'boolean' },
-        adapter: { type: 'string' }, fields: { type: 'string' }, bench: { type: 'string' }, sizes: { type: 'string' },
+        adapter: { type: 'string' }, fields: { type: 'string' }, timeout: { type: 'string' }, 'timeout-cap': { type: 'string' }, 'max-mem': { type: 'string' }, strict: { type: 'boolean' }, bench: { type: 'string' }, sizes: { type: 'string' },
         root: { type: 'string' }, out: { type: 'string' }, 'no-log': { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
       },
     }).values;
@@ -64,12 +64,17 @@ export async function main(argv: string[], io: CliIO = STDIO): Promise<number> {
   try { cases = loadCases(filter, root); } catch (e) { io.err(`load failed: ${(e as Error).message}\n`); return 1; }
   if (a.case && cases.length === 0) { io.err(`no case '${a.case}' under ${relative(process.cwd(), join(root, 'eval/cases')) || '.'}\n`); return 1; }
 
+  const numOpt = (k: 'timeout' | 'timeout-cap' | 'max-mem') => { const v = a[k]; if (v === undefined) return undefined; const x = Number(v); if (!(x > 0)) throw new Error(`--${k} must be a positive number`); return x; };
+  let eo;
+  try { eo = { ...(numOpt('timeout') !== undefined ? { timeoutS: numOpt('timeout')! } : {}), ...(numOpt('timeout-cap') !== undefined ? { timeoutCapS: numOpt('timeout-cap')! } : {}), ...(numOpt('max-mem') !== undefined ? { maxOldMb: numOpt('max-mem')! } : {}) }; }
+  catch (e) { io.err(`${(e as Error).message}\n`); return 1; }
   let source: Source;
   if (adapter === 'expected') source = new ExpectedSource();
   else if (adapter === 'python') source = new PythonSource(root);
   else {
     const { registry, reason } = await loadDefaultRegistry(root);
-    source = new EngineSource(registry, reason, root);
+    if (registry.loadError) log(`ERROR engine load failed: ${registry.loadError}`);
+    source = new EngineSource(registry, reason, root, eo);
   }
   log(`${cases.length} case(s); ${source.describe()}`);
   for (const lc of cases) for (const i of lc.issues) log(formatIssue(i));
@@ -86,14 +91,16 @@ export async function main(argv: string[], io: CliIO = STDIO): Promise<number> {
     filter, dry_run: !!a['dry-run'], speed: !!a.speed,
     platform: { ...specPlatform, runtime: 'node', node: process.version, os: `${platform()} ${release()}`, arch: arch(), cores: cpus().length, cpu: cpus()[0]?.model ?? 'unknown', mem_gb: Math.round(totalmem() / 2 ** 30) },
   };
-  const code = exitCode(results);
+  const code = exitCode(results, { strict: !!a.strict });
   const stamp = timestampStamp(started);
   let jsonlPath: string | null = null;
   if (!a['no-log']) {
     const dir = outDir ?? logsDir(root);
-    jsonlPath = join(dir, `eval-${stamp}.jsonl`);
-    writeFileSync(jsonlPath, toJsonl(meta, results));
-    writeFileSync(join(dir, `eval-${stamp}-summary.md`), toMarkdown(meta, results, `eval-${stamp}.jsonl`));
+    const [jp, mp] = writeUnique(dir, `eval-${stamp}`, [{ suffix: '.jsonl', text: '' }, { suffix: '-summary.md', text: '' }]);
+    jsonlPath = jp!;
+    const name = jp!.split(/[\\/]/).pop()!;
+    writeFileSync(jp!, toJsonl(meta, results));
+    writeFileSync(mp!, toMarkdown(meta, results, name));
   }
   const s = summarize(results);
   if (a.json) {
@@ -103,7 +110,7 @@ export async function main(argv: string[], io: CliIO = STDIO): Promise<number> {
       const tline = r.targets.map((t) => `${t.target}=${t.status}`).join(' ');
       io.out(`${r.status.padEnd(7)} ${r.case.padEnd(10)} ${tline}${r.reason ? `  | ${r.reason}` : ''}\n`);
     }
-    io.out(`cases: ${s.cases.pass} pass, ${s.cases.fail} fail, ${s.cases.pending} pending, ${s.cases.error} error; targets: ${s.targets.pass} pass, ${s.targets.fail} fail, ${s.targets.pending} pending, ${s.targets.error} error; loader: ${s.loader_errors} errors, ${s.loader_warnings} warnings\n`);
+    io.out(`cases: ${s.cases.pass} pass, ${s.cases.fail} fail, ${s.cases.pending} pending, ${s.cases.error} error, ${s.cases.timeout} timeout; targets: ${s.targets.pass} pass, ${s.targets.fail} fail, ${s.targets.pending} pending, ${s.targets.error} error, ${s.targets.info} info, ${s.targets.timeout} timeout; loader: ${s.loader_errors} errors, ${s.loader_warnings} warnings\n`);
     if (jsonlPath) io.out(`records: ${relative(process.cwd(), jsonlPath)}\n`);
     io.out(`exit ${code}\n`);
   }
@@ -111,5 +118,7 @@ export async function main(argv: string[], io: CliIO = STDIO): Promise<number> {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // audit B1: exit 1 unless main() completes (a drained event loop must not look like a pass)
+  process.exitCode = 1;
   main(process.argv.slice(2)).then((c) => { process.exitCode = c; }, (e) => { process.stderr.write(`${(e as Error).stack ?? e}\n`); process.exitCode = 1; });
 }

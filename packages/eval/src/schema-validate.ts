@@ -128,7 +128,8 @@ export class Validator {
     if (o.type !== undefined) {
       const ts = Array.isArray(o.type) ? (o.type as string[]) : [o.type as string];
       if (!ts.some((t) => matchesType(x, t))) {
-        errs.push({ path, keyword: 'type', message: `expected ${ts.join(' | ')}, got ${typeOf(x)}` });
+        const got = typeof x === 'number' && !Number.isFinite(x) ? `non-finite number ${String(x)}` : typeOf(x);
+        errs.push({ path, keyword: 'type', message: `expected ${ts.join(' | ')}, got ${got}` });
         return; // further keywords would only add noise
       }
     }

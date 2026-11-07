@@ -5,12 +5,11 @@
 // normwise max |ts - py| / max |py| over all points. Gate: pointwise <= 1e-12 for every field of every case.
 //   node packages/eval/bench/fields-crosscheck.ts [--json]   (runs uv once per case; nice 10)
 
-import { writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { evaluateExactField } from '../src/adapters/fields.ts';
 import { evaluateFields, FIELD_CASES, type FieldValues } from '../src/fields/index.ts';
-import { REPO_ROOT, isoWithOffset, logsDir, timestampStamp } from '../src/node-io.ts';
+import { REPO_ROOT, isoWithOffset, logsDir, timestampStamp, writeUnique } from '../src/node-io.ts';
 
 const lin = (a: number, b: number, n: number) => Array.from({ length: n }, (_, i) => a + ((b - a) * i) / (n - 1));
 const grid2 = (xs: number[], ys: number[]) => xs.flatMap((x) => ys.map((y) => [x, y]));
@@ -84,8 +83,7 @@ async function main(): Promise<number> {
     }
   }
   const pass = rows.every((r) => r.pass);
-  const path = join(logsDir(), `fields-crosscheck-${timestampStamp(started)}.jsonl`);
-  writeFileSync(path, [{ kind: 'meta', started_at: isoWithOffset(started), tol_rel: 1e-12, reference: 'validation/a/fields.py', port: 'packages/eval/src/fields' }, ...rows.map((r) => ({ kind: 'field', ...r })), { kind: 'summary', pass, n_fields: rows.length }].map((r) => JSON.stringify(r)).join('\n') + '\n');
+  const path = writeUnique(logsDir(), `fields-crosscheck-${timestampStamp(started)}`, [{ suffix: '.jsonl', text: [{ kind: 'meta', started_at: isoWithOffset(started), tol_rel: 1e-12, reference: 'validation/a/fields.py', port: 'packages/eval/src/fields' }, ...rows.map((r) => ({ kind: 'field', ...r })), { kind: 'summary', pass, n_fields: rows.length }].map((r) => JSON.stringify(r)).join('\n') + '\n' }])[0]!;
   if (json) process.stdout.write(JSON.stringify({ pass, rows, jsonl: path }) + '\n');
   else {
     for (const r of rows) process.stdout.write(`${r.pass ? 'pass' : 'FAIL'} ${r.case.padEnd(16)} ${r.field.padEnd(10)} n ${String(r.n).padStart(3)} near-zero ${String(r.n_near_zero).padStart(2)} pointwise ${r.max_rel_pointwise.toExponential(2)} normwise ${r.max_rel_normwise.toExponential(2)}\n`);

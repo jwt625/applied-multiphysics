@@ -182,6 +182,7 @@ export interface EigenMatch {
   groups: Array<{ ref: number; multiplicity: number; split_rel: number }>;  // degenerate reference groups
   n_computed: number;
   n_dropped: number;            // computed values under `floor`
+  n_nonfinite: number;          // NaN / Inf computed values (fail the match, audit S1)
   pass: boolean;
 }
 
@@ -196,7 +197,9 @@ export function matchEigen(
   opts: { offset?: number; floor?: number; match?: 'sorted' | 'subsequence'; degenerateRel?: number } = {},
 ): EigenMatch {
   const floor = opts.floor ?? -Infinity;
-  const all = Array.from(computed).filter((x) => Number.isFinite(x));
+  const raw = Array.from(computed);
+  const nonFinite = raw.filter((x) => !Number.isFinite(x)).length;
+  const all = raw.filter((x) => Number.isFinite(x));
   const comp = all.filter((x) => Math.abs(x) >= floor).sort((a, b) => a - b);
   const order = reference.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
   const refs = order.map((o) => o.v);
@@ -206,20 +209,26 @@ export function matchEigen(
     const off = opts.offset ?? 0;
     for (let k = 0; k < m; k++) if (off + k < n) assign[k] = off + k;
   } else {
-    // dp[k][j]: best cost matching refs[0..k) using comp[0..j)
+    // Order-preserving alignment with skips on both sides (audit M11): minimise the number of unmatched references
+    // first, then the sum of squared relative errors. dp[k][j] = best over refs[0..k), comp[0..j).
     const cost = (k: number, j: number) => { const d = (comp[j]! - refs[k]!) / (refs[k] !== 0 ? refs[k]! : 1); return d * d; };
-    const INF = Infinity;
-    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(INF));
-    for (let j = 0; j <= n; j++) dp[0]![j] = 0;
-    for (let k = 1; k <= m; k++) for (let j = k; j <= n; j++) {
-      dp[k]![j] = Math.min(dp[k]![j - 1]!, dp[k - 1]![j - 1]! + cost(k - 1, j - 1));
-    }
-    if (m <= n) {
-      let j = n;
-      for (let k = m; k >= 1; k--) {
-        while (j > k && dp[k]![j] === dp[k]![j - 1]) j--;
-        assign[k - 1] = j - 1; j--;
+    type Cell = { u: number; c: number; from: 0 | 1 | 2 };   // 0 = match, 1 = skip computed, 2 = skip reference
+    const better = (a: Cell, b: Cell) => a.u < b.u || (a.u === b.u && a.c < b.c);
+    const dp: Cell[][] = Array.from({ length: m + 1 }, () => new Array<Cell>(n + 1));
+    for (let k = 0; k <= m; k++) for (let j = 0; j <= n; j++) {
+      if (k === 0) { dp[0]![j] = { u: 0, c: 0, from: 1 }; continue; }
+      let best: Cell = { u: dp[k - 1]![j]!.u + 1, c: dp[k - 1]![j]!.c, from: 2 };
+      if (j > 0) {
+        const sk: Cell = { u: dp[k]![j - 1]!.u, c: dp[k]![j - 1]!.c, from: 1 };
+        if (better(sk, best)) best = sk;
+        const mt: Cell = { u: dp[k - 1]![j - 1]!.u, c: dp[k - 1]![j - 1]!.c + cost(k - 1, j - 1), from: 0 };
+        if (better(mt, best) || (mt.u === best.u && mt.c === best.c)) best = mt;
       }
+      dp[k]![j] = best;
+    }
+    for (let k = m, j = n; k > 0;) {
+      const f = dp[k]![j]!.from;
+      if (f === 0) { assign[k - 1] = j - 1; k--; j--; } else if (f === 1) j--; else k--;
     }
   }
   const pairs: EigenPair[] = [];
@@ -242,7 +251,19 @@ export function matchEigen(
     }
     k = e;
   }
-  return { pairs, unmatched_refs: unmatched, groups, n_computed: all.length, n_dropped: all.length - comp.length, pass: unmatched.length === 0 && pairs.every((p) => p.pass) };
+  return { pairs, unmatched_refs: unmatched, groups, n_computed: raw.length, n_dropped: all.length - comp.length, n_nonfinite: nonFinite, pass: nonFinite === 0 && unmatched.length === 0 && pairs.every((p) => p.pass) };
+}
+
+/**
+ * Eigenvalue selection for a scalar target (audit B4): sort ascending, drop |v| < floor (rigid-body / null modes),
+ * then skip `offset` more, then take position `index` (0-based). Use floor or offset to skip rigid modes, not both.
+ */
+export function selectEigen(computed: ArrayLike<number>, index: number, opts: { floor?: number; offset?: number } = {}): { value: number; reason?: string } {
+  const raw = Array.from(computed);
+  if (raw.some((x) => !Number.isFinite(x))) return { value: NaN, reason: 'non-finite eigenvalue in the computed list' };
+  const s = raw.filter((x) => Math.abs(x) >= (opts.floor ?? -Infinity)).sort((a, b) => a - b).slice(opts.offset ?? 0);
+  if (index >= s.length) return { value: NaN, reason: `index ${index} beyond ${s.length} computed values after floor / offset` };
+  return { value: s[index]! };
 }
 
 // ---------------------------------------------------------------------------------------------------------------

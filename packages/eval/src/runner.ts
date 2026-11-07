@@ -8,7 +8,7 @@ import { timeToAccuracy, type TimeToAccuracy } from './speed.ts';
 import type { ObserveOptions, Source, SpeedRecord } from './source.ts';
 import type { evaluateExactField } from './adapters/fields.ts';
 
-export type CaseStatus = 'pass' | 'fail' | 'pending' | 'error';
+export type CaseStatus = 'pass' | 'fail' | 'pending' | 'error' | 'timeout';
 
 export interface CaseResult {
   case: string;
@@ -22,11 +22,13 @@ export interface CaseResult {
   run: Record<string, unknown> | null;
   issues: LoadIssue[];
   speed?: SpeedRecord & { time_to_accuracy?: Record<string, TimeToAccuracy> };
+  levelRuns?: Array<{ level: number; dof: number; meshHash: string; wall_ms: number }>;
 }
 
 export interface RunOptions extends ObserveOptions { dryRun?: boolean; exactField?: typeof evaluateExactField }
 
 export function caseStatus(targets: TargetResult[], loaderErrors: number): CaseStatus {
+  if (targets.some((t) => t.status === 'timeout')) return 'timeout';
   if (loaderErrors > 0 || targets.some((t) => t.status === 'error')) return 'error';
   const gated = targets.filter((t) => t.gated);
   if (gated.some((t) => t.status === 'fail')) return 'fail';
@@ -54,12 +56,13 @@ export async function runCase(lc: LoadedCase, source: Source, opts: RunOptions =
   }
   if (opts.dryRun) {
     const p = await source.plan(lc);
-    return { ...base, status: 'pending', reason: `dry run: ${p.reason}`, targets: refs.map((r) => pendingTarget(r, referenceValue(r, lc.expected), `dry run: ${p.reason}`)) };
+    const st = p.error ? 'error' : 'pending';
+    return { ...base, status: st, reason: `dry run: ${p.reason}`, targets: refs.map((r) => pendingTarget(r, referenceValue(r, lc.expected), `dry run: ${p.reason}`, st)) };
   }
   let obs;
   try { obs = await source.observe(lc, opts); } catch (e) { obs = { kind: 'error' as const, reason: `source threw: ${(e as Error).message}` }; }
   if (obs.kind !== 'observed') {
-    const st = obs.kind === 'error' ? 'error' : 'pending';
+    const st = obs.kind === 'error' ? 'error' : obs.kind === 'timeout' ? 'timeout' : 'pending';
     return { ...base, status: st, reason: obs.reason, targets: refs.map((r) => pendingTarget(r, referenceValue(r, lc.expected), obs.reason, st)) };
   }
   const conv = c.convergence ?? undefined;
@@ -85,19 +88,32 @@ export async function runCase(lc: LoadedCase, source: Source, opts: RunOptions =
       ...(rs ? { refSamples: rs } : {}),
       ...(conv?.expected_order !== undefined ? { expectedOrder: conv.expected_order } : {}),
       ...(conv?.safety_factor !== undefined ? { safetyFactor: conv.safety_factor } : {}),
+      ...(conv?.order_band !== undefined ? { orderBand: conv.order_band } : {}),
+      ...(conv?.order_check !== undefined ? { orderCheck: conv.order_check } : {}),
     });
   })());
   const res: CaseResult = { ...base, targets, run: obs.run as Record<string, unknown>, status: caseStatus(targets, 0) };
+  if (obs.levelRuns) res.levelRuns = obs.levelRuns;
   if (obs.speed) {
+    // S5: per-level medians (warm-up + median of 5) drive time-to-accuracy; S6: judged against the native budget only
+    const med = obs.speed.levels.map((l) => l.median_ms);
     const tta: Record<string, TimeToAccuracy> = {};
+    let tTol: number | null = 0;
     for (const t of targets) {
-      if (!t.levels || t.limit === undefined || t.levels.some((l) => l.err === undefined || l.wall_ms === undefined)) continue;
-      tta[t.target] = timeToAccuracy(t.levels.map((l, i) => ({ level: i, dof: l.dof ?? NaN, wall_ms: l.wall_ms!, error: l.err! })), t.limit);
+      if (!t.levels || t.limit === undefined || t.levels.some((l) => l.err === undefined)) continue;
+      const x = timeToAccuracy(t.levels.map((l, i) => ({ level: i, dof: l.dof ?? NaN, wall_ms: med[i] ?? NaN, error: l.err! })), t.limit);
+      tta[t.target] = x;
+      if (!t.gated) continue;
+      const tt = !x.reached ? null : t.tol.after === 'richardson' ? med.reduce((a, b) => a + b, 0) : x.t_cum_ms;
+      tTol = tTol === null || tt === null ? null : Math.max(tTol, tt);
     }
+    const native = c.speed?.budget_s?.native ?? undefined;
     const allPass = targets.filter((t) => t.gated).every((t) => t.status === 'pass');
     res.speed = {
-      ...obs.speed, time_to_accuracy: tta,
-      ...(obs.speed.budget_s !== undefined ? { meets_budget: allPass ? obs.speed.median_ms / 1000 <= obs.speed.budget_s : null } : {}),
+      ...obs.speed, time_to_accuracy: tta, t_tol_ms: allPass ? tTol : null,
+      ...(native !== undefined && native !== null ? { budget_s: native } : {}),
+      meets_budget: native === undefined || native === null || !allPass || tTol === null ? null : tTol / 1000 <= native,
+      ...(native === undefined || native === null ? { budget_note: 'pending: no budget_s.native (the browser budget is judged by the browser runner)' } : !allPass ? { budget_note: 'pending: a gated target does not pass' } : {}),
     };
   }
   if (res.status !== 'pass') {
@@ -113,9 +129,11 @@ export async function runCases(cases: LoadedCase[], source: Source, opts: RunOpt
   return out;
 }
 
-/** 0 = pass (pending allowed), 1 = error, 2 = a gated target missed. Errors take precedence. */
-export function exitCode(results: CaseResult[]): 0 | 1 | 2 {
-  if (results.some((r) => r.status === 'error')) return 1;
+/** 0 = pass (pending allowed unless strict), 1 = error / timeout (or a gated pending target with strict), 2 = a
+ * gated target missed. Errors take precedence. */
+export function exitCode(results: CaseResult[], opts: { strict?: boolean } = {}): 0 | 1 | 2 {
+  if (results.some((r) => r.status === 'error' || r.status === 'timeout')) return 1;
+  if (opts.strict && results.some((r) => r.targets.some((t) => t.gated && t.status === 'pending'))) return 1;
   if (results.some((r) => r.status === 'fail')) return 2;
   return 0;
 }

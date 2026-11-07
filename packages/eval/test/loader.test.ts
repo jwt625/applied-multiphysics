@@ -19,7 +19,7 @@ test('unknown key: error at the key with line and column', () => {
   assert.equal(e.length, 1);
   assert.equal(e[0]!.path, '/tolerence');
   assert.equal(e[0]!.keyword, 'additionalProperties');
-  assert.equal(e[0]!.line, 20);
+  assert.equal(e[0]!.line, 21);
   assert.equal(e[0]!.col, 1);
 });
 
@@ -31,7 +31,7 @@ test('nested unknown key inside a reference', () => {
   const e = errors(caseYaml({ refExtra: '\n    tolerence: {rel: 1}' }));
   assert.equal(e.length, 1);
   assert.equal(e[0]!.path, '/references/0/tolerence');
-  assert.equal(e[0]!.line, 18);
+  assert.equal(e[0]!.line, 19);
 });
 
 test('tolerance without rel, abs or rule', () => {
