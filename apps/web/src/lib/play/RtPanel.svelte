@@ -6,7 +6,7 @@
 	import { onMount, untrack } from 'svelte';
 	import type { RealtimeKernelExt, ViewSpec } from '@amp/rt';
 	import { RT_DEFS, RT_KERNELS, type RtKernelId } from './rt-kernels';
-	import { fmt } from '../gfx/ticks';
+	import { fmt, niceTicks } from '../gfx/ticks';
 	import { cssGradient } from '../gfx/colormaps';
 	import Tip from '../ui/Tip.svelte';
 
@@ -37,6 +37,9 @@
 	let dirty = true;
 
 	const spec = $derived(views.find((v) => v.id === viewId) ?? null);
+	// colorbar ticks (interior nice values that do not crowd the end labels)
+	const cbPos = (v: number) => (hi > lo ? (100 * (v - lo)) / (hi - lo) : 0);
+	const cbTicks = $derived(niceTicks(lo, hi, 5).filter((t) => cbPos(t) > 14 && cbPos(t) < 86));
 
 	async function rebuild() {
 		if (!rt || !device || !renderer) return;
@@ -55,8 +58,9 @@
 	function layout() {
 		if (!k || !canvas || !box) return;
 		const { nx, ny } = k.grid;
-		// the colorbar column (84 px) is outside the field area
-		const W = box.clientWidth - 84 - 16, H = box.clientHeight - 40;
+		// the colorbar column (84 px) is outside the field area; phones: a 56 px colorbar strip below it (DevLog-015)
+		const narrow = window.innerWidth <= 760;
+		const W = box.clientWidth - (narrow ? 12 : 84 + 16), H = box.clientHeight - (narrow ? 40 + 56 : 40);
 		const s = Math.min(W / nx, H / ny);
 		const cw = Math.max(64, Math.floor(nx * s)), ch = Math.max(64, Math.floor(ny * s));
 		canvas.style.width = `${cw}px`;
@@ -166,7 +170,15 @@
 		{#if k && !running && k.info().steps === 0 && !unavailable}<div class="hint">Run, or draw on the field to start</div>{/if}
 		{#if unavailable}<div class="unav"><div class="na">{unavailable}</div>{#if probe}<div class="dim mono">{probe}</div>{/if}</div>{/if}
 		{#if spec}
-			<div class="cb"><span class="mono">{spec.unit}</span><div class="bar" style="background: {cssGradient(spec.map)}"></div><span class="mono hi">{fmt(hi)}</span><span class="mono lo">{fmt(lo)}</span></div>
+			<div class="cb" data-tip={`${spec.label} [${spec.unit}]: ${fmt(lo)} to ${fmt(hi)}${auto ? ', auto range from the 99th percentile of |value|' : ''}`}>
+				<span class="mono un">{spec.unit}</span>
+				<div class="bar v" style="background: {cssGradient(spec.map)}">
+					{#each [lo, ...cbTicks, hi] as t}<div class="tk" style="bottom: {cbPos(t)}%"><span class="mono">{fmt(t)}</span></div>{/each}
+				</div>
+				<div class="bar h" style="background: {cssGradient(spec.map, false, 'to right')}">
+					{#each [lo, ...cbTicks, hi] as t}<div class="tkh" style="left: {cbPos(t)}%"><span class="mono">{fmt(t)}</span></div>{/each}
+				</div>
+			</div>
 		{/if}
 		<div class="foot mono"><span>{hover}</span><span class="sp"></span>{#if k}<span>{stats.fps.toFixed(0)} fps, {fmt(stats.sps)} steps/s, {k.grid.nx} x {k.grid.ny}</span>{/if}</div>
 	</div>
@@ -209,11 +221,16 @@
 	.hide { visibility: hidden; }
 	.hint { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(13, 13, 13, 0.85); border: 1px solid var(--border); padding: 6px 10px; font-size: 12px; pointer-events: none; }
 	.unav { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; padding: 20px; text-align: center; font-size: 11px; overflow-wrap: anywhere; }
-	.cb { position: absolute; right: 8px; top: 30px; bottom: 34px; width: 50px; display: flex; flex-direction: column; font-size: 10px; color: var(--ink-2); }
-	.cb .bar { flex: 1; width: 12px; border: 1px solid var(--border); margin: 3px 0; }
-	.cb .hi { position: absolute; left: 16px; top: 16px; }
-	.cb .lo { position: absolute; left: 16px; bottom: 0; }
-	.foot { position: absolute; left: 6px; right: 6px; bottom: 4px; display: flex; font-size: 11px; color: var(--ink-2); white-space: nowrap; overflow: hidden; }
+	.cb { position: absolute; right: 0; top: 0; bottom: 0; width: 84px; padding: 10px 6px 26px 12px; border-left: 1px solid var(--line); display: flex; flex-direction: column; font-size: 10px; color: var(--ink-2); }
+	.cb .un { font-size: 12px; color: var(--ink); margin-bottom: 10px; }
+	.cb .bar { position: relative; border: 1px solid var(--border); }
+	.cb .bar.v { flex: 1; width: 14px; }
+	.cb .bar.h { display: none; }
+	.tk { position: absolute; left: 14px; height: 0; width: 4px; border-top: 1px solid var(--ink-3); }
+	.tk span { position: absolute; left: 7px; top: -7px; white-space: nowrap; }
+	.tkh { position: absolute; top: 12px; width: 0; height: 4px; border-left: 1px solid var(--ink-3); }
+	.tkh span { position: absolute; top: 4px; transform: translateX(-50%); white-space: nowrap; }
+	.foot { position: absolute; left: 6px; right: 90px; bottom: 4px; display: flex; gap: 12px; font-size: 11px; color: var(--ink-2); white-space: nowrap; overflow: hidden; }
 	aside { background: var(--surface); border-left: 1px solid var(--line); padding: 8px; display: flex; flex-direction: column; gap: 4px; overflow: auto; min-height: 0; }
 	.h { margin-top: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); }
 	.row { display: flex; gap: 4px; align-items: center; }
@@ -228,5 +245,11 @@
 		header { grid-column: 1; }
 		header .btn, header > a.dim { display: none; }
 		aside { border-left: 0; border-top: 1px solid var(--line); }
+		.cv { padding-right: 0; padding-bottom: 56px; }
+		.cb { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 52px; flex-direction: row; gap: 10px; padding: 8px 22px 4px 8px; border-left: 0; border-top: 1px solid var(--line); }
+		.cb .un { margin: 0; }
+		.cb .bar.v { display: none; }
+		.cb .bar.h { display: block; flex: 1; height: 12px; margin-top: 2px; }
+		.foot { right: 6px; bottom: 56px; }
 	}
 </style>

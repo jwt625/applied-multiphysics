@@ -12,13 +12,13 @@
 	import { decodeShare } from '../state/diff';
 	import { paramPatchSI, paramViews, type ParamView } from '../state/params';
 	import { appLog } from '../state/log.svelte';
-	import { fmt, fmtMs } from '../gfx/ticks';
+	import { fmt, fmtEng, fmtMs } from '../gfx/ticks';
 	import Graphics, { type Mode } from '../gfx/Graphics.svelte';
 	import type { Handle } from '../gfx/Canvas2D.svelte';
 	import ParamSlider from '../ui/ParamSlider.svelte';
 	import Tip from '../ui/Tip.svelte';
-	import { FOCUS, HANDLES, presetsFor } from './heroes';
-	import Headlines from '../ui/Headlines.svelte';
+	import { ACCURACY, BAND, FOCUS, HANDLES, MIRROR, presetsFor } from './heroes';
+	import HeroHead from './HeroHead.svelte';
 	import { unitLabel } from '../gfx/units';
 	import { HOOKS } from '../shell/hooks';
 	import AgentPanel from '../agent/AgentPanel.svelte';
@@ -58,6 +58,8 @@
 	let failed = $state('');
 	let mode = $state<Mode>('geometry');
 	let shareMsg = $state('');
+	/** phones: the aside is a bottom sheet (peek / open) */
+	let sheetOpen = $state(false);
 	let hasPhysics = $state(false);
 
 	onMount(() => {
@@ -71,6 +73,8 @@
 				if (!alive) return sess.dispose();
 				hasPhysics = moduleList(phys).length > 0;
 				sess.autoCompute = hasPhysics;
+				// full-accuracy sequence after each full run (nested levels of the paired case; not for the 3D cavity solve)
+				if (!solver3d) sess.accuracy = ACCURACY[simId] ?? null;
 				if (share) {
 					try { await sess.model.apply(decodeShare(share), 'from share URL'); } catch (e) { appLog.error(`share URL: ${(e as Error).message}`); }
 				}
@@ -109,6 +113,13 @@
 	// the focus box is taken once per model (the view stays put while the user drags)
 	let focus = $state<[number, number, number, number] | null>(null);
 	$effect(() => { if (!focus && info && FOCUS[simId]) focus = FOCUS[simId]!(info); });
+	/** after a gesture or an exact edit: re-frame (eased) when the region of interest moved by more than 10 % */
+	function reframe() {
+		const f = info && FOCUS[simId] ? FOCUS[simId]!(info) : null;
+		if (!f || !focus) return;
+		const size = Math.max(focus[2] - focus[0], focus[3] - focus[1]);
+		if (f.some((v, i) => Math.abs(v - focus![i]!) > 0.1 * size)) focus = f;
+	}
 
 	const factor = (u: string) => { try { return units.parseUnit(u || '1').factor; } catch { return 1; } };
 
@@ -126,10 +137,12 @@
 	async function endDrag() {
 		await lastStep;
 		s?.finishDrag();
+		reframe();
 	}
 	async function commitParam(p: ParamView, v: number) {
 		if (!s) return;
 		await s.model.apply(patchFor(p, v), `set ${p.name}`);
+		reframe();
 	}
 
 	function onhandle(id: string, x: number, y: number, phase: 'move' | 'end') {
@@ -157,6 +170,7 @@
 			patch.push(...paramPatchSI(data.params as Record<string, unknown>, k, v * factor(pv.unit), pi.dim));
 		}
 		await s.model.apply(patch, `preset ${name}`);
+		reframe();
 	}
 
 	async function copyShare() {
@@ -175,6 +189,8 @@
 	let step = $state(0);
 	let playing = $state(false);
 	const ranges: Record<string, 'full' | 'robust'> = { 'helmholtz-coil': 'robust' };
+	/** temperatures shown in degC when the model reports its own results in degC (display only; SI in the tooltip) */
+	const degC = $derived(((data?.results ?? []) as Array<{ unit?: string }>).some((r) => r.unit === 'degC'));
 	const solState = $derived(!s?.solution ? '' : s.staleSolution ? 'stale' : s.solutionCoarse ? 'coarse' : '');
 </script>
 
@@ -195,10 +211,12 @@
 			{#if shareMsg}<span class="dim msg">{shareMsg}</span>{/if}
 		</header>
 		<div class="cv">
-			{#if s}<Graphics {s} bind:mode bind:step bind:playing {handles} {onhandle} {focus} compact revolve={specId !== simId} rangeDefault={ranges[simId] ?? 'full'} contoursDefault={simId !== 'helmholtz-coil'} fieldLinesDefault autoAnimate />{/if}
+			{#if s}<Graphics {s} bind:mode bind:step bind:playing {handles} {onhandle} {focus} compact revolve={specId !== simId} rangeDefault={ranges[simId] ?? 'full'} contoursDefault={simId !== 'helmholtz-coil'} fieldLinesDefault autoAnimate mirror={MIRROR[simId] ?? null} band={BAND[simId] ?? null} padTop={72} />{/if}
+			{#if s && mode === 'results'}<HeroHead {s} {step} />{/if}
 		</div>
 		{#if s && agentMounted}<section class="agent" class:hidden={!agentOpen}><AgentPanel {s} nav={navHost} provider={mock} /></section>{/if}
-		<aside>
+		<aside class:open={sheetOpen}>
+			<button class="grab" onclick={() => (sheetOpen = !sheetOpen)} aria-expanded={sheetOpen} data-tip="Parameters, presets and results">{sheetOpen ? 'Hide parameters' : 'Parameters'}</button>
 			<div class="h">parameters</div>
 			{#each params as p (p.name)}
 				{@const pi = info?.get(p.name)}
@@ -209,15 +227,14 @@
 				<div class="pre">{#each presets as pr}<button data-tip={pr.tip} onclick={() => preset(pr.values, pr.name)}>{pr.name}</button>{/each}</div>
 			{/if}
 			<div class="h">results{#if solState}<span class="warn"> {solState}</span>{/if}</div>
-			{#if s}<Headlines {s} big />{/if}
 			{#if modes.length}
 				<div class="modes">
-					{#each modes as f, i}{@const mm = s?.solution?.scalars[`m_${i}`]?.value}<button class:on={i === step} data-tip={`mode ${i}: ${fmt(f, 6)} ${unitLabel(modeUnit)}${mm !== undefined ? `, azimuthal order m = ${mm}` : ''}; click to show`} onclick={() => { step = i; playing = true; mode = 'results'; }}>{fmt(f, 4)} {unitLabel(modeUnit)}{mm !== undefined ? ` m${mm}` : ''}</button>{/each}
+					{#each modes as f, i}{@const mm = s?.solution?.scalars[`m_${i}`]?.value}{@const e = fmtEng(f, modeUnit, 4)}<button class:on={i === step} data-tip={`mode ${i}: ${fmt(f, 6)} ${unitLabel(modeUnit)}${mm !== undefined ? `, azimuthal order m = ${mm}` : ''}; click to show`} onclick={() => { step = i; playing = true; mode = 'results'; }}>{e.num} {unitLabel(e.unit)}{mm !== undefined ? ` m${mm}` : ''}</button>{/each}
 				</div>
 			{/if}
 			{#if scalars.length}
 				<div class="sc" class:dimv={!!solState}>
-					{#each scalars as [k, q]}<div class="kv mono"><span>{k}</span><span>{fmt(q.value)} {unitLabel(q.unit)}</span></div>{/each}
+					{#each scalars as [k, q]}{@const e = q.unit === 'K' && degC ? { num: fmt(q.value - 273.15, 4), unit: 'degC' } : fmtEng(q.value, q.unit)}<div class="kv mono" data-tip={`${fmt(q.value, 6)} ${q.unit === '1' ? '' : q.unit} (SI)`}><span>{k}</span><span>{e.num} {unitLabel(e.unit)}</span></div>{/each}
 				</div>
 			{:else if !modes.length}
 				<div class="na">{s?.status === 'solving' ? 'computing...' : s?.status === 'unavailable' ? `unavailable: ${s.reasons[0] ?? ''}` : hasPhysics ? 'not computed' : 'unavailable: no @amp/physics module registered'}</div>
@@ -265,10 +282,15 @@
 	.modes button { font-size: 11px; }
 	.dimv { opacity: 0.55; }
 	.case { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-2); }
+	.grab { display: none; }
 	@media (max-width: 760px) {
-		.play { grid-template-columns: minmax(0, 1fr); grid-template-rows: 34px minmax(0, 1fr) 240px; }
+		.play { grid-template-columns: minmax(0, 1fr); grid-template-rows: 34px minmax(0, 1fr) 46px; position: relative; }
 		header { grid-column: 1; }
-		aside { border-left: 0; border-top: 1px solid var(--line); }
+		/* bottom sheet: a 46 px peek row with the grab bar; open, it covers the lower 62 % of the canvas */
+		aside { grid-row: 3; grid-column: 1; position: absolute; left: 0; right: 0; bottom: 0; height: 46px; overflow: hidden; z-index: 4; border-left: 0; border-top: 1px solid var(--line); transition: height 0.22s ease-out; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45); }
+		aside.open { height: 62%; overflow: auto; }
+		.grab { display: block; flex: none; width: 100%; min-height: 36px; text-align: center; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--border); margin-bottom: 4px; }
+		.grab::before { content: ''; display: block; width: 36px; height: 3px; margin: 0 auto 3px; background: var(--ink-3); }
 		.play.withagent { grid-template-columns: minmax(0, 1fr); }
 		.play.withagent header { grid-column: 1; }
 		.agent { grid-column: 1; grid-row: 2; z-index: 3; border-left: 0; }

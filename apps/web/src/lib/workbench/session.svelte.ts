@@ -13,10 +13,14 @@ import { ModelState } from '../state/model.svelte';
 import { appLog } from '../state/log.svelte';
 import { fmtMs } from '../gfx/ticks';
 import { loadCaseFor, type CaseInfo } from '../cases';
+import { caseConvergence, estimate, levelValues, type AccState, type AccuracyDef, type LevelRecord } from '../post/accuracy';
+
+/** largest nested level the full-accuracy sequence solves in the browser (DOF) */
+export const ACC_DOF_CAP = 1_000_000;
 
 export type Status = 'idle' | 'meshing' | 'meshed' | 'solving' | 'solved' | 'unavailable' | 'error';
 
-export interface MeshInfo { type: string; cells: number; nodes: number; source: string; hash: string; ms: { parse: number; geometry: number; mesh: number }; roundTripMs: number; qmin: number; qmean: number }
+export interface MeshInfo { hFactor: number; type: string; cells: number; nodes: number; source: string; hash: string; ms: { parse: number; geometry: number; mesh: number }; roundTripMs: number; qmin: number; qmean: number }
 
 /** SI value -> display unit (affine degC handled by the spec's unit table). */
 export function displayScale(unit: string | null | undefined): { a: number; b: number; unit: string } {
@@ -57,6 +61,13 @@ export class Session {
 	/** paired eval case (`# eval: [...]` line of the sims file); used only when switched on */
 	caseInfo = $state.raw<CaseInfo | null>(null);
 	useCase = $state(false);
+	/** Play: full-accuracy sequence after each full run (nested levels of the paired case; post/accuracy.ts) */
+	accuracy: AccuracyDef | null = null;
+	acc = $state.raw<AccState | null>(null);
+	/** hFactor of the displayed solution (1 = the spec's mesh; < 1 = a nested refinement from the accuracy sequence) */
+	solutionLevel = $state(1);
+	private accEngine: EngineClient | null = null;
+	private accToken = 0;
 	private unsub: () => void;
 	private busy = false;
 	private pending: { scale: number; solve: boolean } | null = null;
@@ -121,6 +132,7 @@ export class Session {
 		const inv = new Set(op.invalidates);
 		const geo = inv.has('geometry') || inv.has('mesh');
 		if (geo) this.meshDependsOnEdit = true;
+		this.stopRefine();
 		if (this.model.dragging) this.dragT0 = performance.now();
 		const scale = this.model.dragging ? 2 : 1;
 		if (this.autoCompute && (geo || inv.has('solution'))) this.schedule(scale, true);
@@ -129,14 +141,14 @@ export class Session {
 		appLog.info(`op #${op.seq} ${op.kind} ${op.patch.filter((p) => p.op !== 'test').map((p) => `${p.op} ${p.path}`).join(', ')}${op.validation.ok ? '' : ` (invalid: ${op.validation.errors.length} issues)`}`);
 	}
 
-	private setMesh(mesh: Mesh, quality: Float64Array, ms: MeshInfo['ms'], source: string, t0: number, spec: string) {
+	private setMesh(mesh: Mesh, quality: Float64Array, ms: MeshInfo['ms'], source: string, t0: number, spec: string, hFactor = 1) {
 		this.mesh = mesh;
 		this.post.setMesh(mesh);
 		this.m2 = mesh.dim === 2 ? toMesh2D(mesh) : null;
 		this.quality = quality;
 		let qmin = Infinity, qs = 0;
 		for (const v of quality) { if (v < qmin) qmin = v; qs += v; }
-		this.meshInfo = { type: mesh.cells.type, cells: mesh.cells.domain.length, nodes: mesh.nodes.length / mesh.dim, source, hash: mesh.hash, ms, roundTripMs: performance.now() - t0, qmin, qmean: qs / quality.length };
+		this.meshInfo = { hFactor, type: mesh.cells.type, cells: mesh.cells.domain.length, nodes: mesh.nodes.length / mesh.dim, source, hash: mesh.hash, ms, roundTripMs: performance.now() - t0, qmin, qmean: qs / quality.length };
 		this.meshSpec = spec;
 		this.meshDependsOnEdit = false;
 	}
@@ -160,7 +172,9 @@ export class Session {
 			this.solution = o.solution;
 			this.solutionSpec = spec;
 			this.solutionCoarse = scale > 1;
+			this.solutionLevel = 1;
 			if (scale === 1) appLog.info(`${what}: solved in ${fmtMs(o.ms)}, ${o.solution.stats.dof} DOF, ${o.solution.stats.solver}`);
+			if (scale === 1 && what === 'compute' && this.accuracy && !this.model.dragging && spec === this.model.specHash) void this.refine(spec, o.solution, o.ms);
 		} else if (o.kind === 'meshed') this.status = this.solution ? 'solved' : 'meshed';
 		return o;
 	}
@@ -209,7 +223,64 @@ export class Session {
 		this.schedule(1, true);
 	}
 
+	/** Stop the accuracy sequence (any edit): its worker is terminated at once, so it never delays a drag preview. */
+	stopRefine() {
+		this.accToken++;
+		this.accEngine?.dispose();
+		this.accEngine = null;
+		if (this.acc?.status === 'running') this.acc = null;
+	}
+
+	/**
+	 * Full-accuracy sequence: the levels of the paired case after hFactor 1, solved in a second worker on the same spec
+	 * text; each finer result replaces the displayed solution (real solutions only, coarse to fine), and the headline
+	 * quantity per level feeds the Richardson estimate (post/accuracy.ts).
+	 */
+	private async refine(spec: string, sol0: Solution, ms0: number) {
+		const def = this.accuracy, mesh0 = this.mesh, params = this.model.parsed?.params;
+		if (!def || !mesh0 || !params) return;
+		this.stopRefine();
+		const tok = ++this.accToken;
+		const conv = caseConvergence(this.caseInfo?.id ?? 'N/A', this.caseInfo?.data ?? null, def.metric);
+		const results = ((this.model.data as { results?: unknown[] } | null)?.results ?? []);
+		const startedAt = performance.now();
+		const rec = async (h: number, sol: Solution, mesh: Mesh, ms: number): Promise<LevelRecord> => ({ h, dof: sol.stats.dof, ms, values: await levelValues(def, sol, mesh, params, results, this.post), meshHash: mesh.hash, cells: mesh.cells.domain.length });
+		const levels: LevelRecord[] = [await rec(1, sol0, mesh0, ms0)];
+		const hs = conv.hFactors.filter((h) => h < 1);
+		const put = (st: Partial<AccState>) => { if (tok === this.accToken) this.acc = { status: 'running', levels: [...levels], next: null, conv, def, rich: estimate(levels, conv), reason: '', doneAt: 0, startedAt, ...st }; };
+		if (conv.hFactors[0] !== 1) { put({ status: 'unavailable', reason: `${conv.hNote} does not start at 1` }); return; }
+		for (const h of hs) {
+			// browser cap: the predicted DOF of a nested level (dof(1) / h^dim); the rib's h = 0.5 level (1.3M DOF) ended in
+			// a stack overflow inside em-modes on 2026-11-06 (DevLog-015 s.5), so larger levels are not attempted
+			const pred = levels[0]!.dof / h ** mesh0.dim;
+			if (pred > ACC_DOF_CAP) { put({ status: 'unavailable', reason: `level h ${h}: predicted ${(pred / 1e6).toPrecision(2)}M DOF exceeds the browser cap of ${ACC_DOF_CAP / 1e6}M DOF` }); return; }
+			put({ next: h });
+			const text = this.model.text;
+			const kase = this.useCase && this.caseInfo ? { case: this.caseInfo.data } : {};
+			this.accEngine ??= new EngineClient();
+			let lm: { mesh: Mesh; q: Float64Array; ms: MeshInfo['ms']; src: string } | null = null;
+			const t0 = performance.now();
+			const o = await this.accEngine.run(text, { meshScale: h, ...kase }, { mesh: (mesh, q, ms, src) => { lm = { mesh, q, ms, src }; } });
+			if (tok !== this.accToken || spec !== this.model.specHash) return;
+			if (o.kind !== 'result' || !lm) { put({ status: 'unavailable', reason: o.kind === 'error' ? `level h ${h}: ${o.message}` : o.kind === 'unavailable' ? `level h ${h}: ${o.reasons.join('; ')}` : `level h ${h}: ${o.kind}` }); return; }
+			const L = lm as { mesh: Mesh; q: Float64Array; ms: MeshInfo['ms']; src: string };
+			// show the finer real solution (same spec, nested mesh)
+			this.setMesh(L.mesh, L.q, L.ms, L.src, t0, spec, h);
+			this.solution = o.solution;
+			this.solutionSpec = spec;
+			this.solutionCoarse = false;
+			this.solutionLevel = h;
+			levels.push(await rec(h, o.solution, L.mesh, o.ms));
+			if (tok !== this.accToken) return;
+			appLog.info(`accuracy: level h ${h}: ${o.solution.stats.dof} DOF in ${fmtMs(o.ms)}`);
+		}
+		this.accEngine?.dispose();
+		this.accEngine = null;
+		put({ status: 'done', doneAt: performance.now() });
+	}
+
 	cancel() {
+		this.stopRefine();
 		this.engine.cancel();
 		appLog.warn('run cancelled');
 		this.progress = null;
@@ -218,6 +289,7 @@ export class Session {
 	}
 
 	dispose() {
+		this.stopRefine();
 		this.unsub();
 		this.engine.dispose();
 		this.post.dispose();

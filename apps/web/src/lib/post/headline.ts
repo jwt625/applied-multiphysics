@@ -9,7 +9,7 @@ import type { FieldData, Mesh, Solution } from '@amp/spec/types';
 import type { PostClient } from './client';
 import type { Space } from './field2d';
 
-export interface Headline { id: string; label: string; value: number | null; unit: string; tip: string }
+export interface Headline { id: string; label: string; value: number | null; unit: string; tip: string; /** probe location (m), 2D */ at?: [number, number] }
 
 type ResultNode = { id: string; type: string; expr?: string; unit?: string; select?: string[]; at?: unknown[]; step?: number };
 
@@ -54,7 +54,7 @@ export async function headlines(results: ResultNode[], sol: Solution, mesh: Mesh
 				if (!f || mesh.dim !== 2 || at.length !== 2 || (f.space !== 'H1P1' && f.space !== 'H1P2' && f.space !== 'DG0')) { out.push({ id: r.id, label: r.id, value: null, unit, tip: `${expr}: probe not evaluated in the browser` }); continue; }
 				const res = await post.call<'evalAt'>({ type: 'evalAt', field: { space: f.space as Space, data: f.data, components: f.components }, comp: 0, points: at });
 				const v = res.values[0];
-				out.push({ id: r.id, label: r.id, value: v === null || v === undefined ? null : conv(v), unit, tip: `${expr} at (${at.map((x) => x.toPrecision(4)).join(', ')}) m, exact FE evaluation` });
+				out.push({ id: r.id, label: r.id, value: v === null || v === undefined ? null : conv(v), unit, tip: `${expr} at (${at.map((x) => x.toPrecision(4)).join(', ')}) m, exact FE evaluation`, at: [at[0]!, at[1]!] });
 			}
 		} catch (e) {
 			out.push({ id: r.id, label: r.id, value: null, unit, tip: `${expr}: ${(e as Error).message}` });

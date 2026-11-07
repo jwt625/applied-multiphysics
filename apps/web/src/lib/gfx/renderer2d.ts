@@ -37,6 +37,13 @@ export interface Layer2D {
 	regionMask?: Uint8Array | null;
 	wire?: boolean;
 	wireColor?: string;
+	/** contour line opacity (0..1, default 1) */
+	opacity?: number;
+	/**
+	 * mirrored copies (symmetry display, DevLog-015): each copy reflects x by sx and y by sy (+1 / -1) and multiplies
+	 * the value by `sign` (the field's parity under that reflection). Default: the layer as computed only.
+	 */
+	mirror?: Array<{ sx: number; sy: number; sign: number }>;
 }
 
 export interface DrawState2D { view: View2D; background: string; layers: Layer2D[] }
@@ -50,12 +57,13 @@ in float aVal;
 in float aReg;
 uniform vec2 uScale;
 uniform vec2 uOffset;
+uniform float uValSign;
 out float vVal;
 out vec3 vBary;
 flat out int vReg;
 void main() {
 	vBary = vec3(aBary, 1.0 - aBary.x - aBary.y);
-	vVal = aVal;
+	vVal = aVal * uValSign;
 	vReg = int(aReg + 0.5);
 	gl_Position = vec4(aPos * uScale + uOffset, 0.0, 1.0);
 }`;
@@ -79,6 +87,7 @@ uniform int uNLevels;
 uniform float uLevels[${MAX_LEVELS}];
 uniform int uUniform;
 uniform vec3 uUniformColor;
+uniform float uOpacity;
 out vec4 outColor;
 float mapT(float v) {
 	if (uLog == 2) {
@@ -114,7 +123,7 @@ void main() {
 		}
 		if (best <= 0.01) discard;
 		col = uUniform == 1 ? uUniformColor : lut(lev);
-		alpha = best;
+		alpha = best * uOpacity;
 	} else {
 		col = texelFetch(uRegions, ivec2(vReg, 0), 0).rgb;
 	}
@@ -190,7 +199,7 @@ export class Renderer2D {
 	private constructor(gl: WebGL2RenderingContext) {
 		this.gl = gl;
 		this.prog = compile(gl, VS, FS);
-		for (const n of ['uScale', 'uOffset', 'uMode', 'uLog', 'uMin', 'uMax', 'uLut', 'uRegions', 'uMask', 'uUseMask', 'uWire', 'uWireColor', 'uNLevels', 'uLevels', 'uUniform', 'uUniformColor'])
+		for (const n of ['uScale', 'uOffset', 'uMode', 'uLog', 'uMin', 'uMax', 'uLut', 'uRegions', 'uMask', 'uUseMask', 'uWire', 'uWireColor', 'uNLevels', 'uLevels', 'uUniform', 'uUniformColor', 'uValSign', 'uOpacity'])
 			this.u[n] = gl.getUniformLocation(this.prog, n);
 		for (const n of ['aPos', 'aBary', 'aVal', 'aReg']) this.loc[n] = gl.getAttribLocation(this.prog, n);
 		this.vao = gl.createVertexArray()!;
@@ -336,8 +345,6 @@ export class Renderer2D {
 			const scalar = L.kind !== 'region';
 			const vals = scalar && L.values && L.values.length === L.disp.nT * L.disp.np ? L.values : null;
 			if (scalar && !vals) continue;
-			gl.uniform2f(u.uScale!, sx, sy);
-			gl.uniform2f(u.uOffset!, (L.disp.c0[0] - s.view.cx) * sx, (L.disp.c0[1] - s.view.cy) * sy);
 			const bind = (buf: WebGLBuffer, name: string, size: number) => {
 				gl.bindBuffer(gl.ARRAY_BUFFER, buf);
 				gl.enableVertexAttribArray(this.loc[name]!);
@@ -376,8 +383,15 @@ export class Renderer2D {
 			if (lv.length) gl.uniform1fv(u.uLevels!, Float32Array.from(lv));
 			gl.uniform1i(u.uUniform!, L.uniform ? 1 : 0);
 			gl.uniform3fv(u.uUniformColor!, rgb01(L.uniform ?? '#ffffff'));
+			gl.uniform1f(u.uOpacity!, L.opacity ?? 1);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, e.idx);
-			gl.drawElements(gl.TRIANGLES, e.n, gl.UNSIGNED_INT, 0);
+			// one draw per mirrored copy: reflected transform (world x -> mx x) and the value times its parity
+			for (const m of L.mirror ?? [{ sx: 1, sy: 1, sign: 1 }]) {
+				gl.uniform2f(u.uScale!, sx * m.sx, sy * m.sy);
+				gl.uniform2f(u.uOffset!, (m.sx * L.disp.c0[0] - s.view.cx) * sx, (m.sy * L.disp.c0[1] - s.view.cy) * sy);
+				gl.uniform1f(u.uValSign!, m.sign);
+				gl.drawElements(gl.TRIANGLES, e.n, gl.UNSIGNED_INT, 0);
+			}
 		}
 		gl.disable(gl.BLEND);
 		gl.bindVertexArray(null);

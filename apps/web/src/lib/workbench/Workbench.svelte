@@ -25,6 +25,7 @@
 	import AgentPanel from '../agent/AgentPanel.svelte';
 	import { navTrail, resolvePointer, type CameraRequest, type NavigationHost, type NavResult, type ViewMode } from '../state/nav.svelte';
 	import Splitter from '../ui/Splitter.svelte';
+	import { FOCUS, MIRROR } from '../play/heroes';
 	import Tip from '../ui/Tip.svelte';
 
 	let { simId, share = '' }: { simId: string; share?: string } = $props();
@@ -40,6 +41,9 @@
 	let fitKey = $state(0);
 	let sizes = $state({ tree: 220, settings: 340, bottom: 170 });
 	let highlight = $state<string[]>([]);
+	// hero models: symmetry mirroring and the region of interest of the Play view (taken once per model; DevLog-015)
+	let roi = $state<[number, number, number, number] | null>(null);
+	$effect(() => { const p = s?.model.parsed?.params; if (!roi && p && FOCUS[simId]) roi = FOCUS[simId]!(p); });
 	let agentOpen = $state(false);
 	// the panel stays mounted once opened (closing hides it; the chat and its session survive)
 	let agentMounted = $state(false);
@@ -174,7 +178,7 @@
 			</section>
 			<Splitter dir="col" label="resize Settings" onmove={(d) => { sizes.settings = clamp(sizes.settings + d, 220, 720); save(); }} />
 			<section class="pane graphics" class:mshow={mobilePane === 'graphics'}>
-				{#if s}<Graphics {s} bind:mode {fitKey} {highlight} />{#if mode === 'results'}<Headlines {s} boxed />{/if}{:else}<div class="loading dim">Loading model...</div>{/if}
+				{#if s}<Graphics {s} bind:mode {fitKey} {highlight} focus={roi} mirror={MIRROR[simId] ?? null} />{#if mode === 'results'}<Headlines {s} boxed />{/if}{:else}<div class="loading dim">Loading model...</div>{/if}
 			</section>
 			<section class="pane agent" class:hidden={!agentOpen}>
 				<div class="ph">Agent</div>

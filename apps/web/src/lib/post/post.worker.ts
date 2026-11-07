@@ -6,6 +6,7 @@
 import type { Mesh } from '@amp/spec/types';
 import { Locator, evalElement, latticeValues, refinedDisplay, refinePattern, toMesh2D, type Field2D, type Mesh2D } from './field2d';
 import { bbox3, exterior, marchingTets, slice } from './solid3d';
+import { fluxLines } from './flux2d';
 
 export type ToPost =
 	| { type: 'mesh'; mesh: Mesh }
@@ -15,6 +16,7 @@ export type ToPost =
 	| { type: 'display'; req: number; r: number }
 	| { type: 'evalAt'; req: number; field: Field2D; comp: number; points: number[] }
 	| { type: 'lattice'; req: number; field: Field2D; comp: number; r: number; a: number; b: number; psi: boolean; rule: RangeRule; focus: [number, number, number, number] | null }
+	| { type: 'flux'; req: number; field: Field2D; n: number }
 	| { type: 'iso'; req: number; nodal: Float64Array; levels: number[]; disp: Float64Array | null }
 	| { type: 'slice'; req: number; normal: [number, number, number]; d: number; nodal: Float64Array | null; disp: Float64Array | null };
 
@@ -27,8 +29,9 @@ export type FromPost =
 	| { type: 'display'; req: number; r: number; np: number; nT: number; pos: Float32Array; bary: Float32Array; reg: Float32Array; sub: Uint32Array; c0: [number, number]; ms: number }
 	| ({ type: 'lattice'; req: number } & LatticeOut)
 	| { type: 'evalAt'; req: number; values: Array<number | null> }
+	| { type: 'flux'; req: number; segs: Float64Array; arrows: Float64Array; nLines: number; ms: number }
 	| { type: 'probe'; req: number; x: number; y: number; hit: { t: number; domain: number; value: number | null } | null; ms: number }
-	| { type: 'exterior'; req: number; pos: Float32Array; node: Int32Array; cell: Int32Array; edges: Int32Array; features: Int32Array; c0: [number, number, number]; ms: number }
+	| { type: 'exterior'; req: number; pos: Float32Array; node: Int32Array; pair: Int32Array; cell: Int32Array; nrm: Float32Array; edges: Int32Array; features: Int32Array; c0: [number, number, number]; ms: number }
 	| { type: 'cut'; req: number; pos: Float32Array; val: Float32Array; disp: Float32Array | null; nTri: number; ms: number }
 	| { type: 'error'; req: number; message: string };
 
@@ -68,6 +71,11 @@ ctx.onmessage = (ev: MessageEvent<ToPost>) => {
 				values.push(h ? evalElement(m2, m.field, h.t, h.L[0], h.L[1], h.L[2], m.comp) : null);
 			}
 			ctx.postMessage({ type: 'evalAt', req: m.req, values } satisfies FromPost);
+		} else if (m.type === 'flux') {
+			if (!m2 || !mesh) throw new Error('no 2D mesh');
+			loc ??= new Locator(m2);
+			const r = fluxLines(mesh, m2, loc, m.field, m.n);
+			ctx.postMessage({ type: 'flux', req: m.req, ...r, ms: performance.now() - t0 } satisfies FromPost, [r.segs.buffer, r.arrows.buffer]);
 		} else if (m.type === 'lattice') {
 			if (!m2) throw new Error('no 2D mesh');
 			const r = lattice(m2, m);
@@ -75,7 +83,7 @@ ctx.onmessage = (ev: MessageEvent<ToPost>) => {
 		} else if (m.type === 'exterior') {
 			if (!mesh) throw new Error('no mesh');
 			const s = exterior(mesh);
-			ctx.postMessage({ type: 'exterior', req: m.req, ...s, ms: performance.now() - t0 } satisfies FromPost, [s.pos.buffer, s.node.buffer, s.cell.buffer, s.edges.buffer, s.features.buffer]);
+			ctx.postMessage({ type: 'exterior', req: m.req, ...s, ms: performance.now() - t0 } satisfies FromPost, [s.pos.buffer, s.node.buffer, s.pair.buffer, s.cell.buffer, s.nrm.buffer, s.edges.buffer, s.features.buffer]);
 		} else if (m.type === 'iso' || m.type === 'slice') {
 			if (!mesh) throw new Error('no mesh');
 			const c0 = bbox3(mesh.nodes).c;

@@ -86,3 +86,61 @@ test('marching tets: isosurface of |x - c| on a hex box approximates a sphere; s
   assert.ok(Math.min(...q) > 0.3);
   assert.ok(Math.abs(autoDeformScale(2, [0, 0, 2, 1, 0, 0], 3) - 0.1) < 1e-15);
 });
+
+// DevLog-015 (visual design pass): tet10 exterior split with outward smooth normals, flux-line gradients, accuracy verdicts
+import { meshCylinder } from '@amp/mesh';
+import { gradAt } from '../src/lib/post/flux2d.ts';
+import { verdict, type AccState } from '../src/lib/post/accuracy.ts';
+
+test('tet10 exterior: 4 triangles per face through the mid-edge nodes, curved area, outward unit normals', () => {
+  const R = 0.5, H = 1;
+  const m = meshCylinder({ id: 'c', radius: R, height: H, base: [0, 0, 0], axis: 'z' }, { mesh2d: { hmax: 0.2 }, dz: 0.2, cell: 'tet4', order: 2 } as never);
+  assert.equal(m.cells.type, 'tet10');
+  const ext = exterior(m);
+  let A = 0, bad = 0, badLen = 0;
+  const c0 = ext.c0;
+  for (let t = 0; t < ext.pos.length / 9; t++) {
+    const o = 9 * t, p = ext.pos;
+    const ux = p[o + 3]! - p[o]!, uy = p[o + 4]! - p[o + 1]!, uz = p[o + 5]! - p[o + 2]!, vx = p[o + 6]! - p[o]!, vy = p[o + 7]! - p[o + 1]!, vz = p[o + 8]! - p[o + 2]!;
+    A += 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
+    for (let k = 0; k < 3; k++) {
+      const i = 3 * (3 * t + k), n = [ext.nrm[i]!, ext.nrm[i + 1]!, ext.nrm[i + 2]!];
+      if (Math.abs(Math.hypot(n[0]!, n[1]!, n[2]!) - 1) > 1e-5) badLen++;
+      // convex body centred at c0 (positions are relative to c0): outward normals point away from the centre
+      if (n[0]! * p[i]! + n[1]! * p[i + 1]! + n[2]! * p[i + 2]! <= 0) bad++;
+    }
+  }
+  void c0;
+  const exact = 2 * Math.PI * R * H + 2 * Math.PI * R * R;
+  assert.ok(Math.abs(A / exact - 1) < 2e-3, `curved exterior area rel err ${A / exact - 1}`);
+  assert.equal(badLen, 0);
+  assert.equal(bad, 0, 'outward normals');
+  // mid-edge vertices carry their edge corners
+  let mids = 0;
+  for (let i = 0; i < ext.node.length; i++) if (ext.pair[2 * i] !== ext.pair[2 * i + 1]) mids++;
+  assert.equal(mids, (3 * ext.node.length) / 4, '9 of the 12 vertices of a split face are mid-edge nodes');
+});
+
+test('flux lines: element gradient of a P2 field is exact for a quadratic on straight tri6', () => {
+  const g = buildGeometry2D({ features: [{ id: 'r', type: 'rect', x: [0, 2], y: [0, 1] }] });
+  const m = toMesh2D(mesh2d(g, { hmax: 0.25, order: 2 }));
+  const nn = m.nodes.length / 2, data = new Float64Array(nn);
+  for (let i = 0; i < nn; i++) data[i] = f(m.nodes[2 * i]!, m.nodes[2 * i + 1]!);
+  const loc = new Locator(m);
+  let err = 0;
+  for (let k = 0; k < 200; k++) {
+    const x = 2 * ((k * 0.6180339887) % 1), y = (k * 0.7548776662) % 1, h = loc.locate(x, y)!;
+    const gr = gradAt(m, { space: 'H1P2', data, components: 1 }, h.t, ...h.L);
+    err = Math.max(err, Math.abs(gr[0] - (2 * x + 0.5 * y + 3)), Math.abs(gr[1] - (0.5 * x - 4 * y)));
+  }
+  assert.ok(err < 1e-9, `gradient err ${err}`);
+});
+
+test('accuracy verdict: no Richardson, no "within"; GCI against the case tolerance otherwise', () => {
+  const base = { status: 'done', levels: [], next: null, def: { metric: 'K_t', quantity: { headline: 'kt' }, label: 'kt' }, reason: '', doneAt: 1, startedAt: 0, conv: { hFactors: [1, 0.5, 0.25], hNote: '', order: 2, fs: 1.25, tol: { rel: 1e-3 }, caseId: 'X' } } as unknown as AccState;
+  const r = (available: boolean, gci: number | null) => ({ levels: 3, p_obs: 2, p_used: 2, f_fine: 1, f_ext: 1, r: 2, rel_change_last: 1e-4, gci_fine: gci, u_abs: gci, fs: 1.25, available, order_ratio: 1, band: 0.25 });
+  assert.equal(verdict({ ...base, rich: [r(false, 1e-6)] }, 0).kind, 'na');
+  assert.equal(verdict({ ...base, rich: [r(true, 1e-6)] }, 0).kind, 'within');
+  assert.equal(verdict({ ...base, rich: [r(true, 1e-2)] }, 0).kind, 'above');
+  assert.equal(verdict({ ...base, rich: [] }, 0).kind, 'na');
+});

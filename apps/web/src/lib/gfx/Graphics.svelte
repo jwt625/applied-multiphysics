@@ -19,6 +19,7 @@
 	import type { LatticeOut, RangeRule } from '../post/post.worker';
 	import { autoDeformScale, bbox3 } from '../post/solid3d';
 	import { revolveSurface, revolvedValues } from '../post/revolve';
+	import { headlines } from '../post/headline';
 	import type { Layer2D, ScaleMode } from './renderer2d';
 	import type { Drawable } from './viewer3d';
 	import { COLORMAPS, type ColormapName } from './colormaps';
@@ -43,8 +44,17 @@
 		contoursDefault = false,
 		fieldLinesDefault = false,
 		autoAnimate = false,
-		revolve = false
+		revolve = false,
+		mirror = null,
+		band = null,
+		padTop = 0
 	}: {
+		/** px kept free above the field on phones (Play headline overlay) */
+		padTop?: number;
+		/** contour pair at a probe value times (1 -/+ rel), e.g. the 1 % uniformity region of a coil (play/heroes.ts BAND) */
+		band?: { probe: string; field: string; rel: number; tip: string } | null;
+		/** symmetry mirroring of a 2D view (play/heroes.ts MIRROR): planes and field parity; display only */
+		mirror?: { planes: { x: boolean; y: boolean }; tip: string; parity(field: string, comp: number): [number, number] | null } | null;
 		s: Session; mode?: Mode; step?: number; playing?: boolean; handles?: Handle[];
 		onhandle?: (id: string, x: number, y: number, phase: 'move' | 'end') => void; compact?: boolean; fitKey?: number;
 		focus?: [number, number, number, number] | null; highlight?: string[]; rangeDefault?: RangeRule; contoursDefault?: boolean;
@@ -54,6 +64,9 @@
 	} = $props();
 
 	let wireUser = $state(false);
+	/** camera: region of interest (focus) or the whole model */
+	let frameAll = $state(false);
+	let mirrorOn = $state(true);
 	let rule = $state<RangeRule>(untrack(() => rangeDefault));
 	let scaleUser = $state<ScaleMode>('linear');
 	let cmUser = $state<'auto' | ColormapName>('auto');
@@ -78,7 +91,9 @@
 	let now = $state(0);
 	let probe = $state<{ x: number; y: number; v: number | null; dom: string } | null>(null);
 	let Canvas3D = $state.raw<typeof import('./Canvas3D.svelte').default | null>(null);
-	let ext = $state.raw<{ mesh: unknown; pos: Float32Array; node: Int32Array; cell: Int32Array; edges: Int32Array; features: Int32Array; c0: [number, number, number] } | null>(null);
+	let ext = $state.raw<{ mesh: unknown; pos: Float32Array; node: Int32Array; pair: Int32Array; nrm: Float32Array; cell: Int32Array; edges: Int32Array; features: Int32Array; c0: [number, number, number] } | null>(null);
+	/** revolved view: cut away a quarter and show the meridional section planes (DevLog-015) */
+	let cutaway = $state(true);
 	let cuts = $state.raw<Drawable[]>([]);
 	let d1 = $state.raw<RefinedDisplay | null>(null);
 	let lat = $state.raw<{ key: string; d: RefinedDisplay; out: LatticeOut } | null>(null);
@@ -173,31 +188,64 @@
 		if (!m) { d1 = null; return; }
 		void s.post.display(1).then((d) => { if (s.m2 === m) d1 = d; });
 	});
-	const fkey = $derived(field && m2 ? `${m2.nT}:${sol?.run.startedAt}:${field.name}:${field.step ?? 0}:${comp}:${level}:${rule}:${disp.a}:${focus?.join(',')}` : '');
+	/** colour-range box: the region of interest unless the view frames the whole model */
+	const rangeBox = $derived(frameAll ? null : focus);
+	/** refined-lattice level, lowered on large meshes (nested accuracy levels) to keep the display near 1M sub-triangles */
+	const lv = $derived(m2 ? Math.max(1, Math.min(level, Math.floor(Math.sqrt(1.2e6 / Math.max(1, m2.nT))))) : level);
+	const fkey = $derived(field && m2 ? `${m2.nT}:${sol?.run.startedAt}:${field.name}:${field.step ?? 0}:${comp}:${lv}:${rule}:${disp.a}:${rangeBox?.join(',')}` : '');
 	$effect(() => {
 		const f = field, m = m2, key = fkey;
 		if (!f || !m || mode !== 'results' || !drawable) return;
-		const r = f.space === 'DG0' ? 1 : level;
+		const r = f.space === 'DG0' ? 1 : lv;
 		// plain copies: $state proxies cannot be posted to a worker
-		const a = disp.a, b = disp.b, c = f.components > 1 ? comp : 0, rl = rule, fc: [number, number, number, number] | null = focus ? [focus[0], focus[1], focus[2], focus[3]] : null;
+		const a = disp.a, b = disp.b, c = f.components > 1 ? comp : 0, rl = rule, fc: [number, number, number, number] | null = rangeBox ? [rangeBox[0], rangeBox[1], rangeBox[2], rangeBox[3]] : null;
 		void Promise.all([s.post.display(r), s.post.call<'lattice'>({ type: 'lattice', field: { space: f.space as Space, data: f.data, components: f.components }, comp: c, r, a, b, psi: false, rule: rl, focus: fc })])
 			.then(([d, out]) => { if (s.m2 === m && fkey === key) lat = { key, d, out }; });
+	});
+	// heat flux lines of a temperature field (post/flux2d.ts): traced along -grad T from the inflow boundary
+	const fluxField = $derived(sol && m2 && field && field.name === 'T' && field.components === 1 && (field.space === 'H1P1' || field.space === 'H1P2') ? field : null);
+	let flux = $state.raw<{ segs: Float64Array; arrows: Float64Array; n: number } | null>(null);
+	$effect(() => {
+		const f = fluxField, m = m2;
+		if (!f || !m || !fieldLines || mode !== 'results') { flux = null; return; }
+		void s.post.call<'flux'>({ type: 'flux', field: { space: f.space as Space, data: f.data, components: 1 }, n: 26 }).then((r) => { if (s.m2 === m && fluxField === f) flux = { segs: r.segs, arrows: r.arrows, n: r.nLines }; });
 	});
 	// field lines of an axisymmetric magnetic field: contours of the flux function r A_phi (top-10 #3)
 	const aphi = $derived(sol && m2 && mesh?.axisym ? (sol.fields.find((f) => f.name === 'A_phi' && (f.space === 'H1P1' || f.space === 'H1P2')) ?? null) : null);
 	$effect(() => {
 		const f = aphi, m = m2;
 		if (!f || !m || !fieldLines || mode !== 'results') { psi = null; return; }
-		const key = `${sol?.run.startedAt}:${level}`;
-		void Promise.all([s.post.display(level), s.post.call<'lattice'>({ type: 'lattice', field: { space: f.space as Space, data: f.data, components: 1 }, comp: 0, r: level, a: 1, b: 0, psi: true, rule: 'full', focus: null })])
+		const r = lv, key = `${sol?.run.startedAt}:${r}`;
+		void Promise.all([s.post.display(r), s.post.call<'lattice'>({ type: 'lattice', field: { space: f.space as Space, data: f.data, components: 1 }, comp: 0, r, a: 1, b: 0, psi: true, rule: 'full', focus: null })])
 			.then(([d, out]) => { if (s.m2 === m) psi = { key, d, out }; });
 	});
 
+	/** mirrored copies of the 2D view: geometry and results (not the mesh view: it shows what was computed) */
+	const parity = $derived(mirror && field ? mirror.parity(field.name, field.components > 1 ? comp : -1) : null);
+	const mirrored = $derived(!!mirror && mirrorOn && !!m2 && mode !== 'mesh' && (mode === 'geometry' || !sol || !drawable || !!parity));
+	function copies(p: [number, number] | null): Array<{ sx: number; sy: number; sign: number }> | undefined {
+		if (!mirrored || !mirror) return undefined;
+		const px = p?.[0] ?? 1, py = p?.[1] ?? 1, out = [{ sx: 1, sy: 1, sign: 1 }];
+		if (mirror.planes.x) out.push({ sx: -1, sy: 1, sign: px });
+		if (mirror.planes.y) out.push({ sx: 1, sy: -1, sign: py });
+		if (mirror.planes.x && mirror.planes.y) out.push({ sx: -1, sy: -1, sign: px * py });
+		return out;
+	}
+	/** whole-model box (mirrored when the view mirrors) */
+	const fullBox = $derived.by((): [number, number, number, number] | null => {
+		if (!m2) return null;
+		const [x0, y0, x1, y1] = m2.bbox;
+		if (!mirrored || !mirror) return [x0, y0, x1, y1];
+		return [mirror.planes.x ? -Math.max(Math.abs(x0), Math.abs(x1)) : x0, mirror.planes.y ? -Math.max(Math.abs(y0), Math.abs(y1)) : y0, mirror.planes.x ? Math.max(Math.abs(x0), Math.abs(x1)) : x1, mirror.planes.y ? Math.max(Math.abs(y0), Math.abs(y1)) : y1];
+	});
+	const frameBox = $derived(frameAll || !focus ? fullBox : focus);
+	const frameKey = $derived(`${frameAll}:${focus?.map((v) => v.toPrecision(4)).join(',') ?? ''}:${mirrored}`);
+
 	const view2d = $derived.by(() => {
-		type CB = { min: number; max: number; label: string; unit: string; cm: ColormapName; scale: ScaleMode; note: string };
+		type CB = { min: number; max: number; label: string; unit: string; cm: ColormapName; scale: ScaleMode; note: string; levels?: number[] };
 		const none = { layers: [] as Layer2D[], cb: null as CB | null, map: null as ReturnType<typeof mapping> | null, peak: null as LatticeOut['peak'] };
 		if (!m2 || !d1) return none;
-		if (mode === 'geometry' || (mode === 'results' && !(sol && drawable && lat))) return { ...none, layers: [{ kind: 'region', disp: d1, regionColors, wire: mode !== 'geometry' && wire } as Layer2D] };
+		if (mode === 'geometry' || (mode === 'results' && !(sol && drawable && lat))) return { ...none, layers: [{ kind: 'region', disp: d1, regionColors, wire: mode !== 'geometry' && wire, mirror: copies(null) } as Layer2D] };
 		if (mode === 'mesh') {
 			const q = s.quality;
 			if (!q || q.length !== m2.nT) return { ...none, layers: [{ kind: 'region', disp: d1, regionColors, wire: true } as Layer2D] };
@@ -207,32 +255,61 @@
 			return { ...none, map: mp, layers: [{ kind: 'surface', disp: d1, values: perElement(q), range: mp.range, colormap: cmUser === 'auto' ? 'viridis' : cmUser, wire: true } as Layer2D], cb: { ...mp.range, label: 'element shape quality q = 4 sqrt(3) A / sum(l^2), 1 = equilateral', unit: '1', cm: cmUser === 'auto' ? 'viridis' : cmUser, scale: 'linear' as ScaleMode, note: '' } };
 		}
 		const L = lat!;
-		const mp = mapping(L.out.lo, L.out.hi);
-		const layers: Layer2D[] = [{ kind: 'surface', disp: L.d, values: L.out.values, range: mp.range, scale: mp.scale, colormap: mp.cm, wire }];
-		if (contours && field!.space !== 'DG0') layers.push({ kind: 'contour', disp: L.d, values: L.out.values, range: mp.range, scale: mp.scale, colormap: mp.cm, levels: mp.scale === 'log' ? [] : niceTicks(mp.range.min, mp.range.max, 12), uniform: '#0d0d0d' });
+		// odd fields mirrored with both signs: the range covers the reflected values too
+		let lo = L.out.lo, hi = L.out.hi;
+		const cp = copies(parity);
+		if (cp?.some((c) => c.sign < 0)) { const m = Math.max(Math.abs(lo), Math.abs(hi)); lo = -m; hi = m; }
+		const mp = mapping(lo, hi);
+		const levels = contours && field!.space !== 'DG0' && mp.scale !== 'log' ? niceTicks(mp.range.min, mp.range.max, 14) : [];
+		const layers: Layer2D[] = [{ kind: 'surface', disp: L.d, values: L.out.values, range: mp.range, scale: mp.scale, colormap: mp.cm, wire, mirror: cp }];
+		if (levels.length) layers.push({ kind: 'contour', disp: L.d, values: L.out.values, range: mp.range, scale: mp.scale, colormap: mp.cm, levels, uniform: '#0d0d0d', opacity: 0.5, mirror: cp });
+		const bp = band && bandOn && field!.name === band.field ? probePts.find((q) => q.id === band.probe) : undefined;
+		if (bp && mp.scale !== 'log') layers.push({ kind: 'contour', disp: L.d, values: L.out.values, range: mp.range, scale: mp.scale, colormap: mp.cm, levels: [Math.abs(bp.v) * (1 - band!.rel), Math.abs(bp.v) * (1 + band!.rel)], uniform: '#e0a526', opacity: 1, mirror: cp });
 		if (psi && fieldLines) {
-			const P = psi.out, n = 18, lv = Array.from({ length: n }, (_, i) => P.dataLo + ((i + 0.5) * (P.dataHi - P.dataLo)) / n);
-			layers.push({ kind: 'contour', disp: psi.d, values: P.values, range: { min: P.dataLo, max: P.dataHi }, colormap: mp.cm, levels: lv, uniform: '#f2f1ec' });
+			// r A_phi is even across the axis: the mirrored lines are the reflected contours
+			const P = psi.out, n = 22, pl = Array.from({ length: n }, (_, i) => P.dataLo + ((i + 0.5) * (P.dataHi - P.dataLo)) / n);
+			layers.push({ kind: 'contour', disp: psi.d, values: P.values, range: { min: P.dataLo, max: P.dataHi }, colormap: mp.cm, levels: pl, uniform: '#f2f1ec', opacity: 0.8, mirror: copies([1, 1]) });
 		}
 		const label = field!.name + (field!.components > 1 ? (comp < 0 ? ' magnitude' : ` component ${comp}`) : '');
-		return { layers, map: mp, peak: L.out.peak, cb: { ...mp.range, label, unit: disp.unit, cm: mp.cm, scale: mp.scale, note: disp.note } };
+		return { layers, map: mp, peak: L.out.peak, cb: { ...mp.range, label, unit: disp.unit, cm: mp.cm, scale: mp.scale, note: disp.note, levels } };
 	});
-	const markers = $derived(mode === 'results' && view2d.peak && !stale ? [{ x: view2d.peak.x, y: view2d.peak.y, label: `${fmt(view2d.peak.v)}${disp.unit ? ` ${unitLabel(disp.unit)}` : ''}`, tip: `largest |${field?.name}| ${focus ? 'in the view box' : 'on the mesh'} (lattice point of the drawn field)` }] : []);
+	// the spec's probe results mark their own points (e.g. T_E at E, B_center at the centre); otherwise the peak
+	let probePts = $state.raw<Array<{ x: number; y: number; label: string; tip: string; id: string; v: number }>>([]);
+	let bandOn = $state(true);
+	$effect(() => {
+		const so = sol, me = mesh, params = s.model.parsed?.params;
+		const results = (resultsSpec as unknown as Parameters<typeof headlines>[0]).filter((r) => r.type === 'probe');
+		if (!so || !me || me.dim !== 2 || !params || !results.length) { probePts = []; return; }
+		void headlines(results, so, me, params, s.post).then((h) => {
+			if (s.solution !== so) return;
+			probePts = h.filter((x) => x.at && x.value !== null).map((x) => ({ id: x.id, v: x.value!, x: x.at![0], y: x.at![1], label: `${x.label} ${fmt(x.value!, 4)}${x.unit ? ` ${unitLabel(x.unit)}` : ''}`, tip: `probe ${x.label}: ${x.tip}` }));
+		});
+	});
+	const markers = $derived(mode !== 'results' || stale ? [] : probePts.length ? probePts : view2d.peak ? [{ x: view2d.peak.x, y: view2d.peak.y, label: eigen && !disp.unit ? `max |${field?.name}|` : `${fmt(view2d.peak.v)}${disp.unit ? ` ${unitLabel(disp.unit)}` : ''}`, tip: `largest |${field?.name}| ${rangeBox ? 'in the view box' : 'on the mesh'} (lattice point of the drawn field)` }] : []);
 	const boundaryLines = $derived.by(() => {
 		if (!mesh || mesh.dim !== 2 || mode === 'mesh') return null;
 		const f = mesh.facets, npf = f.type === 'line3' ? 3 : 2, n = f.conn.length / npf, N = mesh.nodes;
-		const out = new Float64Array(4 * n);
-		for (let i = 0; i < n; i++) { const a = f.conn[npf * i]!, b = f.conn[npf * i + 1]!; out.set([N[2 * a]!, N[2 * a + 1]!, N[2 * b]!, N[2 * b + 1]!], 4 * i); }
-		return out;
+		const cps = copies(null) ?? [{ sx: 1, sy: 1, sign: 1 }];
+		const tol = 1e-9 * (m2 ? Math.max(m2.bbox[2] - m2.bbox[0], m2.bbox[3] - m2.bbox[1]) : 1);
+		const seg: number[] = [];
+		for (let i = 0; i < n; i++) {
+			// line3 facets drawn as two segments through the mid node (curved boundaries)
+			const ids = npf === 3 ? [f.conn[3 * i]!, f.conn[3 * i + 2]!, f.conn[3 * i + 1]!] : [f.conn[2 * i]!, f.conn[2 * i + 1]!];
+			const xs = ids.map((k) => N[2 * k]!), ys = ids.map((k) => N[2 * k + 1]!);
+			// facets on a symmetry plane are interior lines of the mirrored model
+			if (cps.length > 1 && ((mirror?.planes.x && xs.every((x) => Math.abs(x) < tol)) || (mirror?.planes.y && ys.every((y) => Math.abs(y) < tol)))) continue;
+			for (const c of cps) for (let k = 0; k + 1 < ids.length; k++) seg.push(c.sx * xs[k]!, c.sy * ys[k]!, c.sx * xs[k + 1]!, c.sy * ys[k + 1]!);
+		}
+		return Float64Array.from(seg);
 	});
 
 	// ---------------------------------------------------------------- 3D
-	const revSurf = $derived(rev && mesh ? revolveSurface(mesh, 64) : null);
+	const revSurf = $derived(rev && mesh ? revolveSurface(mesh, 64, cutaway ? [0, 1.5 * Math.PI] : null) : null);
 	$effect(() => {
 		if (rev && !Canvas3D) void import('./Canvas3D.svelte').then((mod) => (Canvas3D = mod.default));
 		if (!is3d || !mesh || mesh.dim !== 3) { ext = null; return; }
 		const m = mesh;
-		void s.post.call<'exterior'>({ type: 'exterior' }).then((r) => { if (s.mesh === m) ext = { mesh: m, pos: r.pos, node: r.node, cell: r.cell, edges: r.edges, features: r.features, c0: r.c0 }; });
+		void s.post.call<'exterior'>({ type: 'exterior' }).then((r) => { if (s.mesh === m) ext = { mesh: m, pos: r.pos, node: r.node, pair: r.pair, nrm: r.nrm, cell: r.cell, edges: r.edges, features: r.features, c0: r.c0 }; });
 		if (!Canvas3D) void import('./Canvas3D.svelte').then((mod) => (Canvas3D = mod.default));
 	});
 	const half = $derived.by((): [number, number, number] => {
@@ -243,7 +320,9 @@
 	});
 	const nodal3 = $derived(is3d && !rev && mesh?.dim === 3 && sol && field && (field.space === 'H1P1' || field.space === 'H1P2') ? field : null);
 	const dispField = $derived(is3d && sol ? (sol.fields.find((f) => f.components === 3 && f.unit === 'm' && (f.space === 'H1P1' || f.space === 'H1P2') && (f.step ?? 0) === (field?.step ?? 0)) ?? null) : null);
-	const canAnimate = $derived(drawable && ((eigen && (signedField || !!dispField)) || (!eigen && nSteps > 1)));
+	/** revolved magnitude of a real eigenmode: |E(t)| = |E| |cos(w t)| (exact for a lossless real mode) */
+	const animAbs = $derived(rev && eigen && comp < 0);
+	const canAnimate = $derived(drawable && ((eigen && (signedField || !!dispField || animAbs)) || (!eigen && nSteps > 1)));
 	const autoScale = $derived(dispField && mesh ? autoDeformScale(bbox3(mesh.nodes).diag, dispField.data) : 0);
 	const deform = $derived(dispField && deformOn ? (deformUser ?? autoScale) : 0);
 	function pct(a: Float32Array): { lo: number; hi: number } {
@@ -257,7 +336,7 @@
 		if (revSurf) {
 			// field and surface must come from the same mesh; otherwise keep the last view (shown3d)
 			if (!sol || !field || field.name !== 'E_rphiz') return null;
-			const val = revolvedValues(field.data, azimuthal, comp, revSurf);
+			const val = revolvedValues(field.data, azimuthal, comp, revSurf, 1, field.space === 'H1P1');
 			let mx = 0;
 			for (const v of val) mx = Math.max(mx, Math.abs(v));
 			if (mx > 0) for (let i = 0; i < val.length; i++) val[i] = val[i]! / mx;
@@ -266,7 +345,7 @@
 			const mp = mapping(lo, hi);
 			const label = `E ${comp < 0 ? 'magnitude' : ['r', 'phi', 'z'][comp]}, azimuthal order m = ${azimuthal}`;
 			const note = `normalized: max |.| on the drawn surface = 1 (eigenmode amplitude is arbitrary). Reconstructed from the (r, z) solution: E_r cos(m phi), E_phi sin(m phi), E_z cos(m phi), one partner of an m >= 1 doublet${solNorm ? `. Solver normalization: ${solNorm}` : ''}`;
-			return { surface: { pos: revSurf.pos, val, disp: null } as Drawable, region: false, map: mp, range: mp.range, edges: revSurf.rings, ed: null, cb: { ...mp.range, label, unit: '', cm: mp.cm, scale: mp.scale, note } };
+			return { surface: { pos: revSurf.pos, val, disp: null, nrm: revSurf.nrm } as Drawable, region: false, map: mp, range: mp.range, edges: revSurf.rings, ed: null, cb: { ...mp.range, label, unit: '', cm: mp.cm, scale: mp.scale, note } };
 		}
 		// the exterior must belong to the current mesh (a remesh may be in flight)
 		if (!ext || !mesh || ext.mesh !== mesh) return null;
@@ -282,9 +361,11 @@
 			label = 'cell quality: min mean ratio over the tet split (1 = regular tet)';
 			unit = '1';
 		} else if (field) {
-			const c = field.components > 1 ? comp : 0;
+			const c = field.components > 1 ? comp : 0, nFieldNodes = field.data.length / field.components; const X = ext;
 			for (let i = 0; i < nv; i++) {
-				const vv = disp.a * (field.space === 'DG0' ? scalarAt(field, ext.cell[i]!, c) : scalarAt(field, ext.node[i]!, c)) + disp.b;
+				// tet10 mid-edge vertices: the nodal value when the field has one there (P2), else the edge mean (P1)
+				const nodeV = (k: number) => (k < nFieldNodes && (field.space !== 'H1P1' || X.pair[2 * i] === X.pair[2 * i + 1]) ? scalarAt(field, k, c) : 0.5 * (scalarAt(field, X.pair[2 * i]!, c) + scalarAt(field, X.pair[2 * i + 1]!, c)));
+				const vv = disp.a * (field.space === 'DG0' ? scalarAt(field, ext.cell[i]!, c) : nodeV(ext.node[i]!)) + disp.b;
 				val[i] = vv; if (vv < lo) lo = vv; if (vv > hi) hi = vv;
 			}
 			if (rule === 'robust') ({ lo, hi } = pct(val));
@@ -302,9 +383,9 @@
 			ed = new Float32Array(3 * E.length);
 			for (let i = 0; i < E.length; i++) for (let k = 0; k < 3; k++) ed[3 * i + k] = dispField.data[3 * E[i]! + k]!;
 		}
-		if (region) return { surface: { pos: ext.pos, val, disp: dv } as Drawable, region, cb: null, map: null, range: { min: 0, max: Math.max(1, domains.length - 1) }, edges, ed };
+		if (region) return { surface: { pos: ext.pos, val, disp: dv, nrm: ext.nrm } as Drawable, region, cb: null, map: null, range: { min: 0, max: Math.max(1, domains.length - 1) }, edges, ed };
 		const mp = mapping(lo, hi);
-		return { surface: { pos: ext.pos, val, disp: dv } as Drawable, region, map: mp, range: mp.range, edges, ed, cb: { ...mp.range, label, unit, cm: mp.cm, scale: mp.scale, note } };
+		return { surface: { pos: ext.pos, val, disp: dv, nrm: ext.nrm } as Drawable, region, map: mp, range: mp.range, edges, ed, cb: { ...mp.range, label, unit, cm: mp.cm, scale: mp.scale, note } };
 	});
 	// keep the last complete 3D view while a remesh is in flight: unmounting the canvas would recreate the WebGL
 	// context (setSize + context loss measured at 100-400 ms per drag step; audit S6)
@@ -395,8 +476,15 @@
 	function hover(p: { x: number; y: number } | null) {
 		if (!p) { probe = null; return; }
 		const a = disp.a, b = disp.b;
-		s.post.probe(p.x, p.y, (h) => {
-			probe = h.hit ? { x: h.x, y: h.y, v: h.hit.value === null ? null : a * h.hit.value + b, dom: domains[h.hit.domain]?.id ?? String(h.hit.domain) } : null;
+		// a mirrored point is evaluated at its computed image, times the field's parity
+		let x = p.x, y = p.y, sg = 1;
+		if (mirrored && mirror) {
+			const pr = parity ?? [1, 1];
+			if (mirror.planes.x && x < 0) { x = -x; sg *= pr[0]; }
+			if (mirror.planes.y && y < 0) { y = -y; sg *= pr[1]; }
+		}
+		s.post.probe(x, y, (h) => {
+			probe = h.hit ? { x: p.x, y: p.y, v: h.hit.value === null ? null : sg * (a * h.hit.value) + b, dom: domains[h.hit.domain]?.id ?? String(h.hit.domain) } : null;
 		});
 	}
 	$effect(() => {
@@ -407,21 +495,24 @@
 
 	const running = $derived(s.status === 'solving');
 	const longRun = $derived(running && s.runStart > 0 && now - s.runStart > 1000);
-	const cb = $derived(m2 ? view2d.cb : (shown3d?.cb ?? null));
-	const map = $derived(m2 ? view2d.map : (shown3d?.map ?? null));
+	const cb = $derived(m2 && !rev ? view2d.cb : (shown3d?.cb ?? null));
+	const map = $derived(m2 && !rev ? view2d.map : (shown3d?.map ?? null));
 	const modeTip: Record<Mode, string> = { geometry: 'Geometry: domains by colour (G)', mesh: 'Mesh: element quality and wireframe (M)', results: 'Results: solution fields (R)' };
 	const meshChanged = $derived(!!s.solution && !!mesh && s.solution.meshHash !== mesh.hash);
 </script>
 
 <div class="gfx" class:stale role="presentation" onpointerdown={firstTouch}>
+	<!-- the stage excludes the colorbar strip: nothing is drawn under the colorbar -->
+	<div class="stage" class:bg3={is3d}>
 	{#if m2 && !rev}
-		<Canvas2D layers={view2d.layers} bbox={focus ?? m2.bbox} fitKey={fitKey + fit} {handles} {onhandle} onhover={hover} onframe={(ms) => (frameMs = ms)} lines={boundaryLines} {hiLines} {markers} />
+		<Canvas2D layers={view2d.layers} bbox={frameBox} {frameKey} {padTop} fitKey={fitKey + fit} {handles} {onhandle} onhover={hover} onframe={(ms) => (frameMs = ms)} lines={boundaryLines} {hiLines} {markers} flow={flux && !stale ? flux : null} />
 	{:else if is3d && Canvas3D && shown3d}
 		<Canvas3D surface={shown3d.surface} regionColors={shown3d.region ? regionColors : null} edges={shown3d.edges} edgeDisp={shown3d.ed} colormap={shown3d.map?.cm ?? 'viridis'} range={shown3d.range} logScale={shown3d.map?.scale === 'log'} wire={true}
-			showSurface={!(sliceOn || isoOn) || clipOn || mode !== 'results'} {deform} clip={clip3} {cuts} phase={eigen && playing && canAnimate ? phase : null} animValue={eigen && signedField} {half} fitKey={fitKey + fit} onframe={(ms) => (frameMs = ms)} />
+			showSurface={!(sliceOn || isoOn) || clipOn || mode !== 'results'} {deform} clip={clip3} {cuts} phase={eigen && playing && canAnimate ? phase : null} animValue={eigen && (signedField || animAbs)} {animAbs} {half} fitKey={fitKey + fit} onframe={(ms) => (frameMs = ms)} />
 	{:else}
 		<div class="empty dim">{s.status === 'meshing' ? 'Meshing...' : s.status === 'error' ? 'No mesh: see Messages' : 'No mesh yet'}</div>
 	{/if}
+	</div>
 	{#if longRun}<div class="prog" data-tip={`${s.progress?.stage ?? 'run'} ${s.progress?.msg ?? ''}`}><span style="width: {Math.round(100 * (s.progress?.frac ?? 0))}%" class:ind={!s.progress || s.progress.frac <= 0 || s.progress.frac >= 1}></span></div>{/if}
 
 	<div class="top">
@@ -430,6 +521,15 @@
 				<button role="tab" aria-selected={mode === k} class:on={mode === k} data-tip={modeTip[k]} onclick={() => (mode = k)}>{k[0]!.toUpperCase() + k.slice(1)}</button>
 			{/each}
 		</div>
+		{#if m2 && !rev && focus && fullBox && (focus[2] - focus[0] < 0.9 * (fullBox[2] - fullBox[0]) || focus[3] - focus[1] < 0.9 * (fullBox[3] - fullBox[1]))}
+			<div class="modes">
+				<button class:on={!frameAll} data-tip="Frame the region of interest (the colour range is taken over it)" onclick={() => (frameAll = false)}>ROI</button>
+				<button class:on={frameAll} data-tip="Frame the whole model (the colour range is taken over all of it)" onclick={() => (frameAll = true)}>All</button>
+			</div>
+		{/if}
+		{#if m2 && !rev && mirror && mode !== 'mesh'}
+			<button class:on={mirrored} data-tip={`${mirror.tip}.${mirrored || !mirrorOn ? '' : ` Not mirrored: ${field?.name ?? 'this field'} has no stated parity.`} Display only; the solve uses the reduced model.`} onclick={() => (mirrorOn = !mirrorOn)}>Mirror</button>
+		{/if}
 		{#if !compact}
 			<button class:on={wire} data-tip="Wireframe (W)" onclick={() => (wireUser = !wireUser)} disabled={mode === 'mesh'}>Wire</button>
 			<button data-tip="Zoom extents (F)" onclick={() => fit++}>Fit</button>
@@ -462,6 +562,8 @@
 				{#if canAnimate}<button class:on={playing} data-tip={eigen ? 'Animate the mode: Re(u e^(i phase)) (Space)' : 'Play the steps (Space)'} onclick={() => (playing = !playing)}>{playing ? 'Pause' : 'Animate'}</button>{/if}
 				{#if m2 && !rev}
 					{#if field?.space !== 'DG0'}<button class:on={contours} data-tip="Contour lines at the colorbar ticks" onclick={() => (contours = !contours)}>Contours</button>{/if}
+					{#if band && field?.name === band.field && probePts.some((q) => q.id === band.probe)}<button class="amb" class:on={bandOn} data-tip={band.tip} onclick={() => (bandOn = !bandOn)}>±{band.rel * 100} %</button>{/if}
+					{#if fluxField}<button class:on={fieldLines} data-tip={`Heat flux lines: tangent to q = -k grad T, traced from the boundary where heat enters, seeded at equal inflow so each line carries the same heat (line density follows |q|); arrows point downstream${flux ? `. ${flux.n} lines` : ''}`} onclick={() => (fieldLines = !fieldLines)}>Flux lines</button>{/if}
 					{#if aphi}<button class:on={fieldLines} data-tip="Magnetic field lines: contours of the flux function r A_phi at equal flux steps (line density follows |B|)" onclick={() => (fieldLines = !fieldLines)}>Field lines</button>{/if}
 					{#if !compact}
 						<select bind:value={level} data-tip="Smoothing: refined lattice level r (r^2 sub-triangles per element, exact FE values at the lattice points)">
@@ -472,6 +574,7 @@
 			{/if}
 		{/if}
 		{#if is3d && (!compact || rev)}
+			{#if rev}<button class:on={cutaway} data-tip="Cutaway: a quarter of the revolved body removed (phi 270 to 360 deg); the two meridional section planes show the field inside (exact nodal values of the (r, z) solution times the azimuthal factor)" onclick={() => (cutaway = !cutaway)}>Cutaway</button>{/if}
 			<button class:on={clipOn} data-tip="Section: cut away the half space beyond the plane" onclick={() => (clipOn = !clipOn)}>Section</button>
 			{#if clipOn}
 				<select bind:value={clipAxis}>{#each ['x', 'y', 'z'] as a, i}<option value={i}>{a}</option>{/each}</select>
@@ -518,7 +621,7 @@
 	{/if}
 
 	{#if cb}
-		<Colorbar colormap={cb.cm} min={cb.min} max={cb.max} scale={cb.scale} label={cb.label} unit={cb.unit} note={cb.note} rule={mode === 'results' ? rule : 'full'} scoped={mode === 'results' && !!focus} />
+		<Colorbar colormap={cb.cm} min={cb.min} max={cb.max} scale={cb.scale} label={cb.label} unit={cb.unit} note={cb.note} rule={mode === 'results' ? rule : 'full'} scoped={mode === 'results' && !!rangeBox} levels={'levels' in cb ? (cb.levels ?? []) : []} />
 	{/if}
 
 	<div class="foot mono">
@@ -535,27 +638,32 @@
 
 <style>
 	.gfx { position: absolute; inset: 0; background: #0d0d0d; overflow: hidden; user-select: none; -webkit-user-select: none; }
+	.stage { position: absolute; left: 0; top: 0; bottom: 0; right: 84px; }
+	.stage.bg3 { background: radial-gradient(ellipse at 50% 42%, #1d1e20 0%, #131314 55%, #0d0d0d 100%); }
 	.gfx.stale :global(canvas) { filter: saturate(0.2) brightness(0.65); }
 	.empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-	.top { position: absolute; left: 6px; top: 6px; right: 84px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; pointer-events: none; }
+	.top { position: absolute; left: 6px; top: 6px; right: 90px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; pointer-events: none; }
 	.top > * { pointer-events: auto; }
 	.modes { display: flex; }
 	.modes button + button { border-left: 0; }
 	.n { width: 56px; }
+	.amb.on { background: #6b4e12; border-color: #e0a526; color: #fff; }
 	.prog { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: rgba(57, 135, 229, 0.15); }
 	.prog span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); transition: width 0.2s; }
 	.prog span.ind { width: 30% !important; animation: slide 1.2s linear infinite; }
 	@keyframes slide { from { left: -30%; } to { left: 100%; } }
-	.badge { position: absolute; right: 84px; top: 36px; font-size: 11px; padding: 1px 6px; border: 1px solid; background: rgba(13, 13, 13, 0.85); }
+	.badge { position: absolute; right: 90px; top: 36px; font-size: 11px; padding: 1px 6px; border: 1px solid; background: rgba(13, 13, 13, 0.85); }
 	.badge.st { color: var(--warn); border-color: var(--warn); }
 	.badge.co { color: var(--ink-2); border-color: var(--border); }
 	.unav { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(13, 13, 13, 0.88); border: 1px solid var(--border); padding: 8px 12px; max-width: 70%; font-size: 11px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
 	.unav .na { font-size: 12px; }
-	.foot { position: absolute; left: 6px; right: 6px; bottom: 4px; display: flex; gap: 12px; font-size: 11px; color: var(--ink-2); pointer-events: none; white-space: nowrap; overflow: hidden; }
+	.foot { position: absolute; left: 6px; right: 90px; bottom: 4px; display: flex; gap: 12px; font-size: 11px; color: var(--ink-2); pointer-events: none; white-space: nowrap; overflow: hidden; }
 	.foot > span:not(.sp) { pointer-events: auto; background: rgba(13, 13, 13, 0.75); padding: 0 3px; }
 	.sp { flex: 1; }
 	@media (max-width: 760px) {
 		.top { right: 6px; }
+		.stage { right: 0; bottom: 52px; }
+		.foot { right: 6px; bottom: 54px; }
 		.badge { right: 6px; top: 64px; }
 	}
 </style>

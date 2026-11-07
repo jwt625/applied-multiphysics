@@ -21,6 +21,7 @@
 		cuts = [],
 		phase = null,
 		animValue = false,
+		animAbs = false,
 		half,
 		fitKey = 0,
 		onframe,
@@ -40,6 +41,8 @@
 		cuts?: Drawable[];
 		phase?: number | null;
 		animValue?: boolean;
+		/** the drawn value is a magnitude: animate |cos(phase)| */
+		animAbs?: boolean;
 		half: [number, number, number];
 		fitKey?: number;
 		onframe?: (ms: number) => void;
@@ -83,7 +86,7 @@
 	$effect(() => { if (v) v.setDeform(deform); });
 	$effect(() => { if (v) { if (clip) v.setClip(true, clip.n, clip.d); else v.setClip(false); } });
 	$effect(() => { if (v) v.setCuts(cuts); });
-	$effect(() => { if (v) { if (phase === null) v.resetPhase(); else v.setPhase(phase, animValue); } });
+	$effect(() => { if (v) { if (phase === null) v.resetPhase(); else v.setPhase(phase, animValue, animAbs); } });
 	// refit on request, and when the model size changes by more than 5 % (a parameter drag), not on every new mesh
 	let fittedHalf: [number, number, number] | null = null;
 	$effect(() => {

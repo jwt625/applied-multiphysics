@@ -7,13 +7,14 @@
 // eigenmodes, on the value (Re(u e^{i phase}) of a real mode).
 import * as THREE from 'three';
 import { LineBasicNodeMaterial, MeshBasicNodeMaterial } from 'three/webgpu';
-import { Discard, Fn, If, abs, attribute, clamp, cross, dFdx, dFdy, dot, float, log, max, mix, normalize, positionLocal, positionView, positionWorld, select, texture, uniform, vec2 } from 'three/tsl';
+import { Discard, Fn, If, abs, attribute, clamp, cross, dFdx, dFdy, dot, float, log, max, mix, normalView, normalize, pow, positionLocal, positionView, positionWorld, select, texture, uniform, vec2, vec3 } from 'three/tsl';
 
 export interface FieldUniforms {
 	vmin: { value: number };
 	vmax: { value: number };
 	log: { value: number };
 	dscale: { value: number };
+	/** animation amplitude: cos(phase), or |cos(phase)| for a magnitude */
 	amp: { value: number };
 	animValue: { value: number };
 	clipOn: { value: number };
@@ -32,9 +33,17 @@ export function makeUniforms(): FieldUniforms {
 type N = ReturnType<typeof float>;
 
 /** One material per drawable; uniforms are shared so a range or clip change is one uniform write. */
-export function fieldMaterial(lut: THREE.Texture, u: FieldUniforms, opts: { shade?: boolean; clip?: boolean } = {}): MeshBasicNodeMaterial {
+/**
+ * Lighting (DevLog-015, R4 s.5.4): a luminance modulation of the LUT colour, so the colormap stays readable. View space:
+ * a key light from the upper left front and a weak fill from the lower right (Lambert), a hemisphere ambient, a small
+ * Blinn specular from the key, and darkening at grazing view angles that outlines silhouettes. Normals: the smooth
+ * per-vertex `normal` attribute (opts.normals) or the flat face normal from screen-space derivatives; face-forwarded so
+ * sections and back faces are lit too.
+ */
+export function fieldMaterial(lut: THREE.Texture, u: FieldUniforms, opts: { shade?: boolean; clip?: boolean; normals?: boolean } = {}): MeshBasicNodeMaterial {
 	const U = u as unknown as Record<keyof FieldUniforms, N>;
-	const m = new MeshBasicNodeMaterial({ side: THREE.DoubleSide });
+	// pushed back slightly so edge lines lying on the surface do not z-fight with it
+	const m = new MeshBasicNodeMaterial({ side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
 	const amp = mix(float(1), U.amp, U.animValue);
 	const v = attribute('value', 'float').mul(amp);
 	const tLin = v.sub(U.vmin).div(U.vmax.sub(U.vmin));
@@ -45,8 +54,16 @@ export function fieldMaterial(lut: THREE.Texture, u: FieldUniforms, opts: { shad
 	m.colorNode = Fn(() => {
 		if (opts.clip ?? true) If(U.clipOn.greaterThan(0.5).and(dot(positionWorld, U.clipN as never).greaterThan(U.clipD)), () => { Discard(); });
 		if (!shade) return base;
-		const n = normalize(cross(dFdx(positionView), dFdy(positionView)));
-		return base.mul(float(0.62).add(abs(n.z).mul(0.38)));
+		const V = normalize(positionView.negate());
+		const n0 = opts.normals ? normalize(normalView) : normalize(cross(dFdx(positionView), dFdy(positionView)));
+		const n = select(dot(n0, V).lessThan(0), n0.negate(), n0);
+		const L1 = normalize(vec3(-0.42, 0.55, 0.72)), L2 = normalize(vec3(0.6, -0.3, 0.5));
+		const d1 = max(dot(n, L1), float(0)), d2 = max(dot(n, L2), float(0));
+		const light = float(0.4).add(n.y.mul(0.08)).add(d1.mul(0.5)).add(d2.mul(0.14));
+		const H = normalize(L1.add(V));
+		const spec = pow(max(dot(n, H), float(0)), float(56)).mul(0.2);
+		const rim = pow(float(1).sub(abs(dot(n, V))), float(3));
+		return clamp(base.mul(light).mul(float(1).sub(rim.mul(0.45))).add(spec), float(0), float(1));
 	})();
 	m.opacityNode = U.opacity as unknown as N;
 	m.positionNode = positionLocal.add(attribute('disp', 'vec3').mul(U.dscale).mul(U.amp));

@@ -33,3 +33,16 @@ export function fmt(v: number, sig = 3): string {
 export function fmtMs(ms: number): string {
 	return ms < 10 ? `${ms.toFixed(1)} ms` : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`;
 }
+
+const PREFIX: Array<[number, string]> = [[1e12, 'T'], [1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p'], [1e-15, 'f']];
+/** SI units that take engineering prefixes in the display (others, e.g. K, degC, 1, compound units, stay as they are). */
+const PREFIXABLE = new Set(['Pa', 'm', 'J', 'W', 'Hz', 'T', 'V', 'A', 'N', 's', 'F', 'H', 'Wb', 'S', 'Ohm', 'C', 'V/m', 'A/m']);
+
+/** Engineering display of an SI value: mantissa in [1, 1000) with a prefix (3.02e6 Pa -> "3.02", "MPa"). */
+export function fmtEng(v: number, unit: string, sig = 3): { num: string; unit: string } {
+	if (!PREFIXABLE.has(unit) || !Number.isFinite(v) || v === 0) return { num: fmt(v, sig), unit };
+	const a = Math.abs(v);
+	const [f, p] = PREFIX.find(([k]) => a >= k * 0.9995) ?? PREFIX[PREFIX.length - 1]!;
+	const m = v / f;
+	return { num: Number(m.toPrecision(sig)).toString(), unit: p + unit };
+}

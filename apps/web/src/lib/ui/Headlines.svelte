@@ -45,4 +45,6 @@
 	.dim .v { color: var(--ink-3); }
 	.m { font-size: 10px; border: 1px solid currentColor; padding: 0 3px; color: var(--ink-2); }
 	.na { font-size: 11px; color: var(--ink-3); }
+	/* phones: the graphics toolbar wraps; keep the box clear of it, above the colorbar strip (DevLog-015) */
+	@media (max-width: 760px) { .boxed { top: auto; bottom: 78px; } }
 </style>

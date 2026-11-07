@@ -42,62 +42,114 @@ export function bbox3(N: ArrayLike<number>): { lo: V3; hi: V3; c: V3; diag: numb
 export interface Surface {
 	/** triangle soup: 9 floats per triangle, metres relative to `c0` */
 	pos: Float32Array;
-	/** node index per vertex (nodal fields and displacement) */
+	/** node index per vertex (nodal fields and displacement); for tet10 mid-edge vertices the mid-edge node */
 	node: Int32Array;
+	/** the two corner nodes of the edge of a mid-edge vertex (corner vertices: the node twice), for P1 fields */
+	pair: Int32Array;
 	/** cell index per vertex (DG0 fields) */
 	cell: Int32Array;
-	/** wireframe segments: pairs of node indices */
+	/** smooth outward unit normal per vertex (area-weighted over the faces at the node within a 35 deg crease) */
+	nrm: Float32Array;
+	/** wireframe segments: pairs of node indices (corner edges) */
 	edges: Int32Array;
 	/** feature edges (dihedral angle between the adjacent exterior faces above 30 deg): pairs of node indices */
 	features: Int32Array;
 	c0: V3;
 }
 
-/** Exterior faces (seen by one cell only). */
+/** tet10 mid-edge node (VTK order: corners, (01) (12) (02) (03) (13) (23)) of the local corner pair. */
+const TET10_MID: Record<string, number> = { '0,1': 4, '1,2': 5, '0,2': 6, '0,3': 7, '1,3': 8, '2,3': 9 };
+
+/**
+ * Exterior faces (seen by one cell only), oriented outward (cell centroid test), triangulated. tet10 faces are split
+ * into 4 triangles through their mid-edge nodes, so curved faces are drawn curved and P2 nodal values are exact at
+ * all 6 face nodes (DevLog-015).
+ */
 export function exterior(m: Mesh): Surface {
 	const { npe, nC, faces } = cellInfo(m);
 	const C = m.cells.conn, N = m.nodes;
-	const seen = new Map<string, { cell: number; f: number[] } | null>();
+	const quad = m.cells.type === 'tet10';
+	const seen = new Map<string, { cell: number; f: number[]; loc: number[] } | null>();
 	for (let e = 0; e < nC; e++)
 		for (const f of faces) {
 			const nodes = f.map((k) => C[npe * e + k]!);
 			const key = [...nodes].sort((a, b) => a - b).join(',');
 			if (seen.has(key)) seen.set(key, null);
-			else seen.set(key, { cell: e, f: nodes });
+			else seen.set(key, { cell: e, f: nodes, loc: f });
 		}
 	const c0 = bbox3(N).c;
-	const pos: number[] = [], node: number[] = [], cell: number[] = [], edges: number[] = [];
+	const P = (i: number, k: number) => N[3 * i + k]!;
+	const tri: number[] = [], triCell: number[] = [], triPair: number[] = [];
+	const edges: number[] = [];
 	const enorm = new Map<string, { a: number; b: number; n: number[][] }>();
-	const fnormal = (f: number[]): number[] => {
-		const P = (i: number, k: number) => N[3 * f[i]! + k]!;
-		const u = [P(1, 0) - P(0, 0), P(1, 1) - P(0, 1), P(1, 2) - P(0, 2)], w = [P(2, 0) - P(0, 0), P(2, 1) - P(0, 1), P(2, 2) - P(0, 2)];
-		const c = [u[1]! * w[2]! - u[2]! * w[1]!, u[2]! * w[0]! - u[0]! * w[2]!, u[0]! * w[1]! - u[1]! * w[0]!];
-		const l = Math.hypot(c[0]!, c[1]!, c[2]!) || 1;
-		return [c[0]! / l, c[1]! / l, c[2]! / l];
+	const fnormal = (a: number, b: number, c: number): number[] => {
+		const u = [P(b, 0) - P(a, 0), P(b, 1) - P(a, 1), P(b, 2) - P(a, 2)], w = [P(c, 0) - P(a, 0), P(c, 1) - P(a, 1), P(c, 2) - P(a, 2)];
+		return [u[1]! * w[2]! - u[2]! * w[1]!, u[2]! * w[0]! - u[0]! * w[2]!, u[0]! * w[1]! - u[1]! * w[0]!];
 	};
-	let curNormal: number[] = [0, 0, 1];
-	const edge = (a: number, b: number) => {
-		const k = a < b ? `${a},${b}` : `${b},${a}`;
-		const e = enorm.get(k);
-		if (!e) { enorm.set(k, { a, b, n: [curNormal] }); edges.push(a, b); }
-		else e.n.push(curNormal);
-	};
-	const vert = (n: number, e: number) => { pos.push(N[3 * n]! - c0[0], N[3 * n + 1]! - c0[1], N[3 * n + 2]! - c0[2]); node.push(n); cell.push(e); };
+	const unit = (v: number[]) => { const l = Math.hypot(v[0]!, v[1]!, v[2]!) || 1; return [v[0]! / l, v[1]! / l, v[2]! / l]; };
 	for (const v of seen.values()) {
 		if (!v) continue;
-		const f = v.f;
-		curNormal = fnormal(f);
-		for (let k = 1; k + 1 < f.length; k++) { vert(f[0]!, v.cell); vert(f[k]!, v.cell); vert(f[k + 1]!, v.cell); }
-		for (let k = 0; k < f.length; k++) edge(f[k]!, f[(k + 1) % f.length]!);
+		let f = v.f, loc = v.loc;
+		// outward: the face normal points away from the cell centroid
+		const nc = Math.min(npe, quad ? 4 : npe);
+		const cc = [0, 0, 0];
+		for (let k = 0; k < nc; k++) for (let d = 0; d < 3; d++) cc[d]! += P(C[npe * v.cell + k]!, d) / nc;
+		const fc = [0, 0, 0];
+		for (const n of f) for (let d = 0; d < 3; d++) fc[d]! += P(n, d) / f.length;
+		const n0 = fnormal(f[0]!, f[1]!, f[2]!);
+		if (n0[0]! * (fc[0]! - cc[0]!) + n0[1]! * (fc[1]! - cc[1]!) + n0[2]! * (fc[2]! - cc[2]!) < 0) { f = [...f].reverse(); loc = [...loc].reverse(); }
+		const fn = unit(fnormal(f[0]!, f[1]!, f[2]!));
+		const push = (a: number, b: number, c: number, pa: [number, number], pb: [number, number], pc: [number, number]) => { tri.push(a, b, c); triCell.push(v.cell); triPair.push(...pa, ...pb, ...pc); };
+		if (quad && f.length === 3) {
+			const mid = (i: number, j: number) => { const a = loc[i]!, b = loc[j]!; return C[npe * v.cell + TET10_MID[a < b ? `${a},${b}` : `${b},${a}`]!]!; };
+			const [A, B, Cc] = f as [number, number, number];
+			const ab = mid(0, 1), bc = mid(1, 2), ca = mid(2, 0);
+			push(A, ab, ca, [A, A], [A, B], [Cc, A]);
+			push(ab, B, bc, [A, B], [B, B], [B, Cc]);
+			push(ca, bc, Cc, [Cc, A], [B, Cc], [Cc, Cc]);
+			push(ab, bc, ca, [A, B], [B, Cc], [Cc, A]);
+		} else for (let k = 1; k + 1 < f.length; k++) push(f[0]!, f[k]!, f[k + 1]!, [f[0]!, f[0]!], [f[k]!, f[k]!], [f[k + 1]!, f[k + 1]!]);
+		for (let k = 0; k < f.length; k++) {
+			const a = f[k]!, b = f[(k + 1) % f.length]!, key = a < b ? `${a},${b}` : `${b},${a}`;
+			const e = enorm.get(key);
+			if (!e) { enorm.set(key, { a, b, n: [fn] }); edges.push(a, b); } else e.n.push(fn);
+		}
+	}
+	// smooth normals: per node, area-weighted triangle normals; each vertex takes those within 35 deg of its own face
+	const nT = tri.length / 3;
+	const tn = new Float64Array(3 * nT);
+	const at = new Map<number, number[]>();
+	for (let t = 0; t < nT; t++) {
+		const n = fnormal(tri[3 * t]!, tri[3 * t + 1]!, tri[3 * t + 2]!);
+		tn.set(n, 3 * t);
+		for (let k = 0; k < 3; k++) { const id = tri[3 * t + k]!; const l = at.get(id); if (l) l.push(t); else at.set(id, [t]); }
+	}
+	const cosC = Math.cos((35 * Math.PI) / 180);
+	const pos = new Float32Array(9 * nT), nrm = new Float32Array(9 * nT), node = new Int32Array(3 * nT), cell = new Int32Array(3 * nT), pair = new Int32Array(6 * nT);
+	for (let t = 0; t < nT; t++) {
+		const own = unit([tn[3 * t]!, tn[3 * t + 1]!, tn[3 * t + 2]!]);
+		for (let k = 0; k < 3; k++) {
+			const id = tri[3 * t + k]!, o = 3 * (3 * t + k);
+			let sx = 0, sy = 0, sz = 0;
+			for (const q of at.get(id)!) {
+				const qx = tn[3 * q]!, qy = tn[3 * q + 1]!, qz = tn[3 * q + 2]!, l = Math.hypot(qx, qy, qz) || 1;
+				if ((qx * own[0]! + qy * own[1]! + qz * own[2]!) / l >= cosC) { sx += qx; sy += qy; sz += qz; }
+			}
+			const n = unit([sx, sy, sz]);
+			for (let d = 0; d < 3; d++) { pos[o + d] = P(id, d) - c0[d]!; nrm[o + d] = n[d]!; }
+			node[3 * t + k] = id;
+			cell[3 * t + k] = triCell[t]!;
+			pair[2 * (3 * t + k)] = triPair[6 * t + 2 * k]!;
+			pair[2 * (3 * t + k) + 1] = triPair[6 * t + 2 * k + 1]!;
+		}
 	}
 	const feat: number[] = [];
 	const cos30 = Math.cos(Math.PI / 6);
 	for (const e of enorm.values()) {
 		const [n0, n1] = e.n;
-		// orientation of polygon faces is not consistent across cells: compare |cos|
-		if (!n1 || Math.abs(n0![0]! * n1[0]! + n0![1]! * n1[1]! + n0![2]! * n1[2]!) < cos30) feat.push(e.a, e.b);
+		if (!n1 || n0![0]! * n1[0]! + n0![1]! * n1[1]! + n0![2]! * n1[2]! < cos30) feat.push(e.a, e.b);
 	}
-	return { pos: Float32Array.from(pos), node: Int32Array.from(node), cell: Int32Array.from(cell), edges: Int32Array.from(edges), features: Int32Array.from(feat), c0 };
+	return { pos, node, pair, cell, nrm, edges: Int32Array.from(edges), features: Int32Array.from(feat), c0 };
 }
 
 export interface Cut {

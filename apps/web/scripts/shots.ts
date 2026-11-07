@@ -86,11 +86,17 @@ const longTasks = (p: Page) => p.evaluate(() => { const a = (window as unknown a
 const scalar = (p: Page, k: string) => p.evaluate((kk) => (window as unknown as { __ampPlay: { session: { solution: { scalars: Record<string, { value: number }> } | null } } }).__ampPlay.session.solution?.scalars[kk]?.value ?? null, k);
 const status = (p: Page, hook: string) => p.evaluate((h) => { const s = (window as unknown as Record<string, { session: { status: string; reasons: string[]; error: string; lastOutcomeMs: number; fresh: boolean; meshInfo: { hash: string; cells: number } | null; solution: { stats: unknown } | null } }>)[h]!.session; return { status: s.status, fresh: s.fresh, reasons: s.reasons, error: s.error, ms: s.lastOutcomeMs, stats: s.solution?.stats ?? null, meshHash: s.meshInfo?.hash ?? null, cells: s.meshInfo?.cells ?? null }; }, hook);
 /** Mesh hash of the solve mesh in Node (@amp/physics prepareRun) for the exact spec text the browser holds, audit S3. */
-async function nodeMeshHash(text: string): Promise<string | null> {
+async function nodeMeshHash(text: string, hFactor = 1): Promise<string | null> {
 	try {
 		const data = (await createOpLog(text)).data as Record<string, unknown>;
-		return (await prepareRun({ spec: data, hFactor: 1 })).mesh.hash;
+		return (await prepareRun({ spec: data, hFactor })).mesh.hash;
 	} catch (e) { return `error: ${(e as Error).message.slice(0, 120)}`; }
+}
+/** Wait for the full-accuracy sequence (DevLog-015) to end; returns its record (null when the view has none). */
+type Acc = { status: string; reason: string; doneAt: number; startedAt: number; levels: Array<{ h: number; dof: number; ms: number; values: number[]; meshHash: string }>; rich: Array<{ available: boolean; reason?: string; p_obs: number | null; f_ext: number | null; gci_fine: number | null; u_abs: number | null; rel_change_last: number | null }>; conv: { tol: unknown; caseId: string; order?: number } };
+async function accDone(p: Page): Promise<Acc | null> {
+	await p.waitForFunction(() => { const a = (window as unknown as { __ampPlay: { session: { acc: { status: string } | null; accuracy: unknown } } }).__ampPlay.session; return !a.accuracy || (!!a.acc && a.acc.status !== 'running'); }, null, { timeout: 600000, polling: 250 });
+	return p.evaluate(() => { const a = (window as unknown as { __ampPlay: { session: { acc: unknown } } }).__ampPlay.session.acc; return a ? JSON.parse(JSON.stringify(a)) : null; });
 }
 const fcp = (p: Page) => p.evaluate(() => new Promise<number>((res) => {
 	const hit = performance.getEntriesByType('paint').find((e) => e.name === 'first-contentful-paint');
@@ -209,8 +215,17 @@ for (const v of VIEWS) for (const sim of SIMS) {
 	if (v.w === 1440) {
 		(result.playStatus ??= {} as Record<string, unknown>);
 		const st = await status(p, '__ampPlay');
-		const nh = await nodeMeshHash(await p.evaluate(() => (window as unknown as { __ampPlay: { session: { model: { original: string } } } }).__ampPlay.session.model.original));
-		(result.playStatus as Record<string, unknown>)[sim] = { ...st, nodeMeshHash: nh, hashMatch: st.meshHash === nh, longTasksLoad: await longTasks(p) };
+		const lt = await longTasks(p);
+		// full-accuracy sequence (DevLog-015): cold page load to gated accuracy; every level's browser mesh hash vs Node
+		const acc = await accDone(p);
+		const ltAcc = await longTasks(p);
+		const original = await p.evaluate(() => (window as unknown as { __ampPlay: { session: { model: { original: string } } } }).__ampPlay.session.model.original);
+		const levelHashes = acc ? await Promise.all(acc.levels.map(async (l) => { const nh = await nodeMeshHash(original, l.h); return { h: l.h, browser: l.meshHash.slice(0, 12), node: nh?.slice(0, 12) ?? null, match: l.meshHash === nh }; })) : [];
+		const level1 = acc?.levels[0]?.meshHash ?? st.meshHash;
+		const nh = await nodeMeshHash(original);
+		(result.accuracy ??= {} as Record<string, unknown>);
+		(result.accuracy as Record<string, unknown>)[sim] = acc ? { status: acc.status, reason: acc.reason, loadToGatedMs: acc.doneAt || null, sequenceMs: acc.doneAt ? acc.doneAt - acc.startedAt : null, levels: acc.levels.map((l) => ({ h: l.h, dof: l.dof, ms: Math.round(l.ms), values: l.values.slice(0, 3) })), estimate: acc.rich.slice(0, 3), case: acc.conv } : null;
+		(result.playStatus as Record<string, unknown>)[sim] = { ...st, meshHash: level1, nodeMeshHash: nh, hashMatch: level1 === nh, levelHashes, longTasksLoad: lt, longTasksDuringRefinement: ltAcc };
 		if (sim === 'kirsch-plate') {
 			// Pass 2 item 4: agent on the scripted mock provider (no network, no key): "make the hole 2x larger and rerun"
 			type W = { __ampPlay: { session: { model: { text: string; ops: Array<{ actor: string; reason?: string; seq: number }>; data: { params: { D: { value: number } } }; specHash: string }; fresh: boolean; solutionSpec: string; solution: { run: { startedAt: string } } | null }; openAgentMock(steps: unknown[]): Promise<void>; mock: { remaining: number; wireViolations: unknown[] } | null } };
@@ -234,7 +249,10 @@ for (const v of VIEWS) for (const sim of SIMS) {
 			result.agentPlay = { D0: before.D, D1: after.D, doubled: after.D === 2 * before.D, reran: after.run !== before.run && after.fresh && after.solvedFor, agentOps: after.agentOps, wireViolations: after.wire, undoRestoresBytes: undone === before.text };
 		}
 		if (sim === 'helmholtz-coil') {
-			// B1: exact-field edit of a solution-only parameter re-solves; W_m scales with I^2
+			// B1: exact-field edit of a solution-only parameter re-solves; W_m scales with I^2 (compared on the hFactor-1
+			// level: the full-accuracy sequence is switched off for this check so both values come from the same mesh)
+			await p.evaluate(() => { const s = (window as unknown as { __ampPlay: { session: { accuracy: unknown; stopRefine(): void; requestCompute(): void } } }).__ampPlay.session; s.accuracy = null; s.stopRefine(); s.requestCompute(); });
+			await settled(p, '__ampPlay');
 			const w1 = await scalar(p, 'W_m');
 			const field = p.locator('.ps', { hasText: 'I' }).first().locator('input:not([type=range])');
 			await field.click(); await field.fill('2'); await field.press('Enter');
@@ -245,6 +263,8 @@ for (const v of VIEWS) for (const sim of SIMS) {
 			const w3 = await scalar(p, 'W_m');
 			result.b1 = { W_m_1A: w1, W_m_2A: w2, ratio: w1 && w2 ? w2 / w1 : null, pass: !!(w1 && w2 && Math.abs(w2 / w1 - 4) < 1e-9), afterUndo: w3, undoRestores: w3 === w1 };
 		}
+		await accDone(p);
+		await longTasks(p);
 		const before = await p.evaluate(() => (window as unknown as { __ampPlay: { session: { model: { ops: unknown[] } } } }).__ampPlay.session.model.ops.length);
 		const slider = p.locator('aside input[type=range]').nth(sim === 'si-rib-waveguide' ? 3 : 0);
 		if (await slider.count()) {
@@ -260,6 +280,8 @@ for (const v of VIEWS) for (const sim of SIMS) {
 			const after = await p.evaluate(() => { const m = (window as unknown as { __ampPlay: { session: { model: { ops: Array<{ coalesced?: number }> } } } }).__ampPlay.session.model; return { n: m.ops.length, coalesced: m.ops.at(-1)?.coalesced ?? 1 }; });
 			drags[sim] = { sliderSteps: 12, opsAdded: after.n - before, coalesced: after.coalesced, dragMs: { median: median(times.filter((x) => x > 0)), max: Math.max(...times) }, longTasks: await longTasks(p), afterRelease: await status(p, '__ampPlay') };
 		}
+		// the camera re-frames the region of interest with an eased move (about 0.4 s) after a parameter change
+		await p.waitForTimeout(600);
 		const hd = p.locator('svg.ov rect.hd').first();
 		if (await hd.count()) {
 			const b = (await hd.boundingBox())!;
@@ -299,5 +321,5 @@ try {
 
 result.errors = errors;
 server.close();
-await writeFile(new URL(`../../../logs/L5-shots-${ts}.json`, import.meta.url), JSON.stringify(result, null, 1));
+await writeFile(new URL(`../../../logs/${process.env.TAG ?? 'L5'}-shots-${ts}.json`, import.meta.url), JSON.stringify(result, null, 1));
 console.log(JSON.stringify(result, null, 1));

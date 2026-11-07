@@ -11,7 +11,7 @@ import { colormapLut, type ColormapName } from './colormaps';
 import { hexToRgb } from './renderer2d';
 import { grabCanvas } from './capture';
 
-export interface Drawable { pos: Float32Array; val: Float32Array; disp: Float32Array | null }
+export interface Drawable { pos: Float32Array; val: Float32Array; disp: Float32Array | null; /** smooth unit normals per vertex (lighting); flat normals when absent */ nrm?: Float32Array | null }
 
 export class Viewer3D {
 	readonly renderer: THREE.WebGLRenderer;
@@ -64,7 +64,7 @@ export class Viewer3D {
 	}
 
 	/** Replace the data of a persistent geometry (same object, same attribute names). */
-	private fill(g: THREE.BufferGeometry, pos: Float32Array, val: Float32Array, disp: Float32Array | null) {
+	private fill(g: THREE.BufferGeometry, pos: Float32Array, val: Float32Array, disp: Float32Array | null, nrm: Float32Array | null = null, lit = false) {
 		const put = (name: string, arr: Float32Array, size: number) => {
 			const a = g.getAttribute(name) as THREE.BufferAttribute | undefined;
 			if (a && a.array.length === arr.length) { (a.array as Float32Array).set(arr); a.needsUpdate = true; }
@@ -73,6 +73,8 @@ export class Viewer3D {
 		put('position', pos, 3);
 		put('value', val, 1);
 		put('disp', disp ?? new Float32Array(pos.length), 3);
+		if (nrm && nrm.length === pos.length) put('normal', nrm, 3);
+		else if (lit && pos.length) { g.deleteAttribute('normal'); g.computeVertexNormals(); }
 		g.setDrawRange(0, pos.length / 3);
 	}
 
@@ -83,10 +85,10 @@ export class Viewer3D {
 	private matLine: THREE.Material | null = null;
 	private materials() {
 		this.regionLut ??= lutTexture(new Uint8Array(1024), true);
-		this.matField ??= fieldMaterial(this.lut, this.u, { shade: true });
-		this.matRegion ??= fieldMaterial(this.regionLut, this.ur, { shade: true });
+		this.matField ??= fieldMaterial(this.lut, this.u, { shade: true, normals: true });
+		this.matRegion ??= fieldMaterial(this.regionLut, this.ur, { shade: true, normals: true });
 		this.matCut ??= fieldMaterial(this.lut, this.u, { shade: true, clip: false });
-		this.matLine ??= lineMaterial(this.u, 0xe8e8e8, 0.28);
+		this.matLine ??= lineMaterial(this.u, 0xe8e8e8, 0.32);
 	}
 	/** region view: domain index i maps to texel i of a 256-entry categorical LUT (own uniforms, range 0..255) */
 	readonly ur: FieldUniforms = makeUniforms();
@@ -112,7 +114,7 @@ export class Viewer3D {
 		const mat = regionColors ? this.matRegion! : this.matField!;
 		if (!this.surf) { this.surf = new THREE.Mesh(new THREE.BufferGeometry(), mat); this.surf.frustumCulled = false; this.group.add(this.surf); }
 		this.surf.material = mat;
-		this.fill(this.surf.geometry, d.pos, d.val, d.disp);
+		this.fill(this.surf.geometry, d.pos, d.val, d.disp, d.nrm ?? null, true);
 		this.surf.visible = this.surfOn && d.pos.length > 0;
 		const E = edges ?? new Float32Array(0);
 		if (!this.wire) { this.wire = new THREE.LineSegments(new THREE.BufferGeometry(), this.matLine!); this.wire.frustumCulled = false; this.group.add(this.wire); }
@@ -168,8 +170,9 @@ export class Viewer3D {
 
 	setDeform(scale: number) { this.u.dscale.value = scale; this.ur.dscale.value = scale; this.request(); }
 
-	setPhase(phase: number, animValue: boolean) {
-		this.u.amp.value = Math.cos(phase);
+	setPhase(phase: number, animValue: boolean, magnitude = false) {
+		// a magnitude of a real mode Re(u e^(i w t)) = u cos(w t) scales by |cos|
+		this.u.amp.value = magnitude ? Math.abs(Math.cos(phase)) : Math.cos(phase);
 		this.u.animValue.value = animValue ? 1 : 0;
 		this.request();
 	}
@@ -212,7 +215,7 @@ export class Viewer3D {
 
 	private padRight(): number {
 		// phones use a horizontal colorbar at the bottom (no right offset)
-		return this.w > 240 && window.innerWidth > 760 ? 80 : 0;
+		return 0; // the colorbar lives in its own strip outside the canvas (DevLog-015)
 	}
 
 	/** Render now and read the canvas back (screenshot tool). */
