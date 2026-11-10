@@ -8,8 +8,8 @@
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   # pages carry their CSP as a <meta> tag with the hashes of the inline bootstrap (vite.config.ts kit csp);
-  # frame-ancestors only works as a header; 'self' lets the outside5sigma.com blog timeline embed the app (same origin)
-  Content-Security-Policy: frame-ancestors 'self'
+  # frame-ancestors only works as a header
+  Content-Security-Policy: frame-ancestors 'none'
 
 # HTML pages: no-transform stops zone-level edge injection (Bot Fight Mode JS detections, Web Analytics beacon),
 # whose inline scripts the hashed meta CSP would block (DevLog-017 s.5). Value otherwise = the Pages default.

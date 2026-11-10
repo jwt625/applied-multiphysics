@@ -119,10 +119,6 @@ Grep after the change: no absolute `/_app`, `/play` or `fetch("/...")` URLs in `
 - `apps/web/static/_headers`: `/` and `/play/*` now send `Cache-Control: public, max-age=0, must-revalidate, no-transform` (the Pages default plus no-transform); assets unchanged. Base build: generated `build/_headers` has the rules under `/applied-multiphysics/`; `deploy/serve.mjs` serves the header on the three HTML routes (`logs/D1-build-base-notransform-*.log`). Root production build restored afterwards.
 - If the beacon survives no-transform after redeploy: add "Disable Real User Monitoring (RUM)" to the existing Configuration Rule (dashboard, Wentao).
 
-### 6.5 Framing for the blog timeline (2026-11-09)
-- `_headers`: `frame-ancestors 'none'` -> `'self'` so the outside5sigma.com projects timeline popup can iframe `/applied-multiphysics/` (same origin; other sites still blocked). `deploy/worker.test.mjs`, `apps/web/scripts/base-check.ts` and `deploy/README.md` expectations updated.
-- Inside the blog iframe the top-level page is not cross-origin isolated, so `crossOriginIsolated` is false there and the worker-pool fallback (DevLog-001 A13) applies. Direct visits are unchanged (COOP/COEP still sent).
-
 ### 6.4 Follow-ups
 - [x] Recheck the live console after the Pages rebuild of this commit (817efd4, live ~60 s after push).
 - [ ] `404.html` under the base (missing path currently downloads in Chromium).
