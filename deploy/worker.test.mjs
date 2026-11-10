@@ -8,7 +8,7 @@ const env = { PAGES_ORIGIN: 'https://applied-multiphysics.pages.dev' };
 const ISO = {
 	'cross-origin-opener-policy': 'same-origin',
 	'cross-origin-embedder-policy': 'require-corp',
-	'content-security-policy': "frame-ancestors 'none'",
+	'content-security-policy': "frame-ancestors 'self'",
 	'cache-control': 'public, max-age=31536000, immutable'
 };
 /** @type {Array<{ url: string, init: RequestInit | undefined, input: unknown }>} */

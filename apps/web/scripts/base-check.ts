@@ -39,7 +39,7 @@ const get = async (p: string) => { const r = await fetch(origin + p, { redirect:
 	check('base without slash -> redirect to base/ (Pages; the Worker answers 301 first)', [301, 308].includes(bare.status) && bare.h.get('location') === `${BASE}/`, { status: bare.status, location: bare.h.get('location') });
 	const page = await get(`${BASE}/`);
 	const iso = { coop: page.h.get('cross-origin-opener-policy'), coep: page.h.get('cross-origin-embedder-policy'), corp: page.h.get('cross-origin-resource-policy'), csp: page.h.get('content-security-policy') };
-	check('base/ 200 with COOP/COEP/CORP and frame-ancestors', page.status === 200 && iso.coop === 'same-origin' && iso.coep === 'require-corp' && iso.corp === 'same-origin' && !!iso.csp?.includes("frame-ancestors 'none'"), iso);
+	check('base/ 200 with COOP/COEP/CORP and frame-ancestors', page.status === 200 && iso.coop === 'same-origin' && iso.coep === 'require-corp' && iso.corp === 'same-origin' && !!iso.csp?.includes("frame-ancestors 'self'"), iso);
 	const js = /(\/[^"]*\/_app\/immutable\/[^"]+\.js)"/.exec(page.body)?.[1] ?? '';
 	const a = await get(js);
 	const cc = a.h.get('cache-control') ?? '';

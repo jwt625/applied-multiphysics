@@ -76,7 +76,7 @@ curl -sI https://applied-multiphysics.pages.dev/applied-multiphysics/ | grep -iE
 curl -sI https://outside5sigma.com/applied-multiphysics | grep -iE '^(HTTP|location)'                # 301, location: https://outside5sigma.com/applied-multiphysics/
 curl -sI https://outside5sigma.com/applied-multiphysics/ | grep -iE '^(HTTP|cross-origin|content-security|x-github-request-id|cache-control)'
 #   expect 200, cross-origin-opener-policy: same-origin, cross-origin-embedder-policy: require-corp,
-#   cross-origin-resource-policy: same-origin, content-security-policy: frame-ancestors 'none', no x-github-request-id
+#   cross-origin-resource-policy: same-origin, content-security-policy: frame-ancestors 'self', no x-github-request-id
 curl -sI https://outside5sigma.com/applied-multiphysics/play/kirsch-plate | grep -iE '^(HTTP|cross-origin-embedder)'
 JS=$(curl -s https://outside5sigma.com/applied-multiphysics/ | grep -o '/applied-multiphysics/_app/immutable/entry/start\.[^"]*\.js' | head -1)
 curl -sI "https://outside5sigma.com$JS" | grep -iE '^(HTTP|cache-control|content-security|cross-origin-embedder)'
