@@ -33,12 +33,12 @@ test('kirsch kt: evaluation group table = item value = 3.021233775361685 (10810 
   assert.ok('value' in iv && iv.value === 3.021233775361685);
 });
 
-// ---- gate: adapter values = R1 Node values on the same meshes (logs/r1-post-gates-20261107T070753Z.json) ----------
+// ---- gate: adapter values = R1 Node values on the same meshes (test/fixtures/r1-post-gates-20261107T070753Z.json, a copy of the 2026-11-07 R1 run log) ----------
 import { solveLevels, hFactorsOf } from '../../../packages/post/gates/r1-gates.ts';
 import { cutLine, evalPoint } from '@amp/post';
 import { evalDataset } from '../src/lib/results/adapter.ts';
 
-const R1_LOG = JSON.parse(readFileSync(new URL('../../../logs/r1-post-gates-20261107T070753Z.json', import.meta.url), 'utf8')) as {
+const R1_LOG = JSON.parse(readFileSync(new URL('./fixtures/r1-post-gates-20261107T070753Z.json', import.meta.url), 'utf8')) as {
   runs: Array<{ sim: string; levels: Array<{ hFactor: number; meshHash: string }> }>;
   rows: Array<{ gate: string; levels: Array<{ hFactor: number; value?: number; error: number }> }>;
 };

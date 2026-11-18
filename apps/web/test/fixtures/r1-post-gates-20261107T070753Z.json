@@ -1,0 +1,609 @@
+{
+ "started": "2026-11-07T07:07:53.462Z",
+ "node": "v23.7.0",
+ "runs": [
+  {
+   "sim": "sims/kirsch-exact.yaml",
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "cells": 1010,
+     "ms": 152.9,
+     "meshHash": "f5e32eacf1ba1a3db6cc3a3460caa50ff34e3bd21e988218927677d879d89c43"
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "cells": 4040,
+     "ms": 178.4,
+     "meshHash": "387d719b9053a2bd18706154187d07c418b621ed326d572e1858358d2a97d4e3"
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "cells": 16160,
+     "ms": 608.4,
+     "meshHash": "bed9715ab9ace9da4defc35eaf791f23e6e3f6a7f664b8b9483a17384d5cf285"
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "cells": 64640,
+     "ms": 2805.1,
+     "meshHash": "f88a45a1c5cebff8ac9c8a7f38b7b1f7f6489f51656e340ba89ff17bf1fa6666"
+    }
+   ]
+  },
+  {
+   "sim": "sims/coax-line.yaml",
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 548,
+     "cells": 310,
+     "ms": 25.5,
+     "meshHash": "b9cf1cfc1da0c6fdbba414b90b4d92d45d7b7035a0a5cfb6c43a256263f66b9c"
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 2336,
+     "cells": 1240,
+     "ms": 29.7,
+     "meshHash": "5725095d35a430f8e6373b21eb6d0eedfa7c4cd78b4c30296e2daf2b25e89978"
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 9632,
+     "cells": 4960,
+     "ms": 75,
+     "meshHash": "7ac958f05969750d895c975008877ba2b76211a86a1de2d429a8a8a34fe7f600"
+    }
+   ]
+  }
+ ],
+ "rows": [
+  {
+   "gate": "1",
+   "quantity": "max |sigma_xx(0, y) - Kirsch|, y in [a, L]",
+   "unit": "Pa",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "error": 1594862.4199746847
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "error": 507090.6748915911
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "error": 140851.3810299039
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "error": 36960.56406226754
+    }
+   ],
+   "orders": [
+    1.6531163265550552,
+    1.8480700350853358,
+    1.930115029943109
+   ],
+   "finest_error": 36960.56406226754,
+   "finest_rel": 0.0003696056406226754,
+   "status": "pass",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing"
+  },
+  {
+   "gate": "2",
+   "quantity": "max |sigma_xx(x, 0) - Kirsch|, x in [a, L]",
+   "unit": "Pa",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "error": 518390.703531757
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "error": 133252.6071101874
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "error": 33533.394194510765
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "error": 9127.06930859387
+    }
+   ],
+   "orders": [
+    1.9598760863001752,
+    1.9904933370043136,
+    1.8773749257501826
+   ],
+   "finest_error": 9127.06930859387,
+   "finest_rel": 0.0000912706930859387,
+   "status": "pass",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing"
+  },
+  {
+   "gate": "3",
+   "quantity": "int_a^L sigma_xx(0, y) dy",
+   "unit": "N/m",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "value": 4974664.346323662,
+     "error": 85.65367633849382
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "value": 4974671.730855403,
+     "error": 78.26914459839463
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "value": 4974721.720638285,
+     "error": 28.27936171554029
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "value": 4974741.991725743,
+     "error": 8.008274258114398
+    }
+   ],
+   "orders": [
+    0.1300714917192194,
+    1.4686941198783035,
+    1.8201862700211253
+   ],
+   "finest_error": 8.008274258114398,
+   "finest_rel": 0.0000016097842621467202,
+   "status": "pass",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing",
+   "note": "closed form 4974750.00 N/m"
+  },
+  {
+   "gate": "3i",
+   "quantity": "int_a^L |sigma_xx,h - sigma_xx| dy (L1 line error, information)",
+   "unit": "N/m",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "error": 3147.452665020956
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "error": 887.4093497335001
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "error": 230.8318330541998
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "error": 58.620811798042745
+    }
+   ],
+   "orders": [
+    1.8265130226485127,
+    1.9427575597026085,
+    1.9773573416132617
+   ],
+   "finest_error": 58.620811798042745,
+   "finest_rel": 0.000011783669892566005,
+   "status": "info",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing"
+  },
+  {
+   "gate": "3n",
+   "quantity": "signed error of int sigma_xx dy over y in [a, 2a] (information; value column = signed)",
+   "unit": "N/m",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "value": 1376.5369705506694,
+     "error": 1376.5369705506694
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "value": 350.1400592557802,
+     "error": 350.1400592557802
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "value": 87.42728819312566,
+     "error": 87.42728819312566
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "value": 21.890057589108686,
+     "error": 21.890057589108686
+    }
+   ],
+   "orders": [
+    1.9750393238993367,
+    2.001776573337186,
+    1.997807900378028
+   ],
+   "finest_error": 21.890057589108686,
+   "finest_rel": 0.000004400232692920988,
+   "status": "info",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing"
+  },
+  {
+   "gate": "3f",
+   "quantity": "signed error of int sigma_xx dy over y in [2a, L] (information; value column = signed)",
+   "unit": "N/m",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "value": -1462.1694900212592,
+     "error": 1462.1694900212592
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "value": -428.40885432832323,
+     "error": 428.40885432832323
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "value": -115.70664436571664,
+     "error": 115.70664436571664
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "value": -29.89833176597907,
+     "error": 29.89833176597907
+    }
+   ],
+   "orders": [
+    1.771050350545993,
+    1.8885165854447976,
+    1.9523348186047162
+   ],
+   "finest_error": 29.89833176597907,
+   "finest_rel": 0.000006010016938736432,
+   "status": "info",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing"
+  },
+  {
+   "gate": "4",
+   "quantity": "max |sigma_thetatheta - s_inf (1 - 2 cos 2 theta)| on bnd:hole.edge",
+   "unit": "Pa",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "error": 1325584.8858165145
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "error": 490198.85488408804
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "error": 131841.80924150348
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "error": 33914.76673489809
+    }
+   ],
+   "orders": [
+    1.4351900391520678,
+    1.894559168424639,
+    1.9588224704858204
+   ],
+   "finest_error": 33914.76673489809,
+   "finest_rel": 0.0003391476673489809,
+   "status": "pass",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing",
+   "note": "expression sxx*sin(th)^2 + syy*cos(th)^2 - 2*sxy*sin(th)*cos(th), defs th = atan2(y, x); evaluated at the facet nodes and the facet Gauss points"
+  },
+  {
+   "gate": "4b",
+   "quantity": "|sigma_thetatheta(0, a) - 3 s_inf|",
+   "unit": "Pa",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "error": 97071.64486259222
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "error": 19443.613290131092
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "error": 3332.488103210926
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "error": 840.4011482596397
+    }
+   ],
+   "orders": [
+    2.3197535923103425,
+    2.544624715972623,
+    1.9874496866731557
+   ],
+   "finest_error": 840.4011482596397,
+   "finest_rel": 0.000002801337160865466,
+   "status": "pass",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing"
+  },
+  {
+   "gate": "6",
+   "quantity": "|area(dom:plate) - (L^2 - pi a^2/4)|",
+   "unit": "m^2",
+   "expected_order": 4,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 4156,
+     "value": 0.002480365047710673,
+     "error": 1.795608800536641e-12
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 16392,
+     "value": 0.0024803650460272796,
+     "error": 1.122153585331187e-13
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 65104,
+     "value": 0.0024803650459220812,
+     "error": 7.016956460326185e-15
+    },
+    {
+     "hFactor": 0.125,
+     "dof": 259488,
+     "value": 0.002480365045915503,
+     "error": 4.388850394221322e-16
+    }
+   ],
+   "orders": [
+    4.000131020919681,
+    3.999280925353669,
+    3.99893041262303
+   ],
+   "finest_error": 4.388850394221322e-16,
+   "finest_rel": 1.7694372856323546e-13,
+   "status": "pass",
+   "basis": "observed order of the last pair >= 0.75 x 4, decreasing",
+   "note": "chord-polygon hole with the same corner nodes: excess 1.823e-8, 4.558e-9, 1.140e-9, 2.849e-10 m^2 per level (order 2); the P2 isoparametric arcs give the error column; both are geometry (hole discretization) errors, the quadrature is exact for the isoparametric map"
+  },
+  {
+   "gate": "5a",
+   "quantity": "max |V(r) - ln(b/r)/ln(b/a)| on a radial cut line",
+   "unit": "V",
+   "expected_order": 3,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 548,
+     "error": 0.0005684676980155512
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 2336,
+     "error": 0.00009305846216800528
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 9632,
+     "error": 0.000012232843220827405
+    }
+   ],
+   "orders": [
+    2.6108691220921902,
+    2.927377584623551
+   ],
+   "finest_error": 0.000012232843220827405,
+   "finest_rel": 0.000012232843220827405,
+   "status": "pass",
+   "basis": "observed order of the last pair >= 0.75 x 3, decreasing"
+  },
+  {
+   "gate": "5b",
+   "quantity": "max |-d(es.V, r) - 1/(r ln(b/a))| on the cut line",
+   "unit": "V/m",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 548,
+     "error": 55.209848676263846
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 2336,
+     "error": 14.047500320269137
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 9632,
+     "error": 3.5547529682098684
+    }
+   ],
+   "orders": [
+    1.9746122136828095,
+    1.9824922225045176
+   ],
+   "finest_error": 3.5547529682098684,
+   "finest_rel": 0.002226631440361158,
+   "status": "pass",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing"
+  },
+  {
+   "gate": "5c",
+   "quantity": "|int_a^b E_r dr - 1 V| on the cut line phi = 0 (identity check of the cut-line quadrature)",
+   "unit": "V",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 548,
+     "value": 1,
+     "error": 0
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 2336,
+     "value": 0.9999999999999997,
+     "error": 3.3306690738754696e-16
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 9632,
+     "value": 1,
+     "error": 0
+    }
+   ],
+   "orders": [
+    null,
+    null
+   ],
+   "finest_error": 0,
+   "finest_rel": 0,
+   "status": "pass",
+   "basis": "round-off floor (< 1e-12 relative on every level)",
+   "note": "an identity, not a convergence test: for any discrete solution with V_h = 1 / 0 at the conductor nodes the integral of -dV_h/ds over the element pieces is V_h(a) - V_h(b) = 1, up to the Gauss 3 error on curved cells; it passes on the round-off floor and tests the crossing quadrature and d() only"
+  },
+  {
+   "gate": "5d",
+   "quantity": "|int E_r ds - 1 V| on the cut line phi = 0.3 rad (information)",
+   "unit": "V",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 548,
+     "error": 8.80704470351823e-7
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 2336,
+     "error": 5.490248922157548e-9
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 9632,
+     "error": 5.5512062724361044e-9
+    }
+   ],
+   "orders": [
+    7.3256426176303595,
+    -0.015929740942079506
+   ],
+   "finest_error": 5.5512062724361044e-9,
+   "finest_rel": 5.5512062724361044e-9,
+   "status": "info",
+   "basis": "observed order of the last pair >= 0.75 x 2, decreasing",
+   "note": "r = a at phi = 0.3 lies inside the mesh, off the P2 arc of the conductor, so V_h(a) != 1: a geometry error that oscillates with the node positions (not monotone)"
+  },
+  {
+   "gate": "5e",
+   "quantity": "|int E_r ds - (V_h(start) - V_h(end))| on phi = 0.3 (kernel consistency)",
+   "unit": "V",
+   "expected_order": 2,
+   "levels": [
+    {
+     "hFactor": 1,
+     "dof": 548,
+     "error": 4.348743587456738e-13
+    },
+    {
+     "hFactor": 0.5,
+     "dof": 2336,
+     "error": 1.7175150190951172e-13
+    },
+    {
+     "hFactor": 0.25,
+     "dof": 9632,
+     "error": 7.771561172376096e-16
+    }
+   ],
+   "orders": [
+    1.3402759315017108,
+    7.787902559391432
+   ],
+   "finest_error": 7.771561172376096e-16,
+   "finest_rel": 7.771561172376096e-16,
+   "status": "info",
+   "basis": "round-off floor (< 1e-12 relative on every level)"
+  }
+ ],
+ "bench": [
+  {
+   "hFactor": 1,
+   "dof": 4156,
+   "cutline500_ms": 0.59,
+   "domain_integral_ms": 2.52
+  },
+  {
+   "hFactor": 0.5,
+   "dof": 16392,
+   "cutline500_ms": 0.79,
+   "domain_integral_ms": 9.52
+  },
+  {
+   "hFactor": 0.25,
+   "dof": 65104,
+   "cutline500_ms": 1.2,
+   "domain_integral_ms": 38.31
+  },
+  {
+   "hFactor": 0.125,
+   "dof": 259488,
+   "cutline500_ms": 2.16,
+   "domain_integral_ms": 148.42
+  }
+ ],
+ "gate7": {
+  "sha256": "b913438eacde4cbf13b0ab52a9a8a0bb72969b5bb051cc65d47ca0e6eefcd822",
+  "count": 1899
+ }
+}
