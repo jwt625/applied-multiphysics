@@ -45,12 +45,12 @@ results:
       data: sol_eig
       steps: 0
       items:
-        - {id: E_mode_surf, type: surface, expr: rf.normE, unit: V/m}
+        - {id: E_mode_surf, type: surface, expr: "sqrt(rf.E_nodal.x^2 + rf.E_nodal.y^2 + rf.E_nodal.z^2)", unit: V/m}
 provenance:
   values:
-    params.a: {basis: benchmark, source: "R3 RF-01 (Palace docs cylinder.md L26-28)", date: 2026-11-06}
-    params.d: {basis: benchmark, source: "R3 RF-01: d = 2a", date: 2026-11-06}
-    materials.fill.override.eps_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.eps_r (Palace docs examples/cylinder.md, R3 s.3.4)", date: 2026-11-06}
+    params.a: {basis: benchmark, source: "Palace documentation, examples/cylinder.md lines 26-28 (as tabulated in eval case RF-01)", date: 2026-11-06}
+    params.d: {basis: benchmark, source: "Palace documentation, examples/cylinder.md (as tabulated in eval case RF-01): d = 2a", date: 2026-11-06}
+    materials.fill.override.eps_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.eps_r (Palace documentation, examples/cylinder.md)", date: 2026-11-06}
     materials.fill.override.tan_delta: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.tan_delta (Palace docs cylinder.md)", date: 2026-11-06}
     materials.fill.override.mu_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.mu_r (Palace docs cylinder.md)", date: 2026-11-06}
     studies.eig.settings.shift: {basis: benchmark, source: "eval/cases/a/RF-21.yaml study.shift", date: 2026-11-06}

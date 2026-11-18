@@ -44,7 +44,7 @@ const get = async (p: string) => { const r = await fetch(origin + p, { redirect:
 	const a = await get(js);
 	const cc = a.h.get('cache-control') ?? '';
 	const csp = a.h.get('content-security-policy') ?? '';
-	check('immutable JS under base: immutable cache, _app CSP (connect-src anthropic, wasm-unsafe-eval), COEP', js.startsWith(`${BASE}/_app/immutable/`) && a.status === 200 && cc.includes('immutable') && csp.includes("connect-src 'self' https://api.anthropic.com") && csp.includes("'wasm-unsafe-eval'") && a.h.get('cross-origin-embedder-policy') === 'require-corp', { js, cc, csp });
+	check('immutable JS under base: immutable cache, _app CSP (connect-src anthropic + deepseek, wasm-unsafe-eval), COEP', js.startsWith(`${BASE}/_app/immutable/`) && a.status === 200 && cc.includes('immutable') && csp.includes("connect-src 'self' https://api.anthropic.com https://api.deepseek.com;") && csp.includes("'wasm-unsafe-eval'") && a.h.get('cross-origin-embedder-policy') === 'require-corp', { js, cc, csp });
 	const sw = await get(`${BASE}/service-worker.js`);
 	check('service-worker.js no-cache', sw.status === 200 && sw.h.get('cache-control') === 'no-cache', sw.h.get('cache-control'));
 	const old = await get('/_app/version.json');
@@ -58,14 +58,19 @@ const get = async (p: string) => { const r = await fetch(origin + p, { redirect:
 	const walk = async (d: string) => { for (const e of await readdir(d, { withFileTypes: true })) { const p = join(d, e.name); if (e.isDirectory() && e.name !== '_app') await walk(p); else if (e.name.endsWith('.html')) pages.push(p); } };
 	await walk(site);
 	const bad: string[] = [];
+	const conn: string[] = [];
 	for (const f of pages) {
 		const html = await readFile(f, 'utf8');
 		const meta = /<meta http-equiv="content-security-policy" content="([^"]+)"/i.exec(html)?.[1] ?? '';
+		// connect-src: this origin and the agent's preset providers only (DevLog-053)
+		const cs = meta.split(';').map((d) => d.trim()).find((d) => d.startsWith('connect-src')) ?? '';
+		if (cs !== "connect-src 'self' https://api.anthropic.com https://api.deepseek.com") conn.push(`${f.slice(site.length)}: ${cs}`);
 		const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]!);
 		const hashes = scripts.map((s) => `'sha256-${createHash('sha256').update(s).digest('base64')}'`);
 		if (!meta || !scripts.length || hashes.some((h) => !meta.includes(h))) bad.push(f.slice(site.length));
 	}
 	check(`CSP meta hash matches the inline bootstrap (${pages.length} pages)`, pages.length >= 10 && bad.length === 0, bad);
+	check(`CSP meta connect-src = 'self' + anthropic + deepseek (${pages.length} pages)`, pages.length >= 10 && conn.length === 0, conn.slice(0, 3));
 }
 
 // ---- browser

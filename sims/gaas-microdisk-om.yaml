@@ -64,7 +64,7 @@ results:
       data: sol_eig
       items:
         - {id: fo, type: global, expr: opt.f_0, unit: THz, label: "optical mode 0 frequency"}
-        - {id: fm, type: global, expr: mech.f_2, unit: GHz, label: "first radial breathing mode RBM1 (mechanical index 2 at the default mesh; index 0 is the f = 0 rigid axial translation; re-identify after a mesh change, DevLog-034)"}
+        - {id: fm, type: global, expr: mech.f_2, unit: GHz, label: "first radial breathing mode RBM1 (mechanical index 2 at the default mesh; index 0 is the f = 0 rigid axial translation; re-identify after a mesh change)"}
         - {id: g0mb, type: global, expr: mech.g0MB_0_2, unit: Hz, label: "g0/2pi moving boundary, optical 0 x breathing mode (Hz, sign d omega/d alpha, negative for expansion; vs Baker compare |g0| x 2 pi in rad/s)"}
         - {id: g0pe, type: global, expr: mech.g0PE_0_2, unit: Hz, label: "g0/2pi photoelastic, optical 0 x breathing mode (Hz, sign d omega/d alpha, negative for expansion; vs Baker compare |g0| x 2 pi in rad/s)"}
         - {id: g0, type: global, expr: mech.g0_0_2, unit: Hz, label: "g0/2pi total, optical 0 x breathing mode (Hz, sign d omega/d alpha, negative for expansion; vs Baker compare |g0| x 2 pi in rad/s)"}
@@ -84,18 +84,18 @@ provenance:
     params.h: {basis: paper_model_input, source: "Baker et al. 2014, arXiv 1403.4269v1, Table 3 caption", date: 2026-11-07}
     params.Rb: {basis: user, date: 2026-11-07, note: "modelling choice: closed PEC window; at m = 10 and lambda 1.32 um the free-space caustic is at m / k0 = 2.1 um, outside the window, so no propagating air mode of order 10 lies near the WGM"}
     params.Hb: {basis: user, date: 2026-11-07, note: "modelling choice (closed window)"}
-    params.n_GaAs: {basis: reference_correlation, source: "T. Skauli et al., J. Appl. Phys. 94, 6447 (2003), Sellmeier (22 C, 0.97-17 um) via refractiveindex.info GaAs/nk/Skauli.yml (CC0, fetched 2026-11-07, sha256 4c7b62ff...); evaluated at 1.32 um (Baker Table 1 wavelength): n = 3.40212", date: 2026-11-07, note: "material dispersion not iterated to the computed WGM wavelength (DevLog-034 s.4)"}
+    params.n_GaAs: {basis: reference_correlation, source: "T. Skauli et al., J. Appl. Phys. 94, 6447 (2003), Sellmeier (22 C, 0.97-17 um) via refractiveindex.info GaAs/nk/Skauli.yml (CC0, fetched 2026-11-07, sha256 4c7b62ff...); evaluated at 1.32 um (Baker Table 1 wavelength): n = 3.40212", date: 2026-11-07, note: "material dispersion not iterated to the computed WGM wavelength"}
     couplings.0.settings.photoelastic.0.p11: {basis: paper_model_input, source: "Baker et al. 2014, Table 2: GaAs p11 -0.165 at 1.15 um (their ref. 34)", date: 2026-11-07}
     couplings.0.settings.photoelastic.0.p12: {basis: paper_model_input, source: "Baker et al. 2014, Table 2: p12 -0.140", date: 2026-11-07}
     couplings.0.settings.photoelastic.0.p44: {basis: paper_model_input, source: "Baker et al. 2014, Table 2: p44 -0.072", date: 2026-11-07}
     couplings.0.settings.optical.shift: {basis: derived, date: 2026-11-07, note: "c / 1.32 um = 227.1 THz (Baker Table 1 wavelength)"}
     couplings.0.settings.mechanical.shift: {basis: user, date: 2026-11-07, note: "modelling choice: between the 1st (1.375 GHz) and 2nd (3.5 GHz) RBM of Baker Table 3"}
     mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice"}
-    mesh.refine.0.h: {basis: user, date: 2026-11-07, note: "modelling choice: 8 cells through the thickness (convergence: DevLog-034 s.4)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-07, note: "modelling choice: 8 cells through the thickness (own convergence runs, 2026-11-07)"}
 assumptions:
   - {text: "No AlGaAs pedestal (Baker 2014 p.11: valid for >= 90 % undercut); free disk, so the z translation is a rigid mode (f = 0, skipped)", paths: [physics.mech]}
   - {text: "Isotropic GaAs mechanics as in Baker 2014 (Fig. 6 caption); the cubic anisotropy of GaAs is not modelled", paths: [materials.GaAs]}
-  - {text: "Photoelastic frame crystal-avg: crystal [001] on the disk axis, azimuthal average of the cubic p tensor (exact for m != 2). Baker eq. 13 applies the cubic matrix in the local (r, theta, z) frame; both are reported in DevLog-034 s.4", paths: [couplings.0.settings.photoelastic]}
+  - {text: "Photoelastic frame crystal-avg: crystal [001] on the disk axis, azimuthal average of the cubic p tensor (exact for m != 2). Baker eq. 13 applies the cubic matrix in the local (r, theta, z) frame; both were computed in own runs, 2026-11-07", paths: [couplings.0.settings.photoelastic]}
   - {text: "Closed PEC optical window instead of an open boundary: the radiation loss of the WGM is not modelled; the real part of the frequency is", paths: [physics.opt.bcs]}
   - {text: "Optical permittivity at a single wavelength (1.32 um); the computed WGM wavelength is reported", paths: [params.n_GaAs]}
 missing:

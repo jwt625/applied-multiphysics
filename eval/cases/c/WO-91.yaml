@@ -1,0 +1,225 @@
+# WO-91: Square rod lattice (r 0.2a, eps 12), TM bands 3 and 8 at X and M vs plane-wave expansion
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-91
+class: c
+title: Square rod lattice (r 0.2a, eps 12), TM bands 3 and 8 at X and M vs plane-wave expansion
+status: unvalidated
+untestable_reason: null
+physics: [optics-phc]
+dimension: 2D-periodic
+units: SI
+geometry:
+  kind: analytic
+  spec: {lattice: square, a: 1, rod_radius: 0.2, unit: a}
+materials:
+  rod: {eps_r: 12.0, source: mpb doc/docs/Python_Tutorial.md L69}
+  background: {eps_r: 1.0, source: default air}
+bcs: null
+initial: null
+study: {type: eigen, n: 8, shift: 'bands study (Bloch eigenproblem); k on Gamma-X-M-Gamma, 4 interpolated points per segment
+    (MPB tutorial path)'}
+references:
+- id: band3_X.L0
+  quantity: TM band 3 at X (mesh level 0)
+  metric_id: band3_X
+  value: 0.5567808792658177
+  unit: 1 (c/a)
+  tolerance: {abs: 0.0002, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-91.json, metric_id: band3_X}
+  provenance: {citation: 'plane-wave expansion, nmax 24 (this lane)', locator: validation/bloch/bloch_refs.py; validation/c/gen_pwe.py
+      bands, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_2_5}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+  note: absolute tolerance in c/a; PWE floor (nmax 20 vs 24) 2.8e-5 c/a over all bands and k points
+- id: band3_X.L1
+  quantity: TM band 3 at X (mesh level 1)
+  metric_id: band3_X
+  value: 0.5567808792658177
+  unit: 1 (c/a)
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-91.json, metric_id: band3_X}
+  provenance: {citation: 'plane-wave expansion, nmax 24 (this lane)', locator: validation/bloch/bloch_refs.py; validation/c/gen_pwe.py
+      bands, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_2_5}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+  note: absolute tolerance in c/a; PWE floor (nmax 20 vs 24) 2.8e-5 c/a over all bands and k points
+- id: band8_X.L0
+  quantity: TM band 8 at X (mesh level 0)
+  metric_id: band8_X
+  value: 1.026297630736537
+  unit: 1 (c/a)
+  tolerance: {abs: 0.0002, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-91.json, metric_id: band8_X}
+  provenance: {citation: 'plane-wave expansion, nmax 24 (this lane)', locator: validation/bloch/bloch_refs.py; validation/c/gen_pwe.py
+      bands, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_7_5}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+  note: absolute tolerance in c/a; PWE floor (nmax 20 vs 24) 2.8e-5 c/a over all bands and k points
+- id: band8_X.L1
+  quantity: TM band 8 at X (mesh level 1)
+  metric_id: band8_X
+  value: 1.026297630736537
+  unit: 1 (c/a)
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-91.json, metric_id: band8_X}
+  provenance: {citation: 'plane-wave expansion, nmax 24 (this lane)', locator: validation/bloch/bloch_refs.py; validation/c/gen_pwe.py
+      bands, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_7_5}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+  note: absolute tolerance in c/a; PWE floor (nmax 20 vs 24) 2.8e-5 c/a over all bands and k points
+- id: band3_M.L0
+  quantity: TM band 3 at M (mesh level 0)
+  metric_id: band3_M
+  value: 0.49587448973300735
+  unit: 1 (c/a)
+  tolerance: {abs: 0.0002, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-91.json, metric_id: band3_M}
+  provenance: {citation: 'plane-wave expansion, nmax 24 (this lane)', locator: validation/bloch/bloch_refs.py; validation/c/gen_pwe.py
+      bands, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_2_10}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+  note: absolute tolerance in c/a; PWE floor (nmax 20 vs 24) 2.8e-5 c/a over all bands and k points
+- id: band3_M.L1
+  quantity: TM band 3 at M (mesh level 1)
+  metric_id: band3_M
+  value: 0.49587448973300735
+  unit: 1 (c/a)
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-91.json, metric_id: band3_M}
+  provenance: {citation: 'plane-wave expansion, nmax 24 (this lane)', locator: validation/bloch/bloch_refs.py; validation/c/gen_pwe.py
+      bands, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_2_10}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+  note: absolute tolerance in c/a; PWE floor (nmax 20 vs 24) 2.8e-5 c/a over all bands and k points
+- id: band8_M.L0
+  quantity: TM band 8 at M (mesh level 0)
+  metric_id: band8_M
+  value: 0.8798524657825496
+  unit: 1 (c/a)
+  tolerance: {abs: 0.0002, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-91.json, metric_id: band8_M}
+  provenance: {citation: 'plane-wave expansion, nmax 24 (this lane)', locator: validation/bloch/bloch_refs.py; validation/c/gen_pwe.py
+      bands, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_7_10}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+  note: absolute tolerance in c/a; PWE floor (nmax 20 vs 24) 2.8e-5 c/a over all bands and k points
+- id: band8_M.L1
+  quantity: TM band 8 at M (mesh level 1)
+  metric_id: band8_M
+  value: 0.8798524657825496
+  unit: 1 (c/a)
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-91.json, metric_id: band8_M}
+  provenance: {citation: 'plane-wave expansion, nmax 24 (this lane)', locator: validation/bloch/bloch_refs.py; validation/c/gen_pwe.py
+      bands, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_7_10}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+  note: absolute tolerance in c/a; PWE floor (nmax 20 vs 24) 2.8e-5 c/a over all bands and k points
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels
+speed:
+  budget_s: {browser: null, native: 40.0}
+  budget_basis: 'measured 2026-11-18 by the harness (Node, M4 Pro, nice 10): 9.2 s at level 0 (3,048 DOF), 34 s at level 1
+    (12,192 DOF), 16 k points'
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero: {suitable: false, why: verification of a library example}
+spec: sims/phc-square-rods-bands.yaml
+missing: []
+assumptions: []
+notes: ['k index 5 = X, 10 = M on the 16-point path (corners plus 4 interpolated points per segment).']
+source_case: {suite: MPB tutorial, file: doc/docs/Python_Tutorial.md, url: github.com/NanoComp/mpb tag v1.12.0, accessed: '2026-11-06',
+  note: same lattice as WO-04 (cache/eval-c/sources/mpb/Python_Tutorial.md)}
+lane: E4
+created: '2026-11-18'

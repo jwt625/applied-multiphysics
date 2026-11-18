@@ -10,9 +10,13 @@
 	// Results (DevLog-027): tree "+" menus and node actions are one op each (results/plot-ops.ts); selecting a plot group
 	// (or one of its items) shows it in the single graphics pane, a 1D group in the 1D view with an optional split
 	// (field above, graph below); a selected cut line shows its end handles; `showPlot(id)` is the agent host hook.
-	import { onMount } from 'svelte';
+	// Model tree ops (DevLog-051): add / delete / duplicate / rename of geometry features, materials, physics and
+	// conditions through state/edit-ops.ts (one op each; refusals shown under the tree and in the Log); the Graphics
+	// step is bound here so the Modes table selects a mode; after a solve of another study the plot group of that study
+	// is shown (state/study-results.ts).
+	import { onMount, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { specJsonSchema } from '@amp/spec';
+	import { specJsonSchema, validateSpec } from '@amp/spec';
 	import { HEROES, SIM_IDS, loadSimText } from '../sims';
 	import { loadPhysics } from '../engine/physics';
 	import { appRegistry } from '../engine/registry';
@@ -22,6 +26,7 @@
 	import { decodeShare } from '../state/diff';
 	import { appLog } from '../state/log.svelte';
 	import { fmtMs } from '../gfx/ticks';
+	import { withViewCode } from '../gfx/view-link';
 	import Tree from './Tree.svelte';
 	import Settings from './Settings.svelte';
 	import YamlTab from './YamlTab.svelte';
@@ -39,9 +44,12 @@
 	import LibraryPicker from '../library/LibraryPicker.svelte';
 	import { LISTED_ENTRIES, listedIds } from '../library/catalog';
 	import Plot1D from '../gfx/Plot1D.svelte';
+	import { setCameraPreset } from '../gfx/camera';
 	import { addMenu, addPatch, cascadeRemovePatch, duplicatePatch, movePatch, nodeAt, togglePatch, type MenuEntry } from '../results/plot-ops';
 	import type { TreeAction } from './Tree.svelte';
 	import type { TreeNode } from '../state/tree';
+	import { applyTreeOp, editTarget, modelAddMenu, ADD_PARENTS, type EditHost, type ModelMenuEntry, type TreeOp } from '../state/edit-ops';
+	import { plotGroupForStudy } from '../state/study-results';
 
 	// Library: the shared listing rule of library/catalog.ts (hidden acoustics analogs of EM problems; still openable by ?sim=)
 	const LIB_IDS = listedIds(SIM_IDS);
@@ -133,7 +141,12 @@
 				return r;
 			},
 			highlightSelection: (ids) => { highlight = [...ids]; mode = 'geometry'; return { ok: true }; },
-			setCamera: (req: CameraRequest) => (req.kind === 'fit' ? (fitKey++, { ok: true }) : { ok: false, message: `camera '${req.kind}' is not implemented in v0 (fit only)` }),
+			setCamera: (req: CameraRequest) => {
+				if (req.kind === 'fit') { fitKey++; return { ok: true }; }
+				// presets and look-at act on the mounted 3D view (gfx/camera.ts); false when no 3D view is shown
+				const ok = setCameraPreset(req.preset ?? 'iso', req.kind === 'look_at' ? req.target : undefined);
+				return ok ? { ok: true } : { ok: false, message: 'no 3D view is shown (camera presets apply to 3D models in the Geometry, Mesh or Results view)' };
+			},
 			setViewMode: (m: ViewMode) => ((mode = m), { ok: true }),
 			showPlot
 		}, (tool) => `${tool} is not available`);
@@ -202,7 +215,21 @@
 
 	// Compute delivered a full-resolution solution: show it (a later manual mode click is not undone)
 	let seenSolved = 0;
-	$effect(() => { const n = s?.solvedSeq ?? 0; if (n > seenSolved) { seenSolved = n; mode = 'results'; } });
+	/** study of the previous solve (null = the default run): a solve of another study shows a plot group of that study */
+	let lastSolved: string | null = null;
+	$effect(() => {
+		const n = s?.solvedSeq ?? 0;
+		if (n <= seenSolved || !s) return;
+		seenSolved = n;
+		mode = 'results';
+		const st = s.solvedStudy, data = s.model.data;
+		untrack(() => {
+			if (st !== lastSolved || plot2d) { const g = plotGroupForStudy(data, st, plot2d); if (g !== plot2d) { plot2d = g; pane = '2d'; } }
+			lastSolved = st;
+		});
+	});
+	/** solution step shown by Graphics (eigen mode, time, frequency); the Modes table sets it */
+	let gstep = $state(0);
 
 	/** tree selection: settings of the node, and the view mode / highlight it implies (state/tree-view.ts); a plot group
 	 *  (or item) is shown in the graphics pane; a cut-line dataset gets its end handles */
@@ -220,7 +247,7 @@
 			if (g) show(String(g.node.id), String(g.node.type));
 		}
 	}
-	/** show a plot group: 2D drawn by Graphics (Results mode), 1D in the 1D view; 3D groups are drawn in stage R4 */
+	/** show a plot group: 2D drawn by Graphics (Results mode), 1D in the 1D view and 3D groups in the graphics pane */
 	function show(id: string, type: string) {
 		if (type === 'plot1d') { plot1d = id; if (!split) pane = '1d'; }
 		else { plot2d = id; pane = '2d'; mode = 'results'; }
@@ -233,15 +260,42 @@
 		selected = `/results/plots/${i}`;
 		show(id, String(r[i]!.type));
 		mobilePane = 'graphics';
-		return r[i]!.type === 'plot3d' ? { ok: true, message: '3D plot groups are drawn from stage R4; the graphics pane shows a not-drawn badge' } : { ok: true };
+		return { ok: true };
 	}
 	const ctxOf = () => ({ data: s?.model.data ?? null, mesh: s?.mesh ?? null, sol: s?.solution && s.mesh && s.solution.meshHash === s.mesh.hash ? s.solution : null, names: resultNames });
-	function menuFor(n: TreeNode): MenuEntry[] {
-		if (!s || !n.section) return [];
+	function menuFor(n: TreeNode): Array<MenuEntry | ModelMenuEntry> {
+		if (!s) return [];
+		if ((ADD_PARENTS as readonly string[]).includes(n.kind)) return modelAddMenu(s.model.data, s.model.reg, n.pointer);
+		if (!n.section) return [];
 		return addMenu(ctxOf(), n.section, n.kind === 'result' ? n.rid : undefined);
 	}
-	async function addEntry(e: MenuEntry) {
+	/** refusal or note of the last model tree op (shown under the tree) */
+	let treeMsg = $state<{ text: string; bad: boolean } | null>(null);
+	let treeMsgT: ReturnType<typeof setTimeout> | undefined;
+	function say(text: string, bad: boolean) {
+		treeMsg = { text, bad };
+		clearTimeout(treeMsgT);
+		treeMsgT = setTimeout(() => (treeMsg = null), bad ? 9000 : 4000);
+		if (bad) appLog.warn(text); else appLog.info(text);
+	}
+	const editHost = (): EditHost => ({ get data() { return s!.model.data; }, apply: (p, reason) => s!.model.apply(p, reason) });
+	/** one model tree op (also the host hook for agent tools: state/edit-ops.ts applyTreeOp with the agent's log) */
+	async function modelOp(op: TreeOp, what: string): Promise<boolean> {
+		if (!s) return false;
+		const r = await applyTreeOp(editHost(), op, { reg: s.model.reg, validate: (d) => validateSpec(d, s!.model.reg).issues });
+		if (!r.ok) { say(`${what}: ${r.reason}`, true); return false; }
+		say(`${what}: done${r.note ? `; ${r.note}` : ''}`, false);
+		if (op.op === 'delete') selectNear(r.pointer); else treeSelect(r.pointer);
+		return true;
+	}
+	function selectNear(pointer: string) {
+		let p = pointer;
+		while (p && !findNode(tree, p)) p = p.slice(0, p.lastIndexOf('/'));
+		selected = p || '/params';
+	}
+	async function addEntry(e: MenuEntry | ModelMenuEntry) {
 		if (!s) return;
+		if ('parent' in e) { await modelOp({ op: 'add', parent: e.parent, type: e.type }, `add ${e.label}`); return; }
 		try {
 			const a = addPatch(ctxOf(), e);
 			if (!a) return;
@@ -260,6 +314,11 @@
 	async function treeAction0(n: TreeNode, a: TreeAction) {
 		if (!s) return;
 		const d = s.model.data;
+		if (editTarget(d, n.pointer)) {
+			if (a === 'delete') await modelOp({ op: 'delete', pointer: n.pointer }, `delete ${n.label}`);
+			else if (a === 'duplicate') await modelOp({ op: 'duplicate', pointer: n.pointer }, `duplicate ${n.label}`);
+			return;
+		}
 		if (a === 'delete') {
 			const c = cascadeRemovePatch(d, n.pointer);
 			const op = await s.model.apply(c.patch, `delete ${c.removed.join(', ')}`);
@@ -274,6 +333,7 @@
 			if (r && (await s.model.apply(r.patch, `move ${n.label} ${a}`))) selected = r.pointer;
 		}
 	}
+	function renameNode(n: TreeNode, id: string) { void modelOp({ op: 'rename', pointer: n.pointer, id }, `rename ${n.label} to ${id}`); }
 	/** a 1D group exists to show (selected or the first one) */
 	const g1 = $derived.by(() => {
 		const ps = ((s?.model.data as { results?: { plots?: Array<{ id?: unknown; type?: unknown }> } } | null)?.results?.plots ?? []);
@@ -307,7 +367,7 @@
 	function goModel(id: string) { location.href = `?sim=${encodeURIComponent(id)}`; }
 	async function copyShare() {
 		if (!s) return;
-		const url = `${location.origin}${location.pathname}?sim=${encodeURIComponent(simId)}${s.model.sharePatch().length ? `#d=${s.model.shareCode()}` : ''}`;
+		const url = withViewCode(`${location.origin}${location.pathname}?sim=${encodeURIComponent(simId)}${s.model.sharePatch().length ? `#d=${s.model.shareCode()}` : ''}`);
 		try { await navigator.clipboard.writeText(url); appLog.info(`share URL copied (${url.length} chars)`); } catch { appLog.info(`share URL: ${url}`); }
 		history.replaceState(null, '', url);
 	}
@@ -356,7 +416,8 @@
 		<div class="main" bind:clientWidth={mainW}>
 			<section class="pane tree" class:mshow={mobilePane === 'tree'}>
 				<div class="ph">Model Builder</div>
-					<div class="pb">{#if s}<Tree nodes={tree} selected={node?.pointer ?? ''} onselect={treeSelect} unavailable={s.status === 'unavailable'} menu={menuFor} onadd={addEntry} onaction={treeAction} active={activePtr} deletes={deleteSet} />{/if}</div>
+					<div class="pb">{#if s}<Tree nodes={tree} selected={node?.pointer ?? ''} onselect={treeSelect} unavailable={s.status === 'unavailable'} menu={menuFor} onadd={addEntry} onaction={treeAction} active={activePtr} deletes={deleteSet} onrename={renameNode} />{/if}</div>
+				{#if treeMsg}<div class="tmsg" class:crit={treeMsg.bad} role={treeMsg.bad ? 'alert' : 'status'} data-tip={treeMsg.text}>{treeMsg.text}</div>{/if}
 			</section>
 			<PaneSplitter dir="col" label="Resize Model Builder" size={eff.tree} min={MIN.tree} max={maxOf('tree')} onsize={(px) => resize('tree', px)} onreset={() => reset('tree')} onend={save} />
 			<section class="pane settings" class:mshow={mobilePane === 'settings'}>
@@ -366,7 +427,7 @@
 				</div>
 				<div class="pb">
 					{#if s && walker}
-							{#if settingsTab === 'form'}<div class="scroll"><Settings {s} {node} {walker} menu={menuFor} onadd={addEntry} onaction={treeAction} onshow={(p) => { const g = nodeAt(s!.model.data, p); if (g) show(String(g.node.id), String(g.node.type)); }} shown={activePtr} /></div>{:else}<YamlTab m={s.model} />{/if}
+							{#if settingsTab === 'form'}<div class="scroll"><Settings {s} {node} {walker} menu={menuFor} onadd={addEntry} onaction={treeAction} onrename={renameNode} onshow={(p) => { const g = nodeAt(s!.model.data, p); if (g) show(String(g.node.id), String(g.node.type)); }} shown={activePtr} /></div>{:else}<YamlTab m={s.model} />{/if}
 					{/if}
 				</div>
 			</section>
@@ -375,7 +436,7 @@
 					{#if s}
 						<div class="gview" class:split={show1d && show2d}>
 							<div class="g2" class:hide={!show2d}>
-								<Graphics {s} bind:mode {fitKey} highlight={hiShown} focus={roi} mirror={MIRROR[simId] ?? null} {probes} onprobe={() => (bottomTab = 'table')}
+								<Graphics {s} bind:mode bind:step={gstep} {fitKey} highlight={hiShown} focus={roi} mirror={MIRROR[simId] ?? null} {probes} onprobe={() => (bottomTab = 'table')}
 									plot={g2id} onplot={(id) => { plot2d = id; if (id) { const ps = (s?.model.data as { results?: { plots?: Array<{ id?: unknown }> } } | null)?.results?.plots ?? []; const i = ps.findIndex((g) => g?.id === id); if (i >= 0) selected = `/results/plots/${i}`; } }}
 									{editLine} tools oncreated={(r) => { selected = r.pointer; editId = r.dataset; if (r.group) { plot1d = r.group; split = true; } }} ondragms={(ms) => (dragMs = ms)} />
 								{#if mode === 'results' && hv}<Headlines s={hv} boxed />{/if}
@@ -404,7 +465,7 @@
 		</div>
 		<PaneSplitter dir="row" label="Resize bottom panel" sign={-1} size={eff.bottom} min={MIN.bottom} max={maxOf('bottom')} onsize={(px) => resize('bottom', px)} onreset={() => reset('bottom')} onend={save} />
 		<section class="bottom" class:mshow={mobilePane === 'bottom'}>
-			{#if s}<Bottom {s} bind:tab={bottomTab} onjump={jump} {probes} />{/if}
+			{#if s}<Bottom {s} bind:tab={bottomTab} onjump={jump} {probes} step={gstep} onstep={(k) => { gstep = k; mode = 'results'; pane = '2d'; }} />{/if}
 		</section>
 	</div>
 {/if}
@@ -425,6 +486,9 @@
 	.agent { border-left: 1px solid var(--line); }
 	.hidden { display: none; }
 	.pane { display: grid; grid-template-rows: 24px minmax(0, 1fr); min-width: 0; min-height: 0; background: var(--surface); }
+	.pane.tree { grid-template-rows: 24px minmax(0, 1fr) auto; }
+	.tmsg { font-size: 11px; padding: 2px 6px; border-top: 1px solid var(--line); color: var(--ink-2); max-height: 64px; overflow: auto; }
+	.tmsg.crit { color: var(--crit); }
 	.ph { display: flex; align-items: center; padding: 0 8px; border-bottom: 1px solid var(--line); color: var(--ink-2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 	.ph.tabs { padding: 0; }
 	.ph.tabs button { border: 0; border-right: 1px solid var(--line); background: transparent; height: 23px; font-size: 11px; text-transform: uppercase; color: var(--ink-2); }

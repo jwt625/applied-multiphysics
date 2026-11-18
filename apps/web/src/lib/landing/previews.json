@@ -5,6 +5,32 @@
   360
  ],
  "sims": {
+  "acoustic-duct": {
+   "hash": "6647725aaef97026a23c676d42a765874863b1eaa0786a856c713a164b45baa4",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "acoustic-duct-geom.webp",
+    "mesh": "acoustic-duct-mesh.webp",
+    "result": "acoustic-duct-result.webp"
+   },
+   "status": "solved",
+   "cells": 1403,
+   "solveMs": 431,
+   "resultView": "1D plot p_axis (spec)"
+  },
+  "au-air-spp": {
+   "hash": "f3151ca58de881fc14015c2ae236cbc803275d49f9ce5c1d4a206b6602a782ff",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "au-air-spp-geom.webp",
+    "mesh": "au-air-spp-mesh.webp",
+    "result": "au-air-spp-result.webp"
+   },
+   "status": "solved",
+   "cells": 626,
+   "solveMs": 187,
+   "resultView": "1D plot of ewg.normE over a capture-only cut line along the long axis (mid-height)"
+  },
   "bimetal-strip": {
    "hash": "805e5be2188a601710d38d49ecba72df7b4f7900c7bdbd28f95e85719d1cfede",
    "date": "2026-11-07",
@@ -19,7 +45,7 @@
    "resultView": "1D plot uy_line (spec)"
   },
   "box-acoustics": {
-   "hash": "ffc868d0ee4265744ff0eb1ff49ff12b48af934f826fe74ee8aa08de53cf07d6",
+   "hash": "46ef8aa4efa3a33b530419e1cde8d22f44c4705bdf02c44116c3563382a23e6a",
    "date": "2026-11-18",
    "files": {
     "geom": "box-acoustics-geom.webp",
@@ -28,7 +54,7 @@
    },
    "status": "solved",
    "cells": 60,
-   "solveMs": 126,
+   "solveMs": 129,
    "resultView": "default plot"
   },
   "bragg-edge-lower": {
@@ -57,6 +83,19 @@
    "solveMs": 82,
    "resultView": "1D plot of wave.p over a capture-only cut line along the long axis (mid-height)"
   },
+  "bragg-mirror-ports": {
+   "hash": "5fda96d165045a01e25c29a3c07e66ec8dbc3fec20addec3d57e5f8efbf2ab71",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "bragg-mirror-ports-geom.webp",
+    "mesh": "bragg-mirror-ports-mesh.webp",
+    "result": "bragg-mirror-ports-result.webp"
+   },
+   "status": "solved",
+   "cells": 11703,
+   "solveMs": 6683,
+   "resultView": "default plot"
+  },
   "chip-warpage-2d": {
    "hash": "53534ed289c8093d777c6d816e36613187d492f8af7ec2875b0fedc1df50a904",
    "date": "2026-11-07",
@@ -71,8 +110,8 @@
    "resultView": "1D plot warp_line (spec)"
   },
   "coax-line": {
-   "hash": "d9de8ae96d67fa4e618410862f911dc492c2c51b02eb6af546365f44a79116e5",
-   "date": "2026-11-07",
+   "hash": "655bad82437e88a62a90e0a854500d0f1627fff68674b6850fbe61f216029f7f",
+   "date": "2026-11-18",
    "files": {
     "geom": "coax-line-geom.webp",
     "mesh": "coax-line-mesh.webp",
@@ -80,20 +119,20 @@
    },
    "status": "solved",
    "cells": 310,
-   "solveMs": 104,
+   "solveMs": 139,
    "resultView": "default plot"
   },
   "coplanar-rings": {
-   "hash": "39621a275473f87c6bb6135b803ccd05ba7bac2151f61668f574a7293659830f",
-   "date": "2026-11-07",
+   "hash": "b7de3986a67031c2cabab0cfec9b397c47dfb3db74f1103cd9e6c7f3eb7ffe7f",
+   "date": "2026-11-18",
    "files": {
     "geom": "coplanar-rings-geom.webp",
     "mesh": "coplanar-rings-mesh.webp",
     "result": "coplanar-rings-result.webp"
    },
    "status": "solved",
-   "cells": 15498,
-   "solveMs": 794,
+   "cells": 6907,
+   "solveMs": 411,
    "resultView": "default plot"
   },
   "cpw-halfspace": {
@@ -110,8 +149,8 @@
    "resultView": "default plot"
   },
   "cpw-sapphire": {
-   "hash": "b35a1b00ebbba74949d614dae2b58f56f77d27adfd7d14544877fa51d849f214",
-   "date": "2026-11-07",
+   "hash": "2ee1ccf62869d8d6704bc4b8c767eda73986ab023963f76ba7e8313bd02924f3",
+   "date": "2026-11-18",
    "files": {
     "geom": "cpw-sapphire-geom.webp",
     "mesh": "cpw-sapphire-mesh.webp",
@@ -119,11 +158,24 @@
    },
    "status": "solved",
    "cells": 10928,
-   "solveMs": 345,
+   "solveMs": 303,
+   "resultView": "default plot"
+  },
+  "cpw-si-interposer": {
+   "hash": "4eb93a236fd2bfb6a69e732d18a2f1fb7af14141750a4c93b61773f9b21f7d78",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "cpw-si-interposer-geom.webp",
+    "mesh": "cpw-si-interposer-mesh.webp",
+    "result": "cpw-si-interposer-result.webp"
+   },
+   "status": "solved",
+   "cells": 7076,
+   "solveMs": 363,
    "resultView": "default plot"
   },
   "cylinder-cavity": {
-   "hash": "95efb8986d778c5d3f479c1e44e39616c2171deb9b2cf00526514996916c471e",
+   "hash": "5da590511efa42721763f72bc43f5885bfc4e0567b818cb44d55c7d3ae4d4fa1",
    "date": "2026-11-18",
    "files": {
     "geom": "cylinder-cavity-geom.webp",
@@ -132,11 +184,11 @@
    },
    "status": "solved",
    "cells": 6240,
-   "solveMs": 4388,
+   "solveMs": 4589,
    "resultView": "default plot"
   },
   "cylinder-cavity-axisym": {
-   "hash": "ed216eee05f346aba0d095b43f6851167ef4e41834b515c4a6cd487212e5071d",
+   "hash": "b897ac1fec616306daca3ac62139c868db2cf83eea569b0437e2d467dad009b6",
    "date": "2026-11-18",
    "files": {
     "geom": "cylinder-cavity-axisym-geom.webp",
@@ -145,11 +197,11 @@
    },
    "status": "solved",
    "cells": 169,
-   "solveMs": 224,
+   "solveMs": 246,
    "resultView": "default plot"
   },
   "cylinder-cavity-qd": {
-   "hash": "e2be80fa3736b17bc2fa28b4c78042dd6ff0a04f825b70c057ebe2d97ba25c64",
+   "hash": "74dbd5e84f92e0d1d5cd24dd1e313b011d0cac1f0c3fa1bf376596bd542be16f",
    "date": "2026-11-18",
    "files": {
     "geom": "cylinder-cavity-qd-geom.webp",
@@ -158,12 +210,38 @@
    },
    "status": "solved",
    "cells": 246,
-   "solveMs": 151,
+   "solveMs": 157,
    "resultView": "default plot"
   },
+  "die-warpage-3d": {
+   "hash": "f2d38ce08b160268290079ffabcf4ed2e97f0a5b65bca0d6fcdf42e3e17dcc97",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "die-warpage-3d-geom.webp",
+    "mesh": "die-warpage-3d-mesh.webp",
+    "result": "die-warpage-3d-result.webp"
+   },
+   "status": "solved",
+   "cells": 1068,
+   "solveMs": 520,
+   "resultView": "default plot"
+  },
+  "floquet-slab-oblique": {
+   "hash": "7f08dad3c6fed3d1d6cbc5411c123412bfa446dc40d6354ce91be09c8c9d17bd",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "floquet-slab-oblique-geom.webp",
+    "mesh": "floquet-slab-oblique-mesh.webp",
+    "result": "floquet-slab-oblique-result.webp"
+   },
+   "status": "solved",
+   "cells": 5530,
+   "solveMs": 210,
+   "resultView": "1D plot of w.Ez_re over a capture-only cut line along the long axis (mid-height)"
+  },
   "gaas-microdisk-om": {
-   "hash": "c8d3b872c367d4cfecfe1c44f52edf9e4ece921a2c8af704433a709cfd736850",
-   "date": "2026-11-07",
+   "hash": "16a5103ca4ccebd693914331be99484c978aa856e4fb110acc0848f62e533056",
+   "date": "2026-11-18",
    "files": {
     "geom": "gaas-microdisk-om-geom.webp",
     "mesh": "gaas-microdisk-om-mesh.webp",
@@ -171,7 +249,7 @@
    },
    "status": "solved",
    "cells": 2336,
-   "solveMs": 957,
+   "solveMs": 1070,
    "resultView": "default plot"
   },
   "hadley-rib-wo02": {
@@ -214,7 +292,7 @@
    "resultView": "default plot"
   },
   "heat-plate-fin": {
-   "hash": "70a3f0c24f70d7824f86577868573400f4e1d16b128cac90ce8847238739c6e6",
+   "hash": "764a3d6d9edb990419ca9cffcf5db7c299667fdc33b9d6a4f2e02d1f716ff60e",
    "date": "2026-11-18",
    "files": {
     "geom": "heat-plate-fin-geom.webp",
@@ -240,7 +318,7 @@
    "resultView": "1D plot of ht.T over a capture-only cut line along the radius (mid-height)"
   },
   "helmholtz-coil": {
-   "hash": "78d9231ffeab2145cbb371ff68e03b0882f82990466f556e781a8d9ddd5d6e98",
+   "hash": "99be9830cb804476292abccde9c574b0490c95b92acb0c4d605dcc385fda712e",
    "date": "2026-11-18",
    "files": {
     "geom": "helmholtz-coil-geom.webp",
@@ -249,12 +327,12 @@
    },
    "status": "solved",
    "cells": 7426,
-   "solveMs": 190,
+   "solveMs": 196,
    "resultView": "default plot"
   },
   "helmholtz-em04": {
-   "hash": "6cb3f39dcbe7de2f307ddd7e8e782e1a04ef75e93387cf0685ebd4b732f5660b",
-   "date": "2026-11-07",
+   "hash": "859821a48499d2adac530ae7d5fd55d0b679d9ada999609366c9e015e1aadd3c",
+   "date": "2026-11-18",
    "files": {
     "geom": "helmholtz-em04-geom.webp",
     "mesh": "helmholtz-em04-mesh.webp",
@@ -262,12 +340,12 @@
    },
    "status": "solved",
    "cells": 5797,
-   "solveMs": 178,
+   "solveMs": 190,
    "resultView": "default plot"
   },
   "hot-arm-actuator": {
-   "hash": "c733d8e27a5788dc715a8441d268301baa0bc64f5fd0d3a648d01ac035b946aa",
-   "date": "2026-11-07",
+   "hash": "8d75469f60a61fbff6fab8800aa5c9b37ce280e928575d71373d40b922bf6e32",
+   "date": "2026-11-18",
    "files": {
     "geom": "hot-arm-actuator-geom.webp",
     "mesh": "hot-arm-actuator-mesh.webp",
@@ -275,7 +353,20 @@
    },
    "status": "solved",
    "cells": 2176,
-   "solveMs": 7295,
+   "solveMs": 6212,
+   "resultView": "default plot"
+  },
+  "interposer-thermal-3d": {
+   "hash": "91035f11f6f2b8136dfd499319b655d515aa748a2b9a7cfb34d57f5057fc8ac7",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "interposer-thermal-3d-geom.webp",
+    "mesh": "interposer-thermal-3d-mesh.webp",
+    "result": "interposer-thermal-3d-result.webp"
+   },
+   "status": "solved",
+   "cells": 29676,
+   "solveMs": 1956,
    "resultView": "default plot"
   },
   "joule-wire": {
@@ -305,7 +396,7 @@
    "resultView": "default plot"
   },
   "kirsch-plate": {
-   "hash": "118c2e3ff1340af4e030850e9781bd9213279dd179527ddc62b8b9d936cbf6a0",
+   "hash": "f916bc929bf06898b9276dbba9dacab6143edcfdd8eeb4a5c57266826fb7469e",
    "date": "2026-11-18",
    "files": {
     "geom": "kirsch-plate-geom.webp",
@@ -314,7 +405,7 @@
    },
    "status": "solved",
    "cells": 2647,
-   "solveMs": 196,
+   "solveMs": 235,
    "resultView": "default plot"
   },
   "lame-cylinder": {
@@ -330,9 +421,22 @@
    "solveMs": 273,
    "resultView": "default plot"
   },
+  "leaky-si-wire": {
+   "hash": "7dd12f375ee1068b8f7e92d79f96627d29f9511cd6599f8817cfea64902a89d2",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "leaky-si-wire-geom.webp",
+    "mesh": "leaky-si-wire-mesh.webp",
+    "result": "leaky-si-wire-result.webp"
+   },
+   "status": "solved",
+   "cells": 4990,
+   "solveMs": 1456,
+   "resultView": "default plot"
+  },
   "ln-fbar-2d": {
-   "hash": "847e4359a3b0552e5444bc9ee4fa79fe331804c7b603e0679c626609e9450c7f",
-   "date": "2026-11-07",
+   "hash": "b01880e75aa44fcfb9ab1a6ef98c8cb51e1d7ce3360fcd812d3d146b5125d149",
+   "date": "2026-11-18",
    "files": {
     "geom": "ln-fbar-2d-geom.webp",
     "mesh": "ln-fbar-2d-mesh.webp",
@@ -340,12 +444,12 @@
    },
    "status": "solved",
    "cells": 60838,
-   "solveMs": 7824,
+   "solveMs": 5581,
    "resultView": "default plot"
   },
   "membrane-air": {
-   "hash": "c4b2b03b9f5635ff6dbb50aa3af6c27fe288c04fc9c88e41d18d077dcc9aa935",
-   "date": "2026-11-07",
+   "hash": "296c309655d63bcc42861c299cefa9295817ea95002b3f9b426cee61281a1342",
+   "date": "2026-11-18",
    "files": {
     "geom": "membrane-air-geom.webp",
     "mesh": "membrane-air-mesh.webp",
@@ -353,7 +457,7 @@
    },
    "status": "solved",
    "cells": 38892,
-   "solveMs": 1418,
+   "solveMs": 1326,
    "resultView": "default plot"
   },
   "micro-coax-lgeom": {
@@ -367,6 +471,32 @@
    "status": "solved",
    "cells": 317,
    "solveMs": 94,
+   "resultView": "default plot"
+  },
+  "microstrip-rdl": {
+   "hash": "2f72ea114b77ed498c192b4acf4cb4648cc2c59c249d60a8d1176fde3b4b6501",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "microstrip-rdl-geom.webp",
+    "mesh": "microstrip-rdl-mesh.webp",
+    "result": "microstrip-rdl-result.webp"
+   },
+   "status": "solved",
+   "cells": 5328,
+   "solveMs": 210,
+   "resultView": "default plot"
+  },
+  "mmi-1x2-splitter": {
+   "hash": "cb1ec049fb34bd0e5f9907032e98122636e590f2485b5e92ef5f861e57be4daa",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "mmi-1x2-splitter-geom.webp",
+    "mesh": "mmi-1x2-splitter-mesh.webp",
+    "result": "mmi-1x2-splitter-result.webp"
+   },
+   "status": "solved",
+   "cells": 30661,
+   "solveMs": 4447,
    "resultView": "default plot"
   },
   "nafems-le1": {
@@ -409,7 +539,7 @@
    "resultView": "plot syy_map (last physics of the coupling chain: solid)"
   },
   "nafems-t2": {
-   "hash": "5e0ac4691c779dc43cd4d36e9a0925d299ed492e5d441fd04ede5010e4cbb60d",
+   "hash": "4262d8db1a56d91a4f1450665a0a3df264a1cd611f9ca69332b2e5b611e85733",
    "date": "2026-11-18",
    "files": {
     "geom": "nafems-t2-geom.webp",
@@ -418,11 +548,11 @@
    },
    "status": "solved",
    "cells": 48,
-   "solveMs": 78,
+   "solveMs": 122,
    "resultView": "1D plot T_line (spec)"
   },
   "nafems-t3": {
-   "hash": "cdea13b6078ddcfb3d86e12f32780a99441c40a9ca727f0be796c759a62eaea5",
+   "hash": "10fbed7b92b9da02ca4dc6f4e7b253a7018d2ab1904990de0e05d06fdd5ec833",
    "date": "2026-11-18",
    "files": {
     "geom": "nafems-t3-geom.webp",
@@ -431,11 +561,11 @@
    },
    "status": "solved",
    "cells": 98,
-   "solveMs": 107,
+   "solveMs": 116,
    "resultView": "1D plot T_line (spec)"
   },
   "nafems-t4": {
-   "hash": "30a5c70b3bf8dffb9ce5d2b7cb28c8cfdca270d5d0f1a4aeaac266eb891a2680",
+   "hash": "9b84d8f3f71f088c802f6bd68d130b27cb54d95162c5bcbe83cb6e1f4f3756b0",
    "date": "2026-11-18",
    "files": {
     "geom": "nafems-t4-geom.webp",
@@ -444,46 +574,85 @@
    },
    "status": "solved",
    "cells": 1211,
-   "solveMs": 105,
+   "solveMs": 116,
+   "resultView": "default plot"
+  },
+  "pec-post-scattering": {
+   "hash": "f77dcc933d27ded0fd7b4892a94532c12dd8c3fa250d3d6251ace68adedabd08",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "pec-post-scattering-geom.webp",
+    "mesh": "pec-post-scattering-mesh.webp",
+    "result": "pec-post-scattering-result.webp"
+   },
+   "status": "solved",
+   "cells": 11028,
+   "solveMs": 955,
    "resultView": "default plot"
   },
   "phc-point-defect": {
-   "hash": "1730b2529460014e41e80d8f0b1186dbda616e71c2ef7759486b3727d751f789",
-   "date": "2026-11-07",
+   "hash": "553d1266627f61c4993d4c47ff029d755bfe13637b156982cd00f898254c4329",
+   "date": "2026-11-18",
    "files": {
     "geom": "phc-point-defect-geom.webp",
     "mesh": "phc-point-defect-mesh.webp",
     "result": "phc-point-defect-result.webp"
    },
    "status": "solved",
-   "cells": 31537,
-   "solveMs": 3202,
+   "cells": 6710,
+   "solveMs": 357,
+   "resultView": "default plot"
+  },
+  "phc-square-rods-bands": {
+   "hash": "2f1e33dcfe6244a8215b36e283facefaf2bf501ec02ec459a53e70ddf054e81a",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "phc-square-rods-bands-geom.webp",
+    "mesh": "phc-square-rods-bands-mesh.webp",
+    "result": "phc-square-rods-bands-result.webp"
+   },
+   "status": "solved",
+   "cells": 1524,
+   "solveMs": 7367,
    "resultView": "default plot"
   },
   "phc-square-rods-lower": {
-   "hash": "a1f5a1249df73bb9f9ed9a2415f55cdfed240006d5c847046483d07c169f80a0",
-   "date": "2026-11-07",
+   "hash": "0a1faf9411a5054295992dbebf8164ac098e9374ef355126607fe96a200180f9",
+   "date": "2026-11-18",
    "files": {
     "geom": "phc-square-rods-lower-geom.webp",
     "mesh": "phc-square-rods-lower-mesh.webp",
     "result": "phc-square-rods-lower-result.webp"
    },
    "status": "solved",
-   "cells": 1603,
-   "solveMs": 161,
+   "cells": 712,
+   "solveMs": 113,
    "resultView": "default plot"
   },
   "phc-square-rods-upper": {
-   "hash": "95ceb09a530a16f5e951dca3f535ab9f82f7d943993f2e8f608411036acccf56",
-   "date": "2026-11-07",
+   "hash": "775ebd373a5204e633edd13836a3a553be1234dc2c5efa3a126a5e60d906d942",
+   "date": "2026-11-18",
    "files": {
     "geom": "phc-square-rods-upper-geom.webp",
     "mesh": "phc-square-rods-upper-mesh.webp",
     "result": "phc-square-rods-upper-result.webp"
    },
    "status": "solved",
-   "cells": 1603,
-   "solveMs": 144,
+   "cells": 712,
+   "solveMs": 119,
+   "resultView": "default plot"
+  },
+  "phc-triangular-rods-bands": {
+   "hash": "efc60029dd7b5eff5dbe212139e8b73e3501a5a9e9ec363dec8c3b1f7edb4107",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "phc-triangular-rods-bands-geom.webp",
+    "mesh": "phc-triangular-rods-bands-mesh.webp",
+    "result": "phc-triangular-rods-bands-result.webp"
+   },
+   "status": "solved",
+   "cells": 2120,
+   "solveMs": 13244,
    "resultView": "default plot"
   },
   "poisson-square": {
@@ -500,8 +669,8 @@
    "resultView": "default plot"
   },
   "pzt4-cube": {
-   "hash": "db360aba7195f1ffd51ecf9c57424efc01714db6f3ae72a5481f7b149c143913",
-   "date": "2026-11-07",
+   "hash": "71cb2baa3cc2056e471780d5021009418c35754c29e7a7d01e25918250c6dcaa",
+   "date": "2026-11-18",
    "files": {
     "geom": "pzt4-cube-geom.webp",
     "mesh": "pzt4-cube-mesh.webp",
@@ -509,11 +678,24 @@
    },
    "status": "solved",
    "cells": 1024,
-   "solveMs": 13184,
+   "solveMs": 7280,
+   "resultView": "default plot"
+  },
+  "ring-resonator-bus": {
+   "hash": "fb75fcb585827e67ef998be263efc6a02b99f39608d9753b90d12ec6b60a664e",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "ring-resonator-bus-geom.webp",
+    "mesh": "ring-resonator-bus-mesh.webp",
+    "result": "ring-resonator-bus-result.webp"
+   },
+   "status": "solved",
+   "cells": 24108,
+   "solveMs": 7913,
    "resultView": "default plot"
   },
   "semi-infinite-convection": {
-   "hash": "4861a4b8166cdd84a54bae4a53684b203cd3b91eddbab4281870ca7636ac8402",
+   "hash": "9420c0a48c701a0d7ddf3da967924c30e380322eaa2e4f47b1d5ffcfab8345aa",
    "date": "2026-11-18",
    "files": {
     "geom": "semi-infinite-convection-geom.webp",
@@ -522,8 +704,21 @@
    },
    "status": "solved",
    "cells": 257,
-   "solveMs": 259,
+   "solveMs": 266,
    "resultView": "1D plot T_line (spec)"
+  },
+  "si-dc-supermodes": {
+   "hash": "c5bb72e618593b7c5f07808ac41158b7df2dd4c1427712e05a2823e7263bcd3f",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "si-dc-supermodes-geom.webp",
+    "mesh": "si-dc-supermodes-mesh.webp",
+    "result": "si-dc-supermodes-result.webp"
+   },
+   "status": "solved",
+   "cells": 6702,
+   "solveMs": 495,
+   "resultView": "default plot"
   },
   "si-microheater-to": {
    "hash": "24a86f2b65978befeb111a0a9bd0c3cb55073b8b9bf67cb66db84e04581396a8",
@@ -538,8 +733,21 @@
    "solveMs": 3065,
    "resultView": "plot E_map (last physics of the coupling chain: ewg)"
   },
+  "si-nanowire-scattering": {
+   "hash": "307e5fa828a55991cddecd9629cfef1b2f98252e7d4c3440be416beb9236a8e3",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "si-nanowire-scattering-geom.webp",
+    "mesh": "si-nanowire-scattering-mesh.webp",
+    "result": "si-nanowire-scattering-result.webp"
+   },
+   "status": "solved",
+   "cells": 15841,
+   "solveMs": 2476,
+   "resultView": "default plot"
+  },
   "si-rib-waveguide": {
-   "hash": "02f68afa2e571a2ba78fc06f01b8c80dcb0cce35d6ab519bb10ff49a66262cb7",
+   "hash": "a69509018b5b7c0474f06ddfd46d0fc41f4dd7495098ee98202e5525735c53d5",
    "date": "2026-11-18",
    "files": {
     "geom": "si-rib-waveguide-geom.webp",
@@ -548,11 +756,11 @@
    },
    "status": "solved",
    "cells": 47037,
-   "solveMs": 6251,
+   "solveMs": 3094,
    "resultView": "default plot"
   },
   "si-slab-te0": {
-   "hash": "707b9400ef6c74540ab53e31d3b8edc780386c10f39515f37815f73757017618",
+   "hash": "e989424c1c21a2f8bd7df436e506f6a5cbe54412f43b68ad15f0b15f61419e04",
    "date": "2026-11-18",
    "files": {
     "geom": "si-slab-te0-geom.webp",
@@ -561,11 +769,11 @@
    },
    "status": "solved",
    "cells": 1257,
-   "solveMs": 158,
+   "solveMs": 154,
    "resultView": "1D plot E_line (spec)"
   },
   "si-slab-tm0": {
-   "hash": "e95d4b1073a795d741b2f89915361f938f20a188277549486d6f873b8277f07e",
+   "hash": "46d063c3d40b25ceb05fa8f5bc1380908c6c7497f33718ccf9f7f2af40678c5d",
    "date": "2026-11-18",
    "files": {
     "geom": "si-slab-tm0-geom.webp",
@@ -574,12 +782,12 @@
    },
    "status": "solved",
    "cells": 1257,
-   "solveMs": 171,
+   "solveMs": 204,
    "resultView": "1D plot E_line (spec)"
   },
   "si-strip-te0": {
-   "hash": "6b7338c2457d29acdf75f10d53a1c42317554b0713511e3688ccc26c53509e13",
-   "date": "2026-11-07",
+   "hash": "fbf0f6d891702378d984c5709a1c3581dedc09fabd8d2f464cac683b9a2591d1",
+   "date": "2026-11-18",
    "files": {
     "geom": "si-strip-te0-geom.webp",
     "mesh": "si-strip-te0-mesh.webp",
@@ -587,11 +795,37 @@
    },
    "status": "solved",
    "cells": 4529,
-   "solveMs": 529,
+   "solveMs": 397,
+   "resultView": "default plot"
+  },
+  "si-strip-te0-ng": {
+   "hash": "a63a710514122fde866aa924f4fcaa6edde22e0700cdd4acf534bae64db5b785",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "si-strip-te0-ng-geom.webp",
+    "mesh": "si-strip-te0-ng-mesh.webp",
+    "result": "si-strip-te0-ng-result.webp"
+   },
+   "status": "solved",
+   "cells": 4529,
+   "solveMs": 405,
+   "resultView": "default plot"
+  },
+  "si-wire-bend": {
+   "hash": "d4cafada0a57ec9a3904e1c9e648f51dc916214b5da08b88db626e644d3ab7e3",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "si-wire-bend-geom.webp",
+    "mesh": "si-wire-bend-mesh.webp",
+    "result": "si-wire-bend-result.webp"
+   },
+   "status": "solved",
+   "cells": 5004,
+   "solveMs": 2542,
    "resultView": "default plot"
   },
   "tfln-mzm-eo": {
-   "hash": "9b25c2e29fe362605fb38e27ac1bc257e128feaeba4c8b4001010dd363d6f613",
+   "hash": "16e829a096ad46a1b6e6e741060236818d6d6398333c569b07cb5406670282e0",
    "date": "2026-11-18",
    "files": {
     "geom": "tfln-mzm-eo-geom.webp",
@@ -600,12 +834,64 @@
    },
    "status": "solved",
    "cells": 140368,
-   "solveMs": 4171,
+   "solveMs": 4507,
    "resultView": "plot E_map (last physics of the coupling chain: ewg)"
   },
+  "tfln-rib-air": {
+   "hash": "cbb57a34f9b847406b1eda60cfb71419fa4a77591cc44f7cfcba22ebe9cbdac9",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "tfln-rib-air-geom.webp",
+    "mesh": "tfln-rib-air-mesh.webp",
+    "result": "tfln-rib-air-result.webp"
+   },
+   "status": "solved",
+   "cells": 9036,
+   "solveMs": 592,
+   "resultView": "default plot"
+  },
+  "tfln-rib-oxide": {
+   "hash": "87e41282e0991a95fa4f2986ebbf45e89e1d1023abb89d2b0fe5c4205d8cc66b",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "tfln-rib-oxide-geom.webp",
+    "mesh": "tfln-rib-oxide-mesh.webp",
+    "result": "tfln-rib-oxide-result.webp"
+   },
+   "status": "solved",
+   "cells": 9036,
+   "solveMs": 602,
+   "resultView": "default plot"
+  },
+  "tsv-stress-3d": {
+   "hash": "eb81a470b9cc06308ed6b9e95204466246c239b2beb5c60393a6cb18defc004e",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "tsv-stress-3d-geom.webp",
+    "mesh": "tsv-stress-3d-mesh.webp",
+    "result": "tsv-stress-3d-result.webp"
+   },
+   "status": "solved",
+   "cells": 2658,
+   "solveMs": 1024,
+   "resultView": "default plot"
+  },
+  "tsv-stress-axisym": {
+   "hash": "dfa74435d02f1690329c498af1e34a13c9b50a175fab2c6e473826a13e5194db",
+   "date": "2026-11-18",
+   "files": {
+    "geom": "tsv-stress-axisym-geom.webp",
+    "mesh": "tsv-stress-axisym-mesh.webp",
+    "result": "tsv-stress-axisym-result.webp"
+   },
+   "status": "solved",
+   "cells": 400,
+   "solveMs": 125,
+   "resultView": "plot stress_map (last physics of the coupling chain: solid)"
+  },
   "two-spheres": {
-   "hash": "44ed92b3df481f2524f413a1b11bd01c3de02c5f4115a4547fce4be0394a858e",
-   "date": "2026-11-07",
+   "hash": "31d22f212f388954d255e8f4e6391ff667b61328816c2f6f92d5f076d604b62c",
+   "date": "2026-11-18",
    "files": {
     "geom": "two-spheres-geom.webp",
     "mesh": "two-spheres-mesh.webp",
@@ -613,7 +899,7 @@
    },
    "status": "solved",
    "cells": 3667,
-   "solveMs": 167,
+   "solveMs": 231,
    "resultView": "default plot"
   },
   "wr90-te-cutoffs": {

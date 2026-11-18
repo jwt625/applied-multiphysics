@@ -5,7 +5,7 @@ id: silicon
 name: Silicon, single crystal
 class: semiconductor
 description: >-
-  Undoped or lightly doped single-crystal Si. Mechanics as the cubic stiffness tensor (no isotropic E or nu stored);
+  Undoped or lightly doped single-crystal Si. Mechanics as the cubic stiffness tensor C, plus an isotropic equivalent E, nu (Voigt-Reuss-Hill average of C, derived) for isotropic models;
   optics from the Li 1980 evaluated table at 293 K; RF permittivity of float-zone high-resistivity Si.
 verified_on: 2026-11-18
 frame: "crystal axes: x = [100], y = [010], z = [001]"
@@ -107,15 +107,103 @@ properties:
         conditions: {T: "25 degC"}
         valid: {T: {unit: degC, range: [25, 25]}}
   E:
-    value: N/A
+    value: 162.58
     unit: GPa
-    missing: "anisotropic crystal: Young's modulus depends on direction; use the stiffness tensor C (a direction-dependent E follows from C, not stored)"
-    alternatives: []
+    basis: derived
+    source: hall1967
+    locator: "journal p.758 Table III column 'Present study' (C11, C12, C44), as in the C leaf of this file"
+    accessed: 2026-11-18
+    derivation: "Voigt-Reuss-Hill average (Hill 1952 rule) of the Hall 1967 cubic C (C11 165.64, C12 63.94, C44 79.51 GPa): K = (C11 + 2 C12)/3 = 97.840 GPa; G_V = (C11 - C12 + 3 C44)/5 = 68.046 GPa; G_R = 5 / (4/(C11 - C12) + 3/C44) = 64.882 GPa; G_H = (G_V + G_R)/2 = 66.464 GPa; E = 9 K G_H / (3 K + G_H) = 162.58 GPa (computed 2026-11-18; same rule as validation/mp/references.py hill_isotropic). Isotropic equivalent of a randomly oriented polycrystal, not a property of any direction of the single crystal: from C, E is 130.0 GPa along <100> and 187.7 GPa along <111>"
+    uncertainty: {na: "averaging-rule spread: Voigt 165.72, Reuss 159.41 GPa (alternatives); the measurement uncertainty of C (0.02 %) is far smaller"}
+    conditions: {T: "25 degC", text: "isotropic average for models that take scalar E, nu (e.g. TSV or die thermal stress with an isotropic solver); use C for anisotropic models"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "C measured at 25 C only"}
+    note: "modelling choice of an isotropic equivalent (Hill average), stated so that isotropic elastic models can run from the library; direction-dependent stress needs C"
+    alternatives:
+      - id: voigt
+        use: "upper bound of the isotropic average (sensitivity)"
+        value: 165.72
+        unit: GPa
+        basis: derived
+        source: hall1967
+        locator: "journal p.758 Table III (C11, C12, C44)"
+        accessed: 2026-11-18
+        derivation: "Voigt: G_V = 68.046 GPa, K = 97.840 GPa, E = 9 K G_V / (3 K + G_V)"
+        uncertainty: {na: "derived bound or direction value, not a measurement"}
+        conditions: {T: "25 degC"}
+        valid: {T: {unit: degC, range: [25, 25]}}
+      - id: reuss
+        use: "lower bound of the isotropic average (sensitivity)"
+        value: 159.41
+        unit: GPa
+        basis: derived
+        source: hall1967
+        locator: "journal p.758 Table III (C11, C12, C44)"
+        accessed: 2026-11-18
+        derivation: "Reuss: G_R = 64.882 GPa, K = 97.840 GPa, E = 9 K G_R / (3 K + G_R)"
+        uncertainty: {na: "derived bound or direction value, not a measurement"}
+        conditions: {T: "25 degC"}
+        valid: {T: {unit: degC, range: [25, 25]}}
+      - id: dir100
+        use: "Young modulus along <100> (e.g. along a <100> edge of a (001) wafer)"
+        value: 130.02
+        unit: GPa
+        basis: derived
+        source: hall1967
+        locator: "journal p.758 Table III (C11, C12, C44)"
+        accessed: 2026-11-18
+        derivation: "E<100> = 1 / S11, S11 = (C11 + C12) / ((C11 - C12)(C11 + 2 C12))"
+        uncertainty: {na: "derived bound or direction value, not a measurement"}
+        conditions: {T: "25 degC"}
+        valid: {T: {unit: degC, range: [25, 25]}}
   nu:
-    value: N/A
+    value: 0.2231
     unit: "1"
-    missing: "anisotropic crystal: Poisson's ratio depends on direction; use C"
-    alternatives: []
+    basis: derived
+    source: hall1967
+    locator: "journal p.758 Table III column 'Present study' (C11, C12, C44), as in the C leaf of this file"
+    accessed: 2026-11-18
+    derivation: "Voigt-Reuss-Hill average (Hill 1952 rule) of the Hall 1967 cubic C (C11 165.64, C12 63.94, C44 79.51 GPa): K = (C11 + 2 C12)/3 = 97.840 GPa; G_V = (C11 - C12 + 3 C44)/5 = 68.046 GPa; G_R = 5 / (4/(C11 - C12) + 3/C44) = 64.882 GPa; G_H = (G_V + G_R)/2 = 66.464 GPa; nu = (3 K - 2 G_H) / (2 (3 K + G_H)) = 0.2231 (computed 2026-11-18). Pairs with the Hill E of this file; not a property of any crystal direction (<100> pull, <010> contraction: 0.2785)"
+    uncertainty: {na: "averaging-rule spread: Voigt 0.2177, Reuss 0.2285 (alternatives)"}
+    conditions: {T: "25 degC", text: "isotropic average; use C for anisotropic models"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "C measured at 25 C only"}
+    note: "modelling choice of an isotropic equivalent (Hill average); see E"
+    alternatives:
+      - id: voigt
+        use: "Voigt average (sensitivity; pairs with E alternative voigt)"
+        value: 0.2177
+        unit: "1"
+        basis: derived
+        source: hall1967
+        locator: "journal p.758 Table III (C11, C12, C44)"
+        accessed: 2026-11-18
+        derivation: "nu = (3 K - 2 G_V) / (2 (3 K + G_V)), G_V = 68.046 GPa"
+        uncertainty: {na: "derived bound or direction value, not a measurement"}
+        conditions: {T: "25 degC"}
+        valid: {T: {unit: degC, range: [25, 25]}}
+      - id: reuss
+        use: "Reuss average (sensitivity; pairs with E alternative reuss)"
+        value: 0.2285
+        unit: "1"
+        basis: derived
+        source: hall1967
+        locator: "journal p.758 Table III (C11, C12, C44)"
+        accessed: 2026-11-18
+        derivation: "nu = (3 K - 2 G_R) / (2 (3 K + G_R)), G_R = 64.882 GPa"
+        uncertainty: {na: "derived bound or direction value, not a measurement"}
+        conditions: {T: "25 degC"}
+        valid: {T: {unit: degC, range: [25, 25]}}
+      - id: dir100
+        use: "Poisson ratio for a <100> pull and <010> contraction (pairs with E alternative dir100)"
+        value: 0.2785
+        unit: "1"
+        basis: derived
+        source: hall1967
+        locator: "journal p.758 Table III (C11, C12, C44)"
+        accessed: 2026-11-18
+        derivation: "nu = -S12 / S11 = C12 / (C11 + C12)"
+        uncertainty: {na: "derived bound or direction value, not a measurement"}
+        conditions: {T: "25 degC"}
+        valid: {T: {unit: degC, range: [25, 25]}}
   k:
     table:
       x: T

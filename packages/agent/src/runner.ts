@@ -31,6 +31,8 @@ export type StudyOutcome =
   | { ok: false; study: string; stage: string; message: string; readiness?: Readiness };
 
 export interface StudyRunner {
+  /** Study run_study solves when the call names none: the host's chosen study (workbench study picker), else null. */
+  defaultStudy?(): string | null;
   run(input: { specText: string; studyId: string; signal: AbortSignal; oplogHead: string }): Promise<StudyOutcome>;
 }
 

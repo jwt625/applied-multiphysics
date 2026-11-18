@@ -1,0 +1,119 @@
+# 1x2 multimode-interference (MMI) power splitter, Si core in SiO2, in-plane 2D model (TE: H_z out of plane, E in the
+# plane), three modal ports in a closed box (side walls: perfect electric conductor). The two output ports split the
+# right edge at the symmetry line; for excitation from the input port the field is even, so the split is exact there.
+# Length near the self-imaging rule L = 3 L_pi / 8, L_pi = 4 n_r W_e^2 / (3 lambda0) (Soldano and Pennings, J.
+# Lightwave Technol. 13(4), 615 (1995); equation numbers not checked, no copy read in this work): a design input only,
+# not a gate. Reference: eigenmode expansion with mode matching (validation/driven/mmi_eme.py), reciprocity and
+# energy conservation. Indices are library values at 1.55 um; all sizes are modelling inputs. A 2D model has no
+# vertical confinement: the indices are bulk values, not slab effective indices.
+schema: amp-spec/0
+id: mmi-1x2-splitter
+title: MMI 1x2 power splitter (silicon, 2D in-plane model)
+description: Multimode-interference splitter between three ports; self-imaging pattern, splitting, reflection and excess loss, checked against an eigenmode-expansion reference and reciprocity.
+params:
+  lam: {value: 1.55, unit: um, description: vacuum wavelength of the single-wavelength study}
+  nSi: {value: 3.4767, unit: "1", description: core index}
+  nOx: {value: 1.4444, unit: "1", description: cladding index}
+  w: {value: 0.4, unit: um, description: access waveguide width}
+  W: {value: 2, unit: um, description: MMI width}
+  Lm: {value: 4.6, unit: um, description: MMI length}
+  d: {value: 0.5, unit: um, description: output waveguide offset from the axis}
+  Lin: {value: 1, unit: um, description: input waveguide length}
+  Lout: {value: 1, unit: um, description: output waveguide length}
+  Hb: {value: 4, unit: um, description: box height}
+  hc: {value: 0.05, unit: um, description: mesh size in the core}
+  hx: {value: 0.1, unit: um, description: mesh size in the cladding}
+geometry:
+  dim: 2
+  features:
+    - {id: cl_left, type: rect, settings: {center: ["(Lm - Lin)/2", "0 um"], size: ["Lin + Lm", "Hb"]}}
+    - {id: cu_out, type: rect, settings: {center: ["Lm + Lout/2", "Hb/4"], size: ["Lout", "Hb/2"]}}
+    - {id: cl_out, type: rect, settings: {center: ["Lm + Lout/2", "-Hb/4"], size: ["Lout", "Hb/2"]}}
+    - {id: win, type: rect, settings: {center: ["-Lin/2", "0 um"], size: ["Lin", "w"]}}
+    - {id: mmi, type: rect, settings: {center: ["Lm/2", "0 um"], size: ["Lm", "W"]}}
+    - {id: ou, type: rect, settings: {center: ["Lm + Lout/2", "d"], size: ["Lout", "w"]}}
+    - {id: ol, type: rect, settings: {center: ["Lm + Lout/2", "-d"], size: ["Lout", "w"]}}
+    - {id: clad1, type: difference, settings: {base: cl_left, tools: [win, mmi], keepTools: true}}
+    - {id: clad_u, type: difference, settings: {base: cu_out, tools: [ou], keepTools: true}}
+    - {id: clad_l, type: difference, settings: {base: cl_out, tools: [ol], keepTools: true}}
+materials:
+  - {id: sio2, override: {n: "nOx"}, select: ["dom:clad1", "dom:clad_u", "dom:clad_l"]}
+  - {id: si, override: {n: "nSi"}, select: ["dom:win", "dom:mmi", "dom:ou", "dom:ol"]}
+physics:
+  - id: w
+    type: emw-2d
+    select: ["dom:clad1", "dom:clad_u", "dom:clad_l", "dom:win", "dom:mmi", "dom:ou", "dom:ol"]
+    settings: {polarization: TE}
+    bcs:
+      - {id: p1, type: port, select: ["bnd:cl_left.left", "bnd:win.left"], settings: {nModes: 12, excite: true}}
+      - {id: p2, type: port, select: ["bnd:cu_out.right", "bnd:ou.right"], settings: {nModes: 8}}
+      - {id: p3, type: port, select: ["bnd:cl_out.right", "bnd:ol.right"], settings: {nModes: 8}}
+      - {id: walls, type: pec, select: ["bnd:cl_left.top", "bnd:cl_left.bottom", "bnd:cu_out.top", "bnd:cl_out.bottom"]}
+mesh:
+  size: {hmax: "hx"}
+  refine:
+    - {select: ["dom:win", "dom:mmi", "dom:ou", "dom:ol"], h: "hc"}
+studies:
+  - {id: s, type: frequency, physics: [w], settings: {wavelengths: ["lam"]}}
+  - id: sweep
+    type: parametric
+    physics: [w]
+    settings:
+      study: s
+      sweep:
+        - {param: lam, values: ["1.45 um", "1.475 um", "1.5 um", "1.525 um", "1.55 um", "1.575 um", "1.6 um", "1.625 um", "1.65 um"]}
+results:
+  datasets:
+    - {id: sol_s, type: solution, data: s}
+    - {id: sol_sweep, type: solution, data: sweep}
+  evaluations:
+    - id: ev_s
+      data: sol_s
+      items:
+        - {id: T_upper, type: global, expr: "w.S21_abs^2", unit: "1", label: "power to the upper output (fundamental mode)"}
+        - {id: T_lower, type: global, expr: "w.S31_abs^2", unit: "1", label: "power to the lower output (fundamental mode)"}
+        - {id: R_in, type: global, expr: "w.S11_abs^2", unit: "1", label: "power reflected into the input mode"}
+        - {id: loss_dB, type: global, expr: "-10*log10(w.S21_abs^2 + w.S31_abs^2)", unit: "1", label: "excess loss (dB)"}
+    - id: ev_sweep
+      data: sol_sweep
+      items:
+        - {id: T_upper_l, type: global, expr: "w.S21_abs^2", unit: "1", label: "power to the upper output"}
+        - {id: loss_dB_l, type: global, expr: "-10*log10(w.S21_abs^2 + w.S31_abs^2)", unit: "1", label: "excess loss (dB)"}
+  tables:
+    - {id: tbl_s, from: ev_s}
+    - {id: tbl_sweep, from: ev_sweep}
+  plots:
+    - id: Hz_magnitude
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Hz_abs_surf, type: surface, expr: w.Hz_abs, unit: A/m}
+    - id: Hz_field
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Hz_re_surf, type: surface, expr: w.Hz_re, unit: A/m, colormap: balance}
+    - id: splitter_spectrum
+      type: plot1d
+      items:
+        - {id: split_curve, type: tablegraph, table: tbl_sweep}
+provenance:
+  values:
+    params.nSi: {basis: derived, source: "materials/silicon.yaml n (Li 1980) at 1.55 um: 3.476687, rounded to 4 decimals", date: 2026-11-18}
+    params.nOx: {basis: derived, source: "materials/sio2-thermal-oxide.yaml n (Malitson 1965) at 1.55 um: 1.444423, rounded to 4 decimals", date: 2026-11-18}
+    params.lam: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.w: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.W: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.Lm: {basis: user, date: 2026-11-18, note: "modelling input near 3 L_pi / 8 = 4.61 um from the self-imaging rule with W_e = 2.027 um (estimate, not a gate)"}
+    params.d: {basis: user, date: 2026-11-18, note: "modelling input: W / 4"}
+    params.Lin: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.Lout: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.Hb: {basis: user, date: 2026-11-18, note: "modelling choice: closed box; radiation is carried out by the cladding modes of the ports"}
+    params.hc: {basis: user, date: 2026-11-18, note: "modelling choice; two levels checked (eval case)"}
+    params.hx: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "2D in-plane model with bulk indices (infinite height); not an effective-index reduction of a real silicon-on-insulator splitter", paths: [params.nSi, params.nOx]}
+  - {text: "Closed box with perfect electric conductor side walls; radiated light stays in the box and leaves through the ports in cladding modes", paths: [physics.w.bcs.walls, params.Hb]}
+  - {text: "The two output ports meet at the symmetry line y = 0 with a natural (magnetic-field derivative zero) end; exact for the even field excited from the input port, not for excitation from an output port", paths: [physics.w.bcs]}
+missing: []
+# eval: [WO-72]

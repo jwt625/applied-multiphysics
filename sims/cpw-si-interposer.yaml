@@ -1,0 +1,84 @@
+# PK-04 (eval/cases/c/PK-04.yaml): coplanar waveguide (CPW) on a Si interposer without backside metal: zero-thickness
+# centre strip S and slots G on a high-resistivity Si layer of thickness h, air above and below; quasi-static C', L', Z0
+# from 2D electrostatics. References (validation/pkg/cpw_conformal.py): L' = (mu0 / 4) K(k1') / K(k1), k1 = S / (S + 2G)
+# (conformal map, exact for zero thickness and semi-infinite grounds; the dielectric does not enter L') is the gate.
+# C' and Z0 against the partial-capacitance conformal form for a finite substrate (Qucs technical documentation s.12,
+# eqs. (12.7)-(12.9); after Gupta et al.) are informative: the source states no accuracy for that finite-h form.
+# Modelling inputs NOT from a paper (illustrative): S, G, h, X, Y. Si permittivity: materials/silicon eps_r (Krupka 2006,
+# 6.6-11.5 GHz, float-zone high-resistivity Si) at 298.15 K, as an override because prepareRun passes no temperature to
+# library tables (DevLog-049 R1). Metal and Si losses are not modelled (quasi-static, lossless).
+schema: amp-spec/0
+id: cpw-si-interposer
+title: CPW on a Si interposer, C', L' and Z0
+description: Zero-thickness coplanar waveguide on a 100 um high-resistivity Si layer; line parameters from electrostatics against conformal mapping.
+params:
+  S: {value: 20, unit: um, description: centre strip width}
+  G: {value: 10, unit: um, description: slot width}
+  h: {value: 100, unit: um, description: Si interposer thickness}
+  X: {value: 2, unit: mm, description: "half-width of the truncation box and the grounds (modelling choice)"}
+  Y: {value: 2, unit: mm, description: "air height above and below (modelling choice)"}
+geometry:
+  dim: 2
+  features:
+    - {id: air_gl, type: rect, settings: {size: ["X - S/2 - G", "Y"], center: ["-(X + S/2 + G)/2", "Y/2"]}}
+    - {id: air_sl, type: rect, settings: {size: ["G", "Y"], center: ["-(S + G)/2", "Y/2"]}}
+    - {id: air_sig, type: rect, settings: {size: ["S", "Y"], center: ["0 um", "Y/2"]}}
+    - {id: air_sr, type: rect, settings: {size: ["G", "Y"], center: ["(S + G)/2", "Y/2"]}}
+    - {id: air_gr, type: rect, settings: {size: ["X - S/2 - G", "Y"], center: ["(X + S/2 + G)/2", "Y/2"]}}
+    - {id: si, type: rect, settings: {size: ["2*X", "h"], center: ["0 um", "-h/2"]}}
+    - {id: air_bot, type: rect, settings: {size: ["2*X", "Y"], center: ["0 um", "-h - Y/2"]}}
+materials:
+  - {id: air, override: {eps_r: 1}, select: ["dom:air_gl", "dom:air_sl", "dom:air_sig", "dom:air_sr", "dom:air_gr", "dom:air_bot"]}
+  - {id: silicon, ref: materials/silicon, override: {eps_r: 11.662595}, select: ["dom:si"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:air_gl", "dom:air_sl", "dom:air_sig", "dom:air_sr", "dom:air_gr", "dom:si", "dom:air_bot"]
+    bcs:
+      - {id: signal, type: terminal, select: ["bnd:air_sig.bottom"]}
+      - {id: grounds, type: ground, select: ["bnd:air_gl.bottom", "bnd:air_gr.bottom"]}
+mesh:
+  size: {hmax: "0.25 mm", grading: 0.3}
+  refine:
+    - {select: ["bnd:air_sig.bottom", "bnd:air_sl.bottom", "bnd:air_sr.bottom"], h: "G/20"}
+studies:
+  - {id: std1, type: stationary, physics: [es]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: surface_line, type: cutline, data: sol_std1, from: ["-3*S", "0 um"], to: ["3*S", "0 um"], n: 300}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: C_per_m, type: global, expr: es.C_per_m, unit: pF/m}
+        - {id: L_per_m, type: global, expr: es.L_per_m, unit: nH/m}
+        - {id: Z0, type: global, expr: es.Z0, unit: ohm}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_surf, type: surface, expr: es.V, unit: V}
+    - id: V_surface_line
+      type: plot1d
+      items:
+        - {id: V_curve, type: linegraph, data: surface_line, x: arc, expr: es.V, unit: V}
+provenance:
+  values:
+    params.S: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.G: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.h: {basis: user, date: 2026-11-18, note: "illustrative interposer thickness, not from a paper"}
+    params.X: {basis: user, date: 2026-11-18, note: "modelling choice: truncation of the grounds and the box"}
+    params.Y: {basis: user, date: 2026-11-18, note: "modelling choice: truncation of the air"}
+    materials.air.override.eps_r: {basis: user, date: 2026-11-18, note: "vacuum, as assumed by the closed forms"}
+    materials.silicon.override.eps_r: {basis: measured, source: "materials/silicon.yaml eps_r (Krupka 2006 Fig. 2, digitized) linearly interpolated by @amp/materials at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: strip and ground edge singularities"}
+assumptions:
+  - {text: "Zero metal thickness, lossless, quasi-static TEM: L' = mu0 eps0 / C'_0, Z0 = sqrt(L' / C')", paths: [physics.es]}
+  - {text: "Grounds end at the box sides x = +-X (the closed forms assume semi-infinite grounds); truncation sides carry n . D = 0", paths: [geometry]}
+# eval: [PK-04]

@@ -11,13 +11,16 @@
 import { dimOf } from '@amp/spec';
 import type { FieldData, Mesh, PhysicsModule, RunContext, Solution, Spec } from '@amp/spec/types';
 import { NPC, nCells, nNodes, facetsOn, selectEntities } from '../common/mesh.ts';
-import { cellProps, optionalCellProp, physicsNode, q, bcsOf, specReadiness, type BcLike } from '../common/ctx.ts';
+import { physicsNode, q, bcsOf, specReadiness, type BcLike } from '../common/ctx.ts';
 import { StageTimer, makeSolution, attachMesh, checkAbort } from '../common/solution.ts';
 import { gatherX, physGrad, shapeTable } from '../common/lagrange.ts';
 import { EPS0, MU0 } from '../electrostatics/index.ts';
 import { Wave2DSolver, csqrtOut, type Coeffs, type Cx, type FacetBc, type FreqResult, type PortDef } from './kernel.ts';
 import { buildPml, cellBox, type PmlModel } from './pml.ts';
 import { farField } from './farfield.ts';
+import { media, type Kind, type Media } from './media.ts';
+import { PeriodicMap, type V2 } from './bloch.ts';
+import { solveEmwEigen, EIGEN_BC_TYPES } from './bands.ts';
 import type { FactorKind } from '@amp/core/la/ldlt-select';
 
 /** Speed of light in vacuum, m/s (SI defining constant, exact). */
@@ -27,7 +30,6 @@ export { WAVE2D_REGISTRATIONS, RESULT_NAMES_WAVE2D } from './spec.ts';
 
 export const WAVE2D_NORMALIZATION = 'complex amplitudes, time convention exp(+j omega t) (instantaneous field = Re(u exp(j omega t))); ports: incident power per unit depth `power` (default 1 W/m), S-parameters power-normalised; plane wave: amplitude as given';
 
-type Kind = 'emw' | 'acoustics';
 type Pol = 'TM' | 'TE';
 
 /** Frequencies (Hz) of a frequency study: settings.values (Hz) or settings.wavelengths (vacuum, m; EM only). */
@@ -44,49 +46,31 @@ export function studyFrequencies(spec: Spec, study: RunContext['study'], kind: K
 }
 
 const BC_TYPES: Record<Kind, string[]> = {
-  emw: ['pml', 'plane-wave', 'port', 'scattering', 'pec', 'pmc', 'impedance'],
+  emw: ['pml', 'plane-wave', 'port', 'scattering', 'pec', 'pmc', 'impedance', 'periodic'],
   acoustics: ['pml', 'plane-wave', 'port', 'scattering', 'sound-hard', 'pressure', 'impedance', 'normal-velocity'],
 };
 
 export function wave2dReadiness(spec: Spec, physicsId: string, kind: Kind): string[] {
   const reasons: string[] = [];
   const p = physicsNode(spec, physicsId);
+  const st = (spec.studies ?? []).filter((s) => !(s as { physics?: string[] }).physics || (s as { physics?: string[] }).physics!.includes(physicsId));
+  if (kind === 'emw' && st.length && st.every((s) => s.type === 'eigen' || s.type === 'bands')) {
+    // eigenproblems only (DevLog-050): lossless conditions
+    for (const b of (p.bcs ?? []) as BcLike[]) if (!EIGEN_BC_TYPES.includes(b.type)) reasons.push(`BC '${b.id}': type '${b.type}' is not supported by the eigen and band studies (${EIGEN_BC_TYPES.join(', ')})`);
+    if (st.some((s) => s.type === 'bands') && !((p.bcs ?? []) as BcLike[]).some((b) => b.type === 'periodic')) reasons.push('a bands study needs periodic conditions (one or two pairs of opposite cell sides)');
+    reasons.push(...specReadiness(spec, physicsId, { props: [] }));
+    return reasons;
+  }
   for (const b of (p.bcs ?? []) as BcLike[]) if (!BC_TYPES[kind].includes(b.type)) reasons.push(`BC '${b.id}': type '${b.type}' is not supported by the frequency-domain solver (${BC_TYPES[kind].join(', ')})`);
   const bcs = (p.bcs ?? []) as BcLike[];
   if (bcs.filter((b) => b.type === 'plane-wave').length > 1) reasons.push('at most one plane-wave condition');
   if (bcs.some((b) => b.type === 'plane-wave') && bcs.some((b) => b.type === 'port')) reasons.push('plane-wave and port in one physics are not supported');
   if (bcs.filter((b) => b.type === 'port' && (b.settings as { excite?: boolean } | undefined)?.excite === true).length > 1) reasons.push('at most one port with excite: true');
-  const st = (spec.studies ?? []).filter((s) => !(s as { physics?: string[] }).physics || (s as { physics?: string[] }).physics!.includes(physicsId));
-  if (!st.some((s) => s.type === 'frequency' || s.type === 'parametric')) reasons.push('no frequency study for this physics');
+  if (bcs.some((b) => b.type === 'periodic') && bcs.some((b) => b.type === 'port')) reasons.push('ports in a periodic (Floquet) cell are not supported; use a plane wave with PML layers');
+  if (!st.some((s) => s.type === 'frequency' || s.type === 'parametric' || (kind === 'emw' && (s.type === 'eigen' || s.type === 'bands')))) reasons.push('no frequency study for this physics');
   if (kind === 'acoustics') reasons.push(...specReadiness(spec, physicsId, { props: ['c', 'rho'] }));
   else reasons.push(...specReadiness(spec, physicsId, { props: [] }));
   return reasons;
-}
-
-interface Media { mask: Uint8Array; epsRe: Float64Array; epsIm: Float64Array; mu: Float64Array; rho: Float64Array; c: Float64Array; notes: string[] }
-
-function media(ctx: RunContext, kind: Kind): Media {
-  const notes: string[] = [];
-  if (kind === 'acoustics') {
-    const { mask, values } = cellProps(ctx, ['c', 'rho']);
-    const nc = mask.length;
-    return { mask, epsRe: new Float64Array(nc), epsIm: new Float64Array(nc), mu: new Float64Array(nc), rho: values.rho!, c: values.c!, notes };
-  }
-  const { mask } = cellProps(ctx, []);
-  const epsR = optionalCellProp(ctx, 'eps_r', mask), tand = optionalCellProp(ctx, 'tan_delta', mask);
-  const n = optionalCellProp(ctx, 'n', mask), kap = optionalCellProp(ctx, 'kappa', mask), mu = optionalCellProp(ctx, 'mu_r', mask);
-  const nc = mask.length;
-  const epsRe = new Float64Array(nc), epsIm = new Float64Array(nc), muO = new Float64Array(nc);
-  let muDefault = false;
-  for (let c = 0; c < nc; c++) {
-    if (!mask[c]) continue;
-    if (Number.isFinite(epsR[c]!)) { epsRe[c] = epsR[c]!; epsIm[c] = Number.isFinite(tand[c]!) ? -epsR[c]! * tand[c]! : 0; }
-    else if (Number.isFinite(n[c]!)) { const kk = Number.isFinite(kap[c]!) ? kap[c]! : 0; epsRe[c] = n[c]! * n[c]! - kk * kk; epsIm[c] = -2 * n[c]! * kk; }
-    else throw new Error(`emw-2d: the material of domain ${ctx.mesh.entities.domains[ctx.mesh.cells.domain[c]!]!.id} has neither eps_r nor n`);
-    if (Number.isFinite(mu[c]!)) muO[c] = mu[c]!; else { muO[c] = 1; muDefault = true; }
-  }
-  if (muDefault) notes.push('emw-2d: mu_r not given for some materials: non-magnetic, mu_r = 1');
-  return { mask, epsRe, epsIm, mu: muO, rho: new Float64Array(nc), c: new Float64Array(nc), notes };
 }
 
 function coeffsAt(md: Media, kind: Kind, pol: Pol, omega: number): Coeffs {
@@ -109,14 +93,16 @@ function coeffsAt(md: Media, kind: Kind, pol: Pol, omega: number): Coeffs {
 }
 
 /** Spec -> kernel problem, all frequencies, C5 Solution. */
-export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: FactorKind | null } = {}): Promise<Solution & { wave2d: unknown; notes?: string[]; normalization?: string }> {
+export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: FactorKind | null; envelopeMaxBytes?: number } = {}): Promise<Solution & { wave2d: unknown; notes?: string[]; normalization?: string }> {
   const timer = new StageTimer();
   const { spec, mesh } = ctx;
   const phys = physicsNode(spec, ctx.physicsId);
   const pol: Pol = kind === 'emw' ? ((phys.settings as { polarization?: Pol } | undefined)?.polarization ?? (() => { throw new Error('emw-2d: settings.polarization (TM or TE) is required'); })()) : 'TM';
   const freqs = studyFrequencies(spec, ctx.study, kind);
   timer.start('assemble');
-  const md = media(ctx, kind);
+  // wavelength bound for the material table: one frequency (prepareRun evaluates at c0 / f) or per-frequency tables
+  const atLambda = (ctx as RunContext & { materialsAt?: (lambda: number, notes?: string[]) => RunContext['materials'] }).materialsAt;
+  const md = media(ctx, kind, { wavelength: freqs.length === 1 || !!atLambda });
   const notes = [...md.notes];
   const nc = nCells(mesh), nn = nNodes(mesh);
   const bcs = bcsOf(spec, ctx.physicsId);
@@ -155,7 +141,14 @@ export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: 
   const facetsOf = (b: BcLike) => facetsOn(mesh, b.select);
   const isDir = (b: BcLike) => (kind === 'acoustics' ? b.type === 'pressure' : (pol === 'TM' && b.type === 'pec') || (pol === 'TE' && b.type === 'pmc'));
   const dirFacets = bcs.filter(isDir).flatMap(facetsOf);
-  if (pwBc) checkOpenBoundaries(mesh, md, kind, pmlCell, bgCell, bcs.filter((b) => b.type !== 'pml' && b.type !== 'plane-wave').flatMap(facetsOf));
+  if (pwBc) checkOpenBoundaries(mesh, md, kind, pmlCell, bgCell, bcs.filter((b) => b.type !== 'pml' && b.type !== 'plane-wave').flatMap(facetsOf), bcs.filter((b) => b.type === 'scattering').flatMap(facetsOf));
+  // periodic (Floquet) cell: node classes of the periodic conditions (DevLog-050)
+  const perBcs = bcs.filter((b) => b.type === 'periodic');
+  const periodic = perBcs.length ? new PeriodicMap(mesh, perBcs.map((b) => {
+    const sk = (b.settings as { k?: unknown } | undefined)?.k;
+    return { id: b.id, facets: facetsOf(b), ...(sk !== undefined ? { k: q(spec, sk, `${b.id}.k`) } : {}) };
+  })) : null;
+  if (periodic && pwBc && periodic.kSetting.some((v) => v !== undefined)) notes.push('periodic: the plane wave sets the Bloch wave vector; the k settings of the periodic conditions are not used');
   const portBcs = bcs.filter((b) => b.type === 'port');
   const exciteIdx = Math.max(0, portBcs.findIndex((b) => (b.settings as { excite?: boolean } | undefined)?.excite === true));
   const portDefs: PortDef[] = portBcs.map((b, i) => {
@@ -164,7 +157,7 @@ export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: 
   });
   timer.stop('assemble');
   // pattern (cells + dense port blocks) and nested-dissection symbolic analysis, shared by all frequencies
-  const solver = timer.time('analyze', () => new Wave2DSolver(mesh, md.mask, pml, portDefs, dirFacets, { factor: opts.factor ?? null }));
+  const solver = timer.time('analyze', () => new Wave2DSolver(mesh, md.mask, pml, portDefs, dirFacets, { factor: opts.factor ?? null, periodic, ...(opts.envelopeMaxBytes !== undefined ? { envelopeMaxBytes: opts.envelopeMaxBytes } : {}) }));
   const fields: FieldData[] = [];
   const scalars: Solution['scalars'] = {};
   const extra: Array<Record<string, unknown>> = [];
@@ -172,6 +165,7 @@ export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: 
   const uUnit = kind === 'acoustics' ? 'Pa' : pol === 'TM' ? 'V/m' : 'A/m';
   const space = mesh.cells.type === 'tri6' ? 'H1P2' : 'H1P1';
   const multi = freqs.length > 1;
+  if (kind === 'emw' && multi) notes.push(atLambda ? `materials: library values evaluated at lambda = c0 / f for each of the ${freqs.length} frequencies` : 'materials: one material evaluation for all frequencies (no per-wavelength evaluation available in this context)');
   const sfx = (i: number) => (multi ? `_${i}` : '');
   let dofMax = 0, resMax = 0;
   const statsSolver = `complex supernodal LDL^T (${opts.factor ?? 'default'} front kernel, nested dissection, iterative refinement)`;
@@ -179,13 +173,21 @@ export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: 
     checkAbort(ctx.signal);
     ctx.progress?.('solve', fi / freqs.length, `f = ${freqs[fi]!.toPrecision(6)} Hz`);
     const f = freqs[fi]!, omega = 2 * Math.PI * f;
-    const C = coeffsAt(md, kind, pol, omega);
+    // several frequencies: library material values (n, kappa) re-evaluated at lambda = c0 / f (prepareRun materialsAt);
+    // a single frequency keeps ctx.materials (already bound at c0 / f by prepareRun)
+    let mdF = md;
+    if (kind === 'emw' && multi && atLambda) {
+      const mn: string[] = [];
+      mdF = media({ ...ctx, materials: atLambda(C0 / f, mn) }, kind, { wavelength: true });
+      for (const n of [...mn, ...mdF.notes]) if (!notes.includes(n)) notes.push(n);
+    }
+    const C = coeffsAt(mdF, kind, pol, omega);
     const fbcs: FacetBc[] = [];
     for (const b of bcs) {
       const fs = () => facetsOf(b);
       const s = (b.settings ?? {}) as Record<string, unknown>;
       switch (b.type) {
-        case 'pml': case 'plane-wave': case 'port': break;
+        case 'pml': case 'plane-wave': case 'port': case 'periodic': break;
         case 'pec': case 'pmc': case 'pressure': {
           if (isDir(b)) {
             const val = b.type === 'pressure' ? q(spec, s.p, `${b.id}.p`) : 0;
@@ -220,11 +222,20 @@ export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: 
     }
     const planeWave = pwBc ? { dir: pwDir, amp: pwAmp, aB: [C.aRe[bgCell]!, C.aIm[bgCell]!] as Cx, mB: [C.mRe[bgCell]!, C.mIm[bgCell]!] as Cx } : undefined;
     const powerC = kind === 'acoustics' ? 1 : pol === 'TM' ? MU0 : EPS0;
-    const r = solver.solve({ omega, coeffs: C, bcs: fbcs, ports: portDefs, ...(planeWave ? { planeWave } : {}), powerC });
+    // Bloch wave vector of a periodic cell: the incident plane wave's (tangential phase matching), else the conditions' k
+    let bloch: { kRe: V2; kIm: V2 } | undefined;
+    if (periodic) {
+      if (planeWave) {
+        const kb = csqrtOut(cdivC(planeWave.mB, planeWave.aB)), cd = Math.cos(pwDir), sd = Math.sin(pwDir);
+        bloch = { kRe: [kb[0] * cd, kb[0] * sd], kIm: [kb[1] * cd, kb[1] * sd] };
+      } else bloch = { kRe: periodic.kFromReduced(periodic.kSetting.map((v) => v ?? 0)), kIm: [0, 0] };
+      if (fi === 0) notes.push(`periodic cell: Bloch wave vector (${bloch.kRe[0].toPrecision(6)}, ${bloch.kRe[1].toPrecision(6)}) 1/m at the first frequency${planeWave ? ' (from the plane wave)' : ''}; reduced system solved by an envelope LU`);
+    }
+    const r = solver.solve({ omega, coeffs: C, bcs: fbcs, ports: portDefs, ...(planeWave ? { planeWave } : {}), powerC, ...(bloch ? { bloch } : {}) });
     timer.add('assemble', r.timing.assemble); if (r.timing.ports > 0 && portDefs.length) timer.add('ports', r.timing.ports); timer.add('factor', r.timing.factor); timer.add('solve', r.timing.solve);
     for (const n of r.notes) if (!notes.includes(n)) notes.push(n);
     dofMax = Math.max(dofMax, nn); resMax = Math.max(resMax, r.relResidual);
-    if (r.nPerturbed > 0) notes.push(`f = ${f} Hz: ${r.nPerturbed} pivots perturbed in the LDL^T factor (refined residual ${r.relResidual.toExponential(2)})`);
+    if (r.nPerturbed > 0) notes.push(`f = ${f} Hz: ${r.nPerturbed} pivots perturbed in the ${periodic ? 'envelope LU' : 'LDL^T'} factor (refined residual ${r.relResidual.toExponential(2)})`);
     timer.start('post');
     const push = (name: string, unit: string, data: Float64Array, sp: FieldData['space'] = space, comps: 1 | 2 = 1) => fields.push({ name, unit, space: sp, components: comps, data, step: fi });
     push(`${U}_re`, uUnit, r.uRe); push(`${U}_im`, uUnit, r.uIm); push(`${U}_abs`, uUnit, Float64Array.from(r.uRe, (v, i) => Math.hypot(v, r.uIm[i]!)));
@@ -259,7 +270,8 @@ export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: 
       if (r.srcPower) rec.srcPower = r.srcPower;
     }
     // scattering width
-    if (planeWave && r.usRe && r.usIm) {
+    if (planeWave && r.usRe && r.usIm && periodic && fi === 0) notes.push('scattering width: not computed in a periodic cell');
+    if (planeWave && r.usRe && r.usIm && !periodic) {
       const kb = csqrtOut(cdivC(planeWave.mB, planeWave.aB));
       if (Math.abs(kb[1]) > 1e-12 * kb[0]) notes.push('scattering width: lossy background, not computed');
       else {
@@ -312,7 +324,7 @@ export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: 
  * which is consistent only next to the background medium (DevLog-042 s.7.7, O7). Next to another medium (outside PML)
  * it is rejected: the user must say what the boundary is.
  */
-function checkOpenBoundaries(mesh: Mesh, md: Media, kind: Kind, pmlCell: Uint8Array, bgCell: number, listed: number[]): void {
+function checkOpenBoundaries(mesh: Mesh, md: Media, kind: Kind, pmlCell: Uint8Array, bgCell: number, listed: number[], absorbing: number[] = []): void {
   const k = NPC[mesh.cells.type], nc = nCells(mesh), nn = nNodes(mesh);
   const key = (v0: number, v1: number) => Math.min(v0, v1) * nn + Math.max(v0, v1);
   const edgeCell = new Map<number, number>();   // edge -> adjacent active cell, -1 when shared by two
@@ -335,6 +347,21 @@ function checkOpenBoundaries(mesh: Mesh, md: Media, kind: Kind, pmlCell: Uint8Ar
     const b = mesh.entities.boundaries[mesh.facets.boundary[f]!]?.id ?? `#${mesh.facets.boundary[f]}`;
     const d = mesh.entities.domains[mesh.cells.domain[c]!]?.id ?? `#${mesh.cells.domain[c]}`;
     (bad.get(b) ?? bad.set(b, new Set()).get(b)!).add(d);
+  }
+  // first-order absorbing (scattering) facets next to another medium: the condition acts on the scattered field with
+  // that medium's wavenumber, but there u_s also carries the incident-field correction of the cell: ill-posed
+  // (DevLog-050 s.1.7), so it is rejected like an open boundary
+  const absorbBad = new Map<string, Set<string>>();
+  for (const f of absorbing) {
+    const c = edgeCell.get(key(mesh.facets.conn[kf * f]!, mesh.facets.conn[kf * f + 1]!));
+    if (c === undefined || c < 0 || pmlCell[c] || sameMedium(c)) continue;
+    const b = mesh.entities.boundaries[mesh.facets.boundary[f]!]?.id ?? `#${mesh.facets.boundary[f]}`;
+    const d = mesh.entities.domains[mesh.cells.domain[c]!]?.id ?? `#${mesh.cells.domain[c]}`;
+    (absorbBad.get(b) ?? absorbBad.set(b, new Set()).get(b)!).add(d);
+  }
+  if (absorbBad.size) {
+    const list = [...absorbBad].map(([b, ds]) => `'${b}' (next to ${[...ds].map((d) => `'${d}'`).join(', ')})`).join('; ');
+    throw new Error(`plane wave: the scattering condition on ${list} ${absorbBad.size > 1 ? 'touch' : 'touches'} a medium other than the background; under a plane wave it absorbs only waves of the background medium. Move the boundary into the background, or use a PML domain`);
   }
   if (!bad.size) return;
   const walls = kind === 'acoustics' ? 'sound-hard, pressure, impedance' : 'pec, pmc, impedance';
@@ -381,7 +408,7 @@ export const emw2dModule: PhysicsModule = {
     try { reasons = wave2dReadiness(spec as Spec, physicsId, 'emw'); } catch (e) { reasons = [(e as Error).message]; }
     return { ready: reasons.length === 0, reasons };
   },
-  async run(ctx: RunContext) { return solveWave2D(ctx, 'emw'); },
+  async run(ctx: RunContext) { return ctx.study.type === 'eigen' || ctx.study.type === 'bands' ? solveEmwEigen(ctx) : solveWave2D(ctx, 'emw'); },
 };
 
 /** Acoustics frequency study (dispatched from acoustics/index.ts). */

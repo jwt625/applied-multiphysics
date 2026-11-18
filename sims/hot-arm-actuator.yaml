@@ -126,11 +126,11 @@ provenance:
     physics.ht.bcs.h_side.settings.h: {basis: benchmark, source: "VM223 listing 'MPDATA,HF,8,1,929,...' (side walls, anchors excluded) at 300 K", date: 2026-11-07}
     couplings.th2sm.settings.Tref: {basis: benchmark, source: "VM223 listing 'TREF,TBLK'", date: 2026-11-07}
     results.datasets.tip.points.0: {basis: benchmark, source: "VM223 listing 'NPOST=NODE(0.25820E-02,-0.33000E-03,0.20000E-04)'", date: 2026-11-07}
-    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice: 2 cells across the thin arm; converged per lane MT (DevLog-033), D1/4 is 840k dof, too heavy for the browser"}
+    mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice: 2 cells across the thin arm; converged in own mesh checks, 2026-11-07, D1/4 is 840k dof, too heavy for the browser"}
 assumptions:
   - {text: "Constant properties and film coefficients at 300 K (the listing's tables run 300-1500 K); the arm temperatures are far above 300 K at 15 V, so this sim does not reproduce the 27 um target", paths: [materials.si, physics.ht]}
   - {text: "Anchor electrodes: potential / ground on the anchor top faces; VM223 couples the voltage of every node of each anchor volume (equipotential anchors)", paths: [physics.ec]}
-  - {text: "Side walls with h 929: every exterior box face except the anchors. The exterior remainders of split faces are selected as bnd:conn.xmin#1 (gap face) and bnd:cold.xmin#1; plain bnd:conn.xmin / bnd:cold.xmin would also select the interfaces hot.xmax, cold.xmax, flex.xmax through parent links (@amp/geom naming after lane MG G2, DevLog-036; checked 2026-11-07)", paths: [physics.ht.bcs.h_side]}
+  - {text: "Side walls with h 929: every exterior box face except the anchors. The exterior remainders of split faces are selected as bnd:conn.xmin#1 (gap face) and bnd:cold.xmin#1; plain bnd:conn.xmin / bnd:cold.xmin would also select the interfaces hot.xmax, cold.xmax, flex.xmax through parent links (@amp/geom naming; checked 2026-11-07)", paths: [physics.ht.bcs.h_side]}
   - {text: "Linear (small-deflection) elasticity; VM223 runs NLGEOM,ON", paths: [physics.solid]}
 missing:
   - {what: "temperature-dependent k(T) 146.4 -> 25.1 W/(m K) and alpha(T) 2.568e-6 -> 4.556e-6 /K over 300-1500 K (VM223 listing): spec material overrides are scalars; needs a T-dependent material entry or a table override", needed_for: [solution]}

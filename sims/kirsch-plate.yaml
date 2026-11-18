@@ -48,14 +48,14 @@ results:
         - {id: sxx_surf, type: surface, expr: solid.sxx, unit: MPa}
 provenance:
   values:
-    materials.steel.override.E: {basis: benchmark, source: "eval/cases/a/SM-01.yaml materials.plate.E (synthetic; Kirsch stresses do not depend on E, nu). materials/structural-steel E, nu depend on T and the spec has no temperature for an elastic study (DevLog-014 s.5)", date: 2026-11-06}
+    materials.steel.override.E: {basis: benchmark, source: "eval/cases/a/SM-01.yaml materials.plate.E (synthetic; Kirsch stresses do not depend on E, nu). materials/structural-steel E, nu depend on T and the spec has no temperature for an elastic study", date: 2026-11-06}
     materials.steel.override.nu: {basis: benchmark, source: "eval/cases/a/SM-01.yaml materials.plate.nu (synthetic)", date: 2026-11-06}
-    params.W: {basis: user, date: 2026-11-06, note: "modelling choice: W/D = 20 meets the SM-01 condition W/D >= 20 (R3)"}
+    params.W: {basis: user, date: 2026-11-06, note: "modelling choice: W/D = 20 meets the condition W/D >= 20 of eval case SM-01"}
     params.D: {basis: user, date: 2026-11-06, note: "modelling choice; the range keeps W/D >= 20"}
     params.sigma_inf: {basis: user, date: 2026-11-06, note: "modelling choice; the problem is linear and K_t does not depend on the load level"}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
     mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
 assumptions:
   - {text: "Finite quarter plate with W/D = 20 approximates the infinite-plate Kirsch solution (SM-01 gate condition)", paths: [params.W]}
-  - {text: "Boundary entity names (quarter.left/right/top/bottom, hole.edge) follow the provisional L3 naming", paths: [geometry.features]}
+  - {text: "Boundary entity names (quarter.left/right/top/bottom, hole.edge) follow the provisional geometry naming convention", paths: [geometry.features]}
 # eval: [SM-01]

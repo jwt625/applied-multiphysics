@@ -1,0 +1,103 @@
+# PK-06 (eval/cases/c/PK-06.yaml): Si die bonded on an organic (BT laminate) substrate of the same footprint, cooled by a
+# uniform 100 K from a stress-free temperature: 3D thermo-elastic warpage of a quarter model (rollers on x = 0, y = 0).
+# Reference (validation/pkg/bilayer_plate.py): classical laminated-plate theory for equibiaxial (spherical) bending of
+# two isotropic layers, i.e. Timoshenko's bimetal formula (J. Opt. Soc. Am. 11, 233 (1925)) with the biaxial moduli
+# E / (1 - nu) in place of E. It holds away from the free edges of a thin plate (L >> h); the edge zone and the 3D
+# stress state make the finite die differ; the model-to-limit difference is recorded in DevLog-049 (L sweep).
+# Rigid-body z motion: a small patch (side d) at the bottom of the plate centre is held at u_z = 0 (stacks have no
+# point entities to pin); curvature is taken from u_z at two bottom points outside that patch.
+# Modelling inputs NOT from a paper (illustrative): L, t_die, t_sub, d, T_ref, T_use. Materials from the library:
+# materials/silicon (E, nu: Voigt-Reuss-Hill average; alpha at 298.15 K as an override, DevLog-049 R1) and
+# materials/bt-hl832nx (in-plane E, nu, alpha1 below Tg from the MGC data page, used as isotropic constants).
+schema: amp-spec/0
+id: die-warpage-3d
+title: Die-on-substrate warpage (3D)
+description: Si die on a BT laminate substrate cooled by 100 K; 3D bow and centre curvature against laminated-plate (biaxial Timoshenko) theory.
+params:
+  L: {value: 10, unit: mm, description: die and substrate side (full)}
+  t_die: {value: 0.3, unit: mm, description: Si die thickness}
+  t_sub: {value: 0.5, unit: mm, description: substrate thickness}
+  d: {value: 0.1, unit: mm, description: side of the centre patch held at u_z = 0}
+  x1: {value: 1, unit: mm, description: "inner curvature probe (bottom, y = 0)"}
+  x2: {value: 2, unit: mm, description: "outer curvature probe (bottom, y = 0)"}
+  T_ref: {value: 398.15, unit: K, description: stress-free temperature}
+  T_use: {value: 298.15, unit: K, description: final uniform temperature}
+geometry:
+  dim: 3
+  features:
+    - {id: quarter, type: rect, settings: {size: ["L/2", "L/2"], center: ["L/4", "L/4"]}}
+    - {id: patch, type: rect, settings: {size: ["d", "d"], center: ["d/2", "d/2"]}}
+    - {id: rest, type: difference, settings: {base: quarter, tools: [patch], keepTools: true}}
+    - id: plate
+      type: extrude
+      settings:
+        layers:
+          - {id: sub, thickness: "t_sub", sketch: [rest, patch], nz: 2}
+          - {id: die, thickness: "t_die", sketch: [rest, patch], nz: 2}
+materials:
+  - {id: substrate, ref: materials/bt-hl832nx, select: ["dom:plate.sub"]}
+  - {id: silicon, ref: materials/silicon, override: {alpha: {value: 2.600985401459854e-6, unit: 1/K}, k: {value: 149.038, unit: W/(m*K)}}, select: ["dom:plate.die"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:plate"]
+    bcs:
+      - {id: uniform, type: temperature, select: ["bnd:plate.top", "bnd:plate.bottom"], settings: {T: "T_use"}}
+  - id: solid
+    type: elastic
+    select: ["dom:plate"]
+    settings: {model: 3d}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:quarter.left", "bnd:patch.left"]}
+      - {id: sym_y, type: roller, select: ["bnd:quarter.bottom", "bnd:patch.bottom"]}
+      - {id: centre_z, type: roller, select: ["bnd:patch.sub.bottom"]}
+couplings:
+  - {id: th2sm, type: thermal-expansion, from: ht, to: solid, settings: {Tref: "T_ref"}}
+mesh:
+  size: {hmax: "L/8"}
+studies:
+  - {id: std1, type: stationary, physics: [ht, solid]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: p1, type: cutpoint, data: sol_std1, points: [[x1, "0 mm", "0 mm"]]}
+    - {id: p2, type: cutpoint, data: sol_std1, points: [[x2, "0 mm", "0 mm"]]}
+    - {id: corner, type: cutpoint, data: sol_std1, points: [["L/2", "L/2", "0 mm"]]}
+    - {id: bottom_x, type: cutline, data: sol_std1, from: ["0 mm", "0 mm", "0 mm"], to: ["L/2", "0 mm", "0 mm"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: uz_p1, type: point, data: p1, expr: solid.u.z, unit: um, label: "u_z on the bottom at x = x1, y = 0"}
+        - {id: uz_p2, type: point, data: p2, expr: solid.u.z, unit: um, label: "u_z on the bottom at x = x2, y = 0; centre curvature d2w/dr2 = 2 (u_z(x2) - u_z(x1)) / (x2^2 - x1^2), < 0 = dome"}
+        - {id: uz_corner, type: point, data: corner, expr: solid.u.z, unit: um, label: "u_z at the bottom corner (bow relative to the centre patch)"}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: warp_3d
+      type: plot3d
+      data: sol_std1
+      items:
+        - {id: uz_vol, type: volume, expr: solid.u.z, unit: um}
+    - id: warp_line
+      type: plot1d
+      items:
+        - {id: uz_curve, type: linegraph, data: bottom_x, x: arc, expr: solid.u.z, unit: um}
+provenance:
+  values:
+    params.L: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.t_die: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.t_sub: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.d: {basis: user, date: 2026-11-18, note: "modelling choice: small enough not to stiffen the plate"}
+    params.x1: {basis: user, date: 2026-11-18, note: "modelling choice: outside the centre patch, far from the free edges"}
+    params.x2: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.T_ref: {basis: user, date: 2026-11-18, note: "illustrative stress-free temperature (below the BT Tg), not from a paper"}
+    params.T_use: {basis: user, date: 2026-11-18, note: "illustrative final temperature (25 C)"}
+    materials.silicon.override.alpha: {basis: measured, source: "materials/silicon.yaml alpha (Swenson 1983) at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
+    materials.silicon.override.k: {basis: measured, source: "materials/silicon.yaml k (HPL 1972) at 298.15 K", date: 2026-11-18, note: "k does not enter (uniform T)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; nested levels also halve the layer cells in z. Finer in-plane meshes exceed the 2 GB process rule with the direct solver"}
+assumptions:
+  - {text: "BT laminate taken isotropic with its in-plane E, nu and alpha1 (the data page gives in-plane CTE only); Si isotropic (Hill average)", paths: [materials]}
+  - {text: "Linear thermo-elasticity, small deflection, constant properties over the 100 K change; perfect bond, no adhesive layer", paths: [couplings, physics.solid]}
+  - {text: "Centre patch (side d) held at u_z = 0 removes the rigid z motion; it locally flattens the plate over d only", paths: [physics.solid.bcs.centre_z]}
+# eval: [PK-06]

@@ -24,6 +24,8 @@ export interface StackMeshOptions {
 }
 
 const projectors = new WeakMap<Mesh, Projector>();
+/** min dihedral (deg) below which meshStack warns: a design threshold, not a sourced value (DevLog-055 s.9 R1) */
+export const FLAT_TET_DEG = 5;
 /** Projector of a meshStack mesh (new nodes on curved walls onto the exact 2D curve, z kept), for refineUniform. */
 export const stackProjector = (m: Mesh): Projector | undefined => projectors.get(m);
 
@@ -239,7 +241,11 @@ export function meshStack(st: Stack, o: StackMeshOptions = {}): Mesh {
   };
   mesh.tagHash = tagHash(D, FC, FBo, [...st.entities.domains, ...st.entities.boundaries].map((e) => e.id));
   mesh.quality = stackQuality(mesh);
-  const warnings = [...new Set([...st.warnings, ...(m2.warnings ?? [])])];
+  const md = mesh.quality.minDihedralDeg;
+  const flat = md !== undefined && md < FLAT_TET_DEG
+    ? [`flat tetrahedra: min dihedral angle ${md.toFixed(2)} deg (below ${FLAT_TET_DEG} deg): a layer much thinner than the in-plane cell size; refine that layer's sketch edges (mesh.refine) or lower mesh.size.hmax`]
+    : [];
+  const warnings = [...new Set([...st.warnings, ...(m2.warnings ?? []), ...flat])];
   if (warnings.length) mesh.warnings = warnings;
   mesh.stats = {
     nodes: nodes.length / 3, cells: dom.length, facets: fb.length, tris2d: nT, planes: nP, layers: nL,

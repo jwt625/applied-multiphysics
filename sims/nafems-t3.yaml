@@ -52,7 +52,7 @@ results:
         - {id: T_curve, type: linegraph, data: axis, x: arc, expr: ht.T, unit: degC}
 provenance:
   values:
-    params.L: {basis: benchmark, source: "eval/cases/a/HT-02.yaml geometry.spec.bar_m (NAFEMS T3 via Altair OS-V 0110, R3 s.3.1)", date: 2026-11-06}
+    params.L: {basis: benchmark, source: "eval/cases/a/HT-02.yaml geometry.spec.bar_m (NAFEMS T3 via Altair OS-V 0110)", date: 2026-11-06}
     params.w: {basis: user, date: 2026-11-06, note: "modelling choice: 2D strip width; the solution is independent of it"}
     materials.barmat.override.k: {basis: benchmark, source: "eval/cases/a/HT-02.yaml materials.bar.k (NAFEMS T3 via Altair OS-V 0110)", date: 2026-11-06}
     materials.barmat.override.rho: {basis: benchmark, source: "eval/cases/a/HT-02.yaml materials.bar.rho", date: 2026-11-06}

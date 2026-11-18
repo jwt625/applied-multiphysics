@@ -4,10 +4,14 @@
 	// stages), Timeline (operation log), Table (probe points clicked in Results, DevLog-020; and since lane R3, DevLog-028,
 	// one sub-tab per table / evaluation group of the spec, computed in the post worker on the displayed dataset, session
 	// memory only, no export; probe rows can be pinned into a cutpoint dataset + point evaluation by one user op). Each
-	// tab scrolls inside its own box.
+	// tab scrolls inside its own box. Modes (DevLog-051): the eigenmode table of the shown eigen solution (row click
+	// shows the mode); Sweep: a scalar of the sweep points against the swept param. Both tabs are listed only when
+	// there is something to show.
 	import type { Session } from './session.svelte';
 	import { appLog, tsShort } from '../state/log.svelte';
 	import Timeline from './Timeline.svelte';
+	import ModesTab from './ModesTab.svelte';
+	import SweepPlot from './SweepPlot.svelte';
 	import { navTrail } from '../state/nav.svelte';
 	import MemoryTab from '../agent/MemoryTab.svelte';
 	import type { ProbeTable } from '../state/probes.svelte';
@@ -18,8 +22,10 @@
 	import { resultsClient, runOf, runStudies, type CellMeta, type ResultTable } from '../results/api.ts';
 	import { pinPatch, PIN_GROUP } from '../results/eval-pin.ts';
 
-	export type BottomTab = 'messages' | 'log' | 'progress' | 'timeline' | 'navigation' | 'memory' | 'table';
-	let { s, tab = $bindable('messages'), onjump, probes = null }: { s: Session; tab?: BottomTab; onjump?: (pointer: string) => void; probes?: ProbeTable | null } = $props();
+	export type BottomTab = 'messages' | 'log' | 'progress' | 'timeline' | 'navigation' | 'memory' | 'table' | 'modes' | 'sweep';
+	let { s, tab = $bindable('messages'), onjump, probes = null, step = 0, onstep }: { s: Session; tab?: BottomTab; onjump?: (pointer: string) => void; probes?: ProbeTable | null; /** shown solution step (Modes table) */ step?: number; onstep?: (k: number) => void } = $props();
+	const hasModes = $derived(s.solution?.steps?.kind === 'eigen');
+	const hasSweep = $derived(!!s.sweep);
 	const prow = $derived(probes?.rows ?? []);
 	const pcols = $derived(columns(prow));
 	const has3 = $derived(prow.some((r) => r.dim === 3));
@@ -115,7 +121,7 @@
 
 <div class="bp">
 	<div class="tabs" role="tablist">
-		{#each [['messages', `Messages${nMsg ? ` (${nMsg})` : ''}`], ['log', 'Log'], ['progress', 'Progress'], ['timeline', `Timeline (${s.model.ops.length})`], ['navigation', `Navigation (${navTrail.entries.length})`], ['memory', 'Memory'], ['table', `Table${prow.length ? ` (${prow.length})` : ''}`]] as [k, l]}
+		{#each [['messages', `Messages${nMsg ? ` (${nMsg})` : ''}`], ['log', 'Log'], ['progress', 'Progress'], ['timeline', `Timeline (${s.model.ops.length})`], ['navigation', `Navigation (${navTrail.entries.length})`], ['memory', 'Memory'], ['table', `Table${prow.length ? ` (${prow.length})` : ''}`], ...(hasModes || tab === 'modes' ? [['modes', `Modes${s.solution?.steps ? ` (${s.solution.steps.values.length})` : ''}`]] : []), ...(hasSweep || tab === 'sweep' ? [['sweep', 'Sweep']] : [])] as [k, l]}
 			<button role="tab" aria-selected={tab === k} class:on={tab === k} onclick={() => (tab = k as BottomTab)}>{l}</button>
 		{/each}
 	</div>
@@ -214,6 +220,10 @@
 					{/if}
 				</div>
 			</div>
+		{:else if tab === 'modes'}
+			<div class="scroll"><ModesTab {s} {step} {onstep} /></div>
+		{:else if tab === 'sweep'}
+			<SweepPlot {s} />
 		{:else if tab === 'memory'}
 			<MemoryTab />
 		{:else if tab === 'navigation'}

@@ -61,6 +61,42 @@ export function strainB(model: SolidModel, G: Float64Array, N: Float64Array, r: 
   }
 }
 
+/** Work arrays of solidKernel for nv strain rows and nd element DOFs. */
+export interface SolidKernelWork { DB: Float64Array; nzR: Int32Array; nzV: Float64Array; nzC: Int32Array }
+export const solidKernelWork = (nv: number, nd: number): SolidKernelWork => ({ DB: new Float64Array(nv * nd), nzR: new Int32Array(nd * nv), nzV: new Float64Array(nd * nv), nzC: new Int32Array(nd) });
+
+/**
+ * Element stiffness contribution of one quadrature point: DB = D B (nv x nd, kept in work.DB for thermal loads) and
+ * Ke[a nd + b] += w sum_l B[l, a] DB[l, b] for b >= a (upper triangle). The sums run over the nonzero entries of B only,
+ * in ascending l as the dense sums: a skipped term is D[i, l] 0 or 0 DB[l, b] = +-0, and adding +-0 to a partial sum
+ * that starts at +0 never changes it, so the result is bitwise identical to the dense loops (for finite D and B;
+ * DevLog-054, 2-3x fewer operations on 3D tet10).
+ */
+export function solidKernel(D: Float64Array, B: Float64Array, nv: number, nd: number, w: number, Ke: Float64Array, work: SolidKernelWork): void {
+  const { DB, nzR, nzV, nzC } = work;
+  for (let a = 0; a < nd; a++) {
+    let c = 0;
+    for (let l = 0; l < nv; l++) { const v = B[l * nd + a]!; if (v !== 0) { nzR[a * nv + c] = l; nzV[a * nv + c] = v; c++; } }
+    nzC[a] = c;
+  }
+  for (let j = 0; j < nd; j++) {
+    const cj = nzC[j]!, o = j * nv;
+    for (let i = 0; i < nv; i++) {
+      let s = 0;
+      for (let t = 0; t < cj; t++) s += D[nv * i + nzR[o + t]!]! * nzV[o + t]!;
+      DB[i * nd + j] = s;
+    }
+  }
+  for (let a = 0; a < nd; a++) {
+    const ca = nzC[a]!, o = a * nv;
+    for (let b = a; b < nd; b++) {
+      let s = 0;
+      for (let t = 0; t < ca; t++) s += nzV[o + t]! * DB[nzR[o + t]! * nd + b]!;
+      Ke[a * nd + b]! += s * w;
+    }
+  }
+}
+
 // ------------------------------------------------------------------------------------------------ DOF maps, pattern
 
 /** map[node * nComp + c] = global DOF or -1 (not a DOF: fixed, or outside the field's domain). */
@@ -115,6 +151,27 @@ export function scatter(p: Csr, vals: Float64Array, dofs: ArrayLike<number>, Ae:
       const z = slotOf(p, i, j);
       if (z < 0) throw new Error(`scatter: (${i}, ${j}) not in the pattern`);
       vals[z]! += s * v;
+    }
+  }
+}
+
+/**
+ * Element scatter of two matrices on one pattern with one slot search per entry (DevLog-045 R2, DevLog-054):
+ * K[(dofs[a], dofs[b])] += Ke[a nd + b] and, when M is given, M[...] += Me[a nd + b], for dofs >= 0. Each matrix keeps
+ * scatter's rules (entries with value 0 are not added; the pattern search runs only for an entry that is added), and
+ * every slot receives its additions in the same order as two scatter calls, so K and M are bitwise identical to them.
+ */
+export function scatterPair(p: Csr, K: Float64Array, M: Float64Array | null, dofs: ArrayLike<number>, Ke: Float64Array, Me: Float64Array | null, nd: number): void {
+  for (let a = 0; a < nd; a++) {
+    const i = dofs[a]!;
+    if (i < 0) continue;
+    for (let b = 0; b < nd; b++) {
+      const j = dofs[b]!, vk = Ke[a * nd + b]!, vm = M ? Me![a * nd + b]! : 0;
+      if (j < 0 || (vk === 0 && vm === 0)) continue;
+      const z = slotOf(p, i, j);
+      if (z < 0) throw new Error(`scatter: (${i}, ${j}) not in the pattern`);
+      if (vk !== 0) K[z]! += vk;
+      if (vm !== 0) M![z]! += vm;
     }
   }
 }

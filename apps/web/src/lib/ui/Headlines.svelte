@@ -2,11 +2,13 @@
 	// SPDX-License-Identifier: GPL-3.0-or-later
 	// The model's headline numbers (its max / min / point evaluation items, from the evaluation tables of the post worker;
 	// post/headline.ts) on the displayed dataset, in the spec's unit. Stale or coarse values are marked; values that depend
-	// on eval-case inputs say so.
+	// on eval-case inputs say so. Only items of the solved study are listed (DevLog-051); one dim line names the others
+	// and the study each needs (state/study-results.ts).
 	import type { Session } from '../workbench/session.svelte';
 	import { headlines, type Headline } from '../post/headline';
 	import { fmt } from '../gfx/ticks';
 	import { unitLabel } from '../gfx/units';
+	import { headlineSplit } from '../state/study-results';
 
 	let { s, big = false, boxed = false }: { s: Session; big?: boolean; boxed?: boolean } = $props();
 	let list = $state.raw<Headline[]>([]);
@@ -20,13 +22,17 @@
 		const my = ++hTok;
 		void headlines(results, sol, mesh, params, s.post, { spec: data, label, study }).then((h) => { if (my === hTok && s.solution === sol) list = h; }).catch(() => { if (my === hTok && s.solution === sol) list = []; });
 	});
+	const split = $derived(headlineSplit(s.model.data, s.solvedStudy));
+	const shown = $derived(list.filter((h) => split.show.has(h.id)));
+	const otherTip = $derived(split.other.map((o) => `${o.id}: needs study ${o.study}`).join('\n'));
+	const otherStudies = $derived([...new Set(split.other.map((o) => o.study))]);
 	const mark = $derived(s.staleSolution ? 'stale' : s.solutionCoarse ? 'coarse' : '');
 	const caseNote = $derived(s.caseFilled.length && s.caseInfo ? `uses eval case ${s.caseInfo.id} inputs: ${s.caseFilled.join(', ')}` : '');
 </script>
 
 {#if list.length}
 	<div class="hl" class:big class:boxed class:dim={!!mark}>
-		{#each list as h}
+		{#each shown as h}
 			<div class="row" data-tip={`${h.tip}${mark ? `\n${mark}: computed for ${mark === 'stale' ? 'an earlier version of the model' : 'a coarse preview mesh'}` : ''}${caseNote ? `\n${caseNote}` : ''}`}>
 				<span class="k">{h.label}</span>
 				{#if h.value === null}<span class="na">not evaluated</span>
@@ -35,6 +41,7 @@
 				{#if caseNote}<span class="m" data-tip={caseNote}>case</span>{/if}
 			</div>
 		{/each}
+		{#if split.other.length}<div class="oth" data-tip={`Headline items of other studies (select the study and Compute):\n${otherTip}`}>{split.other.length} more for {otherStudies.join(', ')}</div>{/if}
 	</div>
 {/if}
 
@@ -50,6 +57,7 @@
 	.dim .v { color: var(--ink-3); }
 	.m { font-size: 10px; border: 1px solid currentColor; padding: 0 3px; color: var(--ink-2); }
 	.na { font-size: 11px; color: var(--ink-3); }
+	.oth { font-size: 10px; color: var(--ink-3); }
 	/* bottom-left above the mesh line: the graphics toolbar wraps at the top (audit S5); phones: above the colorbar strip */
 	@media (max-width: 760px) { .boxed { bottom: 78px; } }
 </style>

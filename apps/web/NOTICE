@@ -3,9 +3,16 @@ apps/web (applied-multiphysics), GPL-3.0-or-later.
 Third-party data and ported code:
 
 - src/lib/gfx/colormaps.ts: colormap tables sampled from
-  - viridis, inferno (BIDS mpl-colormaps, Nathaniel Smith and Stefan van der Walt), CC0 1.0;
+  - viridis, inferno, plasma, magma (BIDS mpl-colormaps, Nathaniel Smith and Stefan van der Walt), CC0 1.0;
   - cividis (Jamie R. Nunez, Christopher R. Anderton, Ryan S. Renslow, PLoS ONE 13(7): e0199239, 2018), as distributed
     in matplotlib 3.11.2 under the matplotlib licence (BSD-style); a separate licence for the table was not verified;
+  - twilight (cyclic), contributed to matplotlib by GitHub user bastibe in pull request #6254 "adds two new cyclic
+    color schemes" (closed 2018-05-28; https://github.com/matplotlib/matplotlib/pull/6254, accessed 2026-11-18) and
+    distributed in matplotlib 3.11.2 (lib/matplotlib/_cm_listed.py) under the matplotlib licence (BSD-style). Neither the
+    pull request, the source file (https://github.com/matplotlib/matplotlib/blob/main/lib/matplotlib/_cm_listed.py) nor
+    the matplotlib 3.0 release notes (doc/release/prev_whats_new/whats_new_3.0.rst) state a separate licence or an
+    author name for the table (all accessed 2026-11-18);
+  - gray: linear ramp (own);
   - balance (cmocean, Copyright (c) 2015 Kristen M. Thyng), MIT licence:
     Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
     documentation files (the "Software"), to deal in the Software without restriction, including without limitation the

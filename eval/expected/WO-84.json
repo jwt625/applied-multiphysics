@@ -1,0 +1,50 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-84",
+  "class": "c",
+  "generator": "validation/modes3/references.py",
+  "command": "cd validation && uv run python modes3/references.py",
+  "method": "Other open solver: Tidy3D finite-difference mode solver (waveguide plugin RectangularDielectric, grid_resolution 40), Si 'Li1993_293K', SiO2 'Horiba' material models; values printed in the notebook",
+  "generated_at": "2026-11-18T13:54:40-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "neff_0",
+      "value": 2.459162628532339,
+      "unit": "1",
+      "precision": {
+        "source": "Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (tidy3d-notebooks, develop branch, read 2026-11-18), cell 14 printed output"
+      }
+    },
+    {
+      "metric_id": "neff_1",
+      "value": 2.43821523251537,
+      "unit": "1",
+      "precision": {
+        "source": "Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (tidy3d-notebooks, develop branch, read 2026-11-18), cell 14 printed output"
+      }
+    },
+    {
+      "metric_id": "dn",
+      "value": 0.020947396016969044,
+      "unit": "1",
+      "definition": "n_even - n_odd (derived)"
+    },
+    {
+      "metric_id": "L_c",
+      "value": 3.699743869701937e-05,
+      "unit": "m",
+      "definition": "lambda / (2 (n_even - n_odd)) (derived)"
+    }
+  ]
+}

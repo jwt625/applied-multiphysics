@@ -1,0 +1,80 @@
+# PK-03 (eval/cases/c/PK-03.yaml): redistribution-layer (RDL) microstrip, a zero-thickness strip of width W on a
+# polyimide layer of height h over a ground plane; quasi-static TEM line parameters from 2D electrostatics: C' (with the
+# dielectric), L' = mu0 eps0 / C'_0 (vacuum solve) and Z0 = sqrt(L' / C'). Reference: Hammerstad and Jensen 1980 closed
+# forms (validation/pkg/microstrip_hj.py; formulas as re-tabulated in the Qucs technical documentation s.11.1 and in
+# scikit-rf skrf/media/mline.py; primary not read). Validity stated there: Z0 of the air line better than 0.01 % for
+# W/h <= 1 and 0.03 % for W/h <= 1000; eps_eff better than 0.2 % for eps_r < 128 and 0.01 <= W/h <= 100.
+# Modelling inputs NOT from a paper (illustrative): W, h, X, Y. Substrate permittivity from the library
+# (materials/polyimide-pi2600, data-sheet value at 1 kHz, used as the quasi-static value). The surrounding medium is
+# vacuum (eps_r 1), as in the closed form. The ground plane and the substrate are truncated at x = +-X, the air at
+# y = h + Y; truncation sides carry n . D = 0 (natural).
+schema: amp-spec/0
+id: microstrip-rdl
+title: RDL microstrip line, C', L' and Z0
+description: Zero-thickness strip on a polyimide layer over ground; line capacitance, inductance and impedance from electrostatics against Hammerstad-Jensen.
+params:
+  W: {value: 10, unit: um, description: strip width}
+  h: {value: 10, unit: um, description: dielectric height}
+  X: {value: 2, unit: mm, description: "half-width of the truncation box (modelling choice)"}
+  Y: {value: 2, unit: mm, description: "air height above the dielectric (modelling choice)"}
+geometry:
+  dim: 2
+  features:
+    - {id: sub, type: rect, settings: {size: ["2*X", "h"], center: ["0 um", "h/2"]}}
+    - {id: air_l, type: rect, settings: {size: ["X - W/2", "Y"], center: ["-(X + W/2)/2", "h + Y/2"]}}
+    - {id: air_sig, type: rect, settings: {size: ["W", "Y"], center: ["0 um", "h + Y/2"]}}
+    - {id: air_r, type: rect, settings: {size: ["X - W/2", "Y"], center: ["(X + W/2)/2", "h + Y/2"]}}
+materials:
+  - {id: air, override: {eps_r: 1}, select: ["dom:air_l", "dom:air_sig", "dom:air_r"]}
+  - {id: dielectric, ref: materials/polyimide-pi2600, select: ["dom:sub"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:sub", "dom:air_l", "dom:air_sig", "dom:air_r"]
+    bcs:
+      - {id: strip, type: terminal, select: ["bnd:air_sig.bottom"]}
+      - {id: ground, type: ground, select: ["bnd:sub.bottom"]}
+mesh:
+  size: {hmax: "0.25 mm", grading: 0.3}
+  refine:
+    - {select: ["bnd:air_sig.bottom"], h: "W/40"}
+studies:
+  - {id: std1, type: stationary, physics: [es]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: vline, type: cutline, data: sol_std1, from: ["0 um", "0 um"], to: ["0 um", "6*h"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: C_per_m, type: global, expr: es.C_per_m, unit: pF/m}
+        - {id: L_per_m, type: global, expr: es.L_per_m, unit: nH/m}
+        - {id: Z0, type: global, expr: es.Z0, unit: ohm}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_surf, type: surface, expr: es.V, unit: V}
+    - id: V_line
+      type: plot1d
+      items:
+        - {id: V_curve, type: linegraph, data: vline, x: arc, expr: es.V, unit: V}
+provenance:
+  values:
+    params.W: {basis: user, date: 2026-11-18, note: "illustrative modelling input (W/h = 1), not from a paper"}
+    params.h: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.X: {basis: user, date: 2026-11-18, note: "modelling choice: truncation (200 h)"}
+    params.Y: {basis: user, date: 2026-11-18, note: "modelling choice: truncation (200 h)"}
+    materials.air.override.eps_r: {basis: user, date: 2026-11-18, note: "vacuum, as assumed by the closed form"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: strip-edge field singularity"}
+assumptions:
+  - {text: "Zero metal thickness, lossless, quasi-static TEM: L' = mu0 eps0 / C'_0, Z0 = sqrt(L' / C')", paths: [physics.es]}
+  - {text: "Polyimide eps_r from a 1 kHz data-sheet value (materials/polyimide-pi2600); its GHz value is not on the data sheet", paths: [materials.dielectric]}
+  - {text: "Finite ground plane and box (+-X, Y): the closed form assumes an infinite ground plane and open space", paths: [geometry]}
+# eval: [PK-03]

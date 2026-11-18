@@ -57,14 +57,14 @@ provenance:
     params.R: {basis: benchmark, source: "eval/cases/a/EM-04.yaml geometry.spec.loop_radius_m", date: 2026-11-06}
     params.zc: {basis: benchmark, source: "eval/cases/a/EM-04.yaml geometry.spec.loop_z_m", date: 2026-11-06}
     params.I: {basis: benchmark, source: "eval/cases/a/EM-04.yaml bcs[0].value", date: 2026-11-06}
-    params.s: {basis: user, date: 2026-11-06, note: "modelling choice as in L4 gates/em.ts; finite-section shift of B(0) is -1.4e-6 rel (DevLog-010 s.4.1)"}
+    params.s: {basis: user, date: 2026-11-06, note: "modelling choice as in the earlier verification gate; finite-section shift of B(0) is -1.4e-6 rel (own gate run, 2026-11-06)"}
     params.Rb: {basis: user, date: 2026-11-06, note: "modelling choice; the box contains the sphere R_b = 100 R, whose A = 0 shift is -1.398 (R/R_b)^3 = -1.4e-6 B0 (eval/expected/EM-04.json truncation)"}
     materials.vacuum.override.mu_r: {basis: benchmark, source: "eval/cases/a/EM-04.yaml materials.air.mu_r (vacuum; filament loops in vacuum)", date: 2026-11-06}
     physics.mf.bcs.drive1.settings.turns: {basis: benchmark, source: "eval/cases/a/EM-04.yaml geometry.spec.turns", date: 2026-11-06}
     physics.mf.bcs.drive2.settings.turns: {basis: benchmark, source: "eval/cases/a/EM-04.yaml geometry.spec.turns", date: 2026-11-06}
-    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate: Rb/4, grade 0.25)"}
-    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate: s/2)"}
-    mesh.refine.1.h: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate: R/40 in the core region)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (as in the earlier verification gate: Rb/4, grade 0.25)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (as in the earlier verification gate: s/2)"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-06, note: "modelling choice (as in the earlier verification gate: R/40 in the core region)"}
 assumptions:
   - {text: "Coil regions are vacuum carrying a uniform current density (the case's filament loops in vacuum)", paths: [materials.vacuum]}
   - {text: "r = 0 (air_box.left, core.left) is the symmetry axis, natural in the A_phi formulation", paths: [physics.mf.bcs]}

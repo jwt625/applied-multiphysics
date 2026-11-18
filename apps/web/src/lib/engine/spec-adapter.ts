@@ -5,6 +5,7 @@
 import { resolveQuantity, type ParamInfo, type ScopeValue, type Spec } from '@amp/spec';
 import { buildGeometry2D, type Feature, type Geometry2D, type Mesh } from '@amp/geom';
 import * as M from '@amp/mesh';
+import { meshFromSpec } from '@amp/mesh/spec';
 
 export type Vec = number[];
 
@@ -92,25 +93,23 @@ export function buildMesh(spec: Spec, params: Map<string, ParamInfo>, scale = 1)
 		const mesh = M.mesh2d(g, { hmax: ms.hmax, ...(ms.hmin ? { hmin: ms.hmin } : {}), ...(ms.grade ? { grade: ms.grade } : {}), refine: ms.refine, order: 1 });
 		return { mesh, geometry: g, ms: { geometry: t1 - t0, mesh: performance.now() - t1 } };
 	}
-	const feats = spec.geometry.features as FeatureNode[];
-	if (feats.length !== 1) throw new Error('3D preview adapter: one box or cylinder feature only (3D CSG is L3 tier 2)');
-	const f = feats[0]!;
-	const s = f.settings ?? {};
-	if (f.type === 'box') {
-		const size = vec(s.size, scope, 'size'), c = vec(s.center, scope, 'center');
-		const r = (k: number): [number, number] => [c[k]! - size[k]! / 2, c[k]! + size[k]! / 2];
-		const t1 = performance.now();
-		const mesh = M.meshBoxes([{ id: f.id, x: r(0), y: r(1), z: r(2) }], { h: ms.hmax });
-		return { mesh, geometry: null, ms: { geometry: t1 - t0, mesh: performance.now() - t1 } };
-	}
-	if (f.type === 'cylinder') {
-		const base = vec(s.base, scope, 'base') as [number, number, number];
-		const cyl = { id: f.id, radius: q(s.radius, scope, 'radius'), height: q(s.height, scope, 'height'), base, axis: s.axis as 'x' | 'y' | 'z' };
-		const meshCylinder = (M as unknown as Record<string, unknown>).meshCylinder as ((c: typeof cyl, o: object) => Mesh) | undefined;
-		if (!meshCylinder) throw new Error('@amp/mesh does not export meshCylinder yet');
-		const t1 = performance.now();
-		const mesh = meshCylinder(cyl, { mesh2d: { hmax: ms.hmax }, dz: ms.hmax, cell: 'tet4' });
-		return { mesh, geometry: null, ms: { geometry: t1 - t0, mesh: performance.now() - t1 } };
-	}
-	throw new Error(`feature type '${f.type}' has no 3D preview adapter`);
+	// 3D (DevLog-044 R-web-1): every spec the solver path meshes (boxes, one cylinder, extrude stacks, mixed boxes and
+	// z cylinders) through @amp/mesh meshFromSpec, with the size settings scaled; layer nz / dz stay as written
+	const t1 = performance.now();
+	const mesh = meshFromSpec(scaledSizes(spec as unknown as Record<string, unknown>, ms), { order: 1 });
+	return { mesh, geometry: null, ms: { geometry: 0, mesh: performance.now() - t1 } };
+}
+
+/** A copy of the spec whose mesh.size.hmax and mesh.refine h are the resolved, scaled SI values of `ms`. */
+export function scaledSizes(spec: Record<string, unknown>, ms: MeshSettings): Record<string, unknown> {
+	const m = (spec.mesh ?? {}) as { size?: Record<string, unknown>; refine?: Array<Record<string, unknown>> };
+	const L = (v: number) => ({ value: v, unit: 'm' });
+	return {
+		...spec,
+		mesh: {
+			...m,
+			size: { ...(m.size ?? {}), hmax: L(ms.hmax) },
+			...(m.refine ? { refine: m.refine.map((r, i) => ({ ...r, h: L(ms.refine[i]!.h) })) } : {})
+		}
+	};
 }

@@ -90,7 +90,7 @@ test('emw-2d: ref: material with n and kappa (ITO) read at lambda = c0 / f gives
 
 test('emw-2d: several frequencies resolve library materials once (note); override n keeps library eps_r out', async () => {
   const p = await prepareRun(channelSpec({ ref: 'materials/ito-xy15s' }, [0.6, 0.7]), {});
-  assert.ok(p.notes.some((x) => x.includes('2 frequencies') && x.includes('per-frequency material dispersion not implemented')), p.notes.join('\n'));
+  assert.ok(p.notes.some((x) => x.includes('2 frequencies') && x.includes('re-evaluates them at lambda = c0 / f per frequency')), p.notes.join('\n'));
   // silica: the library has eps_r (low frequency) and n; an override n states the optical index
   const s = channelSpec({ ref: 'materials/sio2-thermal-oxide', override: { n: 1.5 } }) as any;
   const q = await prepareRun(s, {});

@@ -1,0 +1,223 @@
+# WO-84: Silicon directional coupler supermodes: two 500 x 220 nm strips, 200 nm gap, SiO2 clad, 1550 nm TE; coupling length
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-84
+class: c
+title: 'Silicon directional coupler supermodes: two 500 x 220 nm strips, 200 nm gap, SiO2 clad, 1550 nm TE; coupling length'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    strips_m: [5.0e-07, 2.2e-07]
+    gap_m: 2.0e-07
+    window_m: [5.0e-06, 4.0e-06]
+materials:
+  si: {n: 3.4787089554992723, source: 'materials/silicon.yaml salzberg_villa_tatian at 1.55 um (reference: Li 1993 293 K model)'}
+  sio2: {n: 1.4444232909003691, source: 'materials/sio2-thermal-oxide.yaml Malitson (reference: Horiba model)'}
+bcs:
+- {selection: window, type: pec}
+initial: null
+study: {type: eigen, solver: mode, wavelength_m: 1.55e-06, n: 2}
+references:
+- id: L_c.L0
+  quantity: coupling length lambda / (2 dn) (mesh level 0)
+  metric_id: L_c
+  value: 3.699743869701937e-05
+  unit: m
+  tolerance: {rel: 0.05, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-84.json, metric_id: L_c}
+  provenance: {citation: 'Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (github.com/flexcompute/tidy3d-notebooks,
+      develop branch), cell 14 printed output', locator: 'notebook cell 14 output ''Effective indices: 2.459162628532339,
+      2.43821523251537''; L_c and dn derived', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract:
+    kind: expr
+    expr: lam / (2 * (a - b))
+    terms:
+      a: {kind: scalar, name: neff_0}
+      b: {kind: scalar, name: neff_1}
+      lam: {value: 1.55, unit: um}
+  note: 'estimate: the reference is a finite-difference solver at grid_resolution 40 with other material models; its discretisation
+    error in n_eff is of order 1e-3 to 1e-2 (eo-modulator-atlas K2-tidy3d.json levels 25 / 12.5 / 6.25 nm: 1.9078 / 1.9010
+    / 1.8976 vs FEM 1.89417); a Li 1980 293 K silicon index (3.47667) moves the engine dn by 0.5 %'
+- id: L_c.L1
+  quantity: coupling length lambda / (2 dn) (mesh level 1)
+  metric_id: L_c
+  value: 3.699743869701937e-05
+  unit: m
+  tolerance: {rel: 0.05, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-84.json, metric_id: L_c}
+  provenance: {citation: 'Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (github.com/flexcompute/tidy3d-notebooks,
+      develop branch), cell 14 printed output', locator: 'notebook cell 14 output ''Effective indices: 2.459162628532339,
+      2.43821523251537''; L_c and dn derived', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract:
+    kind: expr
+    expr: lam / (2 * (a - b))
+    terms:
+      a: {kind: scalar, name: neff_0}
+      b: {kind: scalar, name: neff_1}
+      lam: {value: 1.55, unit: um}
+  note: 'estimate: the reference is a finite-difference solver at grid_resolution 40 with other material models; its discretisation
+    error in n_eff is of order 1e-3 to 1e-2 (eo-modulator-atlas K2-tidy3d.json levels 25 / 12.5 / 6.25 nm: 1.9078 / 1.9010
+    / 1.8976 vs FEM 1.89417); a Li 1980 293 K silicon index (3.47667) moves the engine dn by 0.5 %'
+- id: dn.L0
+  quantity: supermode index split n_even - n_odd (mesh level 0)
+  metric_id: dn
+  value: 0.020947396016969044
+  unit: '1'
+  tolerance: {rel: 0.05, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-84.json, metric_id: dn}
+  provenance: {citation: 'Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (github.com/flexcompute/tidy3d-notebooks,
+      develop branch), cell 14 printed output', locator: 'notebook cell 14 output ''Effective indices: 2.459162628532339,
+      2.43821523251537''; L_c and dn derived', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract:
+    kind: expr
+    expr: a - b
+    terms:
+      a: {kind: scalar, name: neff_0}
+      b: {kind: scalar, name: neff_1}
+  note: 'estimate: the reference is a finite-difference solver at grid_resolution 40 with other material models; its discretisation
+    error in n_eff is of order 1e-3 to 1e-2 (eo-modulator-atlas K2-tidy3d.json levels 25 / 12.5 / 6.25 nm: 1.9078 / 1.9010
+    / 1.8976 vs FEM 1.89417); a Li 1980 293 K silicon index (3.47667) moves the engine dn by 0.5 %'
+- id: dn.L1
+  quantity: supermode index split n_even - n_odd (mesh level 1)
+  metric_id: dn
+  value: 0.020947396016969044
+  unit: '1'
+  tolerance: {rel: 0.05, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-84.json, metric_id: dn}
+  provenance: {citation: 'Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (github.com/flexcompute/tidy3d-notebooks,
+      develop branch), cell 14 printed output', locator: 'notebook cell 14 output ''Effective indices: 2.459162628532339,
+      2.43821523251537''; L_c and dn derived', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract:
+    kind: expr
+    expr: a - b
+    terms:
+      a: {kind: scalar, name: neff_0}
+      b: {kind: scalar, name: neff_1}
+  note: 'estimate: the reference is a finite-difference solver at grid_resolution 40 with other material models; its discretisation
+    error in n_eff is of order 1e-3 to 1e-2 (eo-modulator-atlas K2-tidy3d.json levels 25 / 12.5 / 6.25 nm: 1.9078 / 1.9010
+    / 1.8976 vs FEM 1.89417); a Li 1980 293 K silicon index (3.47667) moves the engine dn by 0.5 %'
+- id: neff_0.L0
+  quantity: n_eff even supermode (mesh level 0)
+  metric_id: neff_0
+  value: 2.459162628532339
+  unit: '1'
+  tolerance: {abs: 0.005, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-84.json, metric_id: neff_0}
+  provenance: {citation: 'Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (github.com/flexcompute/tidy3d-notebooks,
+      develop branch), cell 14 printed output', locator: 'notebook cell 14 output ''Effective indices: 2.459162628532339,
+      2.43821523251537''; L_c and dn derived', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_0}
+  note: 'estimate: the reference is a finite-difference solver at grid_resolution 40 with other material models; its discretisation
+    error in n_eff is of order 1e-3 to 1e-2 (eo-modulator-atlas K2-tidy3d.json levels 25 / 12.5 / 6.25 nm: 1.9078 / 1.9010
+    / 1.8976 vs FEM 1.89417); a Li 1980 293 K silicon index (3.47667) moves the engine dn by 0.5 %'
+- id: neff_0.L1
+  quantity: n_eff even supermode (mesh level 1)
+  metric_id: neff_0
+  value: 2.459162628532339
+  unit: '1'
+  tolerance: {abs: 0.005, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-84.json, metric_id: neff_0}
+  provenance: {citation: 'Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (github.com/flexcompute/tidy3d-notebooks,
+      develop branch), cell 14 printed output', locator: 'notebook cell 14 output ''Effective indices: 2.459162628532339,
+      2.43821523251537''; L_c and dn derived', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_0}
+  note: 'estimate: the reference is a finite-difference solver at grid_resolution 40 with other material models; its discretisation
+    error in n_eff is of order 1e-3 to 1e-2 (eo-modulator-atlas K2-tidy3d.json levels 25 / 12.5 / 6.25 nm: 1.9078 / 1.9010
+    / 1.8976 vs FEM 1.89417); a Li 1980 293 K silicon index (3.47667) moves the engine dn by 0.5 %'
+- id: neff_1.L0
+  quantity: n_eff odd supermode (mesh level 0)
+  metric_id: neff_1
+  value: 2.43821523251537
+  unit: '1'
+  tolerance: {abs: 0.005, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-84.json, metric_id: neff_1}
+  provenance: {citation: 'Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (github.com/flexcompute/tidy3d-notebooks,
+      develop branch), cell 14 printed output', locator: 'notebook cell 14 output ''Effective indices: 2.459162628532339,
+      2.43821523251537''; L_c and dn derived', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_1}
+  note: 'estimate: the reference is a finite-difference solver at grid_resolution 40 with other material models; its discretisation
+    error in n_eff is of order 1e-3 to 1e-2 (eo-modulator-atlas K2-tidy3d.json levels 25 / 12.5 / 6.25 nm: 1.9078 / 1.9010
+    / 1.8976 vs FEM 1.89417); a Li 1980 293 K silicon index (3.47667) moves the engine dn by 0.5 %'
+- id: neff_1.L1
+  quantity: n_eff odd supermode (mesh level 1)
+  metric_id: neff_1
+  value: 2.43821523251537
+  unit: '1'
+  tolerance: {abs: 0.005, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-84.json, metric_id: neff_1}
+  provenance: {citation: 'Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (github.com/flexcompute/tidy3d-notebooks,
+      develop branch), cell 14 printed output', locator: 'notebook cell 14 output ''Effective indices: 2.459162628532339,
+      2.43821523251537''; L_c and dn derived', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_1}
+  note: 'estimate: the reference is a finite-difference solver at grid_resolution 40 with other material models; its discretisation
+    error in n_eff is of order 1e-3 to 1e-2 (eo-modulator-atlas K2-tidy3d.json levels 25 / 12.5 / 6.25 nm: 1.9078 / 1.9010
+    / 1.8976 vs FEM 1.89417); a Li 1980 293 K silicon index (3.47667) moves the engine dn by 0.5 %'
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels, the finer one with an equal or
+    tighter tolerance
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (187k DOF) 2.1 s in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited published values
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: verification of a library example}
+spec: sims/si-dc-supermodes.yaml
+missing: []
+assumptions: [Material models differ from the reference; the tolerance is an estimate (see the target notes)]
+lane: E2
+created: '2026-11-18'

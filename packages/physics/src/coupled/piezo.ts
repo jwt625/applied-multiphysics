@@ -20,7 +20,7 @@ import { cellOrder, restrict } from '../common/scalar.ts';
 import { defaultRule, gatherX, physGrad, shapeTable } from '../common/lagrange.ts';
 import { shiftInvertEigen } from '../common/eigen.ts';
 import { StageTimer, makeSolution, attachMesh, scalar } from '../common/solution.ts';
-import { dofPattern, scatter, solidConstraints, solidLoads, strainB, csrMv, jacobiScale, scaleSym, type SolidBc } from './assemble.ts';
+import { dofPattern, scatterPair, solidConstraints, solidLoads, strainB, csrMv, jacobiScale, scaleSym, type SolidBc } from './assemble.ts';
 import type { Mat } from './tensors.ts';
 
 export const PIEZO_NORMALIZATION =
@@ -82,7 +82,8 @@ export async function solvePiezo(p: PiezoProblem): Promise<Solution & { detail: 
   const K = new Float64Array(pat.nnz), M = new Float64Array(pat.nnz);
   const r = defaultRule(m.cells.type, 2 * cellOrder(m)), t = shapeTable(m.cells.type, r);
   const ndU = k * dim, nd = ndU + k;
-  const X = new Float64Array(k * dim), G = new Float64Array(k * dim), B = new Float64Array(nv * ndU);
+  const X = new Float64Array(k * dim), G = new Float64Array(k * dim), B = new Float64Array(nv * ndU), CB = new Float64Array(nv * ndU), EG = new Float64Array(nv * k);
+  const nzR = new Int32Array(ndU * nv), nzV = new Float64Array(ndU * nv), nzC = new Int32Array(ndU);
   const Ae = new Float64Array(nd * nd), Me = new Float64Array(nd * nd), dofs = new Int32Array(nd);
   const red = new Map<number, { C: Float64Array | null; e: Float64Array | null; eps: Float64Array | null }>();
   const reduced = (mi: number) => {
@@ -113,10 +114,26 @@ export async function solvePiezo(p: PiezoProblem): Promise<Solution & { detail: 
       if (S) {
         strainB(p.model, G, N0, 0, k, B);
         const C = h.C!;
-        for (let a = 0; a < ndU; a++) for (let b = a; b < ndU; b++) {
+        // C B per quadrature point (nv x ndU, zero entries of B skipped), then K_uu(a, b) = sum_I B[I, a] (C B)[I, b]
+        // (DevLog-054: 4-5x fewer multiply-adds than the triple sum per entry; differs from it at round-off level)
+        // nonzero rows of every B column, in ascending row order (the zero skips of the sums below)
+        for (let a = 0; a < ndU; a++) {
+          let c = 0;
+          for (let I = 0; I < nv; I++) { const v = B[I * ndU + a]!; if (v !== 0) { nzR[a * nv + c] = I; nzV[a * nv + c] = v; c++; } }
+          nzC[a] = c;
+        }
+        for (let b = 0; b < ndU; b++) for (let I = 0; I < nv; I++) {
           let s = 0;
-          for (let I = 0; I < nv; I++) { const bi = B[I * ndU + a]!; if (bi === 0) continue; for (let J = 0; J < nv; J++) s += bi * C[I * nv + J]! * B[J * ndU + b]!; }
-          Ae[a * nd + b]! += s * w;
+          for (let t = 0; t < nzC[b]!; t++) s += C[I * nv + nzR[b * nv + t]!]! * nzV[b * nv + t]!;
+          CB[I * ndU + b] = s;
+        }
+        for (let a = 0; a < ndU; a++) {
+          const ca = nzC[a]!, o = a * nv;
+          for (let b = a; b < ndU; b++) {
+            let s = 0;
+            for (let t = 0; t < ca; t++) s += nzV[o + t]! * CB[nzR[o + t]! * ndU + b]!;
+            Ae[a * nd + b]! += s * w;
+          }
         }
         for (let a = 0; a < k; a++) for (let b = a; b < k; b++) { const v = mt.rho * N[a]! * N[b]! * w; for (let d = 0; d < dim; d++) Me[(dim * a + d) * nd + dim * b + d]! += v; }
       }
@@ -130,11 +147,19 @@ export async function solvePiezo(p: PiezoProblem): Promise<Solution & { detail: 
       }
       if (pz) {
         const ee = h.e!;
-        // K_uV[a_u][b] = sum_J sum_i B[J][a_u] e[i][J] dN_b/dx_i
-        for (let a = 0; a < ndU; a++) for (let b = 0; b < k; b++) {
+        // K_uV[a_u][b] = sum_J B[J][a_u] (e^T grad N_b)[J], (e^T grad N)[J][b] = sum_i e[i][J] dN_b/dx_i per point
+        for (let J = 0; J < nv; J++) for (let b = 0; b < k; b++) {
           let s = 0;
-          for (let J = 0; J < nv; J++) { const bj = B[J * ndU + a]!; if (bj === 0) continue; for (let i = 0; i < dim; i++) s += bj * ee[nv * i + J]! * G[dim * b + i]!; }
-          Ae[a * nd + ndU + b]! += s * w;
+          for (let i = 0; i < dim; i++) s += ee[nv * i + J]! * G[dim * b + i]!;
+          EG[J * k + b] = s;
+        }
+        for (let a = 0; a < ndU; a++) {
+          const ca = nzC[a]!, o = a * nv;
+          for (let b = 0; b < k; b++) {
+            let s = 0;
+            for (let t = 0; t < ca; t++) s += nzV[o + t]! * EG[nzR[o + t]! * k + b]!;
+            Ae[a * nd + ndU + b]! += s * w;
+          }
         }
       }
     }
@@ -148,8 +173,7 @@ export async function solvePiezo(p: PiezoProblem): Promise<Solution & { detail: 
       for (let d = 0; d < dim; d++) dofs[dim * a + d] = S ? map[nComp * v + d]! : -1;
       dofs[ndU + a] = Dl ? map[nComp * v + dim]! : -1;
     }
-    scatter(pat, K, dofs, Ae, nd);
-    if (S) scatter(pat, M, dofs, Me, nd);
+    scatterPair(pat, K, S ? M : null, dofs, Ae, S ? Me : null, nd);
   }
   // loads and constraints
   const F = new Float64Array(n);

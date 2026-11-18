@@ -7,8 +7,11 @@
 
 import { CATALOG_BC } from './catalog-bc';
 import { CATALOG_MP } from './catalog-mp';
+import { CATALOG_DRIVEN } from './catalog-driven';
+import { CATALOG_MODES } from './catalog-modes';
+import { CATALOG_PKG } from './catalog-pkg';
 
-export type Category = 'multiphysics' | 'heat' | 'structural' | 'em-static' | 'rf' | 'optics' | 'acoustics' | 'fluids-rt';
+export type Category = 'multiphysics' | 'packaging' | 'heat' | 'structural' | 'em-static' | 'rf' | 'optics' | 'acoustics' | 'fluids-rt';
 export type Dim = '2D' | 'axisym' | '3D';
 export type EvalClass = 'a' | 'b' | 'c';
 /** pass / fail / error / pending: gated targets of the case on this sims file; info: only non-gated targets ran; not-run: no harness run of this file (e.g. a hero variant) */
@@ -53,6 +56,7 @@ export interface CatalogEntry {
 
 export const CATEGORIES: ReadonlyArray<{ id: Category; label: string; tip: string }> = [
 	{ id: 'multiphysics', label: 'Multiphysics', tip: 'Coupled physics: one physics feeds another (couplings)' },
+	{ id: 'packaging', label: 'Advanced packaging', tip: 'TSVs, interposers, die stacks, bumps, interconnect lines' },
 	{ id: 'heat', label: 'Heat transfer', tip: 'Conduction, convection, radiation; steady and transient' },
 	{ id: 'structural', label: 'Structural mechanics', tip: 'Linear elasticity, plane stress / strain, 3D' },
 	{ id: 'em-static', label: 'Electrostatics / magnetostatics', tip: 'Capacitance, inductance, static fields' },
@@ -129,7 +133,7 @@ export const CATALOG_A: CatalogEntry[] = [
 /** Every catalog entry (class a + existing sims here, W4 class b / c in catalog-bc.ts, MX multiphysics in catalog-mp.ts); first entry per id wins. */
 export const CATALOG: CatalogEntry[] = (() => {
 	const seen = new Set<string>();
-	return [...CATALOG_A, ...CATALOG_BC, ...CATALOG_MP].filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
+	return [...CATALOG_A, ...CATALOG_BC, ...CATALOG_MP, ...CATALOG_DRIVEN, ...CATALOG_MODES, ...CATALOG_PKG].filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
 })();
 
 /**

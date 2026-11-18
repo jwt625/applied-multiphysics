@@ -1,0 +1,97 @@
+# PK-04: CPW on a Si interposer: L' from electrostatics vs conformal mapping (C', Z0 informative)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: PK-04
+class: c
+title: 'CPW on a Si interposer: L'' from electrostatics vs conformal mapping (C'', Z0 informative)'
+status: unvalidated
+untestable_reason: null
+physics: [electrostatics]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {S_m: 2.0e-05, G_m: 1.0e-05, h_m: 0.0001, metal_t_m: 0, box_half_width_m: 0.002}
+materials:
+  si: {ref: materials/silicon, eps_r: 11.662595, note: library eps_r at 298.15 K, source: Krupka et al. 2006 Fig. 2 via materials/silicon.yaml
+      eps_r}
+  air: {eps_r: 1, source: 'vacuum, as assumed by the closed form'}
+bcs:
+- {selection: centre strip, type: terminal}
+- {selection: side grounds, type: ground}
+- {selection: box, type: n . D = 0}
+initial: null
+study: {type: stationary}
+references:
+- quantity: (mu0/4) K(k1')/K(k1), exact conformal map (zero thickness, semi-infinite grounds)
+  metric_id: L_per_m
+  value: 4.018918756198372e-07
+  unit: H/m
+  tolerance: {rel: 0.001, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-04.json, metric_id: L_per_m}
+  provenance: {citation: 'Conformal mapping of a CPW on a finite substrate without backside metal: Qucs technical documentation
+      s.12 (after Gupta et al., Microstrip Lines and Slotlines, p.375 ff.)', locator: qucs.sourceforge.net/tech/node86.html
+      eqs. (12.7)-(12.9); k1 = S/(S + 2G), accessed: null, generator: validation/pkg/cpw_conformal.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: L_per_m}
+  note: air-line conformal map is exact for zero thickness and semi-infinite grounds; the sim truncates the grounds at +-2
+    mm
+- quantity: eps_re 4 eps0 K(k1)/K(k1'), partial-capacitance eps_re (accuracy not stated by the source)
+  metric_id: C_per_m
+  value: 1.7424864125360854e-10
+  unit: F/m
+  tolerance: {rel: 0.002, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  expected: {file: eval/expected/PK-04.json, metric_id: C_per_m}
+  provenance: {citation: 'Conformal mapping of a CPW on a finite substrate without backside metal: Qucs technical documentation
+      s.12 (after Gupta et al., Microstrip Lines and Slotlines, p.375 ff.)', locator: qucs.sourceforge.net/tech/node86.html
+      eqs. (12.7)-(12.9); k1 = S/(S + 2G), accessed: null, generator: validation/pkg/cpw_conformal.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: C_per_m}
+  note: 'partial-capacitance eps_re for a finite substrate: accuracy not stated by the source, informative'
+- quantity: sqrt(L'/C')
+  metric_id: Z0
+  value: 48.025280852647896
+  unit: Ohm
+  tolerance: {rel: 0.002, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  expected: {file: eval/expected/PK-04.json, metric_id: Z0}
+  provenance: {citation: 'Conformal mapping of a CPW on a finite substrate without backside metal: Qucs technical documentation
+      s.12 (after Gupta et al., Microstrip Lines and Slotlines, p.375 ff.)', locator: qucs.sourceforge.net/tech/node86.html
+      eqs. (12.7)-(12.9); k1 = S/(S + 2G), accessed: null, generator: validation/pkg/cpw_conformal.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: Z0}
+  note: as C_per_m
+reference_results: []
+convergence:
+  levels_min: 3
+  ratio_min: 2
+  method: richardson_gci
+  safety_factor: 1.25
+  h_factors: [1, 0.5, 0.25]
+  expected_order: 1
+  note: 'strip and ground edge singularities: order 1 under uniform refinement'
+speed:
+  budget_s: {browser: 4.0, native: null}
+  budget_basis: est. from the lane's own runs on 2026-11-18 (DevLog-049), not a browser measurement
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own derivation and closed forms from cited literature (formulas only); GPL-3.0-or-later code
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: sims/cpw-si-interposer.yaml
+missing: []
+assumptions: ['Zero thickness, lossless quasi-static TEM, no backside metal; Si losses not modelled.']
+notes: [The source writes 30 pi for eta0 / 4 (7.7e-4 high); the reference uses eta0 / 4 so L' C'_0 = mu0 eps0 holds.]
+lane: E3
+created: '2026-11-18'

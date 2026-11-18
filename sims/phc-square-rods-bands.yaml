@@ -1,0 +1,78 @@
+# MPB Python tutorial square lattice of dielectric rods (r 0.2 a, eps 12, air), TM (E_z) band structure on the
+# Gamma-X-M-Gamma path, solved as a Bloch eigenproblem of emw-2d on one unit cell with two periodic conditions
+# (DevLog-050). The gap between band 1 (maximum at M) and band 2 (minimum at X) is the first TM gap; references: MPB
+# 1.34.0 resolution study (Richardson) and an independent plane-wave expansion (eval/expected/WO-04.json; cases WO-90,
+# WO-91). The rod is centred in the cell (MPB puts it at the origin; a translation, the bands are the same).
+# Rights: GPL-2.0-or-later (MPB / Meep), cite_values + re_derive_setup + copy_with_attribution; no tutorial file is copied.
+schema: amp-spec/0
+id: phc-square-rods-bands
+title: Square rod lattice, TM band structure
+description: Bloch eigenfrequencies of the r 0.2a, eps 12 rod lattice along Gamma-X-M-Gamma (8 bands); band 1 maximum and band 2 minimum bound the first TM gap.
+params:
+  a: {value: 1, unit: um, description: lattice constant (the bands scale with c / a)}
+  r_rod: {value: 0.2, unit: um, description: rod radius (0.2 a)}
+  eps_rod: {value: 12, description: rod permittivity}
+geometry:
+  dim: 2
+  features:
+    - {id: cell, type: rect, settings: {size: ["a", "a"], center: ["a/2", "a/2"]}}
+    - {id: disk, type: circle, settings: {center: ["a/2", "a/2"], radius: "r_rod"}}
+    - {id: bg, type: difference, settings: {base: cell, tools: [disk], keepTools: true}}
+materials:
+  - {id: air, override: {eps_r: 1, mu_r: 1}, select: ["dom:bg"]}
+  - {id: rod_mat, override: {eps_r: "eps_rod", mu_r: 1}, select: ["dom:disk"]}
+physics:
+  - id: w
+    type: emw-2d
+    select: ["dom:bg", "dom:disk"]
+    settings: {polarization: TM}
+    bcs:
+      - {id: px, type: periodic, select: ["bnd:cell.left", "bnd:cell.right"]}
+      - {id: py, type: periodic, select: ["bnd:cell.bottom", "bnd:cell.top"]}
+mesh:
+  size: {hmax: "a/10"}
+  refine:
+    - {select: ["bnd:disk.edge"], h: "a/40"}
+studies:
+  - id: bands
+    type: bands
+    physics: [w]
+    settings:
+      kPath:
+        - {label: Gamma, k: [0, 0]}
+        - {label: X, k: [0.5, 0]}
+        - {label: M, k: [0.5, 0.5]}
+        - {label: Gamma, k: [0, 0]}
+      interpolate: 4
+      nBands: 8
+results:
+  datasets:
+    - {id: sol_bands, type: solution, data: bands}
+  evaluations:
+    - id: ev_gap
+      data: sol_bands
+      items:
+        - {id: gap_lower, type: global, expr: w.fmax_0, unit: THz, label: "band 1 maximum (lower gap edge)"}
+        - {id: gap_upper, type: global, expr: w.fmin_1, unit: THz, label: "band 2 minimum (upper gap edge)"}
+  tables:
+    - {id: tbl_gap, from: ev_gap}
+  plots:
+    # field steps run through the labelled points in path order, 8 bands each: step 16 = band 1 at M (lower gap edge)
+    - id: mode
+      type: plot2d
+      data: sol_bands
+      steps: 16
+      items:
+        - {id: mode_surf, type: surface, expr: w.Ez_re, unit: V/m, colormap: balance}
+provenance:
+  values:
+    params.a: {basis: user, date: 2026-11-18, note: "scale choice; MPB works in units of a and the eigenfrequencies scale as c / a"}
+    params.r_rod: {basis: benchmark, source: "eval/cases/c/WO-04.yaml geometry.spec.rod_radius (0.2 a; MPB Python_Tutorial.md)", date: 2026-11-18}
+    params.eps_rod: {basis: benchmark, source: "eval/cases/c/WO-04.yaml materials.rod.eps_r (MPB Python_Tutorial.md line 69)", date: 2026-11-18}
+    materials.air.override.eps_r: {basis: benchmark, source: "MPB tutorial default background (air, eps 1)", date: 2026-11-18}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    studies.bands.settings.kPath: {basis: benchmark, source: "MPB Python tutorial k path: corners Gamma, X, M, Gamma with mp.interpolate(4, ...)", date: 2026-11-18}
+assumptions:
+  - {text: "Lossless, non-magnetic media; TM polarization (E_z out of plane); Bloch periodicity over one unit cell", paths: [physics.w]}
+# eval: [WO-90, WO-91]

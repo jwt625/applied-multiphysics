@@ -62,6 +62,10 @@ results:
       data: sol_eig
       items:
         - {id: f_defect, type: global, expr: wave.f_0, unit: Hz}
+        - {id: W_rods_defect, type: integral, expr: "wave.p^2 * (r < a)", over: ["dom:r10", "dom:r20", "dom:r01", "dom:r02", "dom:r11", "dom:r12", "dom:r21", "dom:r22"], label: "integral of p^2 over the rods within r < a of the defect"}
+        - {id: W_bg_defect, type: integral, expr: "wave.p^2 * (r < a)", over: ["dom:bg"], label: "integral of p^2 over the air within r < a of the defect"}
+        - {id: W_rods, type: integral, expr: "wave.p^2", over: ["dom:r10", "dom:r20", "dom:r01", "dom:r02", "dom:r11", "dom:r12", "dom:r21", "dom:r22"]}
+        - {id: W_bg, type: integral, expr: "wave.p^2", over: ["dom:bg"]}
   tables:
     - {id: tbl_eig, from: ev_eig}
   plots:
@@ -76,7 +80,7 @@ provenance:
     params.a: {basis: benchmark, source: "eval/cases/c/WO-63.yaml geometry.spec (unit a)", date: 2026-11-06}
     params.r_rod: {basis: benchmark, source: "eval/cases/c/WO-63.yaml geometry.spec.rod_radius", date: 2026-11-06}
     params.c_vac: {basis: user, date: 2026-11-06, note: "analog unit: normalized frequency c / a"}
-    params.eps_rod: {basis: benchmark, source: "eval/cases/c/WO-63.yaml materials.rod.eps_r (MPB Python_Tutorial.md L288)", date: 2026-11-06}
+    params.eps_rod: {basis: benchmark, source: "eval/cases/c/WO-63.yaml materials.rod.eps_r (MPB Python_Tutorial.md line 288)", date: 2026-11-06}
     params.f_target: {basis: benchmark, source: "eval/cases/c/WO-63.yaml study.shift (0.38; the tutorial itself sets target_freq = (0.2812 + 0.4174)/2 = 0.3493); a shift only, the even/even class has one mode in the gap", date: 2026-11-06}
     materials.rod_mat.override.rho: {basis: user, date: 2026-11-06, note: "analog: uniform rho <-> mu_r = 1"}
     materials.air.override.rho: {basis: user, date: 2026-11-06, note: "analog: uniform rho"}

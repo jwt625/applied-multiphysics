@@ -8,7 +8,7 @@
 
 import type { Mesh, PhysicsModule, RunContext, Solution, Spec } from '@amp/spec/types';
 import { NPC, facetNodes, facetsOn, nCells, nNodes, cellMask } from '../common/mesh.ts';
-import { assembleCells, assembleFacets, cellOrder, entry, restrict, SpdSolver, type Csr, facetTable } from '../common/scalar.ts';
+import { assembleCells, assembleFacets, cellOrder, facetSlots, restrict, SpdSolver, type Csr, facetTable } from '../common/scalar.ts';
 import { gatherX, facetJac } from '../common/lagrange.ts';
 import { makeSolution, StageTimer, checkAbort, scalar } from '../common/solution.ts';
 import { attachMesh } from '../common/solution.ts';
@@ -122,27 +122,33 @@ function radiation(m: Mesh, S: Sys, T: Float64Array, t: number, R: Float64Array,
   const X = new Float64Array(kf * dim), P = new Float64Array(dim);
   const axi = !!m.axisym;
   const Je = new Float64Array(kf * kf), Re = new Float64Array(kf);
-  for (const r of S.rad) for (const f of r.facets) {
-    gatherX(m.nodes, dim, m.facets.conn, f, kf, X);
-    Je.fill(0); Re.fill(0);
-    for (let qp = 0; qp < tb.rule.n; qp++) {
-      let w = facetJac(tb, qp, X, dim) * tb.rule.wts[qp]!;
-      let Tq = 0;
-      P.fill(0);
-      for (let a = 0; a < kf; a++) { const Na = tb.N[qp * kf + a]!; Tq += Na * T[m.facets.conn[kf * f + a]!]!; for (let d = 0; d < dim; d++) P[d]! += Na * X[dim * a + d]!; }
-      if (axi) w *= P[0]!;
-      const Ta = evalField(r.Tamb, P, t);
-      const res = r.eps * SIGMA_SB * (Tq ** 4 - Ta ** 4), tan = 4 * r.eps * SIGMA_SB * Tq ** 3;
-      for (let a = 0; a < kf; a++) {
-        const Na = tb.N[qp * kf + a]!;
-        Re[a]! += res * Na * w;
-        for (let b = 0; b < kf; b++) Je[kf * a + b]! += tan * Na * tb.N[qp * kf + b]! * w;
+  for (const r of S.rad) {
+    // Jacobian slots once per facet list and pattern (facetSlots cache; DevLog-045 R3, DevLog-054): same entries and
+    // order as the former search per entry, so the Jacobian is bitwise unchanged
+    const slots = Jval ? facetSlots(m, S.pat, r.facets) : null;
+    for (let fi = 0; fi < r.facets.length; fi++) {
+      const f = r.facets[fi]!;
+      gatherX(m.nodes, dim, m.facets.conn, f, kf, X);
+      Je.fill(0); Re.fill(0);
+      for (let qp = 0; qp < tb.rule.n; qp++) {
+        let w = facetJac(tb, qp, X, dim) * tb.rule.wts[qp]!;
+        let Tq = 0;
+        P.fill(0);
+        for (let a = 0; a < kf; a++) { const Na = tb.N[qp * kf + a]!; Tq += Na * T[m.facets.conn[kf * f + a]!]!; for (let d = 0; d < dim; d++) P[d]! += Na * X[dim * a + d]!; }
+        if (axi) w *= P[0]!;
+        const Ta = evalField(r.Tamb, P, t);
+        const res = r.eps * SIGMA_SB * (Tq ** 4 - Ta ** 4), tan = 4 * r.eps * SIGMA_SB * Tq ** 3;
+        for (let a = 0; a < kf; a++) {
+          const Na = tb.N[qp * kf + a]!;
+          Re[a]! += res * Na * w;
+          for (let b = 0; b < kf; b++) Je[kf * a + b]! += tan * Na * tb.N[qp * kf + b]! * w;
+        }
       }
-    }
-    for (let a = 0; a < kf; a++) {
-      const ia = m.facets.conn[kf * f + a]!;
-      R[ia]! += Re[a]!;
-      if (Jval) for (let b = 0; b < kf; b++) Jval[entry(S.pat, ia, m.facets.conn[kf * f + b]!)]! += Je[kf * a + b]!;
+      for (let a = 0; a < kf; a++) {
+        const ia = m.facets.conn[kf * f + a]!;
+        R[ia]! += Re[a]!;
+        if (slots) for (let b = 0; b < kf; b++) Jval![slots[kf * kf * fi + kf * a + b]!]! += Je[kf * a + b]!;
+      }
     }
   }
 }

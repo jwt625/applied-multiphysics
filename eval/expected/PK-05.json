@@ -1,0 +1,68 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "PK-05",
+  "class": "c",
+  "generator": "validation/pkg/interposer_bounds.py",
+  "command": "cd validation && uv run python pkg/interposer_bounds.py",
+  "method": "Two-sided bounds on the power-weighted mean active-layer temperature rise from the monotonicity of the thermal compliance in k (exact for the modelled geometry, not estimates)",
+  "generated_at": "2026-11-18T13:55:10-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "dT_mean_upper",
+      "value": 1.394126181093263,
+      "unit": "K",
+      "definition": "upper bound of sum_i P_i dT_i / P_total (dies alone, 1D)",
+      "locator": "validation/pkg/interposer_bounds.py bounds() (compliance monotonicity in k; 1D slab solutions)"
+    },
+    {
+      "metric_id": "dT_mean_lower",
+      "value": 1.195065447345067,
+      "unit": "K",
+      "definition": "lower bound (bump layer and interposer perfectly conducting)",
+      "locator": "validation/pkg/interposer_bounds.py bounds() (compliance monotonicity in k; 1D slab solutions)"
+    }
+  ],
+  "inputs": {
+    "k_si": 149.038,
+    "t_a_m": 1e-05,
+    "t_d_m": 0.0003,
+    "dies": {
+      "logic": {
+        "area_m2": 3.6e-05,
+        "P_W": 30.0
+      },
+      "mem_l": {
+        "area_m2": 1.5e-05,
+        "P_W": 5.0
+      },
+      "mem_r": {
+        "area_m2": 1.5e-05,
+        "P_W": 5.0
+      }
+    }
+  },
+  "per_die": {
+    "upper": {
+      "logic": 1.6401484483450155,
+      "mem_l": 0.6560593793380061,
+      "mem_r": 0.6560593793380061
+    },
+    "lower": {
+      "logic": 1.1977912622379132,
+      "mem_l": 1.1868880026665287,
+      "mem_r": 1.1868880026665287
+    },
+    "T_plate_rise_lower_K": 1.1996127080870567
+  }
+}

@@ -1,0 +1,308 @@
+# WO-73: Add-drop silicon ring (R 2 um, w 0.24 um, gap 0.2 um, 2D in-plane TM, four ports): reciprocity and energy at 1.531 um; resonances, FSR and Q by a scripted scan
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-73
+class: c
+title: 'Add-drop silicon ring (R 2 um, w 0.24 um, gap 0.2 um, 2D in-plane TM, four ports): reciprocity and energy at 1.531
+  um; resonances, FSR and Q by a scripted scan'
+status: unvalidated
+untestable_reason: null
+physics: [optics-scattering, rf-sparams, rf-resonator]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    R_um: 2.0
+    w_um: 0.24
+    gap_um: 0.2
+    box_um: [6.0, 6.8]
+    lead_um: 0.5
+materials:
+  core: {n: 3.4767, source: 'materials/silicon.yaml n (Li 1980) at 1.55 um, rounded'}
+  clad: {n: 1.4444, source: 'materials/sio2-thermal-oxide.yaml n (Malitson 1965) at 1.55 um, rounded'}
+bcs:
+- {selection: bus and drop ends, type: port, expr: '4 ports, 12 modes each; ends split at y = 0'}
+- {selection: box top / bottom, type: pec}
+initial: null
+study:
+  type: frequency
+  wavelengths_m: [1.531e-06]
+references:
+- id: reciprocity_21.L0
+  quantity: '|S21 - S12| (mesh level 0)'
+  metric_id: reciprocity_21.L0
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: reciprocity of a lossless reciprocal medium (S = S^T for power-normalised modes), locator: exact
+      property; port operator in DevLog-042 s.1.6, accessed: null}
+  extract:
+    kind: expr
+    expr: sqrt((a - b)^2 + (c - d)^2)
+    terms:
+      a: {kind: scalar, name: S21_re}
+      b: {kind: scalar, name: S12_re}
+      c: {kind: scalar, name: S21_im}
+      d: {kind: scalar, name: S12_im}
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.531}
+    study: s
+- id: reciprocity_31.L0
+  quantity: '|S31 - S13| (mesh level 0)'
+  metric_id: reciprocity_31.L0
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: reciprocity of a lossless reciprocal medium (S = S^T for power-normalised modes), locator: exact
+      property; port operator in DevLog-042 s.1.6, accessed: null}
+  extract:
+    kind: expr
+    expr: sqrt((a - b)^2 + (c - d)^2)
+    terms:
+      a: {kind: scalar, name: S31_re}
+      b: {kind: scalar, name: S13_re}
+      c: {kind: scalar, name: S31_im}
+      d: {kind: scalar, name: S13_im}
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.531}
+    study: s
+- id: reciprocity_41.L0
+  quantity: '|S41 - S14| (mesh level 0)'
+  metric_id: reciprocity_41.L0
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: reciprocity of a lossless reciprocal medium (S = S^T for power-normalised modes), locator: exact
+      property; port operator in DevLog-042 s.1.6, accessed: null}
+  extract:
+    kind: expr
+    expr: sqrt((a - b)^2 + (c - d)^2)
+    terms:
+      a: {kind: scalar, name: S41_re}
+      b: {kind: scalar, name: S14_re}
+      c: {kind: scalar, name: S41_im}
+      d: {kind: scalar, name: S14_im}
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.531}
+    study: s
+- id: energy.L0
+  quantity: sum over propagating (port, mode) of |S_i1|^2 - 1 (mesh level 0)
+  metric_id: energy.L0
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: energy conservation in a closed lossless box, locator: exact property; propagating modes per port
+      in validation/c/cases_ext/driven.py RING_NPROP, accessed: null}
+  extract:
+    kind: expr
+    expr: t0^2 + t1^2 + t2^2 + t3^2 + t4^2 + t5^2 + t6^2 + t7^2 + t8^2 + t9^2 + t10^2 + t11^2 + t12^2 + t13^2 + t14^2 + t15^2
+      + t16^2 + t17^2 + t18^2 + t19^2 + t20^2 + t21^2 + t22^2 + t23^2 + t24^2 + t25^2 + t26^2 + t27^2 - 1
+    terms:
+      t0: {kind: scalar, name: S11_abs}
+      t1: {kind: scalar, name: S21_abs}
+      t2: {kind: scalar, name: S31_abs}
+      t3: {kind: scalar, name: S41_abs}
+      t4: {kind: scalar, name: S11_10_abs}
+      t5: {kind: scalar, name: S11_20_abs}
+      t6: {kind: scalar, name: S11_30_abs}
+      t7: {kind: scalar, name: S11_40_abs}
+      t8: {kind: scalar, name: S11_50_abs}
+      t9: {kind: scalar, name: S11_60_abs}
+      t10: {kind: scalar, name: S21_10_abs}
+      t11: {kind: scalar, name: S21_20_abs}
+      t12: {kind: scalar, name: S21_30_abs}
+      t13: {kind: scalar, name: S21_40_abs}
+      t14: {kind: scalar, name: S21_50_abs}
+      t15: {kind: scalar, name: S21_60_abs}
+      t16: {kind: scalar, name: S31_10_abs}
+      t17: {kind: scalar, name: S31_20_abs}
+      t18: {kind: scalar, name: S31_30_abs}
+      t19: {kind: scalar, name: S31_40_abs}
+      t20: {kind: scalar, name: S31_50_abs}
+      t21: {kind: scalar, name: S31_60_abs}
+      t22: {kind: scalar, name: S41_10_abs}
+      t23: {kind: scalar, name: S41_20_abs}
+      t24: {kind: scalar, name: S41_30_abs}
+      t25: {kind: scalar, name: S41_40_abs}
+      t26: {kind: scalar, name: S41_50_abs}
+      t27: {kind: scalar, name: S41_60_abs}
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.531}
+    study: s
+- id: reciprocity_21.L1
+  quantity: '|S21 - S12| (mesh level 1)'
+  metric_id: reciprocity_21.L1
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: reciprocity of a lossless reciprocal medium (S = S^T for power-normalised modes), locator: exact
+      property; port operator in DevLog-042 s.1.6, accessed: null}
+  extract:
+    kind: expr
+    expr: sqrt((a - b)^2 + (c - d)^2)
+    terms:
+      a: {kind: scalar, name: S21_re}
+      b: {kind: scalar, name: S12_re}
+      c: {kind: scalar, name: S21_im}
+      d: {kind: scalar, name: S12_im}
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.531}
+    study: s
+- id: reciprocity_31.L1
+  quantity: '|S31 - S13| (mesh level 1)'
+  metric_id: reciprocity_31.L1
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: reciprocity of a lossless reciprocal medium (S = S^T for power-normalised modes), locator: exact
+      property; port operator in DevLog-042 s.1.6, accessed: null}
+  extract:
+    kind: expr
+    expr: sqrt((a - b)^2 + (c - d)^2)
+    terms:
+      a: {kind: scalar, name: S31_re}
+      b: {kind: scalar, name: S13_re}
+      c: {kind: scalar, name: S31_im}
+      d: {kind: scalar, name: S13_im}
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.531}
+    study: s
+- id: reciprocity_41.L1
+  quantity: '|S41 - S14| (mesh level 1)'
+  metric_id: reciprocity_41.L1
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: reciprocity of a lossless reciprocal medium (S = S^T for power-normalised modes), locator: exact
+      property; port operator in DevLog-042 s.1.6, accessed: null}
+  extract:
+    kind: expr
+    expr: sqrt((a - b)^2 + (c - d)^2)
+    terms:
+      a: {kind: scalar, name: S41_re}
+      b: {kind: scalar, name: S14_re}
+      c: {kind: scalar, name: S41_im}
+      d: {kind: scalar, name: S14_im}
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.531}
+    study: s
+- id: energy.L1
+  quantity: sum over propagating (port, mode) of |S_i1|^2 - 1 (mesh level 1)
+  metric_id: energy.L1
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: energy conservation in a closed lossless box, locator: exact property; propagating modes per port
+      in validation/c/cases_ext/driven.py RING_NPROP, accessed: null}
+  extract:
+    kind: expr
+    expr: t0^2 + t1^2 + t2^2 + t3^2 + t4^2 + t5^2 + t6^2 + t7^2 + t8^2 + t9^2 + t10^2 + t11^2 + t12^2 + t13^2 + t14^2 + t15^2
+      + t16^2 + t17^2 + t18^2 + t19^2 + t20^2 + t21^2 + t22^2 + t23^2 + t24^2 + t25^2 + t26^2 + t27^2 - 1
+    terms:
+      t0: {kind: scalar, name: S11_abs}
+      t1: {kind: scalar, name: S21_abs}
+      t2: {kind: scalar, name: S31_abs}
+      t3: {kind: scalar, name: S41_abs}
+      t4: {kind: scalar, name: S11_10_abs}
+      t5: {kind: scalar, name: S11_20_abs}
+      t6: {kind: scalar, name: S11_30_abs}
+      t7: {kind: scalar, name: S11_40_abs}
+      t8: {kind: scalar, name: S11_50_abs}
+      t9: {kind: scalar, name: S11_60_abs}
+      t10: {kind: scalar, name: S21_10_abs}
+      t11: {kind: scalar, name: S21_20_abs}
+      t12: {kind: scalar, name: S21_30_abs}
+      t13: {kind: scalar, name: S21_40_abs}
+      t14: {kind: scalar, name: S21_50_abs}
+      t15: {kind: scalar, name: S21_60_abs}
+      t16: {kind: scalar, name: S31_10_abs}
+      t17: {kind: scalar, name: S31_20_abs}
+      t18: {kind: scalar, name: S31_30_abs}
+      t19: {kind: scalar, name: S31_40_abs}
+      t20: {kind: scalar, name: S31_50_abs}
+      t21: {kind: scalar, name: S31_60_abs}
+      t22: {kind: scalar, name: S41_10_abs}
+      t23: {kind: scalar, name: S41_20_abs}
+      t24: {kind: scalar, name: S41_30_abs}
+      t25: {kind: scalar, name: S41_40_abs}
+      t26: {kind: scalar, name: S41_50_abs}
+      t27: {kind: scalar, name: S41_60_abs}
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.531}
+    study: s
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels with a tighter tolerance on the
+    finer one
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (194k DOF) took 5.3 s and 0.91 GB RSS in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited textbook formulas
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero: {suitable: false, why: verification of a library example}
+spec: {sim: sims/ring-resonator-bus.yaml, study: s}
+missing: []
+assumptions: []
+notes: ['Resonance wavelengths, free spectral range and loaded Q need a search over wavelength, which the harness does not
+    do; they are checked by validation/driven/ring_scan.ts against the isolated-ring Bessel solution (validation/driven/ring_bessel.py)
+    on two mesh levels and recorded in the lane DevLog (not gated here).']
+lane: E1
+created: '2026-11-18'

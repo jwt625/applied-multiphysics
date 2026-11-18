@@ -512,7 +512,13 @@ function bboxOfObjs(objs: Obj[]): [number, number, number, number] {
 }
 
 /** Build a 2D geometry from an ordered feature list (lengths in metres). */
-export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number } = {}): Geometry2D {
+/**
+ * Build a 2D geometry from features. `mergeCurvePieces` (default true): consecutive arc / ellipse-arc pieces of one
+ * boundary are merged (mergeEdgePieces, curvesOnly + stable). A keepTools difference with a curved tool otherwise
+ * leaves the tool edge as its 1-degree arrangement pieces, and the mesher puts a vertex on every piece (min angle
+ * 0.5 deg at r ~ hmax; DevLog-044 O1, DevLog-055). Geometries without such pieces are returned unchanged.
+ */
+export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number; mergeCurvePieces?: boolean } = {}): Geometry2D {
   if (spec.dim !== undefined && spec.dim !== 2) fail('buildGeometry2D: dim must be 2');
   const live = new Map<string, Obj>();
   const order: string[] = [];
@@ -564,7 +570,8 @@ export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number } 
   if (!remaining.some((o) => !o.curveOnly)) fail('no solid domain in the geometry');
   const R = combine('final', 'geom', remaining, tol);
   if (!R.obj.domains.length) fail('the final geometry has no domain although solid features exist (report this geometry)');
-  const G = toGeometry(R, !!spec.axisym, tol, order);
+  const G0 = toGeometry(R, !!spec.axisym, tol, order);
+  const G = opts.mergeCurvePieces === false ? G0 : mergeEdgePieces(G0, { curvesOnly: true, stable: true });
   // near-tolerance entities (audit S2): resolvable, but represented with few significant digits
   const len = new Map<number, number>();
   for (const e of G.edges) {
@@ -575,6 +582,89 @@ export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number } 
   for (const [b, L] of len)
     if (L < 1e3 * tol) G.warnings.push(`${G.entities.boundaries[b]!.id}: length ${L.toPrecision(3)} m is within 1000 x the geometric tolerance (${tol.toPrecision(3)} m); its shape is not reliable`);
   return G;
+}
+
+export interface MergeEdgeOptions {
+  /** merge arc / ellipse-arc pieces only; line pieces stay as they are */
+  curvesOnly?: boolean;
+  /** never merge through a named point's vertex; return `g` itself when nothing merges; kept vertices keep their
+   * relative order (so geometries without mergeable pieces mesh exactly as before) */
+  stable?: boolean;
+}
+
+/**
+ * The geometry with consecutive pieces of one curve merged (same boundary and sides, a degree-2 vertex, contiguous
+ * parameters; arcs up to a half turn; collinear lines unless `curvesOnly`). Curved edges that were cut into the
+ * 1-degree arrangement pieces (a keepTools tool edge, coincident circles of two layers; DevLog-044 O1) otherwise put a
+ * mesh vertex every degree on the curve. Vertices are compacted; entity tables are unchanged.
+ */
+export function mergeEdgePieces(g: Geometry2D, o: MergeEdgeOptions = {}): Geometry2D {
+  const nv = g.vertices.length / 2;
+  const deg = new Int32Array(nv);
+  for (const e of g.edges) { deg[e.v0]!++; deg[e.v1]!++; }
+  const isPoint = new Uint8Array(nv);
+  if (o.stable) for (const p of g.pointVertex) isPoint[p] = 1;
+  const startAt = new Map<number, number[]>();
+  g.edges.forEach((e, i) => { const l = startAt.get(e.v0); if (l) l.push(i); else startAt.set(e.v0, [i]); });
+  const close = (a: number, b: number) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(a), Math.abs(b));
+  const near = (p: Vec2, q: Vec2) => close(p[0], q[0]) && close(p[1], q[1]);
+  const join = (a: Curve, b: Curve): Curve | null => {
+    if (a.kind === 'arc' && b.kind === 'arc' && near(a.c, b.c) && close(a.r, b.r) && close(a.a1, b.a0) && Math.abs(b.a1 - a.a0) <= Math.PI * (1 + 1e-12)) return { ...a, a1: b.a1 };
+    if (a.kind === 'earc' && b.kind === 'earc' && near(a.c, b.c) && close(a.rx, b.rx) && close(a.ry, b.ry) && close(a.rot, b.rot) && close(a.a1, b.a0) && Math.abs(b.a1 - a.a0) <= Math.PI * (1 + 1e-12)) return { ...a, a1: b.a1 };
+    if (!o.curvesOnly && a.kind === 'line' && b.kind === 'line') {
+      const ux = a.b[0] - a.a[0], uy = a.b[1] - a.a[1], vx = b.b[0] - b.a[0], vy = b.b[1] - b.a[1];
+      if (Math.abs(ux * vy - uy * vx) <= 1e-12 * hyp2(ux, uy) * hyp2(vx, vy) && ux * vx + uy * vy > 0) return { kind: 'line', a: a.a, b: b.b };
+    }
+    return null;
+  };
+  /** the edge continuing edge i through its end vertex, or -1 */
+  const next = (i: number): number => {
+    const e = g.edges[i]!;
+    if (deg[e.v1] !== 2 || isPoint[e.v1]) return -1;
+    const l = (startAt.get(e.v1) ?? []).filter((j) => j !== i);
+    if (l.length !== 1) return -1;
+    const f = g.edges[l[0]!]!;
+    return f.boundary === e.boundary && f.left === e.left && f.right === e.right ? l[0]! : -1;
+  };
+  const nxt = g.edges.map((_, i) => next(i));
+  const hasPrev = new Uint8Array(g.edges.length);
+  for (const j of nxt) if (j >= 0) hasPrev[j] = 1;
+  const done = new Uint8Array(g.edges.length);
+  const out: Array<{ v0: number; v1: number; curve: Curve; boundary: number; left: number; right: number }> = [];
+  const walk = (i0: number) => {
+    let i = i0;
+    let cur = { ...g.edges[i]! };
+    done[i] = 1;
+    for (let j = nxt[i]!; j >= 0 && !done[j]; j = nxt[j]!) {
+      const m = join(cur.curve, g.edges[j]!.curve);
+      if (m) { cur.curve = m; cur.v1 = g.edges[j]!.v1; }
+      else { out.push(cur); cur = { ...g.edges[j]! }; }
+      done[j] = 1;
+      i = j;
+    }
+    out.push(cur);
+  };
+  g.edges.forEach((_, i) => { if (!done[i] && !hasPrev[i]) walk(i); });
+  g.edges.forEach((_, i) => { if (!done[i]) walk(i); });   // closed loops
+  if (o.stable && out.length === g.edges.length) return g;
+  const map = new Int32Array(nv).fill(-1);
+  let n = 0;
+  if (o.stable) {
+    const used = new Uint8Array(nv);
+    for (const p of g.pointVertex) used[p] = 1;
+    for (const e of out) { used[e.v0] = 1; used[e.v1] = 1; }
+    for (let v = 0; v < nv; v++) if (used[v]) map[v] = n++;
+    for (const e of out) { e.v0 = map[e.v0]!; e.v1 = map[e.v1]!; }
+  } else {
+    const keep = (v: number) => (map[v]! >= 0 ? map[v]! : (map[v] = n++));
+    for (const p of g.pointVertex) keep(p);
+    for (const e of out) { e.v0 = keep(e.v0); e.v1 = keep(e.v1); }
+  }
+  const inv = new Int32Array(n);
+  map.forEach((m, v) => { if (m >= 0) inv[m] = v; });
+  const vertices = new Float64Array(2 * n);
+  for (let m = 0; m < n; m++) { vertices[2 * m] = g.vertices[2 * inv[m]!]!; vertices[2 * m + 1] = g.vertices[2 * inv[m]! + 1]!; }
+  return { ...g, vertices, edges: out, pointVertex: Int32Array.from(g.pointVertex, (v) => map[v]!) };
 }
 
 export function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: string[]): Geometry2D {

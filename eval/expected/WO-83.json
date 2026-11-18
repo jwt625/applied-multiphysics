@@ -1,0 +1,79 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-83",
+  "class": "c",
+  "generator": "validation/modes3/references.py",
+  "command": "cd validation && uv run python modes3/references.py",
+  "method": "eo-modulator-atlas case K3 reference (vector FEM N2/P2 (eoref.fmode, femwell formulation, diagonal anisotropy); PEC (zero tangential E) on the optical window edge), Richardson-extrapolated over 4 levels (date 2026-10-15); ng_energy includes Sellmeier material dispersion (LN Zelmon 1997, SiO2 Malitson 1965)",
+  "generated_at": "2026-11-18T13:54:40-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "neff_0",
+      "value": 1.9123754879347499,
+      "unit": "1",
+      "precision": {
+        "U": 1.854762157749157e-07,
+        "f_finest": 1.9123753395537773,
+        "p_observed": 2.3785784467880484,
+        "method": "observed_order_gci1.25",
+        "levels_h_um": [
+          0.11314,
+          0.08,
+          0.05657,
+          0.04
+        ]
+      }
+    },
+    {
+      "metric_id": "ng_0",
+      "value": 2.265028607498945,
+      "unit": "1",
+      "precision": {
+        "U": 6.279886816118463e-07,
+        "f_finest": 2.2650281051079997,
+        "p_observed": 2.3661620287559137,
+        "method": "observed_order_gci1.25",
+        "levels_h_um": [
+          0.11314,
+          0.08,
+          0.05657,
+          0.04
+        ]
+      }
+    },
+    {
+      "metric_id": "teFraction_0",
+      "value": 0.9939895400133559,
+      "unit": "1",
+      "precision": {
+        "U": 4.821454123449254e-07,
+        "f_finest": 0.9939891542970261,
+        "p_observed": 1.2065171230080793,
+        "method": "observed_order_gci1.25",
+        "levels_h_um": [
+          0.11314,
+          0.08,
+          0.05657,
+          0.04
+        ]
+      }
+    }
+  ],
+  "inputs": {
+    "file": "eo-modulator-atlas validation/reference/K3-fem.json",
+    "sha256": "b98250e635b87c85886cf10f536afc577c68a59ed47a98d963dc0d4d7e1badb6",
+    "case_sha256": "efecaaaea0103649ae3b0a9b0b341b5b610c67cf7191b5e7dd6664918faec1ea",
+    "atlas_commit": "0546007"
+  }
+}

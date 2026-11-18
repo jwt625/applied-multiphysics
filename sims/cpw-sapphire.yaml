@@ -65,11 +65,11 @@ provenance:
     params.w: {basis: benchmark, source: "eval/cases/c/RF-03.yaml geometry.spec.trace_w_m (Palace cpw.md)", date: 2026-11-06}
     params.s: {basis: benchmark, source: "eval/cases/c/RF-03.yaml geometry.spec.gap_s_m", date: 2026-11-06}
     params.h: {basis: benchmark, source: "eval/cases/c/RF-03.yaml geometry.spec.substrate_t_m", date: 2026-11-06}
-    params.eps_perp: {basis: benchmark, source: "eval/cases/c/RF-03.yaml materials.sapphire.eps_r_perp_c (cpw.md L20-24)", date: 2026-11-06}
+    params.eps_perp: {basis: benchmark, source: "eval/cases/c/RF-03.yaml materials.sapphire.eps_r_perp_c (cpw.md lines 20-24)", date: 2026-11-06}
     params.eps_par: {basis: benchmark, source: "eval/cases/c/RF-03.yaml materials.sapphire.eps_r_parallel_c", date: 2026-11-06}
     params.h_eq: {basis: textbook, source: "planar uniaxial -> isotropic map (eval/cases/c/RF-03.yaml assumptions; eval/expected/RF-03.json precision.h_eq_m)", date: 2026-11-06}
     params.eps_eq: {basis: textbook, source: "planar uniaxial -> isotropic map (eval/expected/RF-03.json precision.eps_eq)", date: 2026-11-06}
-    params.R: {basis: user, date: 2026-11-06, note: "modelling choice (case missing: enclosure size is a solver choice; truncation study in DevLog-022)"}
+    params.R: {basis: user, date: 2026-11-06, note: "modelling choice (case missing: enclosure size is a solver choice; own truncation study, 2026-11-06)"}
     materials.air.override.eps_r: {basis: benchmark, source: "eval/cases/c/RF-03.yaml geometry.spec.air_below_substrate", date: 2026-11-06}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
     mesh.size.grading: {basis: user, date: 2026-11-06, note: "modelling choice"}

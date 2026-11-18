@@ -1,0 +1,127 @@
+# Silicon add-drop ring resonator (ring between two identical bus waveguides) in SiO2, in-plane 2D model, TM (E_z
+# out of plane), four modal ports in a closed box (walls: perfect electric conductor). Through-port |S21|^2 dips and
+# drop-port |S31|^2 peaks at the ring resonances (a single lossless bus would be all-pass, |S21| = 1). The left and
+# right ends are short lead blocks split at y = 0 (natural end), one port per bus; the guided fields are below 1e-7
+# there. References: resonance wavelengths and free spectral range of the isolated ring from the exact Bessel
+# dispersion relation of the annulus (validation/driven/ring_bessel.py); loaded Q from a Lorentzian fit vs the
+# half-depth width of the computed spectrum (validation/driven/ring_scan.ts). Indices are library values at 1.55 um;
+# all sizes are modelling inputs. A 2D model has no vertical confinement: bulk indices, not slab effective indices.
+schema: amp-spec/0
+id: ring-resonator-bus
+title: Add-drop ring resonator (silicon, 2D in-plane model)
+description: Ring between two bus waveguides and four ports; through dips and drop peaks at the ring resonances, free spectral range and loaded Q, checked against the exact ring modes.
+params:
+  lam: {value: 1.5304, unit: um, description: vacuum wavelength of the single-wavelength study (near the drop peak of azimuthal order 24 on the default mesh)}
+  nSi: {value: 3.4767, unit: "1", description: core index}
+  nOx: {value: 1.4444, unit: "1", description: cladding index}
+  R: {value: 2, unit: um, description: ring radius (centre of the ring waveguide)}
+  w: {value: 0.24, unit: um, description: ring and bus waveguide width}
+  g: {value: 0.2, unit: um, description: gap between ring and bus}
+  Lx: {value: 6, unit: um, description: length of the central box}
+  Ll: {value: 0.5, unit: um, description: length of each lead block between the box and a port}
+  Hh: {value: 3.4, unit: um, description: half height of the box}
+  hc: {value: 0.06, unit: um, description: mesh size in the cores}
+  hx: {value: 0.15, unit: um, description: mesh size in the cladding}
+geometry:
+  dim: 2
+  features:
+    - {id: box, type: rect, settings: {center: ["0 um", "0 um"], size: ["Lx", "2*Hh"]}}
+    - {id: lo_l, type: rect, settings: {center: ["-(Lx + Ll)/2", "-Hh/2"], size: ["Ll", "Hh"]}}
+    - {id: lo_r, type: rect, settings: {center: ["(Lx + Ll)/2", "-Hh/2"], size: ["Ll", "Hh"]}}
+    - {id: up_l, type: rect, settings: {center: ["-(Lx + Ll)/2", "Hh/2"], size: ["Ll", "Hh"]}}
+    - {id: up_r, type: rect, settings: {center: ["(Lx + Ll)/2", "Hh/2"], size: ["Ll", "Hh"]}}
+    - {id: bus_l, type: rect, settings: {center: ["-(Lx + Ll)/2", "-(R + w/2 + g + w/2)"], size: ["Ll", "w"]}}
+    - {id: bus_r, type: rect, settings: {center: ["(Lx + Ll)/2", "-(R + w/2 + g + w/2)"], size: ["Ll", "w"]}}
+    - {id: drop_l, type: rect, settings: {center: ["-(Lx + Ll)/2", "R + w/2 + g + w/2"], size: ["Ll", "w"]}}
+    - {id: drop_r, type: rect, settings: {center: ["(Lx + Ll)/2", "R + w/2 + g + w/2"], size: ["Ll", "w"]}}
+    - {id: ro, type: circle, settings: {center: ["0 um", "0 um"], radius: "R + w/2"}}
+    - {id: ri, type: circle, settings: {center: ["0 um", "0 um"], radius: "R - w/2"}}
+    - {id: ring, type: difference, settings: {base: ro, tools: [ri]}}
+    - {id: bus, type: rect, settings: {center: ["0 um", "-(R + w/2 + g + w/2)"], size: ["Lx", "w"]}}
+    - {id: drop, type: rect, settings: {center: ["0 um", "R + w/2 + g + w/2"], size: ["Lx", "w"]}}
+    - {id: core, type: union, settings: {inputs: [ring, bus, drop]}}
+    - {id: clad, type: difference, settings: {base: box, tools: [core], keepTools: true}}
+    - {id: lead_lo_l, type: difference, settings: {base: lo_l, tools: [bus_l], keepTools: true}}
+    - {id: lead_lo_r, type: difference, settings: {base: lo_r, tools: [bus_r], keepTools: true}}
+    - {id: lead_up_l, type: difference, settings: {base: up_l, tools: [drop_l], keepTools: true}}
+    - {id: lead_up_r, type: difference, settings: {base: up_r, tools: [drop_r], keepTools: true}}
+materials:
+  - {id: sio2, override: {n: "nOx"}, select: ["dom:clad", "dom:lead_lo_l", "dom:lead_lo_r", "dom:lead_up_l", "dom:lead_up_r"]}
+  - {id: si, override: {n: "nSi"}, select: ["dom:core", "dom:bus_l", "dom:bus_r", "dom:drop_l", "dom:drop_r"]}
+physics:
+  - id: w
+    type: emw-2d
+    select: ["dom:clad", "dom:lead_lo_l", "dom:lead_lo_r", "dom:lead_up_l", "dom:lead_up_r", "dom:core", "dom:bus_l", "dom:bus_r", "dom:drop_l", "dom:drop_r"]
+    settings: {polarization: TM}
+    bcs:
+      - {id: p1, type: port, select: ["bnd:lo_l.left", "bnd:bus_l.left"], settings: {nModes: 12, excite: true}}
+      - {id: p2, type: port, select: ["bnd:lo_r.right", "bnd:bus_r.right"], settings: {nModes: 12}}
+      - {id: p3, type: port, select: ["bnd:up_l.left", "bnd:drop_l.left"], settings: {nModes: 12}}
+      - {id: p4, type: port, select: ["bnd:up_r.right", "bnd:drop_r.right"], settings: {nModes: 12}}
+      - {id: walls, type: pec, select: ["bnd:box.top", "bnd:box.bottom", "bnd:lo_l.bottom", "bnd:lo_r.bottom", "bnd:up_l.top", "bnd:up_r.top"]}
+mesh:
+  size: {hmax: "hx"}
+  refine:
+    - {select: ["dom:core", "dom:bus_l", "dom:bus_r", "dom:drop_l", "dom:drop_r"], h: "hc"}
+studies:
+  - {id: s, type: frequency, physics: [w], settings: {wavelengths: ["lam"]}}
+  - id: sweep
+    type: parametric
+    physics: [w]
+    settings:
+      study: s
+      sweep:
+        - {param: lam, values: ["1.52900 um", "1.52914 um", "1.52928 um", "1.52942 um", "1.52956 um", "1.52970 um", "1.52984 um", "1.52998 um", "1.53012 um", "1.53026 um", "1.53040 um", "1.53054 um", "1.53068 um", "1.53082 um", "1.53096 um", "1.53110 um", "1.53124 um", "1.53138 um", "1.53152 um", "1.53166 um", "1.53180 um"]}
+results:
+  datasets:
+    - {id: sol_s, type: solution, data: s}
+    - {id: sol_sweep, type: solution, data: sweep}
+  evaluations:
+    - id: ev_s
+      data: sol_s
+      items:
+        - {id: T_through, type: global, expr: "w.S21_abs^2", unit: "1", label: "through-port transmission (fundamental mode)"}
+        - {id: T_drop, type: global, expr: "w.S31_abs^2", unit: "1", label: "drop-port transmission (fundamental mode)"}
+        - {id: R_back, type: global, expr: "w.S11_abs^2", unit: "1", label: "reflection into the input mode"}
+    - id: ev_sweep
+      data: sol_sweep
+      items:
+        - {id: T_through_l, type: global, expr: "w.S21_abs^2", unit: "1", label: "through-port transmission"}
+        - {id: T_drop_l, type: global, expr: "w.S31_abs^2", unit: "1", label: "drop-port transmission"}
+  tables:
+    - {id: tbl_s, from: ev_s}
+    - {id: tbl_sweep, from: ev_sweep}
+  plots:
+    - id: Ez_magnitude
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_abs_surf, type: surface, expr: w.Ez_abs, unit: V/m}
+    - id: Ez_field
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_re_surf, type: surface, expr: w.Ez_re, unit: V/m, colormap: balance}
+    - id: through_spectrum
+      type: plot1d
+      items:
+        - {id: T_curve, type: tablegraph, table: tbl_sweep}
+provenance:
+  values:
+    params.nSi: {basis: derived, source: "materials/silicon.yaml n (Li 1980) at 1.55 um: 3.476687, rounded to 4 decimals", date: 2026-11-18}
+    params.nOx: {basis: derived, source: "materials/sio2-thermal-oxide.yaml n (Malitson 1965) at 1.55 um: 1.444423, rounded to 4 decimals", date: 2026-11-18}
+    params.lam: {basis: user, date: 2026-11-18, note: "modelling input: drop peak 1.530397 um on the default mesh (validation/driven/ring_scan.ts, 2026-11-18)"}
+    studies.sweep.settings.sweep.0.values: {basis: user, date: 2026-11-18, note: "modelling input: 21 points over 2.8 nm around the order-24 resonance (FWHM 0.68 nm on the default mesh)"}
+    params.R: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.w: {basis: user, date: 2026-11-18, note: "modelling input: below the single-mode width lambda0 / (2 sqrt(nSi^2 - nOx^2)) = 0.245 um of the 2D strip"}
+    params.g: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.Lx: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.Ll: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.Hh: {basis: user, date: 2026-11-18, note: "modelling choice: closed box"}
+    params.hc: {basis: user, date: 2026-11-18, note: "modelling choice; two levels checked"}
+    params.hx: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "2D in-plane model with bulk indices (not an effective-index reduction of a silicon-on-insulator ring)", paths: [params.nSi, params.nOx]}
+  - {text: "Closed box with perfect electric conductor walls; the ring's radiation (radiation Q above 1e9 at these sizes, isolated-ring Bessel solution) is negligible", paths: [physics.w.bcs.walls]}
+missing: []
+# eval: [WO-73]

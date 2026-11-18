@@ -362,8 +362,9 @@ function semanticChecks(
       if (ex.kind === 'expr') {
         if (!ex.expr || !ex.terms) { at(path, 'extract-expr', `extract kind 'expr' needs expr and terms`); return; }
         for (const [k, t] of Object.entries(ex.terms)) if (t && typeof t === 'object' && 'kind' in t) {
-          if (!['scalar', 'probe', 'reduce', 'expr'].includes(t.kind)) at(`${path}/terms/${k}`, 'extract-expr', `term kind '${t.kind}' must be scalar, probe, reduce or expr`);
+          if (!['scalar', 'probe', 'reduce', 'expr', 'result'].includes(t.kind)) at(`${path}/terms/${k}`, 'extract-expr', `term kind '${t.kind}' must be scalar, probe, reduce, expr or result`);
           if (t.kind === 'scalar' && !t.name) at(`${path}/terms/${k}`, 'extract-expr', `scalar term needs name`);
+          if (t.kind === 'result' && !t.node) at(`${path}/terms/${k}`, 'extract-expr', `result term needs node (an evaluation item id of the spec's results)`);
           checkTerms(t, `${path}/terms/${k}`);
         }
       }

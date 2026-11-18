@@ -16,7 +16,7 @@
 import type { Mesh, RunContext, Spec, StudyNode } from '@amp/spec/types';
 import { validateSpec, resolveParams, resolveQuantity } from '@amp/spec';
 import { meshFromSpec } from '@amp/mesh/spec';
-import { refineUniform, meshCylinder, cylinderSideProjector, stackProjector, stackQuality } from '@amp/mesh';
+import { refineUniform, meshCylinder, cylinderSideProjector, stackProjector, stackQuality, periodicSelections } from '@amp/mesh';
 import { makeResolver, geometryFromSpec, isStack3D } from '@amp/geom/spec';
 import { physicsRegistry } from './registrations.ts';
 import { boxMesh } from './common/mesh.ts';
@@ -62,7 +62,19 @@ export interface CaseCtx {
   studyId?: string;
 }
 export interface PrepareArgs extends CaseCtx { spec: Record<string, unknown> }
-export interface Prepared extends RunContext { notes: string[]; timing: Record<string, number> }
+/** Material table bound at another vacuum wavelength (see Prepared.materialsAt). */
+export type MaterialTable = Record<string, Record<string, number>>;
+export interface Prepared extends RunContext {
+  notes: string[]; timing: Record<string, number>;
+  /**
+   * Per-wavelength material evaluation for multi-frequency studies (DevLog-046 O1, DevLog-048 B7): the material table
+   * bound exactly as `materials`, but with every wavelength-dependent library property (n, kappa, dndT, and the
+   * em-modes dispersion slopes) evaluated at the vacuum wavelength `lambda` (m). Overrides are unchanged. Results are
+   * cached per lambda; notes of the evaluation (library ranges, provenance) go to `notes` when an array is passed.
+   * Throws only for an invalid lambda; a property outside the library range is left out with a note, like prepareRun.
+   */
+  materialsAt(lambda: number, notes?: string[]): MaterialTable;
+}
 
 let nodeLibrary: MaterialLibrary | null | undefined;
 async function defaultLibrary(): Promise<MaterialLibrary | null> {
@@ -116,9 +128,25 @@ export async function prepareRun(a: PrepareArgs | Record<string, unknown>, b?: C
   if (types.includes('elastic') && (study.type === 'eigen' || fsi) && !mctx.props.includes('rho')) mctx.props.push('rho');
   const materials = resolveMaterials(spec, types, args.case, args.T, lib, notes, mctx);
   timing.materials = performance.now() - t0;
+  // per-wavelength tables (B7): same spec, types and context with lambda replaced; the spec's overrides already hold
+  // any value filled from the eval case, so a re-evaluation reads them as overrides
+  const atCache = new Map<number, { table: MaterialTable; notes: string[] }>();
+  const materialsAt = (lambda: number, out?: string[]): MaterialTable => {
+    if (!(typeof lambda === 'number' && Number.isFinite(lambda) && lambda > 0)) throw new Error(`materialsAt: lambda must be a positive wavelength in m, got ${lambda}`);
+    let hit = atCache.get(lambda);
+    if (!hit) {
+      const nn: string[] = [];
+      const mc2: MatContext = { ...mctx, props: [...mctx.props], optional: [...mctx.optional], lambda, lambdaFrom: 'frequency' };
+      delete mc2.multiFreq;
+      hit = { table: resolveMaterials(spec, types, args.case, args.T, lib, nn, mc2), notes: nn.filter((x) => !x.startsWith('materials: library n / kappa of')) };
+      atCache.set(lambda, hit);
+    }
+    if (out) out.push(...hit.notes);
+    return structuredClone(hit.table);
+  };
   if (args.dtFactor !== undefined && args.dtFactor !== 1 && study.type === 'time') study = scaleDt(spec, study, args.dtFactor, notes);
   return {
-    spec, physicsId: ph.id, mesh, materials, study, notes, timing,
+    spec, physicsId: ph.id, mesh, materials, study, notes, timing, materialsAt,
     progress: () => {}, signal: args.signal ?? new AbortController().signal,
   };
 }
@@ -197,7 +225,7 @@ function levelMesh(raw: Record<string, unknown>, spec: Spec, type: string, f: nu
   const simplexOk = (spec.geometry as { dim: number }).dim === 2 || (feats.length === 1 && (feats[0]!.type === 'cylinder' || (feats[0]!.type === 'box' && ord === 2)))
     || isStack3D(spec.geometry as { dim: number; features: Array<{ type: string }> });
   if (nested && simplexOk) {
-    const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type, elastic });
+    const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type, elastic, per: periodicSelections(raw) });
     let entry = chains.get(key);
     if (!entry) {
       const bm = baseMesh(raw, spec, type, notes, elastic);
@@ -213,7 +241,7 @@ function levelMesh(raw: Record<string, unknown>, spec: Spec, type: string, f: nu
   if (f !== 1) notes.push(`mesh: hFactor ${f} is not a power of 1/2 (or no nested refinement for this cell type): re-meshed with scaled sizes, levels are not nested`);
   const m = baseMesh(scaleSpecMesh(raw, f), spec, type, notes, elastic).m;
   // a level identical to the previous one is reported (L8 'no_change'; I1 bug report)
-  const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type, elastic });
+  const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type, elastic, per: periodicSelections(raw) });
   const prev = lastHash.get(key);
   if (prev && prev.hash === m.hash && prev.f !== f) notes.push(`mesh warning: hFactor ${f} gives the same mesh as hFactor ${prev.f} (hash ${m.hash.slice(0, 12)})`);
   lastHash.set(key, { hash: m.hash, f });
@@ -236,7 +264,9 @@ interface MatContext {
   /** emw-2d frequency study with several frequencies: number of frequencies (materials resolved once, DevLog-042 O4) */
   multiFreq?: number;
   /** em-modes physics with settings.dispersion: library dn/dlambda for the materials in their selection (DevLog-043 R2) */
-  dispersion?: Array<{ physics: string; domains: Set<number>; overrides: Set<string>; library: Record<string, { alternative?: string; extrapolate?: boolean }> }>;
+  dispersion?: Array<{ physics: string; domains: Set<number>; overrides: Set<string>; library: Record<string, { alternative?: string; extrapolate?: boolean }>;
+    /** settings.loss of that physics (library dkappa/dlambda is bound only then) and its dkappadlambda overrides */
+    loss?: boolean; kOverrides?: Set<string> }>;
   /** domain indices of a material selection on the prepared mesh */
   domainsOf?: (select: readonly string[]) => number[];
 }
@@ -253,13 +283,14 @@ function opticalMaterialContext(spec: Spec, study: StudyNode, nodes: Array<{ id:
   mc.domainsOf = (sel) => { try { return selectEntities(mesh.entities, 'domains', sel); } catch { return []; } };
   for (const n of nodes) {
     if (n.type === 'em-modes') {
-      const s = (n.settings ?? {}) as { loss?: boolean; dispersion?: boolean | { dndlambda?: Record<string, unknown>; library?: Record<string, { alternative?: string; extrapolate?: boolean }> } };
+      const s = (n.settings ?? {}) as { loss?: boolean; dispersion?: boolean | { dndlambda?: Record<string, unknown>; dkappadlambda?: Record<string, unknown>; library?: Record<string, { alternative?: string; extrapolate?: boolean }> } };
       if (s.loss === true) opt('kappa');
       if (s.dispersion !== undefined && s.dispersion !== false) {
         const d = typeof s.dispersion === 'object' ? s.dispersion : {};
         (mc.dispersion ??= []).push({
           physics: n.id, domains: new Set(mc.domainsOf((n.select ?? []) as string[])),
           overrides: new Set(Object.keys(d.dndlambda ?? {})), library: d.library ?? {},
+          ...(s.loss === true ? { loss: true, kOverrides: new Set(Object.keys(d.dkappadlambda ?? {})) } : {}),
         });
       }
     }
@@ -355,7 +386,7 @@ function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknow
       const id = ref.replace(/^materials\//, '');
       if (!lib) notes.push(`materials.${m.id}: no material library available for ${ref} (inject one with prepareRun({library}))`);
       // emw-2d alone: an override n (or kappa) without an override eps_r states the optical index; a library eps_r
-      // (e.g. a low-frequency permittivity) would take precedence over it in the module, so it is not fetched
+      // (e.g. a low-frequency permittivity) is not fetched, so the module uses that n in every study type
       const emwOnly = types.length === 1 && types[0] === 'emw-2d';
       const nGiven = emwOnly && (has(rec, 'n') || has(rec, 'kappa')) && !has(rec, 'eps_r');
       const fromLib: string[] = [], skipped: string[] = [];
@@ -372,19 +403,26 @@ function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknow
           fromLib.push(p);
         } catch (e) { if (!optional.has(p)) notes.push(`materials.${m.id} (${ref}).${p}: ${(e as Error).message.slice(0, 160)}`); }
       }
-      if (skipped.length) notes.push(`materials.${m.id} (${ref}): emw-2d uses the override n${has(rec, 'kappa') ? ' / kappa' : ''}; library ${skipped.join(', ')} not used (eps_r would take precedence over n)`);
-      if (types.includes('emw-2d') && fromLib.includes('eps_r') && has(rec, 'n')) {
-        notes.push(`materials.${m.id} (${ref}): emw-2d uses eps_r (${rec.eps_r ?? 'tensor'}, library) over n (${rec.n ?? 'tensor'}${fromLib.includes('n') ? ', library' : ''}); override n (or eps_r) to choose the optical value`);
-      }
+      if (skipped.length) notes.push(`materials.${m.id} (${ref}): emw-2d uses the override n${has(rec, 'kappa') ? ' / kappa' : ''}; library ${skipped.join(', ')} not used (the override n states the optical index)`);
+      // a library eps_r next to a library n: the 2D wave module states which one it used (wavelength-bound runs: n;
+      // eigen and bands studies: eps_r), so no note here (DevLog-050 s.9)
       if (lib && mc.dispersion && mc.domainsOf) libraryDispersion(m, id, ref, rec, lib, mc, T, has, notes);
+      if (lib && mc.dispersion && mc.domainsOf) libraryKappaDispersion(m, id, ref, rec, lib, mc, T, has, notes);
     }
-    for (const p of need) if (!(p in rec)) { const c = fromCase(m.id, p); if (c !== undefined) fill(p, c, 'not in the spec'); }
+    // fill from the eval case only what is really absent: a tensor value ('<p>.<component>') counts as present, and an
+    // optional property (absent = not used by the module) is taken only from the case entry of the same material id,
+    // never from the single other case material that has it (DevLog-048: kappa of gold went into air, a SiO2 n into LN)
+    for (const p of need) {
+      if (has(rec, p)) continue;
+      const c = optional.has(p) ? (typeof caseMats[m.id]?.[p] === 'number' ? caseMats[m.id]![p] as number : undefined) : fromCase(m.id, p);
+      if (c !== undefined) fill(p, c, 'not in the spec');
+    }
     out[m.id] = rec;
   }
   const refs = (spec.materials ?? []).filter((m) => (m as { ref?: string }).ref).map((m) => m.id);
   if (types.includes('emw-2d') && refs.length && lib) {
     if (mc.lambdaFrom === 'frequency') notes.push(`materials: library n / kappa of ${refs.join(', ')} at lambda = c0 / f = ${mc.lambda} m (single-frequency study)`);
-    else if (mc.multiFreq) notes.push(`materials: frequency study with ${mc.multiFreq} frequencies: library values of ${refs.join(', ')} are resolved once, without a wavelength (per-frequency material dispersion not implemented); wavelength-dependent n / kappa need overrides`);
+    else if (mc.multiFreq) notes.push(`materials: frequency study with ${mc.multiFreq} frequencies: library values of ${refs.join(', ')} are resolved here once, without a wavelength; the driven 2D wave solver re-evaluates them at lambda = c0 / f per frequency (materialsAt), other callers use this single evaluation`);
   }
   return out;
 }
@@ -422,6 +460,44 @@ function libraryDispersion(m: { id: string; select: readonly string[] }, id: str
       if (Math.abs(nUsed - r.n) > 1e-12 * Math.abs(r.n)) notes.push(`materials.${m.id}: n${c ? `.${c}` : ''} ${nUsed} (override) differs from the library n ${r.n} whose slope gives ${key}`);
     } catch (e) { notes.push(`materials.${m.id} (${ref}).${key}: ${(e as Error).message.slice(0, 160)}`); }
   }
+}
+
+/** Relative half step of the dkappa/dlambda central difference (same as @amp/materials dispersion() for dn/dlambda). */
+const KAPPA_REL_STEP = 1e-4;
+
+/**
+ * Library dkappa/dlambda for one lossy `ref:` material (DevLog-043 R7, lane E2): for an em-modes physics with both
+ * settings.loss and settings.dispersion whose selection meets the material, unless settings.dispersion.dkappadlambda.<id>
+ * or a material override dkappa_dlambda gives it. Central difference of the library kappa over lambda (1 +- 1e-4),
+ * with a provenance note (table kappa: slope of the table segment(s), named piecewise-linear). An override kappa is
+ * noted when it differs from the library kappa whose slope is used.
+ */
+function libraryKappaDispersion(m: { id: string; select: readonly string[] }, id: string, ref: string, rec: Record<string, number>, lib: MaterialLibrary, mc: MatContext,
+  T: number | undefined, has: (rec: Record<string, number>, p: string) => boolean, notes: string[]): void {
+  if (rec.kappa === undefined || has(rec, 'dkappa_dlambda')) return;
+  const doms = mc.domainsOf!(m.select);
+  const entry = mc.dispersion!.find((d) => d.loss && !d.kOverrides?.has(m.id) && doms.some((x) => d.domains.has(x)));
+  if (!entry) return;
+  const lam = mc.lambda;
+  if (lam === undefined) { notes.push(`materials.${m.id} (${ref}).dkappa_dlambda: no mode wavelength in the study: library kappa dispersion not evaluated`); return; }
+  const h = KAPPA_REL_STEP * lam;
+  const o = { ...(T !== undefined ? { T } : {}) };
+  try {
+    const at = (l: number) => {
+      const v = lib.getProperty(id, 'kappa', { ...o, lambda: l }) as { value: number | Record<string, number>; extrapolated?: boolean; source?: string };
+      if (typeof v.value !== 'number') throw new Error('tensor kappa is not supported');
+      return v;
+    };
+    const c = at(lam), p = at(lam + h), mm = at(lam - h);
+    const dk = ((p.value as number) - (mm.value as number)) / (2 * h);
+    rec.dkappa_dlambda = dk;
+    const leaf = (typeof lib.get === 'function' ? (lib.get(id) as { properties?: Record<string, { fit?: unknown; table?: unknown }> } | undefined) : undefined)?.properties?.kappa;
+    const kind = leaf?.table ? 'piecewise-linear: slope of the table segment(s) around lambda, only as good as the node spacing' : leaf?.fit ? 'smooth' : 'library value';
+    const extra = c.extrapolated || p.extrapolated || mm.extrapolated ? '; extrapolated beyond the stored validity range' : '';
+    notes.push(`materials.${m.id}.dkappa_dlambda: ${dk} 1/m from ${ref} kappa at lambda = ${lam} m, central difference h = ${h} m (${kind}${extra})${c.source ? `; source: ${String(c.source).slice(0, 160)}` : ''}`);
+    const kl = c.value as number;
+    if (Math.abs(rec.kappa - kl) > 1e-12 * Math.abs(kl)) notes.push(`materials.${m.id}: kappa ${rec.kappa} (override) differs from the library kappa ${kl} whose slope gives dkappa_dlambda`);
+  } catch (e) { notes.push(`materials.${m.id} (${ref}).dkappa_dlambda: ${(e as Error).message.slice(0, 160)}`); }
 }
 
 /** SI reference unit of a property from the registry (for the values written into the prepared spec). */

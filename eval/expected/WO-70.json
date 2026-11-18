@@ -1,0 +1,175 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-70",
+  "class": "c",
+  "generator": "validation/driven/cylinder_mie.py",
+  "command": "cd validation && uv run python driven/cylinder_mie.py",
+  "method": "TM plane wave on a dielectric rod (n 3.4767, radius 0.3 um) in vacuum at 1.3, 1.55, 1.8 um: 2D scattering width back, forward and total from the Bessel / Hankel series (scipy vs mpmath, optical theorem).",
+  "generated_at": "2026-11-18T13:31:37-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "sigma2d_back_0",
+      "value": 2.3262012633818898e-06,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 4.440892098500626e-16,
+        "optical_theorem_rel": 0.0
+      },
+      "inputs": {
+        "lambda0_m": 1.3e-06,
+        "radius_m": 3e-07,
+        "n_rod": 3.4767,
+        "background": "vacuum"
+      },
+      "locator": "validation/driven/cylinder_mie.py (penetrable coefficients from the TM continuity conditions)"
+    },
+    {
+      "metric_id": "sigma2d_fwd_0",
+      "value": 4.109946893770991e-06,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 4.440892098500626e-16,
+        "optical_theorem_rel": 0.0
+      },
+      "inputs": {
+        "lambda0_m": 1.3e-06,
+        "radius_m": 3e-07,
+        "n_rod": 3.4767,
+        "background": "vacuum"
+      },
+      "locator": "validation/driven/cylinder_mie.py (penetrable coefficients from the TM continuity conditions)"
+    },
+    {
+      "metric_id": "sigma2d_total_0",
+      "value": 1.3256057526254633e-06,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 4.440892098500626e-16,
+        "optical_theorem_rel": 0.0
+      },
+      "inputs": {
+        "lambda0_m": 1.3e-06,
+        "radius_m": 3e-07,
+        "n_rod": 3.4767,
+        "background": "vacuum"
+      },
+      "locator": "validation/driven/cylinder_mie.py (penetrable coefficients from the TM continuity conditions)"
+    },
+    {
+      "metric_id": "sigma2d_back_1",
+      "value": 6.357128537461542e-07,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 2.220446049250313e-15,
+        "optical_theorem_rel": 2.220446049250313e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.55e-06,
+        "radius_m": 3e-07,
+        "n_rod": 3.4767,
+        "background": "vacuum"
+      },
+      "locator": "validation/driven/cylinder_mie.py (penetrable coefficients from the TM continuity conditions)"
+    },
+    {
+      "metric_id": "sigma2d_fwd_1",
+      "value": 1.9770254456927774e-06,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 2.220446049250313e-15,
+        "optical_theorem_rel": 2.220446049250313e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.55e-06,
+        "radius_m": 3e-07,
+        "n_rod": 3.4767,
+        "background": "vacuum"
+      },
+      "locator": "validation/driven/cylinder_mie.py (penetrable coefficients from the TM continuity conditions)"
+    },
+    {
+      "metric_id": "sigma2d_total_1",
+      "value": 9.230037447158105e-07,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 2.220446049250313e-15,
+        "optical_theorem_rel": 2.220446049250313e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.55e-06,
+        "radius_m": 3e-07,
+        "n_rod": 3.4767,
+        "background": "vacuum"
+      },
+      "locator": "validation/driven/cylinder_mie.py (penetrable coefficients from the TM continuity conditions)"
+    },
+    {
+      "metric_id": "sigma2d_back_2",
+      "value": 4.798910921145984e-06,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 1.9984014443252818e-15,
+        "optical_theorem_rel": 0.0
+      },
+      "inputs": {
+        "lambda0_m": 1.8e-06,
+        "radius_m": 3e-07,
+        "n_rod": 3.4767,
+        "background": "vacuum"
+      },
+      "locator": "validation/driven/cylinder_mie.py (penetrable coefficients from the TM continuity conditions)"
+    },
+    {
+      "metric_id": "sigma2d_fwd_2",
+      "value": 9.428617461141775e-06,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 1.9984014443252818e-15,
+        "optical_theorem_rel": 0.0
+      },
+      "inputs": {
+        "lambda0_m": 1.8e-06,
+        "radius_m": 3e-07,
+        "n_rod": 3.4767,
+        "background": "vacuum"
+      },
+      "locator": "validation/driven/cylinder_mie.py (penetrable coefficients from the TM continuity conditions)"
+    },
+    {
+      "metric_id": "sigma2d_total_2",
+      "value": 3.231449823207996e-06,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 1.9984014443252818e-15,
+        "optical_theorem_rel": 0.0
+      },
+      "inputs": {
+        "lambda0_m": 1.8e-06,
+        "radius_m": 3e-07,
+        "n_rod": 3.4767,
+        "background": "vacuum"
+      },
+      "locator": "validation/driven/cylinder_mie.py (penetrable coefficients from the TM continuity conditions)"
+    }
+  ]
+}

@@ -64,6 +64,9 @@ references:
   provenance: {citation: 'Eshelby-type circular inclusion, plane stress', locator: 'validation/a/gen_solid.py::cp21; eval/expected/CP-21.json
       targets[metric_id=sigma_yy_D_infinite]', accessed: null}
   expected: {file: eval/expected/CP-21.json, metric_id: sigma_yy_D_infinite}
+  extract: {kind: result, node: syy_D}
+  spec: {sim: sims/nafems-t1-hotspot.yaml, params: {Lq: 100}, note: 'infinite plate approximated by the same model with
+      a 100 mm quarter membrane (a / Lq = 0.01 instead of 0.1); the finite-plate bound of the case shrinks with a / Lq'}
 reference_results:
 - {solver: advanced-packaging-atlas L5 scikit-fem P2 Richardson, value_MPa: 50.4475}
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}

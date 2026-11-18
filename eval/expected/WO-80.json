@@ -1,0 +1,54 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-80",
+  "class": "c",
+  "generator": "validation/modes3/references.py",
+  "command": "cd validation && uv run python modes3/references.py",
+  "method": "Analytic planar surface plasmon polariton (TM): beta = k0 sqrt(eps_m eps_d / (eps_m + eps_d)) from continuity of H_x and (1/eps) dH_x/dy; eps_m = (n + i kappa)^2 (exp(-i omega t)), eps_d = 1; kappaEff = Im n_spp.",
+  "generated_at": "2026-11-18T13:54:40-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "neff_0",
+      "value": 1.0385307417985927,
+      "unit": "1",
+      "precision": {
+        "method": "mpmath 40 digits",
+        "numpy": 1.0385307417985927,
+        "diff": 0.0
+      }
+    },
+    {
+      "metric_id": "kappaEff_0",
+      "value": 0.0030945733342417465,
+      "unit": "1",
+      "precision": {
+        "method": "mpmath 40 digits",
+        "numpy": 0.0030945733342417486,
+        "diff": -2.168404344971009e-18
+      }
+    },
+    {
+      "metric_id": "Lprop_0",
+      "value": 1.6959152948111287e-05,
+      "unit": "m",
+      "definition": "power 1/e length lambda / (4 pi Im n_spp)"
+    }
+  ],
+  "inputs": {
+    "lambda_um": 0.6595,
+    "gold_n": 0.14,
+    "gold_kappa": 3.697,
+    "source": "materials/gold.yaml n / kappa tables (Johnson and Christy 1972, refractiveindex.info Au/nk/Johnson.yml)"
+  }
+}

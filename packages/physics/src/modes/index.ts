@@ -66,7 +66,8 @@ export interface ModesProblem {
   /** per domain index: group permittivity eps_g = eps - (lambda / 2) d eps / d lambda = n (n - lambda dn/dlambda)
    *  (material dispersion in n_g, DevLog-043); omit = non-dispersive (eps_g = eps, complex in a lossy solve) */
   epsG?: DomainEps[];
-  /** per domain index: loss part of eps_g = epsG - j epsGIm (lossy solves; default epsIm) */
+  /** per domain index: loss part of eps_g = epsG - j epsGIm; required in a lossy solve that gives epsG (error otherwise),
+   *  default epsIm only when epsG is omitted too (non-dispersive) */
   epsGIm?: DomainEps[];
   /** coordinate transform (PML stretching, bend metric), per triangle complex factors (transform.ts modeTransform) */
   transform?: ModeTransform;
@@ -141,6 +142,8 @@ export async function solveModes(p: ModesProblem, meta: { spec?: unknown; physic
   const epsG = p.epsG ? new Float64Array(4 * nT) : null;
   if (p.epsGIm && p.epsGIm.length !== nDom) throw new Error(`em-modes: epsGIm needs one entry per domain (${nDom}), got ${p.epsGIm.length}`);
   const epsGIm = p.epsGIm ? new Float64Array(4 * nT) : null;
+  // a lossy solve with a dispersive eps_g states its loss part (the kernel default epsGIm = epsIm drops -lambda kappa dn/dlambda)
+  if (p.epsIm && p.epsG && !p.epsGIm && p.epsIm.some((e) => tensorOf(e).some((v) => v !== 0))) throw new Error('em-modes: a lossy solve with epsG needs epsGIm (Im eps_g = 2 n kappa - lambda (n dkappa/dlambda + kappa dn/dlambda)); pass epsGIm = epsIm for a wavelength-independent loss part');
   if (p.epsTri && p.epsTri.length !== 4 * nT) throw new Error(`em-modes: epsTri needs 4 * nTris = ${4 * nT} values`);
   for (let t = 0; t < nT; t++) {
     const d = p.mesh.cells.domain[t]!;

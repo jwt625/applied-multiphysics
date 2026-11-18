@@ -66,10 +66,10 @@ results:
         - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
 provenance:
   values:
-    params.lambda0: {basis: benchmark, source: "R3 WO-02 (femwell benchmarks re-tabulating Hadley, JLT 20:1219)", date: 2026-11-06}
-    params.w_rib: {basis: benchmark, source: "R3 WO-02: rib 3 x 1 um", date: 2026-11-06}
-    params.H: {basis: benchmark, source: "R3 WO-02: rib 3 x 1 um", date: 2026-11-06}
-    studies.sweep_t.settings.sweep.0.values: {basis: benchmark, source: "R3 WO-02: t = 0.1 ... 0.7 um", date: 2026-11-06}
+    params.lambda0: {basis: benchmark, source: "G. R. Hadley, J. Lightwave Technol. 20(7), 1219 (2002), as re-tabulated in femwell docs/benchmarks/mode_solver.py (eval case WO-02)", date: 2026-11-06}
+    params.w_rib: {basis: benchmark, source: "Hadley 2002 via femwell docs/benchmarks/mode_solver.py (eval case WO-02): rib 3 x 1 um", date: 2026-11-06}
+    params.H: {basis: benchmark, source: "Hadley 2002 via femwell docs/benchmarks/mode_solver.py (eval case WO-02): rib 3 x 1 um", date: 2026-11-06}
+    studies.sweep_t.settings.sweep.0.values: {basis: benchmark, source: "Hadley 2002 via femwell docs/benchmarks/mode_solver.py (eval case WO-02): t = 0.1 ... 0.7 um", date: 2026-11-06}
     materials.core.override.n: {basis: benchmark, source: "eval/cases/b/WO-02.yaml materials.core.n (femwell mode_solver.py refractive_indices, re-tabulating Hadley 2002)", date: 2026-11-06}
     materials.substrate.override.n: {basis: benchmark, source: "eval/cases/b/WO-02.yaml materials.substrate.n (femwell mode_solver.py)", date: 2026-11-06}
     materials.cover.override.n: {basis: benchmark, source: "eval/cases/b/WO-02.yaml materials.cover.n (femwell mode_solver.py)", date: 2026-11-06}
@@ -81,11 +81,11 @@ provenance:
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
     mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
 assumptions:
-  - {text: "Rib height H = 1 um is measured from the substrate interface and includes the slab; R3 only says 'rib 3 x 1 um' (check the femwell source)", paths: [params.H]}
-  - {text: "Rib material over the substrate, cover above; the three indices of R3 map to rib (guide), substrate and cover in that order", paths: [materials]}
+  - {text: "Rib height H = 1 um is measured from the substrate interface and includes the slab; the eval-set source survey only says 'rib 3 x 1 um' (check the femwell source)", paths: [params.H]}
+  - {text: "Rib material over the substrate, cover above; the three indices of eval case WO-02 map to rib (guide), substrate and cover in that order", paths: [materials]}
   - {text: "PEC on the window boundary is a truncation; the guided mode must have decayed there", paths: [physics.ewg.bcs.walls]}
 missing:
   - {what: "t = 0 point of the WO-02 table needs a geometry variant without the slab (zero-thickness feature)", needed_for: [geometry, eval]}
   - {what: "Si/SiO2 SOI rib geometry for the 'Si rib' hero: no sourced case defines it (WO-01 is a 1D slab)", needed_for: [geometry]}
-  - {what: "which mode (polarization) WO-02 gates is not stated in the R3 summary", needed_for: [eval]}
+  - {what: "which mode (polarization) WO-02 gates is not stated in the eval-set source survey", needed_for: [eval]}
 # eval: [WO-02]

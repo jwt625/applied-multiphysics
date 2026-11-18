@@ -138,7 +138,7 @@ provenance:
     mesh.refine.1.h: {basis: inference, source: "atlas geometry.mesh electrode_edge_um 0.05", date: 2026-11-07}
 assumptions:
   - {text: "Electrodes are ideal conductors (boundaries; their domains are not solved); terminal 1 V on the signal, grounds 0 V (single-ended GSG drive, push-pull by arm placement)", paths: [physics.es]}
-  - {text: "Arm B is the mirror image of arm A about x = -11.75 um (atlas two_arm_field_resolved); VpiL = lambda / (2 |dn_A - dn_B|) in the DevLog-032 convention", paths: [couplings.eo]}
+  - {text: "Arm B is the mirror image of arm A about x = -11.75 um (atlas two_arm_field_resolved); VpiL = lambda / (2 |dn_A - dn_B|) in the push-pull convention (V_t = full terminal voltage)", paths: [couplings.eo]}
   - {text: "No top cladding (air), designed (not fabricated) dimensions, room temperature (CP-43 missing list)", paths: [geometry]}
   - {text: "LN composition: optical dispersion is for congruent LN (Zelmon); the RF / EO rows of Weis-Gaylord do not state composition", paths: [materials.LN]}
   - {text: "clamped (constant-strain) eps^S and r^S: high-frequency (RF) basis, as used by the eo-modulator-atlas and the CP-43 reference; the DC stress-free basis (eps^T, r^T from the same Weis-Gaylord tables) would change VpiL (audit estimate about -4 %, not run)", paths: [materials.LN]}

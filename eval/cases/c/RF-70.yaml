@@ -1,0 +1,145 @@
+# RF-70: PEC circular post (radius 15 mm) at 10 GHz, TM plane wave: 2D scattering width vs Bessel series
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: RF-70
+class: c
+title: 'PEC circular post (radius 15 mm) at 10 GHz, TM plane wave: 2D scattering width vs Bessel series'
+status: unvalidated
+untestable_reason: null
+physics: [rf-antenna]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {radius_m: 0.015, window_half_width_m: 0.045, pml_m: 0.015}
+materials:
+  background: {eps_r: 1, source: 'vacuum (assumption: air as vacuum)'}
+bcs:
+- {selection: post surface, type: pec}
+- {selection: PML frame, type: pml}
+- {selection: window, type: plane-wave, expr: 'E_z = exp(-j k0 x), 1 V/m'}
+initial: null
+study: {type: frequency, f_Hz: 10000000000.0}
+references:
+- id: sigma2d_back.L0
+  quantity: 2D scattering width, back (mesh level 0)
+  metric_id: sigma2d_back
+  value: 0.04919482341547991
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/RF-70.json, metric_id: sigma2d_back}
+  provenance: {citation: 'Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012; series evaluated by validation/driven/cylinder_mie.py
+      (scipy vs mpmath, optical theorem)', locator: 'sec. 11.5.1, TM^z plane wave on a PEC circular cylinder (c_n = -J_n(k0
+      a) / H_n^(2)(k0 a))', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_back}
+- id: sigma2d_back.L1
+  quantity: 2D scattering width, back (mesh level 1)
+  metric_id: sigma2d_back
+  value: 0.04919482341547991
+  unit: m
+  tolerance: {rel: 3.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/RF-70.json, metric_id: sigma2d_back}
+  provenance: {citation: 'Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012; series evaluated by validation/driven/cylinder_mie.py
+      (scipy vs mpmath, optical theorem)', locator: 'sec. 11.5.1, TM^z plane wave on a PEC circular cylinder (c_n = -J_n(k0
+      a) / H_n^(2)(k0 a))', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_back}
+- id: sigma2d_fwd.L0
+  quantity: 2D scattering width, forward (mesh level 0)
+  metric_id: sigma2d_fwd
+  value: 0.3158385445243406
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/RF-70.json, metric_id: sigma2d_fwd}
+  provenance: {citation: 'Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012; series evaluated by validation/driven/cylinder_mie.py
+      (scipy vs mpmath, optical theorem)', locator: 'sec. 11.5.1, TM^z plane wave on a PEC circular cylinder (c_n = -J_n(k0
+      a) / H_n^(2)(k0 a))', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_fwd}
+- id: sigma2d_fwd.L1
+  quantity: 2D scattering width, forward (mesh level 1)
+  metric_id: sigma2d_fwd
+  value: 0.3158385445243406
+  unit: m
+  tolerance: {rel: 3.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/RF-70.json, metric_id: sigma2d_fwd}
+  provenance: {citation: 'Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012; series evaluated by validation/driven/cylinder_mie.py
+      (scipy vs mpmath, optical theorem)', locator: 'sec. 11.5.1, TM^z plane wave on a PEC circular cylinder (c_n = -J_n(k0
+      a) / H_n^(2)(k0 a))', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_fwd}
+- id: sigma2d_total.L0
+  quantity: 2D scattering width, total (mesh level 0)
+  metric_id: sigma2d_total
+  value: 0.07370830329756312
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/RF-70.json, metric_id: sigma2d_total}
+  provenance: {citation: 'Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012; series evaluated by validation/driven/cylinder_mie.py
+      (scipy vs mpmath, optical theorem)', locator: 'sec. 11.5.1, TM^z plane wave on a PEC circular cylinder (c_n = -J_n(k0
+      a) / H_n^(2)(k0 a))', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_total}
+- id: sigma2d_total.L1
+  quantity: 2D scattering width, total (mesh level 1)
+  metric_id: sigma2d_total
+  value: 0.07370830329756312
+  unit: m
+  tolerance: {rel: 3.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/RF-70.json, metric_id: sigma2d_total}
+  provenance: {citation: 'Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012; series evaluated by validation/driven/cylinder_mie.py
+      (scipy vs mpmath, optical theorem)', locator: 'sec. 11.5.1, TM^z plane wave on a PEC circular cylinder (c_n = -J_n(k0
+      a) / H_n^(2)(k0 a))', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_total}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels with a tighter tolerance on the
+    finer one
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (89k DOF) took 1.3 s in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited textbook formulas
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero: {suitable: false, why: verification of a library example}
+spec: {sim: sims/pec-post-scattering.yaml, study: s}
+missing: []
+assumptions: []
+notes: ['Study ''s'' (10 GHz) named explicitly: the workbench''s default Compute runs the parametric frequency sweep, whose
+    displayed solution is the last sweep point (14 GHz), not the gated frequency']
+lane: E1
+created: '2026-11-18'

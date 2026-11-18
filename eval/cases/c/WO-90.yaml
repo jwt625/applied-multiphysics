@@ -1,0 +1,222 @@
+# WO-90: Square rod lattice (r 0.2a, eps 12), TM band structure: first gap edges (Bloch eigenproblem)
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-90
+class: c
+title: 'Square rod lattice (r 0.2a, eps 12), TM band structure: first gap edges (Bloch eigenproblem)'
+status: unvalidated
+untestable_reason: null
+physics: [optics-phc]
+dimension: 2D-periodic
+units: SI
+geometry:
+  kind: analytic
+  spec: {lattice: square, a: 1, rod_radius: 0.2, unit: a}
+materials:
+  rod: {eps_r: 12.0, source: mpb doc/docs/Python_Tutorial.md L69}
+  background: {eps_r: 1.0, source: default air}
+bcs: null
+initial: null
+study: {type: eigen, n: 8, shift: 'bands study (Bloch eigenproblem); k on Gamma-X-M-Gamma, 4 interpolated points per segment
+    (MPB tutorial path)'}
+references:
+- id: gap_lower.L0
+  quantity: gap lower edge (band 1 maximum, at M) (mesh level 0)
+  metric_id: gap_lower
+  value: 0.2806643916748245
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-90.json, metric_id: gap_lower}
+  provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson (copied from WO-04)', locator: eval/expected/WO-04.json;
+      validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmax_0}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+- id: gap_lower.L1
+  quantity: gap lower edge (band 1 maximum, at M) (mesh level 1)
+  metric_id: gap_lower
+  value: 0.2806643916748245
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-90.json, metric_id: gap_lower}
+  provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson (copied from WO-04)', locator: eval/expected/WO-04.json;
+      validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmax_0}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+- id: gap_upper.L0
+  quantity: gap upper edge (band 2 minimum, at X) (mesh level 0)
+  metric_id: gap_upper
+  value: 0.4171623956235006
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-90.json, metric_id: gap_upper}
+  provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson (copied from WO-04)', locator: eval/expected/WO-04.json;
+      validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmin_1}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+- id: gap_upper.L1
+  quantity: gap upper edge (band 2 minimum, at X) (mesh level 1)
+  metric_id: gap_upper
+  value: 0.4171623956235006
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-90.json, metric_id: gap_upper}
+  provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson (copied from WO-04)', locator: eval/expected/WO-04.json;
+      validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmin_1}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+- id: pwe_limit_lower.L0
+  quantity: PWE limit estimate, gap lower edge (mesh level 0)
+  metric_id: pwe_limit_lower
+  value: 0.28066224255525063
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-90.json, metric_id: pwe_limit_lower}
+  provenance: {citation: plane-wave expansion limit estimate (WO-04), locator: eval/expected/WO-04.json gap_lower precision.pwe_limit_est,
+    accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmax_0}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+- id: pwe_limit_lower.L1
+  quantity: PWE limit estimate, gap lower edge (mesh level 1)
+  metric_id: pwe_limit_lower
+  value: 0.28066224255525063
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-90.json, metric_id: pwe_limit_lower}
+  provenance: {citation: plane-wave expansion limit estimate (WO-04), locator: eval/expected/WO-04.json gap_lower precision.pwe_limit_est,
+    accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmax_0}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+- id: pwe_limit_upper.L0
+  quantity: PWE limit estimate, gap upper edge (mesh level 0)
+  metric_id: pwe_limit_upper
+  value: 0.4171631976452128
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-90.json, metric_id: pwe_limit_upper}
+  provenance: {citation: plane-wave expansion limit estimate (WO-04), locator: eval/expected/WO-04.json gap_upper precision.pwe_limit_est,
+    accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmin_1}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+- id: pwe_limit_upper.L1
+  quantity: PWE limit estimate, gap upper edge (mesh level 1)
+  metric_id: pwe_limit_upper
+  value: 0.4171631976452128
+  unit: 1 (c/a)
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-90.json, metric_id: pwe_limit_upper}
+  provenance: {citation: plane-wave expansion limit estimate (WO-04), locator: eval/expected/WO-04.json gap_upper precision.pwe_limit_est,
+    accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmin_1}
+      a: {value: 1, unit: um, source: 'sims/phc-square-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI defining constant (speed of light in vacuum)}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels
+speed:
+  budget_s: {browser: null, native: 40.0}
+  budget_basis: 'measured 2026-11-18 by the harness (Node, M4 Pro, nice 10): 9.2 s at level 0 (3,048 DOF), 34 s at level 1
+    (12,192 DOF), 16 k points'
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: GPL-2.0-or-later (MPB / Meep; License_and_Copyright.md)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero:
+  suitable: true
+  why: photonic band diagram
+  visual: [band_diagram, Ez_mode]
+spec: sims/phc-square-rods-bands.yaml
+missing: []
+assumptions: []
+notes: [Same physical problem as WO-04 (whose sims use a scalar acoustics analog on quarter cells); here the emw-2d Bloch
+    eigenproblem on the full unit cell. The MPB Richardson value and the PWE limit differ by 7.7e-6 rel; the FE values lie
+    between them.]
+source_case: {suite: MPB tutorial, file: doc/docs/Python_Tutorial.md, url: github.com/NanoComp/mpb tag v1.12.0, accessed: '2026-11-06',
+  note: same lattice as WO-04 (cache/eval-c/sources/mpb/Python_Tutorial.md)}
+lane: E4
+created: '2026-11-18'

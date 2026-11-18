@@ -1,0 +1,84 @@
+# WO-82 (eval/cases/c/WO-82.yaml): x-cut thin-film LN rib waveguide from the sibling repository eo-modulator-atlas (read only,
+# own work of the same author; HEAD 0546007 read 2026-11-18), case validation/cases/K2.yaml: film 600 nm, etch
+# 300 nm, top width 1.0 um, sidewalls 60 deg from horizontal (base 1.346410162 um), SiO2 below (semi-infinite within
+# the window), air above, optical window x [-5, 5] um, y [-3, 3] um with PEC walls, TE0 at 1550 nm. Indices from the
+# atlas case (LN Zelmon 1997 n_o 2.211111009, n_e 2.13755965; SiO2 Malitson 1965 1.444023622). Reference: atlas
+# validation/reference/K2-fem.json (vector FEM N2/P2, femwell formulation, Richardson extrapolated). Frame: x lateral
+# (crystal z, n_e), y film normal (crystal x), z propagation (crystal y). n_g with material dispersion: library slopes.
+# The rib polygon follows t_film, t_slab and w_top with the 60 degree walls fixed (base half width w_top/2 +
+# (t_film - t_slab)/sqrt(3) = 0.673205081 um at the defaults, the atlas polygon); the cladding above starts at t_slab.
+schema: amp-spec/0
+id: tfln-rib-air
+title: Thin-film lithium niobate rib, air clad
+description: x-cut LN rib (600 nm film, 300 nm etch, 1 um top, 60 degree walls) on oxide with air above at 1550 nm; TE0 effective and group index.
+params:
+  t_film: {value: 600, unit: nm, description: LN film thickness}
+  t_slab: {value: 300, unit: nm, description: slab thickness left after the etch}
+  w_top: {value: 1.0, unit: um, description: rib top width}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+geometry:
+  dim: 2
+  features:
+    - {id: box, type: rect, settings: {size: ["10 um", "3 um"], center: ["0 um", "-1.5 um"]}}
+    - {id: slab, type: rect, settings: {size: ["10 um", "t_slab"], center: ["0 um", "t_slab/2"]}}
+    - id: rib
+      type: polygon
+      settings: {points: [["-(w_top/2 + (t_film - t_slab)/sqrt(3))", t_slab], ["w_top/2 + (t_film - t_slab)/sqrt(3)", t_slab], ["w_top/2", t_film], ["-w_top/2", t_film]]}
+    - {id: topr, type: rect, settings: {size: ["10 um", "3[um] - t_slab"], center: ["0 um", "(3[um] + t_slab)/2"]}}
+    - {id: top, type: difference, settings: {base: topr, tools: [rib], keepTools: true}}
+materials:
+  - id: LN
+    ref: materials/linbo3-congruent
+    override:
+      n: {symmetry: uniaxial, components: {perp: 2.211111009, par: 2.13755965}}
+    select: ["dom:slab", "dom:rib"]
+  - {id: SiO2, ref: materials/sio2-thermal-oxide, override: {n: 1.444023622}, select: ["dom:box"]}
+  - {id: Air, override: {n: 1}, select: ["dom:top"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:box", "dom:slab", "dom:rib", "dom:top"]
+    settings: {order: 2, crystals: [{material: LN, cut: x, propagation: y}], dispersion: {dndlambda: {Air: {value: 0, unit: 1/m}}}}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:box.left", "bnd:box.right", "bnd:box.bottom", "bnd:slab.left", "bnd:slab.right", "bnd:topr.left", "bnd:topr.right", "bnd:topr.top"]}
+mesh:
+  size: {hmax: "0.5 um", grading: 0.3}
+  refine:
+    - {select: ["dom:rib", "dom:slab"], h: "0.08 um"}
+    - {select: ["bnd:rib.e1", "bnd:rib.e2", "bnd:rib.e3"], h: "0.02 um"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  datasets:
+    - {id: sol_modes, type: solution, data: modes}
+  evaluations:
+    - id: ev_modes
+      data: sol_modes
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: ng, type: global, expr: ewg.ng_0, unit: "1"}
+        - {id: te_fraction, type: global, expr: ewg.teFraction_0, unit: "1"}
+  tables:
+    - {id: tbl_modes, from: ev_modes}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.t_film: {basis: benchmark, source: "eo-modulator-atlas thin-film LN rib cases, air and oxide clad (validation/cases/K2.yaml, K3.yaml header: film 600 nm)", date: 2026-11-18}
+    params.t_slab: {basis: benchmark, source: "eo-modulator-atlas validation/cases (etch 300 nm, slab y 0..0.3 um)", date: 2026-11-18}
+    params.w_top: {basis: benchmark, source: "eo-modulator-atlas validation/cases (top width 1.0 um; polygon_um of ln_rib)", date: 2026-11-18}
+    params.lambda0: {basis: benchmark, source: "eo-modulator-atlas validation/cases (optics.wavelength_nm 1550)", date: 2026-11-18}
+    materials.LN.override.n: {basis: benchmark, source: "eo-modulator-atlas validation/cases materials.lithium_niobate n_o, n_e (Zelmon 1997 at 1550 nm)", date: 2026-11-18}
+    materials.SiO2.override.n: {basis: benchmark, source: "eo-modulator-atlas validation/cases materials.silicon_dioxide.n (Malitson 1965 at 1550 nm, as tabulated)", date: 2026-11-18}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice: rib edges (corner singularities)"}
+    mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "Air above the film taken as vacuum (n 1, no dispersion)", paths: [materials]}
+  - {text: "Group index uses library dn/dlambda (LN Zelmon 1997 o / e, SiO2 Malitson 1965 converted to vacuum wavelength) at the atlas case indices; the atlas reference used the Sellmeier fits directly", paths: [physics]}
+# eval: [WO-82]

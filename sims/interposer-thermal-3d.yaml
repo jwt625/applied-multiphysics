@@ -1,0 +1,114 @@
+# PK-05 (eval/cases/c/PK-05.yaml): 2.5D package thermal map. Three Si dies (one logic die, two memory-sized dies) on a
+# micro-bump layer on a Si interposer (layer-stack extrude); each die dissipates its power in a thin active layer at its
+# bottom (flip chip); the die tops sit on an isothermal cold plate (the case), every other surface is adiabatic.
+# Results: per-die junction-to-case resistance (mean and peak active-layer temperature rise over the die power).
+# Gate (validation/pkg/interposer_bounds.py): the power-weighted mean active-layer temperature rise lies between two
+# closed-form bounds (Thomson / Rayleigh monotonicity of the thermal compliance in k): upper = each die alone (bump layer
+# and interposer removed, 1D series conduction through the die); lower = bump layer and interposer perfectly conducting
+# (one common temperature, 1D through every die from both faces). Both bounds are exact for this model, not estimates.
+# Modelling inputs NOT from a paper (illustrative): all dimensions, powers, the bump area fraction and T_case. The
+# micro-bump layer is homogenised with the parallel (Wiener) rule k_eff = f k_SAC305 + (1 - f) k_underfill, with the
+# underfill term left out because the library has no underfill k (materials/underfill-uf8830s: N/A): k_eff = f k_SAC305.
+# Si k: materials/silicon at 298.15 K as an override (no temperature for library tables yet, DevLog-049 R1); constant k
+# (linear model; Si k falls with temperature, not modelled).
+schema: amp-spec/0
+id: interposer-thermal-3d
+title: 2.5D interposer thermal map, three dies
+description: Three flip-chip dies on micro-bumps on a Si interposer under a cold plate; temperature map and junction-to-case resistance per die.
+params:
+  L_ip: {value: 14, unit: mm, description: interposer length (x)}
+  W_ip: {value: 8, unit: mm, description: interposer width (y)}
+  t_ip: {value: 100, unit: um, description: interposer thickness}
+  t_b: {value: 40, unit: um, description: micro-bump layer height}
+  t_a: {value: 10, unit: um, description: active layer thickness (heat source)}
+  t_d: {value: 300, unit: um, description: die thickness including the active layer}
+  a_L: {value: 6, unit: mm, description: logic die side}
+  w_M: {value: 3, unit: mm, description: memory die width (x)}
+  l_M: {value: 5, unit: mm, description: memory die length (y)}
+  x_M: {value: 5, unit: mm, description: memory die centre offset in x}
+  P_L: {value: 30, unit: W, description: logic die power}
+  P_M: {value: 5, unit: W, description: power of each memory die}
+  f_b: {value: 0.1623, description: "bump area fraction (pi (12.5 um)^2 / (55 um)^2)"}
+  k_sac: {value: 61, unit: W/(m*K), description: SAC305 thermal conductivity (library)}
+  T_case: {value: 298.15, unit: K, description: cold-plate (case) temperature}
+geometry:
+  dim: 3
+  features:
+    - {id: ip, type: rect, settings: {size: ["L_ip", "W_ip"], center: {value: [0, 0], unit: mm}}}
+    - {id: logic, type: rect, settings: {size: ["a_L", "a_L"], center: {value: [0, 0], unit: mm}}}
+    - {id: mem_l, type: rect, settings: {size: ["w_M", "l_M"], center: ["-x_M", "0 mm"]}}
+    - {id: mem_r, type: rect, settings: {size: ["w_M", "l_M"], center: ["x_M", "0 mm"]}}
+    - id: pkg
+      type: extrude
+      settings:
+        layers:
+          - {id: interposer, thickness: "t_ip", sketch: [ip], nz: 2}
+          - {id: bumps, thickness: "t_b", sketch: [logic, mem_l, mem_r], nz: 1}
+          - {id: active, thickness: "t_a", sketch: [logic, mem_l, mem_r], nz: 1}
+          - {id: bulk, thickness: "t_d - t_a", sketch: [logic, mem_l, mem_r], nz: 2}
+materials:
+  - {id: si, ref: materials/silicon, override: {k: {value: 149.038, unit: W/(m*K)}}, select: ["dom:pkg.interposer", "dom:pkg.active", "dom:pkg.bulk"]}
+  - {id: bump_layer, override: {k: "f_b*k_sac"}, select: ["dom:pkg.bumps"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:pkg"]
+    bcs:
+      - {id: q_logic, type: heat-source, select: ["dom:logic.active"], settings: {Q: "P_L/(a_L^2*t_a)"}}
+      - {id: q_mem_l, type: heat-source, select: ["dom:mem_l.active"], settings: {Q: "P_M/(w_M*l_M*t_a)"}}
+      - {id: q_mem_r, type: heat-source, select: ["dom:mem_r.active"], settings: {Q: "P_M/(w_M*l_M*t_a)"}}
+      - {id: cold_plate, type: temperature, select: ["bnd:pkg.top"], settings: {T: "T_case"}}
+studies:
+  - {id: std1, type: stationary, physics: [ht]}
+mesh:
+  size: {hmax: 0.5 mm}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: midline, type: cutline, data: sol_std1, from: ["-L_ip/2", "0 mm", "t_ip + t_b + t_a/2"], to: ["L_ip/2", "0 mm", "t_ip + t_b + t_a/2"], n: 300}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: Tj_logic, type: average, expr: ht.T, unit: K, over: ["dom:logic.active"], label: "mean active-layer temperature, logic die"}
+        - {id: Tj_mem_l, type: average, expr: ht.T, unit: K, over: ["dom:mem_l.active"], label: "mean active-layer temperature, left memory die"}
+        - {id: Tj_mem_r, type: average, expr: ht.T, unit: K, over: ["dom:mem_r.active"], label: "mean active-layer temperature, right memory die"}
+        - {id: Tmax_logic, type: max, expr: ht.T, unit: K, over: ["dom:logic.active"], method: nodal}
+        - {id: Rjc_logic, type: global, expr: "(ht.T_max - T_case)/P_L", unit: K/W, label: "peak junction-to-case resistance of the logic die (package peak is in the logic die)"}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: T_3d
+      type: plot3d
+      data: sol_std1
+      items:
+        - {id: T_vol, type: volume, expr: ht.T, unit: K}
+    - id: T_line
+      type: plot1d
+      items:
+        - {id: T_curve, type: linegraph, data: midline, x: arc, expr: ht.T, unit: K}
+provenance:
+  values:
+    params.L_ip: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.W_ip: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.t_ip: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.t_b: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.t_a: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.t_d: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.a_L: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.w_M: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.l_M: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.x_M: {basis: user, date: 2026-11-18, note: "illustrative modelling input (0.5 mm gaps between the dies)"}
+    params.P_L: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.P_M: {basis: user, date: 2026-11-18, note: "illustrative modelling input"}
+    params.f_b: {basis: user, date: 2026-11-18, note: "illustrative bump diameter 25 um on a 55 um square pitch, not from a paper"}
+    params.k_sac: {basis: datasheet, source: "materials/sac305.yaml k (Indium Corporation Indalloy 256 product data sheet)", date: 2026-11-18}
+    params.T_case: {basis: user, date: 2026-11-18, note: "illustrative; the resistances do not depend on it (linear model)"}
+    materials.si.override.k: {basis: measured, source: "materials/silicon.yaml k (HPL 1972) at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
+    materials.bump_layer.override.k: {basis: derived, date: 2026-11-18, note: "parallel (Wiener) homogenisation f k_SAC305; the underfill term (1 - f) k_underfill is left out (library k N/A), so the layer conductance is a lower estimate"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; thin layers give flat tets (P2)"}
+assumptions:
+  - {text: "Micro-bump layer homogenised (parallel rule, underfill conduction left out); explicit bumps not modelled", paths: [materials.bump_layer]}
+  - {text: "Isothermal cold plate on all die tops (the case); every other surface adiabatic; no thermal interface material", paths: [physics.ht.bcs]}
+  - {text: "Power uniform in each die's active layer; constant k", paths: [physics.ht.bcs, materials]}
+# eval: [PK-05]

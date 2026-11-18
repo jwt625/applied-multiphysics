@@ -1,0 +1,186 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-85",
+  "class": "c",
+  "generator": "validation/modes3/references.py",
+  "command": "cd validation && uv run python modes3/references.py",
+  "method": "Digitized from Kakihara, Kono, Saitoh, Koshiba, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128, Fig. 4 (p.11139; full-vector FEM in local cylindrical coordinates with PML, 'CCS'); open copy eprints.lib.hokudai.ac.jp (OE14-23.pdf sha256 5a6c0d60a7061f717274db36cd9c4a4b8edbdab356cbec3c199c7383497b4b78) rendered at 400 dpi (pdftoppm), digitized by validation/modes3/digitize_fig.py",
+  "generated_at": "2026-11-18T13:54:40-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "mpmath": "1.4.1",
+    "pyyaml": "6.0.3"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "loss90_te_R1p0",
+      "value": 0.021349745331069613,
+      "unit": "dB",
+      "R_um": 1.0,
+      "mode": "quasi-TE",
+      "precision": {
+        "method": "digitized red (CCS) curve, mean row of the drawn line at the column of R",
+        "line_extent_dB": [
+          0.019885398981324277,
+          0.02281409168081494
+        ],
+        "half_extent_dB": 0.0014643463497453317,
+        "dB_per_px": 4.244482173174873e-05
+      }
+    },
+    {
+      "metric_id": "loss90_te_R1p25",
+      "value": 0.006345500848896435,
+      "unit": "dB",
+      "R_um": 1.25,
+      "mode": "quasi-TE",
+      "precision": {
+        "method": "digitized red (CCS) curve, mean row of the drawn line at the column of R",
+        "line_extent_dB": [
+          0.005241935483870968,
+          0.007449066213921902
+        ],
+        "half_extent_dB": 0.0011035653650254668,
+        "dB_per_px": 4.244482173174873e-05
+      }
+    },
+    {
+      "metric_id": "loss90_te_R1p5",
+      "value": 0.001825127334465195,
+      "unit": "dB",
+      "R_um": 1.5,
+      "mode": "quasi-TE",
+      "precision": {
+        "method": "digitized red (CCS) curve, mean row of the drawn line at the column of R",
+        "line_extent_dB": [
+          0.001464346349745331,
+          0.0021859083191850598
+        ],
+        "half_extent_dB": 0.00036078098471986435,
+        "dB_per_px": 4.244482173174873e-05
+      }
+    },
+    {
+      "metric_id": "loss90_te_R2p0",
+      "value": 0.00016977928692699492,
+      "unit": "dB",
+      "R_um": 2.0,
+      "mode": "quasi-TE",
+      "precision": {
+        "method": "digitized red (CCS) curve, mean row of the drawn line at the column of R",
+        "line_extent_dB": [
+          2.1222410865874364e-05,
+          0.00031833616298811547
+        ],
+        "half_extent_dB": 0.00014855687606112056,
+        "dB_per_px": 4.244482173174873e-05
+      }
+    },
+    {
+      "metric_id": "loss90_tm_R2p0",
+      "value": 2.5304054054054053,
+      "unit": "dB",
+      "R_um": 2.0,
+      "mode": "quasi-TM",
+      "precision": {
+        "method": "digitized red (CCS) curve, mean row of the drawn line at the column of R",
+        "line_extent_dB": [
+          2.4425675675675675,
+          2.6182432432432434
+        ],
+        "half_extent_dB": 0.08783783783783794,
+        "dB_per_px": 0.006756756756756757
+      }
+    },
+    {
+      "metric_id": "loss90_tm_R3p0",
+      "value": 1.8513513513513513,
+      "unit": "dB",
+      "R_um": 3.0,
+      "mode": "quasi-TM",
+      "precision": {
+        "method": "digitized red (CCS) curve, mean row of the drawn line at the column of R",
+        "line_extent_dB": [
+          1.7939189189189189,
+          1.9087837837837838
+        ],
+        "half_extent_dB": 0.057432432432432456,
+        "dB_per_px": 0.006756756756756757
+      }
+    },
+    {
+      "metric_id": "loss90_tm_R5p0",
+      "value": 1.1013513513513513,
+      "unit": "dB",
+      "R_um": 5.0,
+      "mode": "quasi-TM",
+      "precision": {
+        "method": "digitized red (CCS) curve, mean row of the drawn line at the column of R",
+        "line_extent_dB": [
+          1.0641891891891893,
+          1.1385135135135136
+        ],
+        "half_extent_dB": 0.03716216216216217,
+        "dB_per_px": 0.006756756756756757
+      }
+    },
+    {
+      "metric_id": "loss90_tm_R7p5",
+      "value": 0.5912162162162162,
+      "unit": "dB",
+      "R_um": 7.5,
+      "mode": "quasi-TM",
+      "precision": {
+        "method": "digitized red (CCS) curve, mean row of the drawn line at the column of R",
+        "line_extent_dB": [
+          0.5641891891891891,
+          0.6182432432432432
+        ],
+        "half_extent_dB": 0.02702702702702703,
+        "dB_per_px": 0.006756756756756757
+      }
+    },
+    {
+      "metric_id": "loss90_tm_R10p0",
+      "value": 0.3277027027027027,
+      "unit": "dB",
+      "R_um": 10.0,
+      "mode": "quasi-TM",
+      "precision": {
+        "method": "digitized red (CCS) curve, mean row of the drawn line at the column of R",
+        "line_extent_dB": [
+          0.30067567567567566,
+          0.3547297297297297
+        ],
+        "half_extent_dB": 0.02702702702702703,
+        "dB_per_px": 0.006756756756756757
+      }
+    }
+  ],
+  "inputs": {
+    "panels": {
+      "TE": {
+        "top_px": 428.5,
+        "bottom_px": 1017.5,
+        "left_px": 1057.5,
+        "right_px": 2546.5,
+        "R_max_um": 10.0,
+        "loss_max_dB": 0.025
+      },
+      "TM": {
+        "top_px": 1317.5,
+        "bottom_px": 1909.5,
+        "left_px": 1052.5,
+        "right_px": 2533.0,
+        "R_max_um": 30.0,
+        "loss_max_dB": 4.0
+      }
+    }
+  }
+}

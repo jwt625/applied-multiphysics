@@ -8,6 +8,7 @@ import { createOpLog, parseSpecText, resolveQuantity, units, type ParamInfo, typ
 import type { JsonPatchOp } from '@amp/spec/types';
 import type { Mesh, Operation, Solution } from '@amp/spec/types';
 import { EngineClient, type RunOutcome } from '../engine/client';
+import { poolSize } from '../engine/pool';
 import { PostClient } from '../post/client';
 import { toMesh2D, type Mesh2D } from '../post/field2d';
 import { ModelState } from '../state/model.svelte';
@@ -119,6 +120,8 @@ export class Session {
 	solvedSeq = $state(0);
 	/** Compute runs a parametric study as a sweep (workbench only; Play solves the single study at the slider values) */
 	sweepEnabled = false;
+	/** sweep points solved at once on the worker pool (engine/pool.ts); null = automatic (poolSize), 1 = serial */
+	sweepWorkers = $state<number | null>(null);
 	/** study picker (DevLog-040): the study Compute solves; null = the default (a parametric study as a sweep when
 	 *  sweeps are on, else the first study). A choice that no longer exists in the spec falls back to the default. */
 	study = $state<string | null>(null);
@@ -474,33 +477,46 @@ export class Session {
 		appLog.clearProgress();
 		appLog.info(`sweep ${par.id}: ${total} points over ${axes.map((a) => `${a.param} (${a.values.length})`).join(' x ')}`);
 		const kase = this.useCase && this.caseInfo ? { case: this.caseInfo.data } : {};
-		let solved = 0, last: RunOutcome = { kind: 'cancelled', ms: 0 };
+		let solved = 0, last = { kind: 'cancelled', ms: 0 } as RunOutcome;
 		const put = () => { if (tok === this.sweepToken) this.publish(); };
+		// 1. every point's spec text (a point whose text cannot be built is an error and is not run)
+		const texts: Array<string | null> = [];
 		for (const p of points) {
+			try { texts.push(await this.runText(par, p.values, base)); }
+			catch (e) { texts.push(null); p.status = 'error'; p.message = (e as Error).message; last = { kind: 'error', message: p.message, ms: 0 }; }
 			if (tok !== this.sweepToken) return { kind: 'cancelled', ms: performance.now() - t0 };
-			p.status = 'solving';
-			put();
-			const tag = `sweep ${p.index + 1}/${total}`;
-			let text: string;
-			try { text = await this.runText(par, p.values, base); }
-			catch (e) { p.status = 'error'; p.message = (e as Error).message; put(); last = { kind: 'error', message: p.message, ms: 0 }; continue; }
-			// cancelled while the point text was built: start no run
-			if (tok !== this.sweepToken) return { kind: 'cancelled', ms: performance.now() - t0 };
-			let lm: { m: Mesh; q: Float64Array; ms: MeshInfo['ms']; src: string } | null = null;
-			const o = await this.engine.run(text, { meshScale: 1, ...kase }, {
-				mesh: (m, q, ms, src) => { lm = { m, q, ms, src }; },
-				progress: (st, f, msg, ts) => {
-					appLog.stage(tag, st, f, msg, ts);
-					if (tok !== this.sweepToken) return;
-					this.progress = { stage: `${tag} ${st}`, frac: (p.index + (st === 'solve' ? f : 0)) / total, ...(msg ? { msg } : {}) };
-					if (st === 'prepare' && msg && p.index === 0) this.notes = [...this.notes, msg];
+		}
+		put();
+		// 2. all runnable points on the worker pool (DevLog-054 R3): outcomes come back in sweep order, so the
+		// per-point block below sees the same sequence as the serial loop; engine.cancel() (Session.cancel) stops it
+		const idx = points.filter((_, i) => texts[i] !== null).map((p) => p.index);
+		const lms: Array<{ m: Mesh; q: Float64Array; ms: MeshInfo['ms']; src: string } | null> = points.map(() => null);
+		let finished = 0;
+		const start = (p: SweepPoint) => { if (p.status === 'pending') { p.status = 'solving'; put(); } };
+		const jobs = idx.map((i) => {
+			const p = points[i]!, tag = `sweep ${i + 1}/${total}`;
+			return {
+				specText: texts[i]!, options: { meshScale: 1, ...kase },
+				handlers: {
+					mesh: (m: Mesh, q: Float64Array, ms: MeshInfo['ms'], src: string) => { lms[i] = { m, q, ms, src }; },
+					progress: (st: string, f: number, msg: string | undefined, ts: string) => {
+						appLog.stage(tag, st, f, msg, ts);
+						if (tok !== this.sweepToken) return;
+						start(p);
+						this.progress = { stage: `${tag} ${st}`, frac: Math.min(1, (finished + (st === 'solve' ? f : 0)) / total), ...(msg ? { msg } : {}) };
+						if (st === 'prepare' && msg && i === idx[0]) this.notes = [...this.notes, msg];
+					}
 				}
-			});
-			if (tok !== this.sweepToken || o.kind === 'cancelled') { p.status = 'cancelled'; put(); return o; }
+			};
+		});
+		const onPoint = (k: number, o: RunOutcome) => {
+			const p = points[idx[k]!]!, tag = `sweep ${p.index + 1}/${total}`;
+			if (tok !== this.sweepToken || o.kind === 'cancelled') { if (p.status === 'pending' || p.status === 'solving') p.status = 'cancelled'; put(); return; }
+			finished++;
 			p.ms = o.ms;
-			const L = lm as { m: Mesh; q: Float64Array; ms: MeshInfo['ms']; src: string } | null;
+			const L = lms[p.index];
 			if (L) { p.mesh = L.m; p.quality = L.q; p.meshMs = L.ms; p.meshSource = L.src; p.held = true; }
-			p.params = parseSpecText(text, this.model.reg).params;
+			p.params = parseSpecText(texts[p.index]!, this.model.reg).params;
 			if (o.kind === 'result') { p.status = 'solved'; p.solution = o.solution; p.scalars = o.solution.scalars; p.dof = o.solution.stats.dof; solved++; }
 			else if (o.kind === 'unavailable') { p.status = 'unavailable'; p.message = o.reasons.join('; '); }
 			else if (o.kind === 'error') { p.status = 'error'; p.message = o.message; }
@@ -512,7 +528,11 @@ export class Session {
 			if (o.kind === 'result' && solved === 1) this.solvedSeq++;
 			if (this.active < 0 && L) this.showPoint(p.index);
 			last = o;
-		}
+		};
+		const workers = this.sweepWorkers ?? undefined;
+		const outs = idx.length ? await this.engine.runSweep(jobs, onPoint, workers) : [];
+		if (tok !== this.sweepToken || outs.some((o) => o.kind === 'cancelled')) return { kind: 'cancelled', ms: performance.now() - t0 };
+		appLog.info(`sweep ${par.id}: ${idx.length} points run on ${workers ?? poolSize(idx.length)} worker(s)`);
 		const ms = performance.now() - t0;
 		this.lastOutcomeMs = ms;
 		this.progress = null;

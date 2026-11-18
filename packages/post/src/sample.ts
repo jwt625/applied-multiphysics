@@ -4,11 +4,15 @@
 import type { Mesh, Solution } from '@amp/spec/types';
 import { evaluateField } from './evaluate.ts';
 import { fieldOf, meshOf } from './store.ts';
+import { interpolate, locatePoints } from './points.ts';
 
 export interface SampleOptions {
   mesh?: Mesh; component?: number | 'norm'; step?: number; /** reference-coordinate tolerance for points on curved walls (e.g. 1e-3) */ snap?: number;
   /** physics id of the field in a merged multiphysics solution (C11); `field` may also be written `<physics id>.<name>` */
   physics?: string;
+  /** DG0 (per cell) fields: values from the corner recovery of the 2D view (`recoverDG0`, linear on the cell corners,
+   * jumps kept at domain interfaces) instead of the cell constant; for plots (cut lines, grids). Other spaces unaffected. */
+  smooth?: boolean;
 }
 
 /**
@@ -23,7 +27,9 @@ export function sample(sol: Solution, field: string, points: ArrayLike<number> |
   const f = fieldOf(sol, name, o.step, physics);
   const flat = Array.isArray(points) && Array.isArray(points[0]) ? Float64Array.from((points as number[][]).flat()) : (points as ArrayLike<number>);
   if (flat.length % mesh.dim) throw new Error(`sample: ${flat.length} coordinates is not a multiple of dim ${mesh.dim}`);
-  const { values } = evaluateField(mesh, f, flat, o.snap ? { snap: o.snap } : {});
+  const { values } = o.smooth && f.space === 'DG0'
+    ? interpolate(f, locatePoints(mesh, flat, o.snap ? { snap: o.snap } : {}), { smooth: true })
+    : evaluateField(mesh, f, flat, o.snap ? { snap: o.snap } : {});
   const nc = f.components, np = flat.length / mesh.dim, out = new Float64Array(np);
   for (let i = 0; i < np; i++) {
     if (o.component === 'norm') { let s = 0; for (let j = 0; j < nc; j++) s += values[i * nc + j]! ** 2; out[i] = Math.sqrt(s); }

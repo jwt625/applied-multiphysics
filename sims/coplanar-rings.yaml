@@ -51,12 +51,12 @@ provenance:
     params.ra: {basis: benchmark, source: "eval/cases/c/EM-03.yaml geometry.spec.ring_a (Palace docs rings.md)", date: 2026-11-06}
     params.rb: {basis: benchmark, source: "eval/cases/c/EM-03.yaml geometry.spec.ring_b", date: 2026-11-06}
     params.w: {basis: benchmark, source: "eval/cases/c/EM-03.yaml geometry.spec.ring_a.width_m", date: 2026-11-06}
-    params.Rb: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
-    materials.vacuum.override.mu_r: {basis: benchmark, source: "eval/cases/c/EM-03.yaml materials.vacuum.mu_r (rings.md L24-25)", date: 2026-11-06}
+    params.Rb: {basis: user, date: 2026-11-06, note: "modelling choice (as in the earlier verification gate)"}
+    materials.vacuum.override.mu_r: {basis: benchmark, source: "eval/cases/c/EM-03.yaml materials.vacuum.mu_r (rings.md lines 24-25)", date: 2026-11-06}
     physics.mf.bcs.ra.settings.current: {basis: user, date: 2026-11-06, note: "1 A; the inductance matrix does not depend on it"}
     physics.mf.bcs.rb.settings.current: {basis: user, date: 2026-11-06, note: "1 A; the inductance matrix does not depend on it"}
-    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
-    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (as in the earlier verification gate)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (as in the earlier verification gate)"}
 assumptions:
-  - {text: "Palace's 1 um strip (surface current) is modelled as a round section of diameter w with uniform current (L4 DevLog-010 s.4.3)", paths: [params.w]}
+  - {text: "Palace's 1 um strip (surface current) is modelled as a round section of diameter w with uniform current (as in the earlier verification gate)", paths: [params.w]}
 # eval: [EM-03]

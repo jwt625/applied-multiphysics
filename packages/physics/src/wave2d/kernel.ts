@@ -16,6 +16,8 @@ import { NPC, nCells, nNodes, nFacets } from '../common/mesh.ts';
 import { defaultRule, facetJac, gatherX, physGrad, shapeTable, type ShapeTable } from '../common/lagrange.ts';
 import { stretch, type PmlModel } from './pml.ts';
 import { symGenEig, cplxGenEig } from './dense.ts';
+import { BlochReduction, type PeriodicMap, type V2 } from './bloch.ts';
+import { EnvelopeLU } from './lu.ts';
 
 export interface Csr { n: number; rowptr: Int32Array; colidx: Int32Array; nnz: number }
 export type Cx = [number, number];
@@ -49,6 +51,8 @@ export interface FreqInput {
   planeWave?: PlaneWave;
   /** power constant C of P = Re(beta) |b|^2 / (2 omega C): mu0 (TM), eps0 (TE), 1 (acoustics) */
   powerC: number;
+  /** periodic cells (DevLog-050): Bloch wave vector k = kRe + j kIm (1/m); u(x + a) = u(x) exp(-j k.a) */
+  bloch?: { kRe: V2; kIm: V2 };
 }
 
 export interface PortMode { beta: Cx; phiRe: Float64Array; phiIm: Float64Array; propagating: boolean }
@@ -139,13 +143,20 @@ export class Wave2DSolver {
   private facetInfo = new Map<number, FacetInfo>();
   private portNodes = new Map<string, Int32Array>();
   factorKind: FactorKind | null;
+  readonly periodic: PeriodicMap | null;
+  private bloch: { red: BlochReduction; lu: EnvelopeLU; key: string } | null = null;
+  /** factor-storage budget of the Floquet envelope LU (default ENVELOPE_LU_MAX_BYTES; tests pass a small one) */
+  private envelopeMaxBytes: number | undefined;
 
-  constructor(mesh: Mesh, active: Uint8Array, pml: PmlModel | null, ports: Array<{ id: string; facets: number[] }>, dirichletFacets: number[], o: { factor?: FactorKind | null } = {}) {
+  constructor(mesh: Mesh, active: Uint8Array, pml: PmlModel | null, ports: Array<{ id: string; facets: number[] }>, dirichletFacets: number[], o: { factor?: FactorKind | null; periodic?: PeriodicMap | null; envelopeMaxBytes?: number } = {}) {
     if (mesh.dim !== 2 || (mesh.cells.type !== 'tri6' && mesh.cells.type !== 'tri3')) throw new Error(`wave2d: needs a 2D tri3 / tri6 mesh (got ${mesh.dim}D ${mesh.cells.type})`);
     if (mesh.axisym) throw new Error('wave2d: axisymmetric meshes are not supported (planar 2D only)');
     this.mesh = mesh; this.active = active; this.pml = pml;
     this.nn = nNodes(mesh); this.k = NPC[mesh.cells.type];
     this.factorKind = o.factor ?? null;
+    this.periodic = o.periodic ?? null;
+    this.envelopeMaxBytes = o.envelopeMaxBytes;
+    if (this.periodic && ports.length) throw new Error('wave2d: ports in a periodic (Floquet) cell are not supported; use a plane wave with PML layers');
     const ord = mesh.cells.type === 'tri6' ? 2 : 1;
     this.tab = shapeTable(mesh.cells.type, defaultRule(mesh.cells.type, 2 * ord));
     this.ftab = shapeTable(mesh.facets.type, defaultRule(mesh.facets.type, 2 * ord + 3));
@@ -179,7 +190,8 @@ export class Wave2DSolver {
     this.cellSlots = elementSlots(this.pat, mesh.cells.conn, k) as Int32Array;
     const x = new Float64Array(this.nn), y = new Float64Array(this.nn);
     for (let i = 0; i < this.nn; i++) { x[i] = mesh.nodes[2 * i]!; y[i] = mesh.nodes[2 * i + 1]!; }
-    this.sym = analyze(this.pat, { ordering: 'nd', x, y });
+    // periodic cells solve the reduced (non-symmetric) system with the envelope LU instead (DevLog-050)
+    if (!this.periodic) this.sym = analyze(this.pat, { ordering: 'nd', x, y });
   }
 
   /** Adjacent active cell of a facet and the sign that makes the node-order normal point out of that cell. */
@@ -380,17 +392,46 @@ export class Wave2DSolver {
       if (withValues) for (const [j, d, ar, ai] of lift) { const g = dirVal.get(d)!; br[j]! -= ar * g[0] - ai * g[1]; bi[j]! -= ar * g[1] + ai * g[0]; }
       for (const [d, g] of dirVal) { br[d] = withValues ? g[0] : 0; bi[d] = withValues ? g[1] : 0; }
     };
-    const fac = makeFactor(this.factorKind, this.sym);
-    const fr = fac.factor(Are, Aim);
+    let relResidual = 0;
+    let solveOne: (br: Float64Array, bi: Float64Array) => { re: Float64Array; im: Float64Array };
+    let nPerturbed = 0;
+    if (this.periodic) {
+      // Floquet cell: reduce to the free node classes, R = Q^T A P (q = 1 / p), envelope LU, expand u = P u_r
+      const key = [...dirVal.keys()].sort((a, b) => a - b).join(',');
+      if (!this.bloch || this.bloch.key !== key) {
+        const ex = new Uint8Array(nn);
+        for (const d of dirVal.keys()) ex[d] = 1;
+        const red = new BlochReduction(mesh, this.periodic, pat, ex);
+        this.bloch = { red, lu: new EnvelopeLU(red.pat, this.envelopeMaxBytes !== undefined ? { maxBytes: this.envelopeMaxBytes } : {}), key };
+      }
+      const { red, lu } = this.bloch;
+      const ph = this.periodic.phases(fi.bloch?.kRe ?? [0, 0], fi.bloch?.kIm ?? [0, 0]);
+      const R = red.reduce(pat, Are, Aim, ph);
+      lu.factor(R.re, R.im);
+      nPerturbed = lu.nPerturbed;
+      solveOne = (br, bi) => {
+        const rb = red.reduceVec(br, bi, ph);
+        const x = lu.solveRefined(R.re, R.im, rb.re, rb.im);
+        relResidual = Math.max(relResidual, x.relResidual);
+        // excluded (Dirichlet, inactive) nodes keep the values applyDir put into the RHS
+        const ur = Float64Array.from(br), ui = Float64Array.from(bi);
+        for (let i = 0; i < nn; i++) if (red.red[i]! >= 0) { ur[i] = 0; ui[i] = 0; }
+        red.expand(x.re, x.im, ph, ur, ui);
+        return { re: ur, im: ui };
+      };
+    } else {
+      const fac = makeFactor(this.factorKind, this.sym);
+      const fr = fac.factor(Are, Aim);
+      nPerturbed = fr.nPerturbed;
+      solveOne = (br, bi) => {
+        const r = fac.solveRefined(pat, Are, Aim, br, bi, { maxSteps: 3, tol: 1e-13 });
+        relResidual = Math.max(relResidual, r.relResidual);
+        return r;
+      };
+    }
     const tFactor = performance.now() - t1;
     const t2 = performance.now();
-    let relResidual = 0;
-    const solveOne = (br: Float64Array, bi: Float64Array) => {
-      const r = fac.solveRefined(pat, Are, Aim, br, bi, { maxSteps: 3, tol: 1e-13 });
-      relResidual = Math.max(relResidual, r.relResidual);
-      return r;
-    };
-    const res: FreqResult = { uRe: new Float64Array(nn), uIm: new Float64Array(nn), ports, relResidual: 0, nPerturbed: fr.nPerturbed, notes, timing: { assemble: tAssemble, factor: tFactor, solve: 0, ports: tPorts } };
+    const res: FreqResult = { uRe: new Float64Array(nn), uIm: new Float64Array(nn), ports, relResidual: 0, nPerturbed, notes, timing: { assemble: tAssemble, factor: tFactor, solve: 0, ports: tPorts } };
     if (!ports.length) {
       applyDir(bRe, bIm, true);
       const r = solveOne(bRe, bIm);

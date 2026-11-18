@@ -10,6 +10,8 @@
 	import { onMount, untrack } from 'svelte';
 	import { Renderer2D, type Layer2D, type View2D } from './renderer2d';
 	import { grabCanvas, registerCapture } from './capture';
+	import { niceTicks, fmt, fmtEng } from './ticks';
+	import { unitLabel } from './units';
 
 	export interface Handle {
 		id: string;
@@ -46,8 +48,23 @@
 		ondraw,
 		colorLines = [],
 		arrows = null,
-		guides = []
+		guides = [],
+		axes = 'none',
+		axesBox = null,
+		axisNames = ['x', 'y'],
+		lu = { unit: 'm', f: 1 },
+		boxes = []
 	}: {
+		/** frame axes along the model box (ticks in the length unit), a scale bar, or nothing (DevLog-052) */
+		axes?: 'axes' | 'scale' | 'none';
+		/** model box the axes follow (m); clamped to the visible area */
+		axesBox?: [number, number, number, number] | null;
+		/** axis names (x, y; r, z for axisymmetric models) */
+		axisNames?: [string, string];
+		/** display length unit: value in the unit = f times the value in m */
+		lu?: { unit: string; f: number };
+		/** dashed rectangles with a label (e.g. the inner edge of a PML), world m */
+		boxes?: Array<{ x0: number; y0: number; x1: number; y1: number; label: string; tip: string }>;
 		/** draw tool: 'line' = press-drag-release reports both ends, 'point' = a click reports the point; no pan */
 		draw?: 'line' | 'point' | null;
 		ondraw?: (p0: { x: number; y: number }, p1: { x: number; y: number } | null) => void;
@@ -232,6 +249,34 @@
 		}
 		return d;
 	});
+	/** a label next to a point, kept inside the canvas (flipped to the left near the right edge; 10 px mono) */
+	function sideLabel(px: number, py: number, text: string): { x: number; y: number; anchor: 'start' | 'end' } {
+		const tw = 6.1 * text.length;
+		const right = px + 6 + tw <= w - 4;
+		return { x: right ? px + 6 : px - 6, y: Math.max(12, Math.min(h - 6, py - 4)), anchor: right ? 'start' : 'end' };
+	}
+	/** frame axes: an x axis under and a y axis left of the model box, clamped into the visible area, nice ticks */
+	const axisDraw = $derived.by(() => {
+		if (axes !== 'axes' || !axesBox || w < 80 || h < 80) return null;
+		const [x0, y0, x1, y1] = axesBox;
+		const a = toPx(x0, y0), b = toPx(x1, y1);
+		const top = 34, bot = h - 40, lft = 46, rgt = w - 10;
+		const ya = Math.min(bot, Math.max(top + 20, a.py + 6)), xa = Math.max(lft, Math.min(rgt - 20, a.px - 6));
+		const px0 = Math.max(xa, a.px), px1 = Math.min(rgt, b.px), py0 = Math.min(ya, a.py), py1 = Math.max(top, b.py);
+		if (px1 - px0 < 20 || py0 - py1 < 20) return null;
+		const wx0 = toWorld(px0, 0).x, wx1 = toWorld(px1, 0).x, wy0 = toWorld(0, py0).y, wy1 = toWorld(0, py1).y;
+		const tx = niceTicks(wx0 * lu.f, wx1 * lu.f, Math.max(2, Math.floor((px1 - px0) / 80))).map((v) => ({ v, p: toPx(v / lu.f, 0).px }));
+		const ty = niceTicks(wy0 * lu.f, wy1 * lu.f, Math.max(2, Math.floor((py0 - py1) / 50))).map((v) => ({ v, p: toPx(0, v / lu.f).py }));
+		return { ya, xa, px0, px1, py0, py1, tx, ty };
+	});
+	/** scale bar: a 1-2-5 length near 100 px, bottom right */
+	const scaleBar = $derived.by(() => {
+		if (axes !== 'scale' || !(view.scale > 0) || w < 120) return null;
+		const want = 100 / view.scale, e = 10 ** Math.floor(Math.log10(want));
+		const L = [1, 2, 5, 10].map((k) => k * e).reduce((p, q) => (Math.abs(q * view.scale - 100) < Math.abs(p * view.scale - 100) ? q : p));
+		const px = L * view.scale, eng = fmtEng(L, 'm', 3);
+		return { x0: w - 16 - px, x1: w - 16, y: h - 50, label: `${eng.num} ${unitLabel(eng.unit)}` };
+	});
 	/** peak label placement inside the canvas: px, py of the point, text width estimate (11 px mono) */
 	function labelBox(px: number, py: number, text: string) {
 		const tw = 6.7 * text.length + 8, th = 17;
@@ -308,14 +353,35 @@
 		{#if hiPath}<path class="hl" d={hiPath} />{/if}
 		{#each colorPaths as c, k (k)}<path class="cl" d={c.d} style:stroke={c.color} />{/each}
 		{#if arrowPath}<path class="ar" d={arrowPath} />{/if}
+		{#each boxes as bx, k (k)}
+			{@const p = toPx(bx.x0, bx.y1)}
+			{@const q = toPx(bx.x1, bx.y0)}
+			<g class="bx" data-tip={bx.tip}><rect x={p.px} y={p.py} width={Math.max(0, q.px - p.px)} height={Math.max(0, q.py - p.py)} /><text x={p.px + 3} y={p.py - 4}>{bx.label}</text></g>
+		{/each}
+		{#if axisDraw}
+			{@const A = axisDraw}
+			<g class="ax">
+				<path d="M{A.px0} {A.ya + 0.5}H{A.px1}M{A.xa + 0.5} {A.py0}V{A.py1}" />
+				{#each A.tx as t}<path d="M{t.p} {A.ya}v4" /><text x={t.p} y={A.ya + 14} text-anchor="middle">{fmt(t.v, 4)}</text>{/each}
+				{#each A.ty as t}<path d="M{A.xa} {t.p}h-4" /><text x={A.xa - 6} y={t.p + 3} text-anchor="end">{fmt(t.v, 4)}</text>{/each}
+				<text class="an" x={A.px1} y={A.ya - 4} text-anchor="end">{axisNames[0]} ({unitLabel(lu.unit)})</text>
+				<text class="an" x={A.xa + 4} y={A.py1 + 9}>{axisNames[1]} ({unitLabel(lu.unit)})</text>
+			</g>
+		{/if}
+		{#if scaleBar}
+			{@const B = scaleBar}
+			<g class="sb"><path d="M{B.x0} {B.y - 4}V{B.y}H{B.x1}V{B.y - 4}" /><text x={(B.x0 + B.x1) / 2} y={B.y - 6} text-anchor="middle">{B.label}</text></g>
+		{/if}
 		{#each guides as g (g.id)}
 			{#if g.seg}
 				{@const a = toPx(g.seg[0], g.seg[1])}
 				{@const b = toPx(g.seg[2], g.seg[3])}
-				<g class="gd" class:on={g.on} data-tip={g.tip}><line x1={a.px} y1={a.py} x2={b.px} y2={b.py} /><line class="hit" x1={a.px} y1={a.py} x2={b.px} y2={b.py} /><text x={b.px + 6} y={b.py - 4}>{g.label}</text></g>
+				{@const t = sideLabel(b.px, b.py, g.label)}
+				<g class="gd" class:on={g.on} data-tip={g.tip}><line x1={a.px} y1={a.py} x2={b.px} y2={b.py} /><line class="hit" x1={a.px} y1={a.py} x2={b.px} y2={b.py} /><text x={t.x} y={t.y} text-anchor={t.anchor}>{g.label}</text></g>
 			{:else if g.pt}
 				{@const a = toPx(g.pt[0], g.pt[1])}
-				<g class="gd" class:on={g.on} data-tip={g.tip}><path d="M{a.px - 4} {a.py - 4}L{a.px + 4} {a.py + 4}M{a.px - 4} {a.py + 4}L{a.px + 4} {a.py - 4}" /><text x={a.px + 6} y={a.py - 4}>{g.label}</text></g>
+				{@const t = sideLabel(a.px, a.py, g.label)}
+				<g class="gd" class:on={g.on} data-tip={g.tip}><path d="M{a.px - 4} {a.py - 4}L{a.px + 4} {a.py + 4}M{a.px - 4} {a.py + 4}L{a.px + 4} {a.py - 4}" /><text x={t.x} y={t.y} text-anchor={t.anchor}>{g.label}</text></g>
 			{/if}
 		{/each}
 		{#if drag?.kind === 'draw'}
@@ -378,6 +444,12 @@
 	.gd line.hit { stroke: transparent; stroke-width: 9; stroke-dasharray: none; }
 	.gd.on line:not(.hit), .gd.on path { stroke-width: 2; stroke-dasharray: none; }
 	.gd text { fill: #f0c76a; font: 10px var(--mono); }
+	.bx rect { fill: none; stroke: #8ab8f0; stroke-width: 1; stroke-dasharray: 6 4; opacity: 0.8; }
+	.bx text { fill: #8ab8f0; font: 10px var(--mono); }
+	.bx { pointer-events: all; }
+	.ax path, .sb path { stroke: rgba(242, 241, 236, 0.55); stroke-width: 1; fill: none; shape-rendering: crispEdges; }
+	.ax text, .sb text { fill: var(--ink-2); font: 10px var(--mono); paint-order: stroke; stroke: rgba(13, 13, 13, 0.8); stroke-width: 3px; }
+	.ax text.an { fill: var(--ink-3); }
 	.rub { fill: none; stroke: #8ab8f0; stroke-width: 1.5; stroke-dasharray: 4 3; }
 	.ring { fill: none; stroke: #8ab8f0; stroke-width: 1; stroke-dasharray: 4 3; }
 	.fail { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-3); }

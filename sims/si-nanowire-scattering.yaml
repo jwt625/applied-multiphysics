@@ -1,0 +1,99 @@
+# Silicon nanowire (circular rod) in air under a TM plane wave (E along the rod axis): near field and 2D scattering
+# width. Reference: Bessel / Hankel series of the penetrable cylinder (validation/driven/cylinder_mie.py, scipy vs
+# mpmath and the optical theorem). Rod radius and window sizes are modelling inputs; n of Si is the library value at
+# 1.55 um held constant over the sweep (dispersion neglected; the reference uses the same constant).
+schema: amp-spec/0
+id: si-nanowire-scattering
+title: Silicon nanowire scattering (TM plane wave)
+description: Plane wave on a silicon rod in air; scattered near field and scattering width versus wavelength, checked against the exact Bessel series.
+params:
+  lam: {value: 1.55, unit: um, description: vacuum wavelength of the single-wavelength study}
+  lam0: {value: 1.55, unit: um, description: design wavelength that sets the mesh size}
+  a: {value: 0.3, unit: um, description: rod radius}
+  L: {value: 1.5, unit: um, description: half width of the window inside the PML}
+  dpml: {value: 1, unit: um, description: PML thickness}
+  nSi: {value: 3.4767, unit: "1", description: refractive index of the rod}
+geometry:
+  dim: 2
+  features:
+    - {id: outer, type: rect, settings: {center: ["0 um", "0 um"], size: ["2*(L + dpml)", "2*(L + dpml)"]}}
+    - {id: inner, type: rect, settings: {center: ["0 um", "0 um"], size: ["2*L", "2*L"]}}
+    - {id: inner2, type: rect, settings: {center: ["0 um", "0 um"], size: ["2*L", "2*L"]}}
+    - {id: rod, type: circle, settings: {center: ["0 um", "0 um"], radius: "a"}}
+    - {id: pml, type: difference, settings: {base: outer, tools: [inner2]}}
+    - {id: air, type: difference, settings: {base: inner, tools: [rod], keepTools: true}}
+materials:
+  - {id: vacuum, override: {n: 1}, select: ["dom:air", "dom:pml"]}
+  - {id: si, override: {n: "nSi"}, select: ["dom:rod"]}
+physics:
+  - id: w
+    type: emw-2d
+    select: ["dom:air", "dom:pml", "dom:rod"]
+    settings: {polarization: TM}
+    bcs:
+      - {id: absorb, type: pml, select: ["dom:pml"]}
+      - {id: inc, type: plane-wave, select: ["dom:air", "dom:pml"], settings: {direction: {value: 0, unit: deg}, amplitude: {value: 1, unit: V/m}}}
+mesh:
+  size: {hmax: "lam0/16"}
+  refine:
+    - {select: ["dom:rod"], h: "lam0/(16*nSi)"}
+studies:
+  - {id: s, type: frequency, physics: [w], settings: {wavelengths: ["lam"]}}
+  - {id: spec3, type: frequency, physics: [w], settings: {wavelengths: ["1.3 um", "1.55 um", "1.8 um"]}}
+  - id: sweep
+    type: parametric
+    physics: [w]
+    settings:
+      study: s
+      sweep:
+        - {param: lam, values: ["1.2 um", "1.25 um", "1.3 um", "1.35 um", "1.4 um", "1.45 um", "1.5 um", "1.55 um", "1.6 um", "1.65 um", "1.7 um", "1.75 um", "1.8 um", "1.85 um", "1.9 um", "1.95 um", "2 um"]}
+results:
+  datasets:
+    - {id: sol_s, type: solution, data: s}
+    - {id: sol_sweep, type: solution, data: sweep}
+  evaluations:
+    - id: ev_s
+      data: sol_s
+      items:
+        - {id: sw_back, type: global, expr: w.sigma2d_back, unit: um, label: "scattering width, back"}
+        - {id: sw_fwd, type: global, expr: w.sigma2d_fwd, unit: um, label: "scattering width, forward"}
+        - {id: sw_total, type: global, expr: w.sigma2d_total, unit: um, label: "total scattering width"}
+    - id: ev_sweep
+      data: sol_sweep
+      items:
+        - {id: sw_total_l, type: global, expr: w.sigma2d_total, unit: um, label: "total scattering width"}
+        - {id: sw_back_l, type: global, expr: w.sigma2d_back, unit: um, label: "scattering width, back"}
+  tables:
+    - {id: tbl_s, from: ev_s}
+    - {id: tbl_sweep, from: ev_sweep}
+  plots:
+    - id: Ez_total
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_abs_surf, type: surface, expr: w.Ez_abs, unit: V/m}
+    - id: Ez_scattered
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_sc_re_surf, type: surface, expr: w.Ez_sc_re, unit: V/m, colormap: balance}
+    - id: width_spectrum
+      type: plot1d
+      items:
+        - {id: width_curve, type: tablegraph, table: tbl_sweep}
+provenance:
+  values:
+    params.nSi: {basis: derived, source: "materials/silicon.yaml n (Li 1980) at 1.55 um: 3.476687, rounded to 4 decimals", date: 2026-11-18}
+    params.a: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.lam: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.lam0: {basis: user, date: 2026-11-18, note: "modelling input (mesh design wavelength)"}
+    params.L: {basis: user, date: 2026-11-18, note: "modelling choice: window half width; the far-field band lies between the rod and the PML"}
+    params.dpml: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; two levels checked against the series (eval case)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: same points per local wavelength inside the rod"}
+    materials.vacuum.override.n: {basis: user, date: 2026-11-18, note: "assumption: air as vacuum"}
+assumptions:
+  - {text: "Infinite rod along z, TM polarization (E_z only); 2D scattering width per unit length", paths: [physics.w.settings.polarization]}
+  - {text: "Silicon index held at its 1.55 um value over the 1.2-2.0 um sweep (no dispersion, no absorption)", paths: [params.nSi]}
+missing: []
+# eval: [WO-70]

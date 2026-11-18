@@ -248,22 +248,61 @@ export class Viewer3D {
 
 	resetPhase() { this.u.amp.value = 1; this.u.animValue.value = 0; this.request(); }
 
+	/** camera distance that fits a box of half extents `half` in the view */
+	private fitDist(half: [number, number, number]): number {
+		const r = Math.hypot(...half) || 1;
+		// the narrower of the vertical and horizontal fields of view decides (phones are portrait)
+		const vf = (this.camera.fov * Math.PI) / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * (Math.max(1, this.w - this.padRight()) / this.h));
+		return (1.08 * r) / Math.sin(Math.min(vf, hf) / 2);
+	}
+
 	/** Fit the camera to a bounding box (relative to the mesh centre), isometric-like view. */
 	fit(half: [number, number, number]) {
 		this.lastHalf = half;
 		this.userMoved = false;
-		const r = Math.hypot(...half) || 1;
-		this.diag = 2 * r;
-		// the narrower of the vertical and horizontal fields of view decides (phones are portrait)
-		const vf = (this.camera.fov * Math.PI) / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * (Math.max(1, this.w - this.padRight()) / this.h));
-		const dist = (1.08 * r) / Math.sin(Math.min(vf, hf) / 2);
+		this.diag = 2 * (Math.hypot(...half) || 1);
+		const dist = this.fitDist(half);
+		this.place([dist * 0.62, -dist * 0.55, dist * 0.56], [0, 0, 0], dist);
+	}
+
+	private place(pos: [number, number, number], target: [number, number, number], dist: number) {
 		this.camera.near = dist / 1000;
 		this.camera.far = dist * 100;
-		this.camera.position.set(dist * 0.62, -dist * 0.55, dist * 0.56);
-		this.controls.target.set(0, 0, 0);
+		this.camera.position.set(target[0] + pos[0], target[1] + pos[1], target[2] + pos[2]);
+		this.controls.target.set(target[0], target[1], target[2]);
 		this.camera.updateProjectionMatrix();
 		this.controls.update();
 		this.request();
+	}
+
+	/** Camera along the unit direction `dir` from `target` (viewer frame) at the fit distance; a later resize keeps it. */
+	look(dir: [number, number, number], target: [number, number, number]) {
+		const dist = this.fitDist(this.lastHalf ?? [1, 1, 1]);
+		this.userMoved = true;
+		this.place([dir[0] * dist, dir[1] * dist, dir[2] * dist], target, dist);
+	}
+
+	/** Camera position and orbit target (viewer frame). */
+	pose(): { pos: [number, number, number]; target: [number, number, number] } {
+		const p = this.camera.position, t = this.controls.target;
+		return { pos: [p.x, p.y, p.z], target: [t.x, t.y, t.z] };
+	}
+
+	setPose(pos: [number, number, number], target: [number, number, number]) {
+		const d = Math.hypot(pos[0] - target[0], pos[1] - target[1], pos[2] - target[2]);
+		if (!(d > 0)) return;
+		this.userMoved = true;
+		this.place([pos[0] - target[0], pos[1] - target[1], pos[2] - target[2]], target, d);
+	}
+
+	/** Screen directions (x right, y up; unit length in 3D projected) of the model x, y, z axes: the axis triad. */
+	triad(): Array<[number, number, number]> {
+		this.camera.updateMatrixWorld();
+		const m = this.camera.matrixWorldInverse;
+		return [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)].map((v) => {
+			v.transformDirection(m);
+			return [v.x, v.y, v.z] as [number, number, number];
+		});
 	}
 
 	resize(w: number, h: number, dpr: number) {

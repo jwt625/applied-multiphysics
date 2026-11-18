@@ -1,0 +1,454 @@
+# WO-85: Silicon wire bend loss vs radius (Kakihara 2006): 445 x 220 nm Si on SiO2, air clad, 1.55 um, quasi-TE and quasi-TM per 90 deg
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-85
+class: c
+title: 'Silicon wire bend loss vs radius (Kakihara 2006): 445 x 220 nm Si on SiO2, air clad, 1.55 um, quasi-TE and quasi-TM
+  per 90 deg'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    core_m: [4.45e-07, 2.2e-07]
+    window_x_m: [-7.5e-07, 2.0e-06]
+    window_y_m: [-2.0e-06, 1.0e-06]
+    pml_m: 1.0e-06
+materials:
+  si: {n: 3.5, source: Kakihara 2006 s.3}
+  sio2: {n: 1.45, source: Kakihara 2006 s.3}
+  air: {n: 1, source: Kakihara 2006 s.3}
+bcs:
+- {selection: outer layers, type: pml}
+- {selection: inner edge x = -0.75 um, type: pec}
+initial: null
+study: {type: eigen, solver: mode, wavelength_m: 1.55e-06, n: 1, bend: 'metric (cylindrical coordinates), radius to the wire
+    centre'}
+references:
+- id: loss90_te_R1p0.L0
+  quantity: radiation loss per 90 deg bend, quasi-TE, R = 1.0 um (mesh level 0)
+  metric_id: loss90_te_R1p0
+  value: 0.021349745331069613
+  unit: dB
+  tolerance: {abs: 0.0015492359932088291, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_te_R1p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 1.0}
+    study: modes_te
+  note: 'informative: steep curve end at the first plotted radius'
+- id: loss90_te_R1p0.L1
+  quantity: radiation loss per 90 deg bend, quasi-TE, R = 1.0 um (mesh level 1)
+  metric_id: loss90_te_R1p0
+  value: 0.021349745331069613
+  unit: dB
+  tolerance: {abs: 0.0015492359932088291, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_te_R1p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 1.0}
+    study: modes_te
+  note: 'informative: steep curve end at the first plotted radius'
+- id: loss90_te_R1p25.L0
+  quantity: radiation loss per 90 deg bend, quasi-TE, R = 1.25 um (mesh level 0)
+  metric_id: loss90_te_R1p25
+  value: 0.006345500848896435
+  unit: dB
+  tolerance: {abs: 0.0011884550084889642, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_te_R1p25}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 1.25}
+    study: modes_te
+  note: tolerance = half the drawn line extent at R (0.0011 dB) + 2 px axis registration (8.49e-05 dB)
+- id: loss90_te_R1p25.L1
+  quantity: radiation loss per 90 deg bend, quasi-TE, R = 1.25 um (mesh level 1)
+  metric_id: loss90_te_R1p25
+  value: 0.006345500848896435
+  unit: dB
+  tolerance: {abs: 0.0011884550084889642, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_te_R1p25}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 1.25}
+    study: modes_te
+  note: tolerance = half the drawn line extent at R (0.0011 dB) + 2 px axis registration (8.49e-05 dB)
+- id: loss90_te_R1p5.L0
+  quantity: radiation loss per 90 deg bend, quasi-TE, R = 1.5 um (mesh level 0)
+  metric_id: loss90_te_R1p5
+  value: 0.001825127334465195
+  unit: dB
+  tolerance: {abs: 0.0004456706281833618, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_te_R1p5}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 1.5}
+    study: modes_te
+  note: tolerance = half the drawn line extent at R (0.000361 dB) + 2 px axis registration (8.49e-05 dB)
+- id: loss90_te_R1p5.L1
+  quantity: radiation loss per 90 deg bend, quasi-TE, R = 1.5 um (mesh level 1)
+  metric_id: loss90_te_R1p5
+  value: 0.001825127334465195
+  unit: dB
+  tolerance: {abs: 0.0004456706281833618, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_te_R1p5}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 1.5}
+    study: modes_te
+  note: tolerance = half the drawn line extent at R (0.000361 dB) + 2 px axis registration (8.49e-05 dB)
+- id: loss90_te_R2p0.L0
+  quantity: radiation loss per 90 deg bend, quasi-TE, R = 2.0 um (mesh level 0)
+  metric_id: loss90_te_R2p0
+  value: 0.00016977928692699492
+  unit: dB
+  tolerance: {abs: 0.00023344651952461801, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_te_R2p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 2.0}
+    study: modes_te
+  note: 'informative: value below a few pixels of the axis'
+- id: loss90_te_R2p0.L1
+  quantity: radiation loss per 90 deg bend, quasi-TE, R = 2.0 um (mesh level 1)
+  metric_id: loss90_te_R2p0
+  value: 0.00016977928692699492
+  unit: dB
+  tolerance: {abs: 0.00023344651952461801, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_te_R2p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 2.0}
+    study: modes_te
+  note: 'informative: value below a few pixels of the axis'
+- id: loss90_tm_R2p0.L0
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 2.0 um (mesh level 0)
+  metric_id: loss90_tm_R2p0
+  value: 2.5304054054054053
+  unit: dB
+  tolerance: {abs: 0.10135135135135145, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R2p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 2.0}
+    study: modes_tm
+  note: 'informative: not gated (other radii gate the trend)'
+- id: loss90_tm_R2p0.L1
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 2.0 um (mesh level 1)
+  metric_id: loss90_tm_R2p0
+  value: 2.5304054054054053
+  unit: dB
+  tolerance: {abs: 0.10135135135135145, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R2p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 2.0}
+    study: modes_tm
+  note: 'informative: not gated (other radii gate the trend)'
+- id: loss90_tm_R3p0.L0
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 3.0 um (mesh level 0)
+  metric_id: loss90_tm_R3p0
+  value: 1.8513513513513513
+  unit: dB
+  tolerance: {abs: 0.07094594594594597, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R3p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 3.0}
+    study: modes_tm
+  note: 'informative: not gated (other radii gate the trend)'
+- id: loss90_tm_R3p0.L1
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 3.0 um (mesh level 1)
+  metric_id: loss90_tm_R3p0
+  value: 1.8513513513513513
+  unit: dB
+  tolerance: {abs: 0.07094594594594597, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R3p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 3.0}
+    study: modes_tm
+  note: 'informative: not gated (other radii gate the trend)'
+- id: loss90_tm_R5p0.L0
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 5.0 um (mesh level 0)
+  metric_id: loss90_tm_R5p0
+  value: 1.1013513513513513
+  unit: dB
+  tolerance: {abs: 0.050675675675675685, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R5p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 5.0}
+    study: modes_tm
+  note: tolerance = half the drawn line extent at R (0.0372 dB) + 2 px axis registration (0.0135 dB)
+- id: loss90_tm_R5p0.L1
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 5.0 um (mesh level 1)
+  metric_id: loss90_tm_R5p0
+  value: 1.1013513513513513
+  unit: dB
+  tolerance: {abs: 0.050675675675675685, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R5p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 5.0}
+    study: modes_tm
+  note: tolerance = half the drawn line extent at R (0.0372 dB) + 2 px axis registration (0.0135 dB)
+- id: loss90_tm_R7p5.L0
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 7.5 um (mesh level 0)
+  metric_id: loss90_tm_R7p5
+  value: 0.5912162162162162
+  unit: dB
+  tolerance: {abs: 0.04054054054054054, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R7p5}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 7.5}
+    study: modes_tm
+  note: 'informative: not gated (other radii gate the trend)'
+- id: loss90_tm_R7p5.L1
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 7.5 um (mesh level 1)
+  metric_id: loss90_tm_R7p5
+  value: 0.5912162162162162
+  unit: dB
+  tolerance: {abs: 0.04054054054054054, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R7p5}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 7.5}
+    study: modes_tm
+  note: 'informative: not gated (other radii gate the trend)'
+- id: loss90_tm_R10p0.L0
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 10.0 um (mesh level 0)
+  metric_id: loss90_tm_R10p0
+  value: 0.3277027027027027
+  unit: dB
+  tolerance: {abs: 0.04054054054054054, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R10p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 10.0}
+    study: modes_tm
+  note: tolerance = half the drawn line extent at R (0.027 dB) + 2 px axis registration (0.0135 dB)
+- id: loss90_tm_R10p0.L1
+  quantity: radiation loss per 90 deg bend, quasi-TM, R = 10.0 um (mesh level 1)
+  metric_id: loss90_tm_R10p0
+  value: 0.3277027027027027
+  unit: dB
+  tolerance: {abs: 0.04054054054054054, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-85.json, metric_id: loss90_tm_R10p0}
+  provenance: {citation: 'T. Kakihara, N. Kono, K. Saitoh, M. Koshiba, Full-vectorial finite element method in a cylindrical
+      coordinate system for loss analysis of photonic wire bends, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128',
+    locator: 'Fig. 4 (a) quasi-TE, (b) quasi-TM, red CCS curve, p.11139 (digitized, validation/modes3/kakihara2006_fig4.json)',
+    accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: bendLossDbPer90_0}
+  spec:
+    sim: sims/si-wire-bend.yaml
+    params: {R: 10.0}
+    study: modes_tm
+  note: tolerance = half the drawn line extent at R (0.027 dB) + 2 px axis registration (0.0135 dB)
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels, the finer one with an equal or
+    tighter tolerance
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (140k DOF) 3-5 s per radius in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited published values
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: verification of a library example}
+spec: {status: pending, reason: 'no single model: each target sets the bend radius and the TE or TM study of sims/si-wire-bend.yaml
+    (target specs)'}
+missing: []
+assumptions: []
+notes: ['Reference values are read from a figure (no table in the paper); the tolerance is the reading resolution, not the
+    solver accuracy.', 'Measured loss of the same structure (Vlasov and McNab, Opt. Express 12, 1622 (2004), abstract): 0.086
+    +- 0.005 dB per 90 deg at R = 1 um and 0.013 at R = 2 um (TE, includes transition loss; not comparable to radiation loss).']
+lane: E2
+created: '2026-11-18'

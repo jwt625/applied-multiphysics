@@ -1,0 +1,113 @@
+# PK-02 (eval/cases/c/PK-02.yaml): the TSV cell of sims/tsv-stress-axisym.yaml solved in 3D as a quarter of the
+# cylinder (layer-stack extrude of a quarter-disc sketch), rollers on x = 0, y = 0 and on both faces z = 0 and z = H
+# (plane strain). Same inputs, same exact Lame closed form (validation/pkg/tsv_lame.py): the Cu in-plane and axial stress
+# and the Si axial stress are uniform in the exact solution, so they are probed away from the Cu / Si interface (the
+# displayed stress is averaged at nodes, which mixes both materials next to the interface); the 3D run also
+# cross-checks the axisymmetric model.
+# Modelling inputs NOT from a paper (illustrative): a, R, H, T_ref, T_use (as in the axisymmetric sim). Materials: library
+# E, nu; alpha and k as overrides equal to the library values at 298.15 K (no temperature for library tables yet,
+# DevLog-049 R1).
+schema: amp-spec/0
+id: tsv-stress-3d
+title: TSV thermal stress, Cu via in Si (3D quarter cell)
+description: Quarter of a cylindrical TSV cell in 3D, cooled by 100 K with plane-strain faces; stresses against the Lame closed form and the axisymmetric model.
+params:
+  a: {value: 5, unit: um, description: via radius}
+  R: {value: 25, unit: um, description: cell outer radius}
+  H: {value: 5, unit: um, description: "modelled height (plane strain: any height gives the same field)"}
+  T_ref: {value: 398.15, unit: K, description: stress-free temperature}
+  T_use: {value: 298.15, unit: K, description: final uniform temperature}
+geometry:
+  dim: 3
+  features:
+    - {id: tsv, type: circle, settings: {center: {value: [0, 0], unit: um}, radius: "a"}}
+    - {id: hole, type: circle, settings: {center: {value: [0, 0], unit: um}, radius: "a"}}
+    - {id: outer, type: circle, settings: {center: {value: [0, 0], unit: um}, radius: "R"}}
+    - {id: quad, type: rect, settings: {size: ["R", "R"], center: ["R/2", "R/2"]}}
+    - {id: quad2, type: rect, settings: {size: ["R", "R"], center: ["R/2", "R/2"]}}
+    - {id: ring, type: difference, settings: {base: outer, tools: [hole]}}
+    - {id: via, type: intersection, settings: {inputs: [tsv, quad]}}
+    - {id: si, type: intersection, settings: {inputs: [ring, quad2]}}
+    - id: cell
+      type: extrude
+      settings:
+        layers:
+          - {id: wafer, thickness: "H", sketch: [via, si], nz: 2}
+materials:
+  - {id: cu, ref: materials/copper, override: {alpha: {value: 1.6581238447607446e-5, unit: 1/K}, k: {value: 401.004, unit: W/(m*K)}}, select: ["dom:via"]}
+  - {id: silicon, ref: materials/silicon, override: {alpha: {value: 2.600985401459854e-6, unit: 1/K}, k: {value: 149.038, unit: W/(m*K)}}, select: ["dom:si"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:cell"]
+    bcs:
+      - {id: uniform, type: temperature, select: ["bnd:cell.top", "bnd:cell.bottom"], settings: {T: "T_use"}}
+  - id: solid
+    type: elastic
+    select: ["dom:cell"]
+    settings: {model: 3d}
+    bcs:
+      - {id: sym_x, type: roller, select: ["bnd:quad.left", "bnd:quad2.left"]}
+      - {id: sym_y, type: roller, select: ["bnd:quad.bottom", "bnd:quad2.bottom"]}
+      - {id: face_bottom, type: roller, select: ["bnd:cell.bottom"]}
+      - {id: face_top, type: roller, select: ["bnd:cell.top"]}
+      - {id: rim, type: free, select: ["bnd:outer.edge"]}
+couplings:
+  - {id: th2sm, type: thermal-expansion, from: ht, to: solid, settings: {Tref: "T_ref"}}
+mesh:
+  size: {hmax: "a/2"}
+  refine:
+    - {select: ["bnd:tsv.edge"], h: "a/4"}
+studies:
+  - {id: std1, type: stationary, physics: [ht, solid]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: rim_pt, type: cutpoint, data: sol_std1, points: [[R, "0 um", "H/2"]]}
+    - {id: si_pt, type: cutpoint, data: sol_std1, points: [["2*a", "0 um", "H/2"]]}
+    - {id: cu_pt, type: cutpoint, data: sol_std1, points: [["0.4*a", "0.2*a", "H/2"]]}
+    - {id: si_far_pt, type: cutpoint, data: sol_std1, points: [["3*a", "a", "H/2"]]}
+    - {id: radial, type: cutline, data: sol_std1, from: ["0 um", "0 um", "H/2"], to: [R, "0 um", "H/2"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: cu_sxx, type: point, data: cu_pt, expr: solid.sxx, unit: MPa, label: "Cu in-plane stress inside the via (uniform in the exact solution: minus the interface pressure)"}
+        - {id: cu_szz, type: point, data: cu_pt, expr: solid.szz, unit: MPa, label: "Cu axial stress inside the via"}
+        - {id: si_szz, type: point, data: si_far_pt, expr: solid.szz, unit: MPa, label: "Si axial stress away from the via (uniform in the exact solution)"}
+        - {id: cu_sxx_mean, type: average, expr: solid.sxx, unit: MPa, over: ["dom:via"], label: "volume mean of the Cu in-plane stress (informative: the displayed stress is averaged at nodes shared with the Si)"}
+        - {id: si_szz_mean, type: average, expr: solid.szz, unit: MPa, over: ["dom:si"], label: "volume mean of the Si axial stress (informative, as above)"}
+        - {id: rim_ur, type: point, data: rim_pt, expr: solid.u.x, unit: nm, label: "radial displacement of the rim at y = 0"}
+        - {id: si_sxx_2a, type: point, data: si_pt, expr: solid.sxx, unit: MPa, label: "radial stress in the Si at r = 2a on y = 0 (single point, informative)"}
+        - {id: si_syy_2a, type: point, data: si_pt, expr: solid.syy, unit: MPa, label: "hoop stress in the Si at r = 2a on y = 0 (single point, informative)"}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: stress_3d
+      type: plot3d
+      data: sol_std1
+      items:
+        - {id: mises_vol, type: volume, expr: solid.mises, unit: MPa}
+    - id: stress_line
+      type: plot1d
+      items:
+        - {id: sxx_curve, type: linegraph, data: radial, x: arc, expr: solid.sxx, unit: MPa}
+        - {id: syy_curve, type: linegraph, data: radial, x: arc, expr: solid.syy, unit: MPa}
+provenance:
+  values:
+    params.a: {basis: user, date: 2026-11-18, note: "illustrative modelling input, as sims/tsv-stress-axisym.yaml"}
+    params.R: {basis: user, date: 2026-11-18, note: "illustrative modelling input, as sims/tsv-stress-axisym.yaml"}
+    params.H: {basis: user, date: 2026-11-18, note: "modelling choice: plane strain, thin slab keeps the 3D mesh small"}
+    params.T_ref: {basis: user, date: 2026-11-18, note: "illustrative stress-free temperature, not from a paper"}
+    params.T_use: {basis: user, date: 2026-11-18, note: "illustrative final temperature (25 C)"}
+    materials.cu.override.alpha: {basis: measured, source: "materials/copper.yaml alpha evaluated by @amp/materials at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
+    materials.cu.override.k: {basis: measured, source: "materials/copper.yaml k at 298.15 K", date: 2026-11-18, note: "k does not enter (uniform T)"}
+    materials.silicon.override.alpha: {basis: measured, source: "materials/silicon.yaml alpha (Swenson 1983) at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
+    materials.silicon.override.k: {basis: measured, source: "materials/silicon.yaml k (HPL 1972) at 298.15 K", date: 2026-11-18, note: "k does not enter (uniform T)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; nested levels also halve the layer cells in z"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: the interface carries the stress jump"}
+assumptions:
+  - {text: "Isotropic Si with the Voigt-Reuss-Hill E, nu of materials/silicon.yaml", paths: [materials.silicon]}
+  - {text: "Quarter model: rollers on x = 0 and y = 0 are exact for the axisymmetric field; rollers on z = 0 and z = H give plane strain", paths: [physics.solid.bcs]}
+  - {text: "Uniform temperature: T fixed on both faces, all other boundaries insulated", paths: [physics.ht.bcs]}
+# eval: [PK-02]

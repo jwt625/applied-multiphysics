@@ -1,0 +1,75 @@
+# WO-84 (eval/cases/c/WO-84.yaml): Si directional coupler cross-section: two Si strips 500 x 220 nm, 200 nm gap, SiO2 all
+# around, 1550 nm; even and odd TE supermodes and the coupling (cross-over) length L_c = lambda / (2 (n_even - n_odd)).
+# Reference: Flexcompute Tidy3D example notebook BroadbandDirectionalCoupler (cell 14 printed output, read 2026-11-18;
+# FD mode solver, grid_resolution 40; Si "Li1993_293K", SiO2 "Horiba" material models): 2.459162628532339,
+# 2.43821523251537. Indices here: Si Salzberg-Villa-Tatian and SiO2 Malitson (library, vacuum wavelength), so the
+# absolute indices differ from the reference by the material models (tolerances in the case are estimates).
+schema: amp-spec/0
+id: si-dc-supermodes
+title: Silicon directional coupler supermodes
+description: Two Si strips 500 x 220 nm with a 200 nm gap in oxide at 1550 nm; even and odd TE supermodes and the coupling length.
+params:
+  w: {value: 500, unit: nm, description: strip width}
+  t_wg: {value: 220, unit: nm, description: strip thickness}
+  gap: {value: 200, unit: nm, description: edge-to-edge gap}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+  n_si: {value: 3.4787089554992723, unit: "1", description: silicon index}
+geometry:
+  dim: 2
+  features:
+    - {id: wgl, type: rect, settings: {size: ["w", "t_wg"], center: ["-gap/2 - w/2", "0 um"]}}
+    - {id: wgr, type: rect, settings: {size: ["w", "t_wg"], center: ["gap/2 + w/2", "0 um"]}}
+    - {id: cladr, type: rect, settings: {size: ["5 um", "4 um"], center: ["0 um", "0 um"]}}
+    - {id: clad, type: difference, settings: {base: cladr, tools: [wgl, wgr], keepTools: true}}
+materials:
+  - {id: Si, override: {n: "n_si"}, select: ["dom:wgl", "dom:wgr"]}
+  - {id: SiO2, override: {n: 1.4444232909003691}, select: ["dom:clad"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:wgl", "dom:wgr", "dom:clad"]
+    settings: {order: 2}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:cladr.left", "bnd:cladr.right", "bnd:cladr.top", "bnd:cladr.bottom"]}
+mesh:
+  size: {hmax: "0.3 um", grading: 0.3}
+  refine:
+    - {select: ["dom:wgl", "dom:wgr"], h: "0.05 um"}
+    - {select: ["bnd:wgl.left", "bnd:wgl.right", "bnd:wgl.top", "bnd:wgl.bottom", "bnd:wgr.left", "bnd:wgr.right", "bnd:wgr.top", "bnd:wgr.bottom"], h: "0.015 um"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  datasets:
+    - {id: sol_modes, type: solution, data: modes}
+  evaluations:
+    - id: ev_modes
+      data: sol_modes
+      items:
+        - {id: n_even, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: n_odd, type: global, expr: ewg.neff_1, unit: "1"}
+        - {id: dn, type: global, expr: "ewg.neff_0 - ewg.neff_1", unit: "1"}
+        - {id: L_c, type: global, expr: "lambda0 / (2 * (ewg.neff_0 - ewg.neff_1))", unit: um}
+  tables:
+    - {id: tbl_modes, from: ev_modes}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.w: {basis: benchmark, source: "Tidy3D notebook BroadbandDirectionalCoupler (wg_width 0.5 um)", date: 2026-11-18}
+    params.t_wg: {basis: benchmark, source: "Tidy3D notebook BroadbandDirectionalCoupler (wg_thickness 0.22 um)", date: 2026-11-18}
+    params.gap: {basis: benchmark, source: "Tidy3D notebook BroadbandDirectionalCoupler (gap 0.2 um)", date: 2026-11-18}
+    params.lambda0: {basis: benchmark, source: "Tidy3D notebook BroadbandDirectionalCoupler (1.55 um)", date: 2026-11-18}
+    params.n_si: {basis: derived, source: "materials/silicon.yaml alternative salzberg_villa_tatian at 1.55 um (reference used Li 1993 293 K)", date: 2026-11-18}
+    materials.SiO2.override.n: {basis: derived, source: "materials/sio2-thermal-oxide.yaml (Malitson 1965, vacuum wavelength) at 1.55 um (reference used Horiba)", date: 2026-11-18}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice: strip edges (corner singularities)"}
+    mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "Window 5 x 4 um with PEC walls (modelling choice; the fields decay to below 1e-6 of the peak, to be checked by the truncation run in the case notes)", paths: [geometry]}
+  - {text: "Material models differ from the reference (Si Salzberg-Villa-Tatian vs Li 1993 293 K; SiO2 Malitson vs Horiba)", paths: [materials]}
+# eval: [WO-84]

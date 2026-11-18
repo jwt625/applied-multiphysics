@@ -72,7 +72,7 @@ export function chainOf(ix: SpecIndex, id: string | undefined): { chain: Dataset
 			// the kernels evaluate on the root solution's mesh: a parent between the dataset and its solution (cutplane,
 			// revolve, mirror, join) would be silently ignored, so such chains are not evaluated yet (audit 1)
 			const mid = chain.slice(1, -1).find((x) => x.type !== 'solution');
-			if (mid) return { error: `dataset '${chain[0]!.id}' reads the ${mid.type} dataset '${mid.id}': not evaluated yet (stage ${mid.type === 'join' ? 'R5' : 'R4'})` };
+			if (mid) return { error: `dataset '${chain[0]!.id}' reads the ${mid.type} dataset '${mid.id}': not evaluated yet (values over ${mid.type} datasets are not implemented)` };
 			return { chain, root: d, study: d.data };
 		}
 		cur = d.type === 'join' ? d.a : d.data;
@@ -151,7 +151,7 @@ export type DatasetMemo = Map<string, Built>;
 function buildDataset(d: DatasetNode, run: AdapterRun, memo: DatasetMemo | undefined): Built {
 	const mesh = run.mesh;
 	if (d.type === 'solution') return { kind: 'solution' };
-	if (d.type === 'cutplane' || d.type === 'revolve' || d.type === 'mirror' || d.type === 'join') throw new Error(`${d.type} datasets are not evaluated yet (stage ${d.type === 'join' ? 'R5' : 'R4'})`);
+	if (d.type === 'cutplane' || d.type === 'revolve' || d.type === 'mirror' || d.type === 'join') throw new Error(`${d.type} datasets are not evaluated yet (not implemented)`);
 	let key: string, make: () => Built;
 	if (d.type === 'cutpoint') {
 		const pts = (Array.isArray(d.points) ? d.points : []).map((p) => vectorOf(p, run.params));
@@ -455,7 +455,9 @@ export function evalDataset(spec: unknown, id: string, expr: string | null, run:
 	if (expr === null) return out;
 	try {
 		const pid = physicsIdOf(ix, c.study);
-		const r = evalPoint(sol, expr, ps, { mesh, params: run.params, step, ...(pid ? { physicsId: pid } : {}) });
+		// line and point datasets: DG0 fields through the @amp/post corner recovery (smooth: no staircase along a cut line,
+		// jumps kept at domain interfaces; the 2D view's rule); max / min / integrals keep the exact cell values
+		const r = evalPoint(sol, expr, ps, { mesh, params: run.params, step, smooth: true, ...(pid ? { physicsId: pid } : {}) });
 		const disp = displayOf(r.dim, r.unit, o.unit);
 		out.values = r.values.map(disp.conv);
 		out.unit = disp.unit; out.siUnit = r.unit; out.continuous = r.continuous;

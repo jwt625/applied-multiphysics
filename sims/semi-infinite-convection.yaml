@@ -56,7 +56,7 @@ results:
         - {id: T_curve, type: linegraph, data: depth, x: arc, expr: ht.T, unit: degC}
 provenance:
   values:
-    params.L: {basis: benchmark, source: "eval/cases/a/HT-04.yaml geometry.spec.domain_m (truncation chosen by L7a, effect below tolerance)", date: 2026-11-06}
+    params.L: {basis: benchmark, source: "eval/cases/a/HT-04.yaml geometry.spec.domain_m (truncation chosen in the eval case, effect below tolerance)", date: 2026-11-06}
     params.w: {basis: user, date: 2026-11-06, note: "modelling choice: 2D strip width; the solution is independent of it"}
     materials.steel.override.k: {basis: benchmark, source: "eval/cases/a/HT-04.yaml materials.steel.k (Ansys VM28 citing Holman 4th ed. p. 106)", date: 2026-11-06}
     materials.steel.override.rho: {basis: benchmark, source: "eval/cases/a/HT-04.yaml materials.steel.rho (Ansys VM28)", date: 2026-11-06}
@@ -65,7 +65,7 @@ provenance:
     physics.ht.bcs.surface.settings.h: {basis: benchmark, source: "eval/cases/a/HT-04.yaml bcs[0].h", date: 2026-11-06}
     physics.ht.bcs.surface.settings.T_ext: {basis: benchmark, source: "eval/cases/a/HT-04.yaml bcs[0].T_inf", date: 2026-11-06}
     studies.tr.settings.stop: {basis: benchmark, source: "eval/cases/a/HT-04.yaml study.t_end", date: 2026-11-06}
-    studies.tr.settings.dt: {basis: user, date: 2026-11-06, note: "modelling choice; the harness refines h only, so the BDF2 time error must stay below the spatial error of the finest level (dt 5 s left a -7e-5 degC floor at all levels, DevLog-014 s.3)"}
+    studies.tr.settings.dt: {basis: user, date: 2026-11-06, note: "modelling choice; the harness refines h only, so the BDF2 time error must stay below the spatial error of the finest level (dt 5 s left a -7e-5 degC floor at all levels, own run 2026-11-06)"}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
     mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice: resolves the thermal boundary layer sqrt(a t) = 0.11 m at 2000 s"}
 assumptions:

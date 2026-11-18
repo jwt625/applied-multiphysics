@@ -1,0 +1,73 @@
+# Plane wave in a rigid duct with a matched end (benchmark duct of Hornikx, Kaltenbacher and Marburg, Acta Acust.
+# united Ac. 101(4), 811 (2015), sec. 4.1, as summarised in eval/cases/b/AC-01.yaml: 3.4 m long, 0.2 m cross-section,
+# normal velocity 1 m/s at x = 0, impedance rho c at x = 3.4 m, rigid side walls). Solved in 2D (the field is a 1D
+# plane wave below the first cross mode c / (2 x 0.2 m) = 869 Hz). Exact: p(x) = rho c v exp(-j k x) (exp(+j omega t)).
+# Air at 300 K and 0.101325 MPa from the materials library (the benchmark's own values are not recorded in the case).
+schema: amp-spec/0
+id: acoustic-duct
+title: Duct with a matched end (plane wave)
+description: Pressure wave driven by a piston in a rigid duct that ends in a matched impedance; magnitude stays rho c v along the duct.
+params:
+  f: {value: 500, unit: Hz, description: frequency of the single-frequency study}
+  Ld: {value: 3.4, unit: m, description: duct length}
+  Hd: {value: 0.2, unit: m, description: duct width}
+  v0: {value: 1, unit: m/s, description: piston normal velocity}
+  rho0: {value: 1.1767, unit: kg/m^3, description: air density}
+  c0: {value: 347.4, unit: m/s, description: speed of sound}
+geometry:
+  dim: 2
+  features:
+    - {id: duct, type: rect, settings: {center: ["Ld/2", "Hd/2"], size: ["Ld", "Hd"]}}
+materials:
+  - {id: air, override: {c: "c0", rho: "rho0"}, select: ["dom:duct"]}
+physics:
+  - id: ac
+    type: acoustics
+    select: ["dom:duct"]
+    bcs:
+      - {id: piston, type: normal-velocity, select: ["bnd:duct.left"], settings: {v: "v0"}}
+      - {id: matched, type: impedance, select: ["bnd:duct.right"], settings: {Z: "rho0*c0"}}
+      - {id: walls, type: sound-hard, select: ["bnd:duct.top", "bnd:duct.bottom"]}
+mesh:
+  size: {hmax: {value: 0.05, unit: m}}
+studies:
+  - {id: s, type: frequency, physics: [ac], settings: {values: ["f"]}}
+  - {id: s3, type: frequency, physics: [ac], settings: {values: ["100 Hz", "250 Hz", "500 Hz"]}}
+results:
+  datasets:
+    - {id: sol_s, type: solution, data: s}
+    - {id: axis, type: cutline, data: sol_s, from: ["0 m", "Hd/2"], to: ["Ld", "Hd/2"], n: 200}
+  evaluations:
+    - id: ev_s
+      data: sol_s
+      items:
+        - {id: p_max, type: max, expr: ac.p_abs, unit: Pa, method: nodal, over: ["dom:duct"], label: "largest pressure magnitude"}
+        - {id: p_min, type: min, expr: ac.p_abs, unit: Pa, method: nodal, over: ["dom:duct"], label: "smallest pressure magnitude"}
+        - {id: p_ref, type: global, expr: "rho0*c0*v0", unit: Pa, label: "plane-wave magnitude rho c v"}
+  tables:
+    - {id: tbl_s, from: ev_s}
+  plots:
+    - id: p_field
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: p_re_surf, type: surface, expr: ac.p_re, unit: Pa, colormap: balance}
+    - id: p_axis
+      type: plot1d
+      items:
+        - {id: p_re_line, type: linegraph, data: axis, x: arc, expr: ac.p_re, unit: Pa}
+        - {id: p_abs_line, type: linegraph, data: axis, x: arc, expr: ac.p_abs, unit: Pa}
+provenance:
+  values:
+    params.Ld: {basis: paper, source: "Hornikx, Kaltenbacher, Marburg 2015 sec. 4.1 via eval/cases/b/AC-01.yaml geometry (3.4 m)", date: 2026-11-18}
+    params.Hd: {basis: paper, source: "Hornikx et al. 2015 sec. 4.1 via eval/cases/b/AC-01.yaml (0.2 m x 0.2 m cross-section; one side in 2D)", date: 2026-11-18}
+    params.v0: {basis: paper, source: "eval/cases/b/AC-01.yaml bcs: v_x = 1 m/s", date: 2026-11-18}
+    params.rho0: {basis: derived, source: "materials/air.yaml rho (Lemmon 2000 Table A2, 0.101325 MPa) at 300 K", date: 2026-11-18}
+    params.c0: {basis: derived, source: "materials/air.yaml c (Lemmon 2000 Table A2, 0.101325 MPa) at 300 K", date: 2026-11-18}
+    params.f: {basis: user, date: 2026-11-18, note: "modelling input below the first cross mode (869 Hz); the benchmark's frequency set is not recorded in the case"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice (about 14 elements per wavelength at 500 Hz, P2)"}
+assumptions:
+  - {text: "2D model of the square duct: the plane-wave field does not depend on the second transverse coordinate", paths: [geometry]}
+  - {text: "Air at 300 K and 0.101325 MPa (library values); the benchmark's rho_0 and c_0 are not recorded, and the target is normalised by rho c", paths: [params.rho0, params.c0]}
+missing: []
+# eval: [AC-01]

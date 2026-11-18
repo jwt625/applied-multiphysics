@@ -1,0 +1,91 @@
+# Metal post (perfectly conducting circular cylinder) in free space under a TM plane wave at microwave frequencies:
+# near field, far-field pattern and 2D scattering width. Reference: Bessel / Hankel series (Balanis, Advanced
+# Engineering Electromagnetics, 2nd ed. 2012, sec. 11.5.1; validation/driven/cylinder_mie.py). Post radius, frequency
+# and window sizes are modelling inputs.
+schema: amp-spec/0
+id: pec-post-scattering
+title: Metal post scattering at 10 GHz (TM plane wave)
+description: Plane wave on a perfectly conducting post; shadow and standing-wave pattern, scattering width versus frequency, checked against the exact Bessel series.
+params:
+  f: {value: 10, unit: GHz, description: frequency of the single-frequency study}
+  a: {value: 15, unit: mm, description: post radius}
+  L: {value: 45, unit: mm, description: half width of the window inside the PML}
+  dpml: {value: 15, unit: mm, description: PML thickness}
+  h0: {value: 2.5, unit: mm, description: mesh size}
+geometry:
+  dim: 2
+  features:
+    - {id: outer, type: rect, settings: {center: ["0 mm", "0 mm"], size: ["2*(L + dpml)", "2*(L + dpml)"]}}
+    - {id: inner, type: rect, settings: {center: ["0 mm", "0 mm"], size: ["2*L", "2*L"]}}
+    - {id: inner2, type: rect, settings: {center: ["0 mm", "0 mm"], size: ["2*L", "2*L"]}}
+    - {id: post, type: circle, settings: {center: ["0 mm", "0 mm"], radius: "a"}}
+    - {id: pml, type: difference, settings: {base: outer, tools: [inner2]}}
+    - {id: air, type: difference, settings: {base: inner, tools: [post]}}
+materials:
+  - {id: vacuum, override: {eps_r: 1, mu_r: 1}, select: ["dom:air", "dom:pml"]}
+physics:
+  - id: w
+    type: emw-2d
+    select: ["dom:air", "dom:pml"]
+    settings: {polarization: TM}
+    bcs:
+      - {id: absorb, type: pml, select: ["dom:pml"]}
+      - {id: inc, type: plane-wave, select: ["dom:air", "dom:pml"], settings: {direction: {value: 0, unit: deg}, amplitude: {value: 1, unit: V/m}}}
+      - {id: metal, type: pec, select: ["bnd:post.edge"]}
+mesh:
+  size: {hmax: "h0"}
+studies:
+  - {id: s, type: frequency, physics: [w], settings: {values: ["f"]}}
+  - id: sweep
+    type: parametric
+    physics: [w]
+    settings:
+      study: s
+      sweep:
+        - {param: f, values: ["6 GHz", "7 GHz", "8 GHz", "9 GHz", "10 GHz", "11 GHz", "12 GHz", "13 GHz", "14 GHz"]}
+results:
+  datasets:
+    - {id: sol_s, type: solution, data: s}
+    - {id: sol_sweep, type: solution, data: sweep}
+  evaluations:
+    - id: ev_s
+      data: sol_s
+      items:
+        - {id: sw_back, type: global, expr: w.sigma2d_back, unit: mm, label: "scattering width, back"}
+        - {id: sw_fwd, type: global, expr: w.sigma2d_fwd, unit: mm, label: "scattering width, forward"}
+        - {id: sw_total, type: global, expr: w.sigma2d_total, unit: mm, label: "total scattering width"}
+    - id: ev_sweep
+      data: sol_sweep
+      items:
+        - {id: sw_total_f, type: global, expr: w.sigma2d_total, unit: mm, label: "total scattering width"}
+        - {id: sw_back_f, type: global, expr: w.sigma2d_back, unit: mm, label: "scattering width, back"}
+  tables:
+    - {id: tbl_s, from: ev_s}
+    - {id: tbl_sweep, from: ev_sweep}
+  plots:
+    - id: Ez_total
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_abs_surf, type: surface, expr: w.Ez_abs, unit: V/m}
+    - id: Ez_real
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_re_surf, type: surface, expr: w.Ez_re, unit: V/m, colormap: balance}
+    - id: width_spectrum
+      type: plot1d
+      items:
+        - {id: width_curve, type: tablegraph, table: tbl_sweep}
+provenance:
+  values:
+    params.f: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.a: {basis: user, date: 2026-11-18, note: "modelling input (k0 a = 3.14 at 10 GHz)"}
+    params.L: {basis: user, date: 2026-11-18, note: "modelling choice: window half width"}
+    params.dpml: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.h0: {basis: user, date: 2026-11-18, note: "modelling choice; two levels checked against the series (eval case)"}
+    materials.vacuum.override.eps_r: {basis: user, date: 2026-11-18, note: "assumption: air as vacuum"}
+assumptions:
+  - {text: "Infinite post along z, TM polarization (E_z only, E_z = 0 on the metal); 2D scattering width per unit length", paths: [physics.w]}
+missing: []
+# eval: [RF-70]

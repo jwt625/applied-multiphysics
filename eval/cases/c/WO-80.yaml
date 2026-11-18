@@ -1,0 +1,145 @@
+# WO-80: Planar gold / air surface plasmon at 659.5 nm (Johnson and Christy gold): complex effective index vs analytic
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-80
+class: c
+title: 'Planar gold / air surface plasmon at 659.5 nm (Johnson and Christy gold): complex effective index vs analytic'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    interface: planar Au / air
+    window_m: {au: 5.0e-07, air: 5.0e-06}
+materials:
+  au: {n: 0.14, kappa: 3.697, source: materials/gold.yaml (Johnson and Christy 1972 table row 0.6595 um)}
+  air: {n: 1, source: 'assumption: vacuum'}
+bcs:
+- {selection: far walls, type: pec}
+initial: null
+study: {type: eigen, solver: mode, wavelength_m: 6.595e-07, n: 1}
+references:
+- id: neff_0.L0
+  quantity: Re n_eff (mesh level 0)
+  metric_id: neff_0
+  value: 1.0385307417985927
+  unit: '1'
+  tolerance: {rel: 1.0e-06, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-80.json, metric_id: neff_0}
+  provenance: {citation: 'analytic planar surface plasmon polariton, mpmath 40 digits', locator: 'derivation in validation/modes3/references.py
+      (continuity of H_x and (1/eps) dH_x/dy); textbook form S. A. Maier, Plasmonics: Fundamentals and Applications, Springer
+      2007, ch. 2', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_0}
+- id: neff_0.L1
+  quantity: Re n_eff (mesh level 1)
+  metric_id: neff_0
+  value: 1.0385307417985927
+  unit: '1'
+  tolerance: {rel: 1.0e-07, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-80.json, metric_id: neff_0}
+  provenance: {citation: 'analytic planar surface plasmon polariton, mpmath 40 digits', locator: 'derivation in validation/modes3/references.py
+      (continuity of H_x and (1/eps) dH_x/dy); textbook form S. A. Maier, Plasmonics: Fundamentals and Applications, Springer
+      2007, ch. 2', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_0}
+- id: kappaEff_0.L0
+  quantity: Im n_eff (attenuation index) (mesh level 0)
+  metric_id: kappaEff_0
+  value: 0.0030945733342417465
+  unit: '1'
+  tolerance: {rel: 2.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-80.json, metric_id: kappaEff_0}
+  provenance: {citation: 'analytic planar surface plasmon polariton, mpmath 40 digits', locator: 'derivation in validation/modes3/references.py
+      (continuity of H_x and (1/eps) dH_x/dy); textbook form S. A. Maier, Plasmonics: Fundamentals and Applications, Springer
+      2007, ch. 2', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: kappaEff_0}
+- id: kappaEff_0.L1
+  quantity: Im n_eff (attenuation index) (mesh level 1)
+  metric_id: kappaEff_0
+  value: 0.0030945733342417465
+  unit: '1'
+  tolerance: {rel: 2.0e-06, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-80.json, metric_id: kappaEff_0}
+  provenance: {citation: 'analytic planar surface plasmon polariton, mpmath 40 digits', locator: 'derivation in validation/modes3/references.py
+      (continuity of H_x and (1/eps) dH_x/dy); textbook form S. A. Maier, Plasmonics: Fundamentals and Applications, Springer
+      2007, ch. 2', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: kappaEff_0}
+- id: Lprop_0.L0
+  quantity: power 1/e propagation length (mesh level 0)
+  metric_id: Lprop_0
+  value: 1.6959152948111287e-05
+  unit: m
+  tolerance: {rel: 2.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-80.json, metric_id: Lprop_0}
+  provenance: {citation: 'analytic planar surface plasmon polariton, mpmath 40 digits', locator: 'derivation in validation/modes3/references.py
+      (continuity of H_x and (1/eps) dH_x/dy); textbook form S. A. Maier, Plasmonics: Fundamentals and Applications, Springer
+      2007, ch. 2', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: Lprop_0}
+- id: Lprop_0.L1
+  quantity: power 1/e propagation length (mesh level 1)
+  metric_id: Lprop_0
+  value: 1.6959152948111287e-05
+  unit: m
+  tolerance: {rel: 2.0e-06, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-80.json, metric_id: Lprop_0}
+  provenance: {citation: 'analytic planar surface plasmon polariton, mpmath 40 digits', locator: 'derivation in validation/modes3/references.py
+      (continuity of H_x and (1/eps) dH_x/dy); textbook form S. A. Maier, Plasmonics: Fundamentals and Applications, Springer
+      2007, ch. 2', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: Lprop_0}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels, the finer one with an equal or
+    tighter tolerance
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (18.6k DOF) 0.3 s in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited published values
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: verification of a library example}
+spec: sims/au-air-spp.yaml
+missing: []
+assumptions: []
+notes: ['Library material binding: em-modes settings.loss reads the gold kappa from the library at the mode wavelength (prepareRun).']
+lane: E2
+created: '2026-11-18'

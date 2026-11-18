@@ -98,11 +98,11 @@ provenance:
     mesh.size.hmax: {basis: user, date: 2026-11-07, note: "modelling choice; VM175 uses a mapped hex mesh, 4 divisions along an edge ('LESIZE,1,,,4', 'ESIZE,,2')"}
 assumptions:
   - {text: "Quarter model with symmetry planes x = 0, y = 0 (VM175 'DSYM'): only modes symmetric about both planes appear, as in VM175", paths: [geometry, physics.solid.bcs]}
-  - {text: "Study order: std_sc (short circuit, the reference set) is first: the workbench solves the first study, and the eval harness picks the first study of the case type (eigen; packages/eval select(), DevLog-031 s.5 O1), so only the short-circuit targets run there. Open circuit is the second study std_oc and needs its own run (studyId std_oc)", paths: [studies]}
-  - {text: "Each table of an eigen solution also lists every eigenfrequency as its step column (DevLog-028 tables)", paths: [results.tables]}
-  - {text: "Breathing modes = the electrically active modes (lane MT, DevLog-033 s.4.3: open circuit |V_top| > 1 % of the largest; short circuit: modes absent from the open-circuit spectrum). With shift 50 kHz and 10 modes, index 0 is the f = 0 rigid z translation (absent from VM175's 50-150 kHz list): short f_2, f_7; open f_4, f_8, the same on three meshes (MT run 2026-11-07)", paths: [results.evaluations]}
-  - {text: "Open circuit = floating top electrode with zero net charge (MT terminal semantics), as VM175 couples the top-electrode voltage DOFs", paths: [physics.es_oc.bcs.top_oc]}
-  - {text: "Material tensors from materials/pzt-4.yaml: C tetragonal-4mm with the listed C66, e_piezo, uniaxial eps_r = clamped eps^S (MT / MC registrations)", paths: [materials.pzt4]}
+  - {text: "Study order: std_sc (short circuit, the reference set) is first: the workbench solves the first study, and the eval harness picks the first study of the case type (eigen; packages/eval select()), so only the short-circuit targets run there. Open circuit is the second study std_oc and needs its own run (studyId std_oc)", paths: [studies]}
+  - {text: "Each table of an eigen solution also lists every eigenfrequency as its step column", paths: [results.tables]}
+  - {text: "Breathing modes = the electrically active modes (criterion of the piezoelectric verification: open circuit |V_top| > 1 % of the largest; short circuit: modes absent from the open-circuit spectrum). With shift 50 kHz and 10 modes, index 0 is the f = 0 rigid z translation (absent from VM175's 50-150 kHz list): short f_2, f_7; open f_4, f_8, the same on three meshes (own run 2026-11-07)", paths: [results.evaluations]}
+  - {text: "Open circuit = floating top electrode with zero net charge (terminal semantics of the piezoelectric coupling), as VM175 couples the top-electrode voltage DOFs", paths: [physics.es_oc.bcs.top_oc]}
+  - {text: "Material tensors from materials/pzt-4.yaml: C tetragonal-4mm with the listed C66, e_piezo, uniaxial eps_r = clamped eps^S (property registrations of @amp/physics and @amp/materials)", paths: [materials.pzt4]}
 missing:
   - {what: "primary source of the PZT-4 constants (Boucher et al. 1981 Table 1, paywalled; values via the Ansys VM175 listing)", needed_for: [solution]}
 # eval: [CP-06]

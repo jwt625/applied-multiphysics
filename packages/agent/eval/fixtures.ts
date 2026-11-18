@@ -28,6 +28,8 @@ export const simText = (id: string): string => readFileSync(join(REPO, 'sims', `
 
 export class FeRunner implements StudyRunner {
   readonly calls: Array<{ studyId: string; specText: string; oplogHead: string; ms: number }> = [];
+  /** Host study choice for run_study without a study (tests set it; absent = the first study). */
+  defaultStudy?: () => string | null;
   /** Latest solve per study (solution, its mesh, the params it was solved with, the spec text): the results host reads it. */
   readonly last = new Map<string, { solution: Solution; mesh: Mesh; params: ReadonlyMap<string, { si: number; dim: readonly number[] }>; specText: string }>();
   async run(input: { specText: string; studyId: string; signal: AbortSignal; oplogHead: string }): Promise<StudyOutcome> {

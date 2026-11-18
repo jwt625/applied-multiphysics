@@ -356,8 +356,8 @@ function metalPairs(per) {
  * @param {ReturnType<typeof buildVectorModel>} model
  * @param {{eps:Float64Array, epsIm?:Float64Array|null, epsG?:Float64Array|null, epsGIm?:Float64Array|null}} opts 4 per
  *   triangle [xx, xy, yy, zz]; eps = eps - j epsIm (epsIm >= 0 for loss); group term eps_g = eps - (lambda/2) d eps / d lambda
- *   = epsG - j epsGIm (default eps_g = eps, i.e. non-dispersive materials; a lossy solve then uses the complex eps). In a
- *   lossy solve epsGIm defaults to epsIm when only epsG is given. Lossy solves set epsGc = {re, im} (eps_g = re + j im)
+ *   = epsG - j epsGIm (default eps_g = eps, i.e. non-dispersive materials; a lossy solve then uses the complex eps). A
+ *   lossy solve given epsG without epsGIm is an error (E2, 2026-11-18: the default would drop part of Im eps_g). Lossy solves set epsGc = {re, im} (eps_g = re + j im)
  *   for the complex n_g numerator; lossless solves keep the real eps_g.
  * @returns {{eps:Float64Array, epsG:Float64Array, epsIm:Float64Array|null, epsGIm:Float64Array|null, epsGc?:{re:Float64Array, im:Float64Array}, nMax:number, indices:number[], pairs:any, ngValid?:boolean}}
  */
@@ -374,7 +374,10 @@ export function materialTensors(model, opts = {}) {
   const epsG = need(opts.epsG, 'epsG') ?? Float64Array.from(eps);
   let epsIm = need(opts.epsIm, 'epsIm');
   if (epsIm && !epsIm.some((v) => v !== 0)) epsIm = null;
-  // complex group term of a lossy solve (audit fix 2026-11-18): Im eps_g enters the Hellmann-Feynman numerator
+  // complex group term of a lossy solve (audit fix 2026-11-18): Im eps_g enters the Hellmann-Feynman numerator.
+  // A lossy solve with a dispersive epsG must state epsGIm: defaulting it to epsIm would drop the
+  // -lambda (n dkappa/dlambda + kappa dn/dlambda) part of Im eps_g (pass epsGIm = epsIm to keep kappa constant explicitly)
+  if (epsIm && opts.epsG != null && opts.epsGIm == null) fail('lossy solve with epsG needs epsGIm (Im eps_g = 2 n kappa - lambda (n dkappa/dlambda + kappa dn/dlambda)); pass epsGIm = epsIm explicitly for a wavelength-independent loss part');
   const epsGIm = epsIm ? (need(opts.epsGIm, 'epsGIm') ?? Float64Array.from(epsIm)) : null;
   // one record per region (first live triangle), for the SPP pair list and the index list
   const per = model.regionNames.map(() => null);

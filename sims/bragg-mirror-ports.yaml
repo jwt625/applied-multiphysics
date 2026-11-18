@@ -1,0 +1,104 @@
+# Quarter-wave Bragg mirror (Si3N4 / SiO2, six high-index layers) between two modal ports. The channel walls are
+# natural for E_z (PMC), so port mode 0 is a normally incident plane wave and port mode 1 a plane wave at 32 deg in
+# SiO2 (at 1.55 um); both see the exact 1D stack. Reference: transfer matrix and admittance recursion
+# (validation/driven/bragg_tmm.py) and the quarter-wave closed form at the design wavelength. Indices are library
+# values at 1.55 um held constant over the sweep; layer count, design wavelength and section lengths are modelling inputs.
+schema: amp-spec/0
+id: bragg-mirror-ports
+title: Bragg mirror reflection spectrum (Si3N4 / SiO2 quarter-wave stack)
+description: Reflection and transmission of a six-period dielectric mirror between two ports, at normal and oblique incidence, versus wavelength; checked against the transfer matrix.
+params:
+  lam: {value: 1.55, unit: um, description: vacuum wavelength of the single-wavelength study}
+  lamB: {value: 1.55, unit: um, description: design (Bragg) wavelength of the quarter-wave layers}
+  nH: {value: 1.9963, unit: "1", description: index of the high-index layers (Si3N4)}
+  nL: {value: 1.4444, unit: "1", description: index of the low-index layers and the port sections (SiO2)}
+  tH: {value: "lamB/(4*nH)", description: high-index layer thickness}
+  tL: {value: "lamB/(4*nL)", description: low-index layer thickness}
+  Lin: {value: 0.6, unit: um, description: SiO2 section between port 1 and the stack}
+  Lout: {value: 0.6, unit: um, description: SiO2 section between the stack and port 2}
+  Hch: {value: 1, unit: um, description: channel height}
+  hm: {value: 0.04, unit: um, description: mesh size}
+geometry:
+  dim: 2
+  features:
+    - {id: ch, type: rect, settings: {center: ["(Lin + 6*tH + 5*tL + Lout)/2", "Hch/2"], size: ["Lin + 6*tH + 5*tL + Lout", "Hch"]}}
+    - {id: h1, type: rect, settings: {center: ["Lin + tH/2", "Hch/2"], size: ["tH", "Hch"]}}
+    - {id: h2, type: rect, settings: {center: ["Lin + (tH + tL) + tH/2", "Hch/2"], size: ["tH", "Hch"]}}
+    - {id: h3, type: rect, settings: {center: ["Lin + 2*(tH + tL) + tH/2", "Hch/2"], size: ["tH", "Hch"]}}
+    - {id: h4, type: rect, settings: {center: ["Lin + 3*(tH + tL) + tH/2", "Hch/2"], size: ["tH", "Hch"]}}
+    - {id: h5, type: rect, settings: {center: ["Lin + 4*(tH + tL) + tH/2", "Hch/2"], size: ["tH", "Hch"]}}
+    - {id: h6, type: rect, settings: {center: ["Lin + 5*(tH + tL) + tH/2", "Hch/2"], size: ["tH", "Hch"]}}
+    - {id: hi, type: union, settings: {inputs: [h1, h2, h3, h4, h5, h6]}}
+    - {id: lo, type: difference, settings: {base: ch, tools: [hi], keepTools: true}}
+materials:
+  - {id: sio2, override: {n: "nL"}, select: ["dom:lo"]}
+  - {id: si3n4, override: {n: "nH"}, select: ["dom:hi"]}
+physics:
+  - id: w
+    type: emw-2d
+    select: ["dom:lo", "dom:hi"]
+    settings: {polarization: TM}
+    bcs:
+      - {id: p1, type: port, select: ["bnd:ch.left"], settings: {nModes: 2, excite: true}}
+      - {id: p2, type: port, select: ["bnd:ch.right"], settings: {nModes: 2}}
+mesh:
+  size: {hmax: "hm"}
+studies:
+  - {id: s, type: frequency, physics: [w], settings: {wavelengths: ["lam"]}}
+  - id: sweep
+    type: parametric
+    physics: [w]
+    settings:
+      study: s
+      sweep:
+        - {param: lam, values: ["1.2 um", "1.225 um", "1.25 um", "1.275 um", "1.3 um", "1.325 um", "1.35 um", "1.375 um", "1.4 um", "1.425 um", "1.45 um", "1.475 um", "1.5 um", "1.525 um", "1.55 um", "1.575 um", "1.6 um", "1.625 um", "1.65 um", "1.675 um", "1.7 um", "1.725 um", "1.75 um", "1.775 um", "1.8 um", "1.825 um", "1.85 um", "1.875 um", "1.9 um", "1.925 um", "1.95 um", "1.975 um", "2 um"]}
+results:
+  datasets:
+    - {id: sol_s, type: solution, data: s}
+    - {id: sol_sweep, type: solution, data: sweep}
+  evaluations:
+    - id: ev_s
+      data: sol_s
+      items:
+        - {id: R_normal, type: global, expr: "w.S11_abs^2", unit: "1", label: "reflectance, normal incidence"}
+        - {id: T_normal, type: global, expr: "w.S21_abs^2", unit: "1", label: "transmittance, normal incidence"}
+        - {id: R_oblique, type: global, expr: "w.S11_11_abs^2", unit: "1", label: "reflectance, oblique (port mode 1)"}
+        - {id: T_oblique, type: global, expr: "w.S21_11_abs^2", unit: "1", label: "transmittance, oblique (port mode 1)"}
+    - id: ev_sweep
+      data: sol_sweep
+      items:
+        - {id: R_normal_l, type: global, expr: "w.S11_abs^2", unit: "1", label: "reflectance, normal incidence"}
+        - {id: R_oblique_l, type: global, expr: "w.S11_11_abs^2", unit: "1", label: "reflectance, oblique (port mode 1)"}
+  tables:
+    - {id: tbl_s, from: ev_s}
+    - {id: tbl_sweep, from: ev_sweep}
+  plots:
+    - id: Ez_field
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_re_surf, type: surface, expr: w.Ez_re, unit: V/m, colormap: balance}
+    - id: Ez_magnitude
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_abs_surf, type: surface, expr: w.Ez_abs, unit: V/m}
+    - id: reflection_spectrum
+      type: plot1d
+      items:
+        - {id: R_curve, type: tablegraph, table: tbl_sweep}
+provenance:
+  values:
+    params.nH: {basis: derived, source: "materials/si3n4-lpcvd.yaml n at 1.55 um: 1.996280, rounded to 4 decimals", date: 2026-11-18}
+    params.nL: {basis: derived, source: "materials/sio2-thermal-oxide.yaml n (Malitson 1965) at 1.55 um: 1.444423, rounded to 4 decimals", date: 2026-11-18}
+    params.lam: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.lamB: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.Lin: {basis: user, date: 2026-11-18, note: "modelling input (port reference planes are the channel ends)"}
+    params.Lout: {basis: user, date: 2026-11-18, note: "modelling input"}
+    params.Hch: {basis: user, date: 2026-11-18, note: "modelling input: sets the angle of port mode 1, sin(theta) = lambda0 / (2 Hch nL)"}
+    params.hm: {basis: user, date: 2026-11-18, note: "modelling choice; two levels checked against the transfer matrix (eval case)"}
+assumptions:
+  - {text: "Top and bottom channel walls without a condition are natural for E_z (perfect magnetic conductor), so the stack is laterally infinite for every port mode", paths: [physics.w.bcs]}
+  - {text: "Indices held at their 1.55 um values over the 1.2-2.0 um sweep (no dispersion, no absorption)", paths: [params.nH, params.nL]}
+missing: []
+# eval: [WO-71]

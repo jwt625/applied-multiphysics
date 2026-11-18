@@ -4,6 +4,9 @@
 	// Parameters table, and read-only listings for provenance, assumptions and missing. Every commit is one operation.
 	// Results (DevLog-027): `x-amp-ref` fields are pickers of the ids they may name (compatible first; others disabled
 	// with the reason); folders and groups list their add entries; results nodes have the tree actions as buttons.
+	// Model nodes (DevLog-051): features, materials, physics and conditions have Duplicate / Delete buttons; an edit of
+	// their id field is a rename (references updated, state/edit-ops.ts); Geometry, Materials, Physics and physics
+	// nodes list their add entries; study nodes and the Studies folder show the parametric sweep editor.
 	import { resolveQuantity, units } from '@amp/spec';
 	import type { Session } from './session.svelte';
 	import { SchemaWalker, type Field } from '../schema/form';
@@ -19,10 +22,14 @@
 	import { fmtMs } from '../gfx/ticks';
 	import { refOptions, type MenuEntry } from '../results/plot-ops';
 	import type { TreeAction } from './Tree.svelte';
+	import { ADD_PARENTS, EDIT_KINDS, type ModelMenuEntry } from '../state/edit-ops';
+	import SweepEditor from './SweepEditor.svelte';
 
-	let { s, node, walker, menu, onadd, onaction, onshow, shown = '' }: {
+	let { s, node, walker, menu, onadd, onaction, onrename, onshow, shown = '' }: {
 		s: Session; node: TreeNode | null; walker: SchemaWalker;
-		menu?: (n: TreeNode) => MenuEntry[]; onadd?: (e: MenuEntry) => void; onaction?: (n: TreeNode, a: TreeAction) => void;
+		menu?: (n: TreeNode) => Array<MenuEntry | ModelMenuEntry>; onadd?: (e: MenuEntry | ModelMenuEntry) => void; onaction?: (n: TreeNode, a: TreeAction) => void;
+		/** rename a model node (its id field) */
+		onrename?: (n: TreeNode, id: string) => void;
 		/** show a plot group in the graphics pane; `shown` = its pointer when shown */
 		onshow?: (pointer: string) => void; shown?: string;
 	} = $props();
@@ -32,7 +39,16 @@
 		return !!alts?.length && alts.every((a0) => { const a = walker.deref(a0); return a.type === 'string' || typeof a.const === 'string'; });
 	};
 	const refKind = (f: Field): string | null => (typeof f.schema['x-amp-ref'] === 'string' ? (f.schema['x-amp-ref'] as string) : null);
-	const addEntries = $derived(node && (node.kind === 'rfolder' || node.addable) && menu ? menu(node) : []);
+	const addEntries = $derived(node && (node.kind === 'rfolder' || node.addable || (ADD_PARENTS as readonly string[]).includes(node.kind)) && menu ? menu(node) : []);
+	const modelNode = $derived(!!node && (EDIT_KINDS as readonly string[]).includes(node.kind));
+	/** parametric sweep editor target: an existing parametric study, a new sweep of a study, or the Studies folder */
+	const sweepAt = $derived.by((): { id: string | null; inner: string | null } | null => {
+		if (node?.kind === 'studies') return { id: null, inner: null };
+		if (node?.kind !== 'study') return null;
+		const st = getAt(data, node.pointer) as { id?: unknown; type?: unknown } | undefined;
+		if (typeof st?.id !== 'string') return null;
+		return st.type === 'parametric' ? { id: st.id, inner: null } : { id: null, inner: st.id };
+	});
 	/** pointer of the plot group of a plot node (the group itself, or an item's group) */
 	const plotGroup = $derived(node?.section === 'plots' && node.kind === 'result' ? node.pointer.replace(/\/items\/\d+$/, '') : '');
 	const m = $derived(s.model);
@@ -53,6 +69,8 @@
 	const issueAt = (p: string) => issues.filter((i) => i.pointer === p || i.pointer.startsWith(p + '/')).map((i) => i.message).join('\n');
 
 	async function set(pointer: string, v: unknown) {
+		// the id of a model node: a rename (references updated in the same op, or refused with the reason)
+		if (node && modelNode && onrename && pointer === `${node.pointer}/id` && typeof v === 'string') { if (v !== node.label) onrename(node, v.trim()); return; }
 		const patch = setOp(m.data, pointer, v);
 		if (patch.length) await m.apply(patch, `set ${pointer}`);
 	}
@@ -132,9 +150,16 @@
 					<button data-tip="Remove the node and every results node that reads it (one operation; Undo restores them)" onclick={() => onaction(node, 'delete')}>Delete</button>
 				</div>
 			{/if}
+			{#if modelNode && onaction}
+				<div class="acts">
+					<button data-tip="Copy after this node with a new id (one operation)" onclick={() => onaction(node, 'duplicate')}>Duplicate</button>
+					<button data-tip="Remove the node (one operation; refused while other nodes reference it; Undo restores it)" onclick={() => onaction(node, 'delete')}>Delete</button>
+					<span class="dim hint" data-tip="Editing the id renames the node: selections, studies, couplings and result expressions that use it are updated in the same operation (F2 or double-click in the tree also renames)">id edit = rename</span>
+				</div>
+			{/if}
 			<div class="grp">{@render group(fields, 0)}</div>
 			{#if addEntries.length}
-				<div class="sub"><div class="subh dim">add {node.kind === 'rfolder' ? `to ${node.label}` : 'item'}</div>
+				<div class="sub"><div class="subh dim">add {node.kind === 'rfolder' || node.kind === 'geometry' || node.kind === 'materials' || node.kind === 'physics' ? `to ${node.label}` : node.kind === 'phys' ? 'condition' : 'item'}</div>
 					<div class="adds">{#each addEntries as e (e.type)}<button disabled={!!e.disabled} data-tip={e.disabled ? `${e.tip}\nnot available: ${e.disabled}` : e.tip} onclick={() => onadd?.(e)}>{e.label}</button>{/each}</div>
 				</div>
 			{/if}
@@ -153,6 +178,7 @@
 					{:else}<div class="dim">not run (Compute)</div>{/if}
 				</div>
 			{/if}
+			{#if sweepAt}<SweepEditor {s} id={sweepAt.id} inner={sweepAt.inner} />{/if}
 			{#if showDs && s.sweep}
 				{@const sw = s.sweep}
 				<div class="sub"><div class="subh dim" data-tip={`parametric study ${sw.studyId} over inner study ${sw.innerId}; axes row-major (first slowest)`}>dataset: {sw.studyId}, {sw.done}/{sw.points.length} points</div>
@@ -198,5 +224,6 @@
 	.acts, .adds { display: flex; flex-wrap: wrap; gap: 3px; }
 	.acts button, .adds button { height: 20px; padding: 0 6px; font-size: 11px; }
 	.acts button.on { border-color: var(--accent); }
+	.hint { font-size: 10px; align-self: center; margin-left: 4px; }
 	.lst { margin: 0; font-size: 11px; white-space: pre-wrap; color: var(--ink-2); }
 </style>

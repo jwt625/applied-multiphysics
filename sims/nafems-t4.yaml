@@ -44,7 +44,7 @@ provenance:
   values:
     params.Lx: {basis: benchmark, source: "eval/cases/a/HT-01.yaml geometry.spec.plate_m (NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4)", date: 2026-11-06}
     params.Ly: {basis: benchmark, source: "eval/cases/a/HT-01.yaml geometry.spec.plate_m", date: 2026-11-06}
-    materials.solid.override.k: {basis: benchmark, source: "eval/cases/a/HT-01.yaml materials.plate.k (NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4, R3 s.3.1)", date: 2026-11-06}
+    materials.solid.override.k: {basis: benchmark, source: "eval/cases/a/HT-01.yaml materials.plate.k (NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4)", date: 2026-11-06}
     physics.ht.bcs.base.settings.T: {basis: benchmark, source: "eval/cases/a/HT-01.yaml bcs[0] (373.15 K = 100 C)", date: 2026-11-06}
     physics.ht.bcs.film.settings.h: {basis: benchmark, source: "eval/cases/a/HT-01.yaml bcs[2].h", date: 2026-11-06}
     physics.ht.bcs.film.settings.T_ext: {basis: benchmark, source: "eval/cases/a/HT-01.yaml bcs[2].T_inf (0 C)", date: 2026-11-06}

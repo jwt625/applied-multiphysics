@@ -1,0 +1,159 @@
+# WO-82: Thin-film LN rib (K2 of the EO atlas): x-cut, 600 nm film, 300 nm etch, 1 um top, 60 deg walls, air clad, TE0 at 1550 nm
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-82
+class: c
+title: 'Thin-film LN rib (K2 of the EO atlas): x-cut, 600 nm film, 300 nm etch, 1 um top, 60 deg walls, air clad, TE0 at 1550
+  nm'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    window_um:
+    - [-5, 5]
+    - [-3, 3]
+    rib_polygon_um:
+    - [-0.673205081, 0.3]
+    - [0.673205081, 0.3]
+    - [0.5, 0.6]
+    - [-0.5, 0.6]
+    slab_um: [0, 0.3]
+materials:
+  ln: {n_o: 2.211111009, n_e: 2.13755965, source: atlas K2.yaml (Zelmon 1997 at 1550 nm)}
+  sio2: {n: 1.444023622, source: atlas K2.yaml (Malitson 1965 at 1550 nm)}
+  air: {n: 1.0, source: atlas K2.yaml}
+bcs:
+- {selection: window, type: pec}
+initial: null
+study: {type: eigen, solver: mode, wavelength_m: 1.55e-06, n: 2}
+references:
+- id: neff_0.L0
+  quantity: n_eff TE0 (mesh level 0)
+  metric_id: neff_0
+  value: 1.894167067063121
+  unit: '1'
+  tolerance: {abs: 1.0e-06, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-82.json, metric_id: neff_0}
+  provenance: {citation: 'eo-modulator-atlas tier-B reference (vector FEM N2/P2, femwell formulation; Richardson over 4 levels)',
+    locator: eo-modulator-atlas validation/reference/K2-fem.json extrapolated (sha256 in eval/expected/WO-82.json inputs);
+      case validation/cases/K2.yaml, accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_0}
+- id: neff_0.L1
+  quantity: n_eff TE0 (mesh level 1)
+  metric_id: neff_0
+  value: 1.894167067063121
+  unit: '1'
+  tolerance: {abs: 1.0e-06, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-82.json, metric_id: neff_0}
+  provenance: {citation: 'eo-modulator-atlas tier-B reference (vector FEM N2/P2, femwell formulation; Richardson over 4 levels)',
+    locator: eo-modulator-atlas validation/reference/K2-fem.json extrapolated (sha256 in eval/expected/WO-82.json inputs);
+      case validation/cases/K2.yaml, accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_0}
+- id: ng_0.L0
+  quantity: group index TE0 (with material dispersion) (mesh level 0)
+  metric_id: ng_0
+  value: 2.2908498810056908
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-82.json, metric_id: ng_0}
+  provenance: {citation: 'eo-modulator-atlas tier-B reference (vector FEM N2/P2, femwell formulation; Richardson over 4 levels)',
+    locator: eo-modulator-atlas validation/reference/K2-fem.json extrapolated (sha256 in eval/expected/WO-82.json inputs);
+      case validation/cases/K2.yaml, accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: ng_0}
+  note: engine dn/dlambda from the library (LN Zelmon o / e, SiO2 Malitson converted to vacuum wavelength) at the case indices;
+    the reference used the Sellmeier fits directly
+- id: ng_0.L1
+  quantity: group index TE0 (with material dispersion) (mesh level 1)
+  metric_id: ng_0
+  value: 2.2908498810056908
+  unit: '1'
+  tolerance: {abs: 3.0e-06, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-82.json, metric_id: ng_0}
+  provenance: {citation: 'eo-modulator-atlas tier-B reference (vector FEM N2/P2, femwell formulation; Richardson over 4 levels)',
+    locator: eo-modulator-atlas validation/reference/K2-fem.json extrapolated (sha256 in eval/expected/WO-82.json inputs);
+      case validation/cases/K2.yaml, accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: ng_0}
+  note: engine dn/dlambda from the library (LN Zelmon o / e, SiO2 Malitson converted to vacuum wavelength) at the case indices;
+    the reference used the Sellmeier fits directly
+- id: teFraction_0.L0
+  quantity: TE fraction (mesh level 0)
+  metric_id: teFraction_0
+  value: 0.9906074384655582
+  unit: '1'
+  tolerance: {abs: 2.0e-06, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-82.json, metric_id: teFraction_0}
+  provenance: {citation: 'eo-modulator-atlas tier-B reference (vector FEM N2/P2, femwell formulation; Richardson over 4 levels)',
+    locator: eo-modulator-atlas validation/reference/K2-fem.json extrapolated (sha256 in eval/expected/WO-82.json inputs);
+      case validation/cases/K2.yaml, accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: teFraction_0}
+  note: 'informative: TE fraction definitions may differ between implementations'
+- id: teFraction_0.L1
+  quantity: TE fraction (mesh level 1)
+  metric_id: teFraction_0
+  value: 0.9906074384655582
+  unit: '1'
+  tolerance: {abs: 2.0e-06, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-82.json, metric_id: teFraction_0}
+  provenance: {citation: 'eo-modulator-atlas tier-B reference (vector FEM N2/P2, femwell formulation; Richardson over 4 levels)',
+    locator: eo-modulator-atlas validation/reference/K2-fem.json extrapolated (sha256 in eval/expected/WO-82.json inputs);
+      case validation/cases/K2.yaml, accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: teFraction_0}
+  note: 'informative: TE fraction definitions may differ between implementations'
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels, the finer one with an equal or
+    tighter tolerance
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (253k DOF) 2.3 s in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own work (Wentao Jiang, eo-modulator-atlas; engine GPL-3.0-or-later)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero: {suitable: false, why: verification of a library example}
+spec: sims/tfln-rib-air.yaml
+missing: []
+assumptions: []
+lane: E2
+created: '2026-11-18'

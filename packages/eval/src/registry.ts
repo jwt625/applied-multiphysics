@@ -218,7 +218,14 @@ let compileExpr: ((src: string, scope: { resolve(n: string): unknown }) => { dim
 export function setExpressionCompiler(f: typeof compileExpr): void { compileExpr = f; }
 
 /** SI value and dimension of a term: constant {value, unit}, scalar, probe, reduce or a nested expr. */
-function termSI(sol: Solution, t: Extract | { value: number; unit: string }, o: { mesh?: unknown; sample?: SampleFn }): TermResult {
+/** The extract reads a results evaluation item, itself or in a (nested) expr term (the worker then loads the adapter). */
+export function usesResult(ex: Extract | undefined): boolean {
+  if (!ex) return false;
+  if (ex.kind === 'result') return true;
+  return ex.kind === 'expr' && Object.values(ex.terms ?? {}).some((t) => !!t && typeof t === 'object' && 'kind' in t && usesResult(t as Extract));
+}
+
+function termSI(sol: Solution, t: Extract | { value: number; unit: string }, o: { mesh?: unknown; sample?: SampleFn; result?: ResultEvaluator }): TermResult {
   if (!unitsApi) return { error: 'derived extracts need the units API (@amp/spec)' };
   const si = (v: number, unit: string | undefined): TermResult => {
     try { const u = unitsApi!.parseUnit(DIMLESS.has((unit ?? '').trim()) ? '1' : unit!); return { si: v * u.factor + u.offset, dim: u.dim }; }
@@ -250,6 +257,13 @@ function termSI(sol: Solution, t: Extract | { value: number; unit: string }, o: 
     }
     return si(v, fd.unit);
   }
+  if (t.kind === 'result') {
+    if (!t.node) return { error: "term kind 'result' needs node" };
+    if (!o.result) return { pending: "term kind 'result' needs the results adapter (apps/web/src/lib/results/adapter.ts, not loaded)" };
+    const v = o.result(t.node, { ...(t.step !== undefined ? { step: t.step } : {}), ...(t.index !== undefined ? { point: t.index } : {}) });
+    if ('error' in v) return { error: `results node '${t.node}': ${v.error}` };
+    return si(v.si, v.siUnit);
+  }
   if (t.kind === 'expr') {
     if (!compileExpr) return { error: 'expr extracts need @amp/core/expr (not loaded)' };
     if (!t.expr || !t.terms) return { error: 'expr needs expr and terms' };
@@ -266,7 +280,7 @@ function termSI(sol: Solution, t: Extract | { value: number; unit: string }, o: 
       return { si: c.constant.re, dim: c.dim };
     } catch (e) { return { error: `expr "${t.expr}": ${(e as Error).message}` }; }
   }
-  return { error: `term kind '${t.kind}' not supported (scalar, probe, reduce, expr)` };
+  return { error: `term kind '${t.kind}' not supported (scalar, probe, reduce, expr, result)` };
 }
 
 const ISO_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)$/;

@@ -11,6 +11,7 @@ const hyp2 = detmath.hyp2;
 import { meshDomain, createSizeField } from './cdt2d.mjs';
 import { meshHash, tagHash } from './sha256.ts';
 import { triQuality } from './quality.ts';
+import { periodicSides, type PeriodicSides } from './periodic.ts';
 
 /** Default P1 vertex budget (audit S4), measured in Node v23.7 on an M4 Pro (logs/l3-budget-20261106T161945.jsonl):
  * 556,098 vertices 3.6 s / 437 MB peak RSS; 1,077,706 vertices 8.1 s / 648 MB. 5e5 keeps a Worker mesh near 3 s and
@@ -45,6 +46,9 @@ export interface MeshOptions2D {
   maxVertices?: number;
   /** warn when the minimum angle falls below this (deg); default 5 */
   warnAngleDeg?: number;
+  /** periodic conditions (DevLog-050): each selection holds both opposite sides of one pair (straight, parallel);
+   *  both sides get the same boundary nodes (side B = side A + lattice translation) */
+  periodic?: Array<{ id?: string; select: string[] }>;
 }
 
 /** Ray-cast classifier on a segment set with per-segment left / right domains (horizontal bands). */
@@ -90,11 +94,25 @@ function fineSegments(g: Geometry2D) {
 
 interface Pslg { verts: Float64Array; segs: Array<{ a: number; b: number; tag: number; left: number; right: number; curve: number; ta: number; tb: number; edge: number }> }
 
-function discretize(g: Geometry2D, sizeAt: (x: number, y: number) => number, maxAngle: number, mult: Float64Array): Pslg {
+function discretize(g: Geometry2D, sizeAt: (x: number, y: number) => number, maxAngle: number, mult: Float64Array, fixed?: Map<number, number[]>): Pslg {
   const V: number[] = Array.from(g.vertices);
   const segs: Pslg['segs'] = [];
   g.edges.forEach((e, k) => {
     const cv = e.curve;
+    const fx = fixed?.get(k);
+    if (fx) {
+      // periodic sides (DevLog-050): interior parameters given (straight edge, ascending t in (0, 1))
+      let last = e.v0, lastT = 0;
+      for (const t of fx) {
+        const p = point(cv, t);
+        const id = V.length / 2;
+        V.push(p[0], p[1]);
+        segs.push({ a: last, b: id, tag: e.boundary, left: e.left, right: e.right, curve: -1, ta: lastT, tb: t, edge: k });
+        last = id; lastT = t;
+      }
+      segs.push({ a: last, b: e.v1, tag: e.boundary, left: e.left, right: e.right, curve: -1, ta: lastT, tb: 1, edge: k });
+      return;
+    }
     const ns = cv.kind === 'line' ? 32 : Math.max(64, 2 * finePieces(cv));
     const cum = new Float64Array(ns + 1);
     let prev = point(cv, 0);
@@ -246,22 +264,45 @@ export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
   }
   // discretize, check crossings, densify the offending edges and retry
   const mult = new Float64Array(g.edges.length).fill(1);
-  let P: Pslg | null = null;
-  for (let round = 0; ; round++) {
-    P = discretize(g, sizeAt, maxAngle, mult);
-    const edgeOfSeg = Int32Array.from(P.segs.map((s) => s.edge));
-    const bad = crossingEdges(P, edgeOfSeg);
-    if (!bad.size) break;
-    if (round >= 5) throw new Error(`mesh: boundary discretization still self-intersects after densification (${bad.size} edges, e.g. boundaries ${[...new Set([...bad].map((e) => g.entities.boundaries[g.edges[e]!.boundary]!.id))].slice(0, 6).join(', ')})`);
-    for (const e of bad) mult[e]! *= 2;
+  const per = (opts.periodic ?? []).map((p, i) => periodicEdgeSet(g, p, i));
+  // periodic sides start at half the local size: short boundary segments are rarely encroached, so the refinement
+  // seldom splits them and the matching rounds below converge in one or two passes
+  for (const ps of per) for (const k of ps.edges) mult[k] = 2;
+  let fixed: Map<number, number[]> | undefined;
+  const discretizeChecked = (): Pslg => {
+    for (let round = 0; ; round++) {
+      const D = discretize(g, sizeAt, maxAngle, mult, fixed);
+      const edgeOfSeg = Int32Array.from(D.segs.map((s) => s.edge));
+      const bad = crossingEdges(D, edgeOfSeg);
+      if (!bad.size) return D;
+      if (round >= 5) throw new Error(`mesh: boundary discretization still self-intersects after densification (${bad.size} edges, e.g. boundaries ${[...new Set([...bad].map((e) => g.entities.boundaries[g.edges[e]!.boundary]!.id))].slice(0, 6).join(', ')})`);
+      for (const e of bad) mult[e]! *= 2;
+    }
+  };
+  let P = discretizeChecked();
+  if (per.length) {
+    // periodic sides: both sides get the union of their boundary vertex positions
+    fixed = new Map();
+    for (const ps of per) applyPeriodicUnion(g, ps, pslgSidePoints(P, ps), fixed);
+    P = discretizeChecked();
   }
   const tDisc = performance.now();
   const curvePoint = (k: number, t: number) => point(g.edges[k]!.curve, t);
-  const raw = meshDomain({
-    rect, verts: P.verts, segs: P.segs, classify, curvePoint, sizeAt,
+  const runCdt = (D: Pslg) => meshDomain({
+    rect, verts: D.verts, segs: D.segs, classify, curvePoint, sizeAt,
     curveProject: (k: number, x: number, y: number, t: number) => project(g.edges[k]!.curve, [x, y], t),
     minAngleBound: opts.radiusEdge ?? 1.35, minEdge: hmin, maxVertices,
   });
+  let raw = runCdt(P);
+  // refinement may split a boundary segment on one side only: feed the union of the final positions back and re-mesh
+  for (let round = 0; per.length; round++) {
+    const pts = per.map((ps) => rawSidePoints(raw, ps));
+    if (per.every((ps, i) => sidesMatch(ps, pts[i]!))) break;
+    if (round >= 8) throw new Error(`mesh: periodic sides still differ after ${round + 1} re-meshing rounds (${per.filter((ps, i) => !sidesMatch(ps, pts[i]!)).map((ps) => ps.what).join(', ')})`);
+    per.forEach((ps, i) => applyPeriodicUnion(g, ps, [...pslgSidePoints(P, ps), ...pts[i]!], fixed!));
+    P = discretizeChecked();
+    raw = runCdt(P);
+  }
   const tMesh = performance.now();
   const m = toMesh2D(g, raw, opts.order ?? 1);
   const q = triQuality(raw.nodes, raw.tri);
@@ -292,6 +333,74 @@ export function mesh2d(g: Geometry2D, opts: MeshOptions2D = {}): Mesh {
     discretize_ms: tDisc - t0, cdt_ms: tMesh - tDisc, total_ms: tEnd - t0,
   };
   return m;
+}
+
+// ---- periodic sides (DevLog-050 s.1.3) ----------------------------------------------------------------------------
+
+interface PeriodicEdgeSet { what: string; S: PeriodicSides; edges: number[]; bset: Set<number> }
+
+function periodicEdgeSet(g: Geometry2D, p: { id?: string; select: string[] }, i: number): PeriodicEdgeSet {
+  const what = `periodic condition '${p.id ?? `#${i}`}'`;
+  const ids = p.select.filter((x) => x.startsWith('bnd:'));
+  if (!ids.length) throw new Error(`${what}: select the two opposite boundaries (bnd:...)`);
+  const bset = new Set(selectIndices(g.entities, 'boundaries', ids));
+  const edges: number[] = [];
+  const segs: number[] = [];
+  g.edges.forEach((e, k) => {
+    if (!bset.has(e.boundary)) return;
+    if (e.curve.kind !== 'line') throw new Error(`${what}: boundary ${g.entities.boundaries[e.boundary]!.id} is curved; periodic sides must be straight`);
+    edges.push(k);
+    segs.push(g.vertices[2 * e.v0]!, g.vertices[2 * e.v0 + 1]!, g.vertices[2 * e.v1]!, g.vertices[2 * e.v1 + 1]!);
+  });
+  if (!edges.length) throw new Error(`${what}: the selection holds no boundary of the geometry`);
+  return { what, S: periodicSides(Float64Array.from(segs), what), edges, bset };
+}
+
+/** Side coordinate on side A's line: s = t . x (side A) or t . (x - d) (side B); side from the offset along n. */
+function sideCoord(ps: PeriodicEdgeSet, x: number, y: number): { side: 0 | 1; s: number } {
+  const { n, t, d, offA, offB } = ps.S;
+  const o = n[0] * x + n[1] * y;
+  const side: 0 | 1 = Math.abs(o - offA) <= Math.abs(o - offB) ? 0 : 1;
+  return { side, s: side ? t[0] * (x - d[0]) + t[1] * (y - d[1]) : t[0] * x + t[1] * y };
+}
+
+function pslgSidePoints(P: Pslg, ps: PeriodicEdgeSet): Array<[number, number]> {
+  const E = new Set(ps.edges), out: Array<[number, number]> = [];
+  for (const sg of P.segs) if (E.has(sg.edge)) for (const v of [sg.a, sg.b]) out.push([P.verts[2 * v]!, P.verts[2 * v + 1]!]);
+  return out;
+}
+
+function rawSidePoints(raw: ReturnType<typeof meshDomain>, ps: PeriodicEdgeSet): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  for (const sg of raw.segs as Array<{ a: number; b: number; tag: number }>) if (ps.bset.has(sg.tag)) for (const v of [sg.a, sg.b]) out.push([raw.nodes[2 * v]!, raw.nodes[2 * v + 1]!]);
+  return out;
+}
+
+const uniqSorted = (v: number[], tol: number): number[] => {
+  v.sort((a, b) => a - b);
+  const out: number[] = [];
+  for (const x of v) if (!out.length || x - out[out.length - 1]! > tol) out.push(x);
+  return out;
+};
+
+function sidesMatch(ps: PeriodicEdgeSet, pts: Array<[number, number]>): boolean {
+  const A: number[] = [], B: number[] = [];
+  for (const [x, y] of pts) { const c = sideCoord(ps, x, y); (c.side ? B : A).push(c.s); }
+  const a = uniqSorted(A, ps.S.tol), b = uniqSorted(B, ps.S.tol);
+  return a.length === b.length && a.every((v, i) => Math.abs(v - b[i]!) <= ps.S.tol);
+}
+
+/** Set the interior parameters of every edge of the pair to the union of the given side positions. */
+function applyPeriodicUnion(g: Geometry2D, ps: PeriodicEdgeSet, pts: Array<[number, number]>, fixed: Map<number, number[]>): void {
+  const tol = ps.S.tol;
+  const all = uniqSorted(pts.map(([x, y]) => sideCoord(ps, x, y).s), tol);
+  for (const k of ps.edges) {
+    const e = g.edges[k]!;
+    const s0 = sideCoord(ps, g.vertices[2 * e.v0]!, g.vertices[2 * e.v0 + 1]!).s, s1 = sideCoord(ps, g.vertices[2 * e.v1]!, g.vertices[2 * e.v1 + 1]!).s;
+    const lo = Math.min(s0, s1) + tol, hi = Math.max(s0, s1) - tol;
+    const ts = all.filter((s) => s > lo && s < hi).map((s) => (s - s0) / (s1 - s0)).sort((a, b) => a - b);
+    fixed.set(k, ts);
+  }
 }
 
 function toMesh2D(g: Geometry2D, raw: ReturnType<typeof meshDomain>, order: 1 | 2): Mesh {

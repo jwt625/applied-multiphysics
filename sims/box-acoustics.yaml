@@ -55,10 +55,10 @@ results:
         - {id: p_mode_surf, type: surface, expr: ac.p, unit: Pa}
 provenance:
   values:
-    params.Lx: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}
-    params.Ly: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}
-    params.Lz: {basis: benchmark, source: "R3 AC-02", date: 2026-11-06}
-    materials.air.override.c: {basis: benchmark, source: "eval/cases/a/AC-02.yaml materials.air.c (synthetic case input, R3 s.3.6)", date: 2026-11-06}
+    params.Lx: {basis: benchmark, source: "synthetic eval case input (eval/cases/a/AC-02.yaml)", date: 2026-11-06}
+    params.Ly: {basis: benchmark, source: "synthetic eval case input (eval/cases/a/AC-02.yaml)", date: 2026-11-06}
+    params.Lz: {basis: benchmark, source: "synthetic eval case input (eval/cases/a/AC-02.yaml)", date: 2026-11-06}
+    materials.air.override.c: {basis: benchmark, source: "eval/cases/a/AC-02.yaml materials.air.c (synthetic case input)", date: 2026-11-06}
     materials.air.override.rho: {basis: benchmark, source: "eval/cases/a/AC-02.yaml materials.air.rho (synthetic case input; does not enter the eigenfrequencies)", date: 2026-11-06}
     studies.eig.settings.nModes: {basis: user, date: 2026-11-06, note: "the ten AC-02 modes plus the zero-frequency constant-pressure mode of an all-rigid room"}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}

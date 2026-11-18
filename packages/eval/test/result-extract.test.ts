@@ -65,3 +65,12 @@ test("extract kind 'result': an unknown node is an error, not a value", async ()
   assert.notEqual(t.status, 'pass');
   assert.match(JSON.stringify(out.results[0]), /results node 'nope'/);
 });
+
+// DevLog-055: an evaluation item as a term of an expr extract (the worker loads the adapter for nested result terms)
+test("expr term kind 'result': 2 * kt - kt equals kt through the results adapter", async () => {
+  const text = CASE('kt').replace('    extract: {kind: result, node: kt}', '    extract: {kind: expr, expr: "2 * a - b", terms: {a: {kind: result, node: kt}, b: {kind: result, node: kt}}}');
+  const { out, err } = await runCase(text);
+  const t = out.results[0]!.targets[0]!;
+  assert.equal(t.status, 'pass', `${JSON.stringify(out.results[0])} ${err}`);
+  assert.ok(Math.abs((t.value as number) - 3.021233775361685) <= 1e-15 * 3.03);
+});

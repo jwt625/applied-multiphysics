@@ -18,7 +18,8 @@ test('tool definitions are generated, sorted, object schemas, and small', () => 
     assert.ok(d.description.length > 10);
   }
   const s = toolDefinitionSize();
-  assert.ok(s.bytes < 16_000, `tool definitions ${s.bytes} B`);
+  // 17,000 B since 2026-11-18 (29 tools incl. tree edits and sweep definition, measured 16,830 B; DevLog-053)
+  assert.ok(s.bytes < 17_000, `tool definitions ${s.bytes} B`);
   assert.equal(s.tokensEstimate, Math.round(s.bytes / 4));
   // apply_ops ops schema comes from @amp/spec JsonPatchSchema: all seven ops including the amp extension `absent`
   const ops = JSON.stringify(defs.find((d) => d.name === 'apply_ops')!.input_schema);

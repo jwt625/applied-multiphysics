@@ -32,6 +32,13 @@ export interface EigenInput {
   factor?: 'auto' | 'cholesky' | 'ldlt';
   kPsd?: boolean;
   signal?: AbortSignal;
+  /** AMD symbolic analysis of `pat` computed by the caller (reused by the direct factor) */
+  sym?: ReturnType<typeof analyze>;
+  /**
+   * Iterative path (DevLog-054): called once with the values of K - sigma M on `pat`; returns the block solve used in
+   * place of a direct factor (each column solved to the solver's own tolerance). `factor` is then ignored.
+   */
+  linearSolver?: (A: Float64Array) => { solveMany: (b: Float64Array, m: number) => Float64Array; label: string };
 }
 
 export interface EigenResult {
@@ -40,7 +47,7 @@ export interface EigenResult {
   /** relative residual ||K x - lambda M x|| / (||K x|| + |lambda| ||M x||) per pair */
   residual: Float64Array;
   stats: {
-    n: number; nnz: number; factor: 'cholesky' | 'ldlt'; nnzL: number; nNegative: number | null; nPerturbed: number;
+    n: number; nnz: number; factor: 'cholesky' | 'ldlt' | 'iterative'; nnzL: number; nNegative: number | null; nPerturbed: number;
     factorMs: number; arnoldiMs: number; refineMs: number; opApplications: number; restarts: number; converged: boolean;
   };
 }
@@ -60,12 +67,14 @@ export function shiftInvertEigen(o: EigenInput): EigenResult {
   const n = pat.n;
   const A = new Float64Array(pat.nnz);
   for (let q = 0; q < pat.nnz; q++) A[q] = K[q]! - sigma * M[q]!;
-  const kind = o.factor === 'cholesky' || (o.factor !== 'ldlt' && sigma < 0 && o.kPsd) ? 'cholesky' : 'ldlt';
+  const kind: 'cholesky' | 'ldlt' | 'iterative' = o.linearSolver ? 'iterative' : o.factor === 'cholesky' || (o.factor !== 'ldlt' && sigma < 0 && o.kPsd) ? 'cholesky' : 'ldlt';
   const t0 = performance.now();
   let solveMany: (b: Float64Array, m: number) => Float64Array;
   let nnzL = 0, nNegative: number | null = null, nPerturbed = 0;
-  if (kind === 'cholesky') {
-    const ch = new SparseCholesky(pat);
+  if (kind === 'iterative') {
+    solveMany = o.linearSolver!(A).solveMany;
+  } else if (kind === 'cholesky') {
+    const ch = o.sym ? new SparseCholesky(pat, null, { sym: o.sym }) : new SparseCholesky(pat);
     if (!ch.factor(A)) throw new Error('eigen: K - sigma M is not positive definite (sigma not below the spectrum?)');
     nnzL = Number(ch.nnzL);
     solveMany = (b, m) => {
@@ -78,7 +87,7 @@ export function shiftInvertEigen(o: EigenInput): EigenResult {
     };
     nNegative = 0;
   } else {
-    const sym = analyze(pat);
+    const sym = o.sym ?? analyze(pat);
     const f = new SupernodalLDLT(sym);
     const r = f.factor(A);
     if (!r.ok) throw new Error('eigen: LDL^T of K - sigma M failed (sigma on an eigenvalue?)');

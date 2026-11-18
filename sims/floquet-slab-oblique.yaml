@@ -1,0 +1,80 @@
+# Dielectric film (eps 4, thickness 0.3 lambda0) in vacuum under a TM (E_z) plane wave at 30 deg from the normal,
+# solved on one period of a strip with Floquet-periodic side walls (the Bloch phase follows the incident wave) and PML
+# above and below (DevLog-050). Above the film the scattered field is the reflected wave (|E_z,sc| = |r|), below it the
+# total field is the transmitted wave (|E_z| = |tau|); reference: Airy film formula (Born and Wolf, Principles of
+# Optics, 7th ed., sec. 1.6.4), validation/bloch/bloch_refs.py (case WO-92).
+schema: amp-spec/0
+id: floquet-slab-oblique
+title: Film at oblique incidence, Floquet cell
+description: One period of a film under an oblique TM plane wave; periodic side walls carry the incident Bloch phase, PML layers absorb the reflected and transmitted waves.
+params:
+  lam0: {value: 1, unit: um, description: vacuum wavelength}
+  w: {value: 0.5, unit: um, description: cell width (any period works for a uniform film)}
+  t_film: {value: 0.3, unit: um, description: film thickness}
+  eps_film: {value: 4, description: film permittivity}
+  theta: {value: 30, unit: deg, description: angle of incidence from the film normal}
+  d_air: {value: 1, unit: um, description: air above and below the film}
+  d_pml: {value: 1, unit: um, description: PML thickness}
+geometry:
+  dim: 2
+  features:
+    - {id: pml_top, type: rect, settings: {size: ["w", "d_pml"], center: ["w/2", "d_air + d_pml/2"]}}
+    - {id: air_top, type: rect, settings: {size: ["w", "d_air"], center: ["w/2", "d_air/2"]}}
+    - {id: film, type: rect, settings: {size: ["w", "t_film"], center: ["w/2", "-t_film/2"]}}
+    - {id: air_bot, type: rect, settings: {size: ["w", "d_air"], center: ["w/2", "-t_film - d_air/2"]}}
+    - {id: pml_bot, type: rect, settings: {size: ["w", "d_pml"], center: ["w/2", "-t_film - d_air - d_pml/2"]}}
+materials:
+  - {id: vac, override: {eps_r: 1, mu_r: 1}, select: ["dom:pml_top", "dom:air_top", "dom:air_bot", "dom:pml_bot"]}
+  - {id: film_mat, override: {eps_r: "eps_film", mu_r: 1}, select: ["dom:film"]}
+physics:
+  - id: w
+    type: emw-2d
+    select: ["dom:pml_top", "dom:air_top", "dom:film", "dom:air_bot", "dom:pml_bot"]
+    settings: {polarization: TM}
+    bcs:
+      - {id: absorb, type: pml, select: ["dom:pml_top", "dom:pml_bot"], settings: {R0: 1.0e-10, order: 2}}
+      - {id: inc, type: plane-wave, select: ["dom:air_top", "dom:air_bot"], settings: {direction: "theta - pi/2", amplitude: {value: 1, unit: V/m}}}
+      - id: cell
+        type: periodic
+        select: ["bnd:pml_top.left", "bnd:air_top.left", "bnd:film.left", "bnd:air_bot.left", "bnd:pml_bot.left",
+                 "bnd:pml_top.right", "bnd:air_top.right", "bnd:film.right", "bnd:air_bot.right", "bnd:pml_bot.right"]
+mesh:
+  size: {hmax: "lam0/20"}
+  refine:
+    - {select: ["dom:film"], h: "lam0/40"}
+studies:
+  - {id: s, type: frequency, physics: [w], settings: {wavelengths: ["lam0"]}}
+results:
+  datasets:
+    - {id: sol_s, type: solution, data: s}
+    - {id: above, type: cutpoint, data: sol_s, points: [{value: [0.25, 0.5], unit: um}]}
+    - {id: below, type: cutpoint, data: sol_s, points: [{value: [0.25, -0.8], unit: um}]}
+  evaluations:
+    - id: ev_s
+      data: sol_s
+      items:
+        - {id: r_abs, type: point, data: above, expr: w.Ez_sc_abs, unit: V/m, label: "|E_z| of the reflected wave above the film (incident 1 V/m)"}
+        - {id: tau_abs, type: point, data: below, expr: w.Ez_abs, unit: V/m, label: "|E_z| of the transmitted wave below the film"}
+  tables:
+    - {id: tbl_s, from: ev_s}
+  plots:
+    - id: Ez_field
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_re_surf, type: surface, expr: w.Ez_re, unit: V/m, colormap: balance}
+provenance:
+  values:
+    params.lam0: {basis: user, date: 2026-11-18, note: "scale choice; r and tau depend on t / lambda0, eps and the angle only"}
+    params.w: {basis: user, date: 2026-11-18, note: "modelling choice (uniform film: any period)"}
+    params.t_film: {basis: user, date: 2026-11-18, note: "test input (0.3 lambda0, the thickness of the normal-incidence film check of the driven solver)"}
+    params.eps_film: {basis: user, date: 2026-11-18, note: "test input"}
+    params.theta: {basis: user, date: 2026-11-18, note: "test input"}
+    params.d_air: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.d_pml: {basis: user, date: 2026-11-18, note: "modelling choice (one wavelength)"}
+    physics.w.bcs.absorb.settings.R0: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "Uniform film and lossless media; the cell period does not enter (single specular order)", paths: [geometry]}
+# eval: [WO-92]

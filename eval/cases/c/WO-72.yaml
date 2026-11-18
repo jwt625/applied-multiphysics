@@ -1,0 +1,493 @@
+# WO-72: 1x2 MMI power splitter (Si / SiO2, 2D in-plane TE, closed box, three ports): |S11|, |S21| vs eigenmode expansion; reciprocity, energy, balance
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-72
+class: c
+title: '1x2 MMI power splitter (Si / SiO2, 2D in-plane TE, closed box, three ports): |S11|, |S21| vs eigenmode expansion;
+  reciprocity, energy, balance'
+status: unvalidated
+untestable_reason: null
+physics: [optics-scattering, rf-sparams]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {w_um: 0.4, W_um: 2.0, Lm_um: 4.6, d_um: 0.5, Lin_um: 1.0, Lout_um: 1.0, box_um: 4.0}
+materials:
+  core: {n: 3.4767, source: 'materials/silicon.yaml n (Li 1980) at 1.55 um, rounded'}
+  clad: {n: 1.4444, source: 'materials/sio2-thermal-oxide.yaml n (Malitson 1965) at 1.55 um, rounded'}
+bcs:
+- {selection: input end, type: port, expr: 12 modes}
+- {selection: 'output end, y > 0 and y < 0', type: port, expr: 8 modes each; natural end at y = 0}
+- {selection: box top / bottom, type: pec}
+initial: null
+study:
+  type: frequency
+  wavelengths_m: [1.5e-06, 1.55e-06, 1.6e-06]
+references:
+- id: S11_abs.l1500.L0
+  quantity: '|S11| fundamental mode, lambda0 1.50 um (mesh level 0)'
+  metric_id: S11_abs.l1500
+  value: 0.1616203905168214
+  unit: '1'
+  tolerance: {abs: 0.002, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-72.json, metric_id: S11_abs.l1500}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S11| changes by at most 3.1e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.5}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S11_abs.l1500.L1
+  quantity: '|S11| fundamental mode, lambda0 1.50 um (mesh level 1)'
+  metric_id: S11_abs.l1500
+  value: 0.1616203905168214
+  unit: '1'
+  tolerance: {abs: 0.0005, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-72.json, metric_id: S11_abs.l1500}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S11| changes by at most 3.1e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.5}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S21_abs.l1500.L0
+  quantity: '|S21| fundamental mode (upper output), lambda0 1.50 um (mesh level 0)'
+  metric_id: S21_abs.l1500
+  value: 0.6725067206626175
+  unit: '1'
+  tolerance: {abs: 0.002, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-72.json, metric_id: S21_abs.l1500}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S21| changes by at most 1.0e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.5}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S21_abs.l1500.L1
+  quantity: '|S21| fundamental mode (upper output), lambda0 1.50 um (mesh level 1)'
+  metric_id: S21_abs.l1500
+  value: 0.6725067206626175
+  unit: '1'
+  tolerance: {abs: 0.0005, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-72.json, metric_id: S21_abs.l1500}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S21| changes by at most 1.0e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.5}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S11_abs.l1550.L0
+  quantity: '|S11| fundamental mode, lambda0 1.55 um (mesh level 0)'
+  metric_id: S11_abs.l1550
+  value: 0.16278204976625635
+  unit: '1'
+  tolerance: {abs: 0.002, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-72.json, metric_id: S11_abs.l1550}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S11| changes by at most 3.1e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S11_abs.l1550.L1
+  quantity: '|S11| fundamental mode, lambda0 1.55 um (mesh level 1)'
+  metric_id: S11_abs.l1550
+  value: 0.16278204976625635
+  unit: '1'
+  tolerance: {abs: 0.0005, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-72.json, metric_id: S11_abs.l1550}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S11| changes by at most 3.1e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S21_abs.l1550.L0
+  quantity: '|S21| fundamental mode (upper output), lambda0 1.55 um (mesh level 0)'
+  metric_id: S21_abs.l1550
+  value: 0.6645358332834876
+  unit: '1'
+  tolerance: {abs: 0.002, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-72.json, metric_id: S21_abs.l1550}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S21| changes by at most 1.0e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S21_abs.l1550.L1
+  quantity: '|S21| fundamental mode (upper output), lambda0 1.55 um (mesh level 1)'
+  metric_id: S21_abs.l1550
+  value: 0.6645358332834876
+  unit: '1'
+  tolerance: {abs: 0.0005, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-72.json, metric_id: S21_abs.l1550}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S21| changes by at most 1.0e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S11_abs.l1600.L0
+  quantity: '|S11| fundamental mode, lambda0 1.60 um (mesh level 0)'
+  metric_id: S11_abs.l1600
+  value: 0.035182329931824664
+  unit: '1'
+  tolerance: {abs: 0.002, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-72.json, metric_id: S11_abs.l1600}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S11| changes by at most 3.1e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.6}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S11_abs.l1600.L1
+  quantity: '|S11| fundamental mode, lambda0 1.60 um (mesh level 1)'
+  metric_id: S11_abs.l1600
+  value: 0.035182329931824664
+  unit: '1'
+  tolerance: {abs: 0.0005, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-72.json, metric_id: S11_abs.l1600}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S11| changes by at most 3.1e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.6}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S21_abs.l1600.L0
+  quantity: '|S21| fundamental mode (upper output), lambda0 1.60 um (mesh level 0)'
+  metric_id: S21_abs.l1600
+  value: 0.6511131848576166
+  unit: '1'
+  tolerance: {abs: 0.002, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-72.json, metric_id: S21_abs.l1600}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S21| changes by at most 1.0e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.6}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: S21_abs.l1600.L1
+  quantity: '|S21| fundamental mode (upper output), lambda0 1.60 um (mesh level 1)'
+  metric_id: S21_abs.l1600
+  value: 0.6511131848576166
+  unit: '1'
+  tolerance: {abs: 0.0005, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-72.json, metric_id: S21_abs.l1600}
+  provenance: {citation: bidirectional eigenmode expansion with all transverse modes of a P2 grid (validation/driven/mmi_eme.py),
+    locator: method and derivation in the script header; reference |S21| changes by at most 1.0e-5 between dy 0.01 and 0.005
+      um (three wavelengths), accessed: null, generator: validation/driven/mmi_eme.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.6}
+    study: s
+  note: 'level 0 is pre-asymptotic: measured error of |S21| at 1.60 um 8.7e-4 on level 0 and 9.3e-5 on level 1 (2026-11-18),
+    so level 0 is gated at 2e-3 and level 1 at 5e-4'
+- id: reciprocity.L0
+  quantity: '|S21 - S12| (mesh level 0)'
+  metric_id: reciprocity.L0
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: reciprocity of a lossless reciprocal medium (S = S^T for power-normalised modes), locator: exact
+      property; derivation of the port operator in DevLog-042 s.1.6, accessed: null}
+  extract:
+    kind: expr
+    expr: sqrt((a - b)^2 + (c - d)^2)
+    terms:
+      a: {kind: scalar, name: S21_re}
+      b: {kind: scalar, name: S12_re}
+      c: {kind: scalar, name: S21_im}
+      d: {kind: scalar, name: S12_im}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+- id: energy.L0
+  quantity: sum over propagating (port, mode) of |S_i1|^2 - 1 (mesh level 0)
+  metric_id: energy.L0
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: 'energy conservation in a closed lossless box: all power leaves through the propagating port modes',
+    locator: exact property; propagating modes listed in validation/c/cases_ext/driven.py MMI_PROP, accessed: null}
+  extract:
+    kind: expr
+    expr: t0^2 + t1^2 + t2^2 + t3^2 + t4^2 + t5^2 + t6^2 + t7^2 + t8^2 + t9^2 + t10^2 + t11^2 + t12^2 + t13^2 + t14^2 + t15^2
+      + t16^2 + t17^2 + t18^2 - 1
+    terms:
+      t0: {kind: scalar, name: S11_abs}
+      t1: {kind: scalar, name: S11_10_abs}
+      t2: {kind: scalar, name: S11_20_abs}
+      t3: {kind: scalar, name: S11_30_abs}
+      t4: {kind: scalar, name: S11_40_abs}
+      t5: {kind: scalar, name: S11_50_abs}
+      t6: {kind: scalar, name: S11_60_abs}
+      t7: {kind: scalar, name: S11_70_abs}
+      t8: {kind: scalar, name: S11_80_abs}
+      t9: {kind: scalar, name: S21_abs}
+      t10: {kind: scalar, name: S31_abs}
+      t11: {kind: scalar, name: S21_10_abs}
+      t12: {kind: scalar, name: S21_20_abs}
+      t13: {kind: scalar, name: S21_30_abs}
+      t14: {kind: scalar, name: S21_40_abs}
+      t15: {kind: scalar, name: S31_10_abs}
+      t16: {kind: scalar, name: S31_20_abs}
+      t17: {kind: scalar, name: S31_30_abs}
+      t18: {kind: scalar, name: S31_40_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+- id: balance.L0
+  quantity: '|S21| - |S31| (mesh level 0)'
+  metric_id: balance.L0
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: mirror symmetry of the splitter about y = 0, locator: 'exact property of the geometry; the mesh is
+      not mirror symmetric, so the difference is a discretisation error', accessed: null}
+  extract:
+    kind: expr
+    expr: a - b
+    terms:
+      a: {kind: scalar, name: S21_abs}
+      b: {kind: scalar, name: S31_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+- id: reciprocity.L1
+  quantity: '|S21 - S12| (mesh level 1)'
+  metric_id: reciprocity.L1
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: reciprocity of a lossless reciprocal medium (S = S^T for power-normalised modes), locator: exact
+      property; derivation of the port operator in DevLog-042 s.1.6, accessed: null}
+  extract:
+    kind: expr
+    expr: sqrt((a - b)^2 + (c - d)^2)
+    terms:
+      a: {kind: scalar, name: S21_re}
+      b: {kind: scalar, name: S12_re}
+      c: {kind: scalar, name: S21_im}
+      d: {kind: scalar, name: S12_im}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+- id: energy.L1
+  quantity: sum over propagating (port, mode) of |S_i1|^2 - 1 (mesh level 1)
+  metric_id: energy.L1
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 1.0e-09, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: 'energy conservation in a closed lossless box: all power leaves through the propagating port modes',
+    locator: exact property; propagating modes listed in validation/c/cases_ext/driven.py MMI_PROP, accessed: null}
+  extract:
+    kind: expr
+    expr: t0^2 + t1^2 + t2^2 + t3^2 + t4^2 + t5^2 + t6^2 + t7^2 + t8^2 + t9^2 + t10^2 + t11^2 + t12^2 + t13^2 + t14^2 + t15^2
+      + t16^2 + t17^2 + t18^2 - 1
+    terms:
+      t0: {kind: scalar, name: S11_abs}
+      t1: {kind: scalar, name: S11_10_abs}
+      t2: {kind: scalar, name: S11_20_abs}
+      t3: {kind: scalar, name: S11_30_abs}
+      t4: {kind: scalar, name: S11_40_abs}
+      t5: {kind: scalar, name: S11_50_abs}
+      t6: {kind: scalar, name: S11_60_abs}
+      t7: {kind: scalar, name: S11_70_abs}
+      t8: {kind: scalar, name: S11_80_abs}
+      t9: {kind: scalar, name: S21_abs}
+      t10: {kind: scalar, name: S31_abs}
+      t11: {kind: scalar, name: S21_10_abs}
+      t12: {kind: scalar, name: S21_20_abs}
+      t13: {kind: scalar, name: S21_30_abs}
+      t14: {kind: scalar, name: S21_40_abs}
+      t15: {kind: scalar, name: S31_10_abs}
+      t16: {kind: scalar, name: S31_20_abs}
+      t17: {kind: scalar, name: S31_30_abs}
+      t18: {kind: scalar, name: S31_40_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+- id: balance.L1
+  quantity: '|S21| - |S31| (mesh level 1)'
+  metric_id: balance.L1
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 3.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: mirror symmetry of the splitter about y = 0, locator: 'exact property of the geometry; the mesh is
+      not mirror symmetric, so the difference is a discretisation error', accessed: null}
+  extract:
+    kind: expr
+    expr: a - b
+    terms:
+      a: {kind: scalar, name: S21_abs}
+      b: {kind: scalar, name: S31_abs}
+  spec:
+    sim: sims/mmi-1x2-splitter.yaml
+    params: {lam: 1.55}
+    study: s
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels with a tighter tolerance on the
+    finer one
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (246k DOF) took 7.2 s and 1.16 GB RSS in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited textbook formulas
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero: {suitable: false, why: verification of a library example}
+spec: {sim: sims/mmi-1x2-splitter.yaml, study: s}
+missing: []
+assumptions: [2D in-plane model with bulk indices (not an effective-index reduction of a silicon-on-insulator device)]
+lane: E1
+created: '2026-11-18'

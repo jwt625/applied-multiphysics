@@ -1,0 +1,137 @@
+# PK-05: 2.5D interposer with three dies: power-weighted junction temperature rise within closed-form bounds
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: PK-05
+class: c
+title: '2.5D interposer with three dies: power-weighted junction temperature rise within closed-form bounds'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond]
+dimension: 3D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    interposer_m: [0.014, 0.008, 0.0001]
+    bump_layer_m: 4.0e-05
+    die_thickness_m: 0.0003
+    active_layer_m: 1.0e-05
+    dies_m:
+      logic: [0.006, 0.006]
+      mem_l: [0.003, 0.005]
+      mem_r: [0.003, 0.005]
+materials:
+  si: {ref: materials/silicon, k_W_per_mK: 149.038, source: materials/silicon.yaml k (HPL 1972) at 298.15 K}
+  bump_layer: {k_W_per_mK: 9.9003, source: 'f k_SAC305 (materials/sac305.yaml k, Indium PDS); underfill term left out (k N/A)'}
+bcs:
+- selection: die tops
+  type: temperature
+  params: {T_K: 298.15}
+- selection: die active layers
+  type: heat_source
+  params:
+    P_W: {logic: 30.0, mem_l: 5.0, mem_r: 5.0}
+- {selection: all other surfaces, type: adiabatic}
+initial: null
+study: {type: stationary}
+references:
+- id: Tj_logic
+  quantity: mean active-layer temperature, die logic
+  metric_id: Tj_logic
+  value: null
+  unit: K
+  tolerance:
+    rule:
+      type: range
+      range: [298.15, 300.0088349081243]
+      note: 'rigorous but loose: 0 <= P_i dT_i <= sum_j P_j dT_j <= upper bound'
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: Thermal compliance monotonicity in k (Thomson / Rayleigh variational principle) with 1D slab solutions
+      (own derivation; validation/pkg/interposer_bounds.py), locator: 'validation/pkg/interposer_bounds.py bounds(); eval/expected/PK-05.json
+      dT_mean_lower, dT_mean_upper', accessed: null, generator: validation/pkg/interposer_bounds.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: Tj_logic}
+- id: Tj_mem_l
+  quantity: mean active-layer temperature, die mem_l
+  metric_id: Tj_mem_l
+  value: null
+  unit: K
+  tolerance:
+    rule:
+      type: range
+      range: [298.15, 309.3030094487461]
+      note: 'rigorous but loose: 0 <= P_i dT_i <= sum_j P_j dT_j <= upper bound'
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: Thermal compliance monotonicity in k (Thomson / Rayleigh variational principle) with 1D slab solutions
+      (own derivation; validation/pkg/interposer_bounds.py), locator: 'validation/pkg/interposer_bounds.py bounds(); eval/expected/PK-05.json
+      dT_mean_lower, dT_mean_upper', accessed: null, generator: validation/pkg/interposer_bounds.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: Tj_mem_l}
+- id: Tj_mem_r
+  quantity: mean active-layer temperature, die mem_r
+  metric_id: Tj_mem_r
+  value: null
+  unit: K
+  tolerance:
+    rule:
+      type: range
+      range: [298.15, 309.3030094487461]
+      note: 'rigorous but loose: 0 <= P_i dT_i <= sum_j P_j dT_j <= upper bound'
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: Thermal compliance monotonicity in k (Thomson / Rayleigh variational principle) with 1D slab solutions
+      (own derivation; validation/pkg/interposer_bounds.py), locator: 'validation/pkg/interposer_bounds.py bounds(); eval/expected/PK-05.json
+      dT_mean_lower, dT_mean_upper', accessed: null, generator: validation/pkg/interposer_bounds.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: Tj_mem_r}
+- id: dT_mean
+  quantity: power-weighted mean active-layer temperature rise sum_i P_i (Tj_i - T_case) / P
+  metric_id: dT_mean
+  value: null
+  unit: K
+  tolerance:
+    rule:
+      type: range
+      range: [1.195065447345067, 1.394126181093263]
+      note: two-sided bound, exact for the modelled geometry (not an estimate); checked on every mesh level
+  bounds: [1.195065447345067, 1.394126181093263]
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: Thermal compliance monotonicity in k (Thomson / Rayleigh variational principle) with 1D slab solutions
+      (own derivation; validation/pkg/interposer_bounds.py), locator: 'validation/pkg/interposer_bounds.py bounds(); eval/expected/PK-05.json
+      dT_mean_lower, dT_mean_upper', accessed: null, generator: validation/pkg/interposer_bounds.py, source_accessed: '2026-11-18'}
+  extract:
+    kind: combine
+    expr: (30 * (tl - 298.15[K]) + 5 * (tml - 298.15[K]) + 5 * (tmr - 298.15[K])) / 40
+    targets: {tl: Tj_logic, tml: Tj_mem_l, tmr: Tj_mem_r}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2
+  method: none
+  h_factors: [1, 0.5]
+  note: 'two nested levels (second: 333k DOF, about 65 s on the lane''s machine); bound checked on both'
+speed:
+  budget_s: {browser: 90.0, native: null}
+  budget_basis: est. from the lane's own runs on 2026-11-18 (DevLog-049), not a browser measurement
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own derivation and closed forms from cited literature (formulas only); GPL-3.0-or-later code
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: sims/interposer-thermal-3d.yaml
+missing: []
+assumptions: [Homogenised micro-bump layer; constant k; isothermal cold plate on the die tops; illustrative inputs.]
+notes: ['The bound is on the thermal compliance sum_i P_i dT_i: lower = bump layer and interposer perfectly conducting, upper
+    = dies alone. A conforming FE solution under-estimates the compliance, so the upper bound holds on every level.']
+lane: E3
+created: '2026-11-18'

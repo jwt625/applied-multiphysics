@@ -47,9 +47,9 @@ results:
         - {id: T_curve, type: linegraph, data: axis, x: arc, expr: ht.T, unit: K}
 provenance:
   values:
-    params.L: {basis: benchmark, source: "eval/cases/a/HT-03.yaml geometry.spec.rod_m (NAFEMS T2, R3 s.3.1)", date: 2026-11-06}
+    params.L: {basis: benchmark, source: "eval/cases/a/HT-03.yaml geometry.spec.rod_m (NAFEMS T2 via Abaqus/CalculiX forum)", date: 2026-11-06}
     params.w: {basis: user, date: 2026-11-06, note: "modelling choice: 2D strip width; the solution is independent of it"}
-    materials.rodmat.override.k: {basis: benchmark, source: "eval/cases/a/HT-03.yaml materials.rod.k (R3 s.3.1, NAFEMS T2 via Abaqus/CalculiX forum)", date: 2026-11-06}
+    materials.rodmat.override.k: {basis: benchmark, source: "eval/cases/a/HT-03.yaml materials.rod.k (NAFEMS T2 via Abaqus/CalculiX forum)", date: 2026-11-06}
     physics.ht.bcs.endA.settings.T: {basis: benchmark, source: "eval/cases/a/HT-03.yaml bcs[0]", date: 2026-11-06}
     physics.ht.bcs.endB.settings.emissivity: {basis: benchmark, source: "eval/cases/a/HT-03.yaml bcs[1].emissivity", date: 2026-11-06}
     physics.ht.bcs.endB.settings.T_amb: {basis: benchmark, source: "eval/cases/a/HT-03.yaml bcs[1].T_amb", date: 2026-11-06}

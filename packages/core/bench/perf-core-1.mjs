@@ -9,7 +9,7 @@
 //   nice -n 10 node --max-old-space-size=1536 packages/core/bench/perf-core-1.mjs --only ac02 [--runs 5] [--dump DIR]
 //     [--solve js|wasm] [--levels 1,0.5] [--em3d-h 0.5]
 //   node packages/core/bench/perf-core-1.mjs --compare DIR_A DIR_B
-// Workloads: ac02 h6 kirsch rib rf21 pzt4 hotarm em3d (see WORKLOADS). One JSONL record per level to
+// Workloads: ac02 h6 kirsch rib rf21 pzt4 hotarm em3d fbar membrane t2 (see WORKLOADS). One JSONL record per level to
 // logs/perf-core-1-<YYYYMMDDTHHMMSS>.jsonl (or --out FILE).
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -75,6 +75,10 @@ const WORKLOADS = {
   pzt4: { sim: 'pzt4-cube.yaml', levels: [1], study: 'std_sc' }, // h 0.5 exceeds the 2 GB RSS budget
   hotarm: { sim: 'hot-arm-actuator.yaml', levels: [1] },
   em3d: { sim: 'cylinder-cavity.yaml', levels: [Number(arg('em3d-h', 0.5))] },
+  // lane E8 (DevLog-054): 2D piezo eigen, acoustic-structure eigen, 3D elastic modal / static
+  fbar: { sim: 'ln-fbar-2d.yaml', levels: [1, 0.5] },
+  membrane: { sim: 'membrane-air.yaml', levels: [1, 0.5] },
+  t2: { sim: 'nafems-t2.yaml', levels: [1] },
 };
 const name = arg('only');
 const W = WORKLOADS[name];

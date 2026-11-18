@@ -36,6 +36,18 @@ references:
     form: closed_form
     extraction: text
     provenance: {citation: "Hornikx et al. 2015 eq. 2", locator: "sec. 4.1, eq. 2 (as read by R3 on 2026-11-06; not re-read by L7b)", accessed: 2026-11-06}
+    extract: {kind: expr, expr: "pmax / (rho * c * v)", terms: {pmax: {kind: reduce, field: p_abs, op: max, points: [[0.00, 0.1], [0.17, 0.1], [0.34, 0.1], [0.51, 0.1], [0.68, 0.1], [0.85, 0.1], [1.02, 0.1], [1.19, 0.1], [1.36, 0.1], [1.53, 0.1], [1.70, 0.1], [1.87, 0.1], [2.04, 0.1], [2.21, 0.1], [2.38, 0.1], [2.55, 0.1], [2.72, 0.1], [2.89, 0.1], [3.06, 0.1], [3.23, 0.1], [3.40, 0.1]]}, rho: {value: 1.1767, unit: kg/m^3, source: sims/acoustic-duct.yaml params.rho0}, c: {value: 347.4, unit: m/s, source: sims/acoustic-duct.yaml params.c0}, v: {value: 1, unit: m/s, source: sims/acoustic-duct.yaml params.v0}}}
+  - quantity: p_over_rho_c_min
+    metric_id: p_over_rho_c_min
+    definition: "min over the axis of |p(x)| / (rho_0 c_0 v_x(0)); exact 1"
+    value: 1.0
+    unit: "1"
+    tolerance: {rel: 1.0e-3, after: finest, note: "proposed (assumption), as p_over_rho_c"}
+    basis: P
+    form: closed_form
+    extraction: text
+    provenance: {citation: "Hornikx et al. 2015 eq. 2", locator: "sec. 4.1, eq. 2 (as read by R3 on 2026-11-06; not re-read by L7b)", accessed: 2026-11-06}
+    extract: {kind: expr, expr: "pmin / (rho * c * v)", terms: {pmin: {kind: reduce, field: p_abs, op: min, points: [[0.00, 0.1], [0.17, 0.1], [0.34, 0.1], [0.51, 0.1], [0.68, 0.1], [0.85, 0.1], [1.02, 0.1], [1.19, 0.1], [1.36, 0.1], [1.53, 0.1], [1.70, 0.1], [1.87, 0.1], [2.04, 0.1], [2.21, 0.1], [2.38, 0.1], [2.55, 0.1], [2.72, 0.1], [2.89, 0.1], [3.06, 0.1], [3.23, 0.1], [3.40, 0.1]]}, rho: {value: 1.1767, unit: kg/m^3, source: sims/acoustic-duct.yaml params.rho0}, c: {value: 347.4, unit: m/s, source: sims/acoustic-duct.yaml params.c0}, v: {value: 1, unit: m/s, source: sims/acoustic-duct.yaml params.v0}}}
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -44,7 +56,7 @@ speed:
   reference_timings: []
   note: "budget set after the first timing run (R3 O3)"
 dataset: null
-spec: {status: pending, reason: "no Helmholtz module yet (C8)"}
+spec: {sim: sims/acoustic-duct.yaml, study: s, note: "2D duct with the plane-wave field; the target needs an extract (requested) and stays pending until then"}
 rights:
   source_license: "Acta Acustica united with Acustica (S. Hirzel), PDF personal use only"
   allowed: [cite_values, re_derive_setup]

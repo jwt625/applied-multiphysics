@@ -46,7 +46,8 @@ export interface ProviderPreset {
  * Friday, excluding Chinese public holidays." Holidays are not modelled, so time-of-use pricing here is an upper bound
  * of the billed price. The API returns the model id only (no version string); the pricing page lists the version
  * behind `deepseek-flash` as DeepSeek-V4.1-Flash-1017 (2026-11-06). deepseek-v4-pro (same page): hit 0.044 / 0.022,
- * miss 1.32 / 0.66, output 3.96 / 1.98.
+ * miss 1.32 / 0.66, output 3.96 / 1.98. Re-checked 2026-11-18 against https://api-docs.deepseek.com/ (base URL
+ * https://api.deepseek.com, model names deepseek-flash and deepseek-v4-pro) and the pricing page: values unchanged.
  */
 export const DEEPSEEK_PRESET: ProviderPreset = {
   name: 'deepseek',
@@ -62,7 +63,7 @@ export const DEEPSEEK_PRESET: ProviderPreset = {
       peakWindowsUTC: [[1, 4], [6, 10]], peakDays: [1, 2, 3, 4, 5],
     },
   },
-  pricingSource: { url: 'https://api-docs.deepseek.com/quick_start/pricing', accessed: '2026-11-06', note: 'USD per 1M tokens; Chinese public holidays (off-peak) not modelled' },
+  pricingSource: { url: 'https://api-docs.deepseek.com/quick_start/pricing', accessed: '2026-11-18', note: 'USD per 1M tokens; Chinese public holidays (off-peak) not modelled' },
   reasoning: 'replay',
   // thinking on (the documented default) and effort high, sent explicitly so runs are reproducible
   extraBody: { thinking: { type: 'enabled' }, reasoning_effort: 'high' },

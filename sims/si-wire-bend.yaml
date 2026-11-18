@@ -1,0 +1,127 @@
+# WO-85 (eval/cases/c/WO-85.yaml): bend radiation loss of a Si wire vs bend radius (parametric sweep). Structure of
+# Kakihara, Kono, Saitoh, Koshiba, Opt. Express 14, 11128-11141 (2006), doi 10.1364/OE.14.011128 (open copy, Hokkaido
+# University repository): Si core 445 x 220 nm (n 3.5) on SiO2 (n 1.45, fills the window below), air above, 1.55 um,
+# fundamental quasi-TE and quasi-TM modes; R measured to the wire centre (x = 0), outer side of the bend at +x; PML
+# 1 um thick beyond x = 2 um, below y = -2 um (in SiO2) and above y = 1 um (in air), as in their s.3 (xmax 2, ymin -1,
+# ymax 2 um, d_PML 1 um; their y axis points into the substrate). Reference values are read from their Fig. 4 (no table).
+# The bend uses the exact metric (cylindrical-coordinate) model of the mode solver; PML strength is a modelling choice.
+schema: amp-spec/0
+id: si-wire-bend
+title: Silicon wire bend loss vs radius
+description: Si wire 445 x 220 nm on oxide, air above, bent in the chip plane at 1.55 um; radiation loss per 90 degree bend of the quasi-TE and quasi-TM modes over a sweep of the bend radius.
+params:
+  R: {value: 1, unit: um, description: bend radius at the wire centre}
+  w_core: {value: 445, unit: nm, description: wire width}
+  t_core: {value: 220, unit: nm, description: wire thickness}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+  n_shift_te: {value: 2.35, unit: "1", description: eigenvalue shift of the quasi-TE study (mode selection only)}
+  n_shift_tm: {value: 1.65, unit: "1", description: eigenvalue shift of the quasi-TM study (mode selection only)}
+geometry:
+  dim: 2
+  features:
+    - {id: core, type: rect, settings: {size: ["w_core", "t_core"], center: ["0 um", "t_core/2"]}}
+    - {id: airr, type: rect, settings: {size: ["2.75 um", "1 um"], center: ["0.625 um", "0.5 um"]}}
+    - {id: air, type: difference, settings: {base: airr, tools: [core], keepTools: true}}
+    - {id: ox, type: rect, settings: {size: ["2.75 um", "2 um"], center: ["0.625 um", "-1 um"]}}
+    - {id: p_top, type: rect, settings: {size: ["2.75 um", "1 um"], center: ["0.625 um", "1.5 um"]}}
+    - {id: p_bot, type: rect, settings: {size: ["2.75 um", "1 um"], center: ["0.625 um", "-2.5 um"]}}
+    - {id: p_air, type: rect, settings: {size: ["1 um", "1 um"], center: ["2.5 um", "0.5 um"]}}
+    - {id: p_ox, type: rect, settings: {size: ["1 um", "2 um"], center: ["2.5 um", "-1 um"]}}
+    - {id: p_ct, type: rect, settings: {size: ["1 um", "1 um"], center: ["2.5 um", "1.5 um"]}}
+    - {id: p_cb, type: rect, settings: {size: ["1 um", "1 um"], center: ["2.5 um", "-2.5 um"]}}
+materials:
+  - {id: Si, override: {n: 3.5}, select: ["dom:core"]}
+  - {id: SiO2, override: {n: 1.45}, select: ["dom:ox", "dom:p_bot", "dom:p_ox", "dom:p_cb"]}
+  - {id: Air, override: {n: 1}, select: ["dom:air", "dom:p_top", "dom:p_air", "dom:p_ct"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:core", "dom:air", "dom:ox", "dom:p_top", "dom:p_bot", "dom:p_air", "dom:p_ox", "dom:p_ct", "dom:p_cb"]
+    settings:
+      order: 2
+      pml: [{select: ["dom:p_top", "dom:p_bot", "dom:p_air", "dom:p_ox", "dom:p_ct", "dom:p_cb"], strength: 2, power: 2}]
+      bend: {radius: "R", x0: "0 um", model: metric}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:airr.left", "bnd:ox.left", "bnd:p_top.left", "bnd:p_bot.left", "bnd:p_top.top", "bnd:p_ct.top", "bnd:p_bot.bottom", "bnd:p_cb.bottom", "bnd:p_ct.right", "bnd:p_air.right", "bnd:p_ox.right", "bnd:p_cb.right"]}
+mesh:
+  size: {hmax: "0.2 um", grading: 0.3}
+  refine:
+    - {select: ["dom:core"], h: "0.04 um"}
+    - {select: ["bnd:core.left", "bnd:core.right", "bnd:core.top", "bnd:core.bottom"], h: "0.015 um"}
+studies:
+  - {id: modes_te, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 1, neffShift: "n_shift_te"}}
+  - {id: modes_tm, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 1, neffShift: "n_shift_tm"}}
+  - id: sweep_te
+    type: parametric
+    physics: [ewg]
+    settings:
+      study: modes_te
+      sweep:
+        - {param: R, values: ["1 um", "1.25 um", "1.5 um", "2 um", "3 um"]}
+  - id: sweep_tm
+    type: parametric
+    physics: [ewg]
+    settings:
+      study: modes_tm
+      sweep:
+        - {param: R, values: ["2 um", "3 um", "5 um", "7.5 um", "10 um"]}
+results:
+  datasets:
+    - {id: sol_te, type: solution, data: modes_te}
+    - {id: sol_tm, type: solution, data: modes_tm}
+    - {id: sol_sweep_te, type: solution, data: sweep_te}
+    - {id: sol_sweep_tm, type: solution, data: sweep_tm}
+  evaluations:
+    - id: ev_te
+      data: sol_te
+      items:
+        - {id: neff_te, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: loss90_te, type: global, expr: ewg.bendLossDbPer90_0, unit: dB}
+    - id: ev_tm
+      data: sol_tm
+      items:
+        - {id: neff_tm, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: loss90_tm, type: global, expr: ewg.bendLossDbPer90_0, unit: dB}
+  tables:
+    - {id: tbl_te, from: ev_te}
+    - {id: tbl_tm, from: ev_tm}
+  plots:
+    - id: E_map_te
+      type: plot2d
+      data: sol_te
+      items:
+        - {id: E_map_te_surf, type: surface, expr: ewg.normE, unit: V/m}
+    - id: E_map_tm
+      type: plot2d
+      data: sol_tm
+      items:
+        - {id: E_map_tm_surf, type: surface, expr: ewg.normE, unit: V/m}
+    - id: loss_te_vs_R
+      type: plot1d
+      data: sol_sweep_te
+      items:
+        - {id: loss_te_R, type: global, expr: ewg.bendLossDbPer90_0, unit: dB}
+    - id: loss_tm_vs_R
+      type: plot1d
+      data: sol_sweep_tm
+      items:
+        - {id: loss_tm_R, type: global, expr: ewg.bendLossDbPer90_0, unit: dB}
+provenance:
+  values:
+    params.w_core: {basis: paper, source: "Kakihara et al. 2006, s.3 and Fig. 1 (W = 445 nm)", date: 2026-11-18}
+    params.t_core: {basis: paper, source: "Kakihara et al. 2006, s.3 and Fig. 1 (H = 220 nm)", date: 2026-11-18}
+    params.lambda0: {basis: paper, source: "Kakihara et al. 2006, Fig. 4 (1.55 um)", date: 2026-11-18}
+    params.n_shift_te: {basis: user, date: 2026-11-18, note: "selection only: near the quasi-TE index (2.29-2.30 over the sweep)"}
+    params.n_shift_tm: {basis: user, date: 2026-11-18, note: "selection only: near the quasi-TM index (1.56-1.6)"}
+    params.R: {basis: user, date: 2026-11-18, note: "base value; the sweep sets it (Fig. 4 spans 1-10 um for quasi-TE)"}
+    materials.Si.override.n: {basis: paper, source: "Kakihara et al. 2006, s.3 (n_core 3.5)", date: 2026-11-18}
+    materials.SiO2.override.n: {basis: paper, source: "Kakihara et al. 2006, s.3 (SiO2 1.45)", date: 2026-11-18}
+    materials.Air.override.n: {basis: paper, source: "Kakihara et al. 2006, s.3 (air cladding)", date: 2026-11-18}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice: core edges"}
+    mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "Inner (-x) window edge at x = -0.75 um (inside the smallest radius, 1 um) with PEC (not stated in the paper; the bent mode moves outward, field there below 1e-6 of the peak to be checked)", paths: [geometry]}
+  - {text: "PML profile s = 1 - 2j xi^2 (numerical choice; the paper used an anisotropic PML with 6.8 < tan delta < 9.8)", paths: [physics]}
+# eval: [WO-85]

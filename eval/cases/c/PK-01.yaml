@@ -1,0 +1,127 @@
+# PK-01: TSV thermal stress: Cu via in Si, axisymmetric plane-strain cell vs Lame closed form
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: PK-01
+class: c
+title: 'TSV thermal stress: Cu via in Si, axisymmetric plane-strain cell vs Lame closed form'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond, solid-thermal-stress]
+dimension: 2D-axisym
+units: SI
+geometry:
+  kind: analytic
+  spec: {via_radius_m: 5.0e-06, cell_radius_m: 2.5e-05, plane_strain: true}
+materials:
+  cu: {ref: materials/copper, E_Pa: 123500000000.0, nu: 0.35, alpha_per_K: 1.6581238447607446e-05, source: 'materials/copper.yaml
+      E, nu (Ledbetter-Naimon 1974); alpha at 298.15 K (NIST OFHC fit)'}
+  si: {ref: materials/silicon, E_Pa: 162580000000.0, nu: 0.2231, alpha_per_K: 2.600985401459854e-06, note: isotropic Voigt-Reuss-Hill
+      average of the cubic C (derived), source: 'materials/silicon.yaml E, nu (derived from Hall 1967 C); alpha at 298.15
+      K (Swenson 1983)'}
+bcs:
+- {selection: 'faces z = 0, z = H', type: roller (u_z = 0)}
+- {selection: rim r = R, type: traction-free}
+- selection: all
+  type: uniform temperature change
+  params: {T_ref_K: 398.15, T_K: 298.15}
+initial: null
+study: {type: stationary}
+references:
+- quantity: radial stress in the Cu (uniform; = -p)
+  metric_id: cu_srr
+  value: 170100106.91368437
+  unit: Pa
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-01.json, metric_id: cu_srr}
+  provenance: {citation: 'Two-phase plane-strain Lame solution, finite traction-free outer radius (own derivation; validation/pkg/tsv_lame.py)',
+    locator: validation/pkg/tsv_lame.py lame(); same form as advanced-packaging-atlas validation/cases/A/MA7-lame-tsv.yaml,
+    accessed: null, generator: validation/pkg/tsv_lame.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: cu_srr}
+- quantity: axial stress in the Cu (plane strain)
+  metric_id: cu_szz
+  value: 323848369.667531
+  unit: Pa
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-01.json, metric_id: cu_szz}
+  provenance: {citation: 'Two-phase plane-strain Lame solution, finite traction-free outer radius (own derivation; validation/pkg/tsv_lame.py)',
+    locator: validation/pkg/tsv_lame.py lame(); same form as advanced-packaging-atlas validation/cases/A/MA7-lame-tsv.yaml,
+    accessed: null, generator: validation/pkg/tsv_lame.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: cu_szz}
+- quantity: radial stress in the Si at r = 2a
+  metric_id: si_srr_2a
+  value: 37209398.387368456
+  unit: Pa
+  tolerance: {rel: 0.003}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-01.json, metric_id: si_srr_2a}
+  provenance: {citation: 'Two-phase plane-strain Lame solution, finite traction-free outer radius (own derivation; validation/pkg/tsv_lame.py)',
+    locator: validation/pkg/tsv_lame.py lame(); same form as advanced-packaging-atlas validation/cases/A/MA7-lame-tsv.yaml,
+    accessed: null, generator: validation/pkg/tsv_lame.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: si_srr}
+  note: 'single-point nodally averaged P2 stress in the Si: level-to-level scatter about 1.5e-3 seen at hFactor 1 / 0.5 /
+    0.25 (DevLog-049), hence 3e-3'
+- quantity: hoop stress in the Si at r = 2a
+  metric_id: si_sphi_2a
+  value: -51384407.2968422
+  unit: Pa
+  tolerance: {rel: 0.003}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-01.json, metric_id: si_sphi_2a}
+  provenance: {citation: 'Two-phase plane-strain Lame solution, finite traction-free outer radius (own derivation; validation/pkg/tsv_lame.py)',
+    locator: validation/pkg/tsv_lame.py lame(); same form as advanced-packaging-atlas validation/cases/A/MA7-lame-tsv.yaml,
+    accessed: null, generator: validation/pkg/tsv_lame.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: si_sphi}
+  note: single-point stress, as si_srr_2a
+- quantity: radial displacement at r = R
+  metric_id: rim_ur
+  value: -1.0024369216656939e-08
+  unit: m
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-01.json, metric_id: rim_ur}
+  provenance: {citation: 'Two-phase plane-strain Lame solution, finite traction-free outer radius (own derivation; validation/pkg/tsv_lame.py)',
+    locator: validation/pkg/tsv_lame.py lame(); same form as advanced-packaging-atlas validation/cases/A/MA7-lame-tsv.yaml,
+    accessed: null, generator: validation/pkg/tsv_lame.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: rim_ur}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels; finest level compared (stress probes are not smooth in h)
+speed:
+  budget_s: {browser: 2.0, native: null}
+  budget_basis: est. from the lane's own runs on 2026-11-18 (DevLog-049), not a browser measurement
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own derivation and closed forms from cited literature (formulas only); GPL-3.0-or-later code
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: sims/tsv-stress-axisym.yaml
+missing: []
+assumptions: ['Rollers on both faces give plane strain, for which the closed form is exact; free faces, liner and Cu plasticity
+    are not modelled.', Constant alpha (library value at 298.15 K) over the 100 K change; illustrative geometry and temperatures.]
+notes: ['Signs: cooling, Cu shrinks more than Si, so the Cu is in radial tension and the Si hoop stress at the via is compressive.']
+lane: E3
+created: '2026-11-18'

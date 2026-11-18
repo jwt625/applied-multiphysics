@@ -7,6 +7,7 @@
 	import { Vector3, type PerspectiveCamera } from 'three';
 	import { Viewer3D, type Drawable } from './viewer3d';
 	import { registerCapture } from './capture';
+	import { registerCameraTarget } from './camera';
 	import type { ColormapName } from './colormaps';
 
 	let {
@@ -31,8 +32,17 @@
 		onerror,
 		onpick,
 		marks = [],
-		smooth = true
+		smooth = true,
+		reverse = false,
+		origin = [0, 0, 0],
+		triad = true
 	}: {
+		/** reversed colormap */
+		reverse?: boolean;
+		/** model coordinates (m) of the viewer frame origin (the mesh centre): camera presets take model coordinates */
+		origin?: [number, number, number];
+		/** x, y, z axis triad in the lower right corner */
+		triad?: boolean;
 		/** per-fragment P2 on tet10 faces (DevLog-019); false = raw, linear on the face sub-triangles */
 		smooth?: boolean;
 		/** labelled points (viewer frame, relative to the mesh centre), projected on every frame (not occluded) */
@@ -67,7 +77,9 @@
 	let fitted = -1;
 	let press: { x: number; y: number } | null = null;
 	let shown = $state.raw<Array<{ x: number; y: number; label: string; tip: string }>>([]);
+	let axesDirs = $state.raw<Array<[number, number, number]>>([]);
 	function project() {
+		if (v && triad) axesDirs = v.triad();
 		const cam = v ? (v as unknown as { camera?: PerspectiveCamera }).camera : undefined;
 		if (!cam || !marks.length) { if (shown.length) shown = []; return; }
 		const r = canvas.getBoundingClientRect();
@@ -113,7 +125,7 @@
 	});
 
 	$effect(() => { if (v) v.setSurface(surface ?? { pos: new Float32Array(0), val: new Float32Array(0), disp: null }, regionColors, edges, edgeDisp); });
-	$effect(() => { if (v) v.setColormap(colormap); });
+	$effect(() => { if (v) v.setColormap(colormap, reverse); });
 	$effect(() => { if (v) v.setSmooth(smooth); });
 	$effect(() => { if (v) v.setRange(range.min, range.max, logScale); });
 	$effect(() => { if (v) v.showWire(wire); });
@@ -128,7 +140,20 @@
 		if (!v) return;
 		const moved = !fittedHalf || half.some((x, i) => Math.abs(x - fittedHalf![i]!) > 0.05 * Math.max(...fittedHalf!));
 		if (fitted !== fitKey || moved) { fitted = fitKey; fittedHalf = [...half]; v.fit(half); }
+		// camera presets (gfx/camera.ts) after the first fit, so a queued link pose is not overwritten by it
+		if (!unregCam) {
+			const V = v;
+			const o = () => untrack(() => origin);
+			unregCam = registerCameraTarget({
+				preset: (dir, lookAt) => { const c = o(); V.look(dir, lookAt ? [lookAt[0] - c[0], lookAt[1] - c[1], lookAt[2] - c[2]] : [0, 0, 0]); },
+				pose: () => { const c = o(), p = V.pose(); return { pos: [p.pos[0] + c[0], p.pos[1] + c[1], p.pos[2] + c[2]], target: [p.target[0] + c[0], p.target[1] + c[1], p.target[2] + c[2]] }; },
+				setPose: (p) => { const c = o(); V.setPose([p.pos[0] - c[0], p.pos[1] - c[1], p.pos[2] - c[2]], [p.target[0] - c[0], p.target[1] - c[1], p.target[2] - c[2]]); }
+			});
+		}
 	});
+	let unregCam: (() => void) | null = null;
+	onMount(() => () => { unregCam?.(); unregCam = null; });
+	const TRIAD = [{ n: 'x', c: '#e06c5a' }, { n: 'y', c: '#6cbf6c' }, { n: 'z', c: '#6c9ee0' }];
 </script>
 
 <div class="host" bind:this={host} role="presentation" onpointerdown={pdown} onpointerup={pup}>
@@ -147,6 +172,15 @@
 			{/each}
 		</svg>
 	{/if}
+	{#if triad && axesDirs.length === 3}
+		<svg class="triad" width="64" height="64" viewBox="-32 -32 64 64" role="img" aria-label="axis triad" data-tip="Model axes x, y, z (z up) as seen by the camera">
+			{#each [0, 1, 2].sort((a, b) => axesDirs[a]![2] - axesDirs[b]![2]) as k (k)}
+				{@const d = axesDirs[k]!}
+				<line x1="0" y1="0" x2={20 * d[0]} y2={-20 * d[1]} style:stroke={TRIAD[k]!.c} />
+				<text x={26 * d[0]} y={-26 * d[1] + 3} style:fill={TRIAD[k]!.c}>{TRIAD[k]!.n}</text>
+			{/each}
+		</svg>
+	{/if}
 	{#if failed}<div class="fail">{failed}</div>{/if}
 </div>
 
@@ -158,5 +192,8 @@
 	.mk path, .mk rect { fill: none; stroke: #e0a526; stroke-width: 1; }
 	.mk rect.b { fill: rgba(13, 13, 13, 0.82); stroke: rgba(224, 165, 38, 0.6); }
 	.mk text { fill: #f0c76a; font: 11px var(--mono); shape-rendering: auto; }
+	.triad { position: absolute; right: 6px; bottom: 44px; pointer-events: auto; overflow: visible; }
+	.triad line { stroke-width: 2; }
+	.triad text { font: 10px var(--mono); text-anchor: middle; }
 	.fail { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
 </style>

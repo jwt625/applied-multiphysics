@@ -1,0 +1,71 @@
+# WO-65 ng_energy (eval/cases/c/WO-65.yaml): the Si strip of sims/si-strip-te0.yaml (EO atlas K1, 500 x 220 nm in SiO2,
+# 1550 nm, PEC window +-2 um) with material dispersion in the group index, using the same Sellmeier fits as the atlas
+# reference (Si Salzberg-Villa / Tatian, SiO2 Malitson; slopes from validation/modes3/k1_slopes.py, exact derivative at
+# 1.55 um), so the energy group index is comparable with the case value 4.19616697.
+schema: amp-spec/0
+id: si-strip-te0-ng
+title: Si strip waveguide group index with dispersion
+description: Si strip 500 x 220 nm in SiO2 at 1550 nm, PEC window +-2 um; TE0 effective index and group index including silicon and oxide material dispersion.
+params:
+  w_core: {value: 500, unit: nm, description: core width}
+  t_core: {value: 220, unit: nm, description: core thickness}
+  W: {value: 4, unit: um, description: window side (PEC)}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+geometry:
+  dim: 2
+  features:
+    - {id: win, type: rect, settings: {size: ["W", "W"], center: ["0 um", "0 um"]}}
+    - {id: core, type: rect, settings: {size: ["w_core", "t_core"], center: ["0 um", "0 um"]}}
+    - {id: clad, type: difference, settings: {base: win, tools: [core], keepTools: true}}
+materials:
+  - {id: Si, override: {n: 3.477723756}, select: ["dom:core"]}
+  - {id: SiO2, override: {n: 1.444023622}, select: ["dom:clad"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:core", "dom:clad"]
+    settings:
+      order: 2
+      dispersion:
+        dndlambda: {Si: {value: -82304.02813913152, unit: 1/m}, SiO2: {value: -11982.491736057422, unit: 1/m}}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:win.left", "bnd:win.right", "bnd:win.top", "bnd:win.bottom"]}
+mesh:
+  size: {hmax: "W/16", grading: 0.3}
+  refine:
+    - {select: ["dom:core"], h: "t_core/4"}
+    - {select: ["bnd:core.left", "bnd:core.right", "bnd:core.top", "bnd:core.bottom"], h: "t_core/16"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  datasets:
+    - {id: sol_modes, type: solution, data: modes}
+  evaluations:
+    - id: ev_modes
+      data: sol_modes
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: ng, type: global, expr: ewg.ng_0, unit: "1"}
+  tables:
+    - {id: tbl_modes, from: ev_modes}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.w_core: {basis: benchmark, source: "eval/cases/c/WO-65.yaml geometry.spec.core_um [0.5, 0.22]", date: 2026-11-06}
+    params.t_core: {basis: benchmark, source: "eval/cases/c/WO-65.yaml geometry.spec.core_um", date: 2026-11-06}
+    params.W: {basis: benchmark, source: "eval/cases/c/WO-65.yaml geometry.spec.window_um [-2, 2] x [-2, 2]", date: 2026-11-06}
+    params.lambda0: {basis: benchmark, source: "eval/cases/c/WO-65.yaml title (1550 nm; eo-modulator-atlas silicon strip case validation/cases/K1.yaml)", date: 2026-11-06}
+    materials.Si.override.n: {basis: benchmark, source: "eval/cases/c/WO-65.yaml materials.si.n (eo-modulator-atlas silicon strip case validation/cases/K1.yaml; Salzberg and Villa, J. Opt. Soc. Am. 47, 244 (1957), fit form by Tatian, Appl. Opt. 23, 4477 (1984))", date: 2026-11-06}
+    materials.SiO2.override.n: {basis: benchmark, source: "eval/cases/c/WO-65.yaml materials.sio2.n (eo-modulator-atlas silicon strip case validation/cases/K1.yaml; I. H. Malitson, J. Opt. Soc. Am. 55, 1205 (1965))", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-06, note: "modelling choice: core-edge refinement (corner singularities; n_eff converges at p ~ 1 without it at 2e-5 / level)"}
+    mesh.size.grading: {basis: user, date: 2026-11-06, note: "modelling choice (the @amp/mesh default value, stated)"}
+assumptions:
+  - {text: "dn/dlambda of Si and SiO2 from the atlas Sellmeier fits (validation/modes3/k1_slopes.py, 2026-11-18): the group index includes the same material dispersion as the case value", paths: [physics]}
+# eval: [WO-65]

@@ -43,6 +43,28 @@ export const NORMALIZATION: Record<string, string> = {
   'em-modes': 'fields per mode scaled to max |E| = 1 V/m over the triangle centroids (EO convention: E_t, H_t real, E_z = j ez, H_z = j hz)',
 };
 
+type StudyLike = { id: string; type: string; physics?: string[]; settings?: Record<string, unknown> };
+
+/**
+ * Eigen studies take `solver` (direct | ams | auto) and `rtol`, which only the 3D electromagnetic eigen solve (physics
+ * type emw) reads (DevLog-050 s.9). Another physics in an eigen study with solver ams or auto is refused (it would
+ * silently run the direct solver); a study that also solves an emw physics keeps the setting for that one.
+ */
+function eigenSolverReasons(spec: Spec, physicsId: string, type: string): string[] {
+  if (type === 'emw') return [];
+  const phys = (spec.physics ?? []) as Array<{ id: string; type: string }>;
+  const out: string[] = [];
+  for (const st of (spec.studies ?? []) as StudyLike[]) {
+    if (st.type !== 'eigen') continue;
+    if (st.physics?.length && !st.physics.includes(physicsId)) continue;
+    const solver = st.settings?.solver;
+    if (solver !== 'ams' && solver !== 'auto') continue;
+    if (st.physics?.some((pid) => phys.find((p) => p.id === pid)?.type === 'emw')) continue;
+    out.push(`study '${st.id}': solver '${String(solver)}' applies only to the 3D electromagnetic eigen solve (physics type emw); the ${type} eigen solve uses its direct solver: remove the setting or set solver: direct`);
+  }
+  return out;
+}
+
 function wrap(m: PhysicsModule): PhysicsModule {
   const needs = NEEDS[m.type];
   return {
@@ -52,6 +74,7 @@ function wrap(m: PhysicsModule): PhysicsModule {
       const r = m.readiness(spec, physicsId);
       let extra: string[] = [];
       try { extra = needs ? specReadiness(spec as Spec, physicsId, needs) : []; } catch (e) { extra = [(e as Error).message]; }
+      try { extra.push(...eigenSolverReasons(spec as Spec, physicsId, m.type)); } catch { /* malformed studies: reported by validation */ }
       const reasons = [...r.reasons, ...extra.filter((x) => !r.reasons.includes(x))];
       return { ready: reasons.length === 0, reasons };
     },
@@ -62,6 +85,8 @@ function wrap(m: PhysicsModule): PhysicsModule {
       const sol = (await m.run(ctx)) as SolutionExt;
       if (c.timing) sol.timing = { ...c.timing, ...sol.timing };
       const notes = [...(c.notes ?? []), ...((ctx.mesh as { warnings?: string[] }).warnings ?? []).map((w) => `mesh warning: ${w}`)];
+      const st = ctx.study as StudyLike;
+      if (m.type !== 'emw' && st.type === 'eigen' && st.settings?.rtol !== undefined) notes.push(`study '${st.id}': rtol is not used (only the 3D electromagnetic eigen solve with solver ams reads it)`);
       if (notes.length) sol.notes = [...new Set([...(sol.notes ?? []), ...notes])];
       // a module's own statement wins (acoustics frequency runs go through the driven solver, DevLog-042)
       if (NORMALIZATION[m.type] && !sol.normalization) sol.normalization = NORMALIZATION[m.type];

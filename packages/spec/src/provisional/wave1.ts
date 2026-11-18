@@ -80,8 +80,8 @@ export const WAVE1: Registration[] = [
   // ---- studies -----------------------------------------------------------------------------------------------
   { kind: 'study', type: 'stationary', ...phys, description: 'Stationary solve; solver: linear solver of heat / electrostatics / currents (direct = Cholesky, default; amg-pcg; auto = AMG-PCG on large problems), rtol: AMG-PCG relative residual',
     settings: z.strictObject({ solver: z.enum(['direct', 'amg-pcg', 'auto']).optional(), rtol: z.number().gt(0).lt(1).optional() }) },
-  { kind: 'study', type: 'eigen', ...phys, description: 'Eigenfrequencies: nModes closest to shift (lowest when no shift)',
-    settings: z.strictObject({ nModes: int(), shift: quantity('Hz').optional() }) },
+  { kind: 'study', type: 'eigen', ...phys, description: 'Eigenfrequencies: nModes closest to shift (lowest when no shift); solver: linear solver of the 3D electromagnetic eigen solve (direct, default; ams = AMS-preconditioned CG for meshes above the direct solver memory, lowest modes only; auto = AMS when the direct factor would exceed 300 MiB), rtol: AMS inner relative residual',
+    settings: z.strictObject({ nModes: int(), shift: quantity('Hz').optional(), solver: z.enum(['direct', 'ams', 'auto']).optional(), rtol: z.number().gt(0).lt(1).optional() }) },
   { kind: 'study', type: 'mode', ...phys, description: 'Mode analysis at a vacuum wavelength',
     settings: z.strictObject({ wavelength: quantity('m', POS), nModes: int(), neffShift: quantity('1').optional() }) },
   { kind: 'study', type: 'frequency', ...phys, description: 'Frequency domain: values (Hz) or wavelengths (vacuum, m; electromagnetic physics), exactly one', settings: z.strictObject({ values: z.array(quantity('Hz', POS)).min(1).optional(), wavelengths: z.array(quantity('m', POS)).min(1).optional() }), check: (n) => { const s = (n.settings ?? {}) as { values?: unknown; wavelengths?: unknown }; return (s.values === undefined) === (s.wavelengths === undefined) ? [{ path: ['settings'], message: 'frequency study: give exactly one of values (Hz) or wavelengths (m)' }] : []; } },

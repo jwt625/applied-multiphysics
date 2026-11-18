@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Spec registrations and result names of wave2d (lane S1, DevLog-042): physics `emw-2d`, the frequency-domain conditions
-// shared with `acoustics` (pml, plane-wave, port, scattering, impedance, normal-velocity) and pec / pmc for emw-2d.
+// shared with `acoustics` (pml, plane-wave, port, scattering, impedance, normal-velocity) and pec / pmc for emw-2d;
+// periodic (Bloch / Floquet) condition and the `bands` study (DevLog-050).
 
 import * as z from 'zod';
 import { quantity, type Registration } from '@amp/spec';
@@ -31,12 +32,22 @@ export const WAVE2D_REGISTRATIONS: Registration[] = [
     settings: z.strictObject({ Z: quantity('Pa*s/m', { gt: 0 }) }) },
   { kind: 'bc', type: 'normal-velocity', ...own, for: ['acoustics'], select: ['bnd'], description: 'Normal velocity into the domain (frequency domain)',
     settings: z.strictObject({ v: quantity('m/s') }) },
+  // periodic cells (DevLog-050)
+  { kind: 'bc', type: 'periodic', ...own, for: ['emw-2d'], select: ['bnd'], description: 'Bloch (Floquet) periodicity between two opposite, straight, parallel cell sides (select both): u(x + a) = u(x) exp(-j k.a), a = the translation between the sides. The mesh puts the same nodes on both sides. k comes from the band path (bands study), from the plane wave (frequency study), or from the setting k',
+    settings: z.strictObject({ k: quantity('1').optional().meta({ description: 'Bloch wave-vector component along this pair, k.a / (2 pi) (0 = periodic, 0.5 = antiperiodic); used by eigen studies and by frequency studies without a plane wave' }) }) },
+  { kind: 'study', type: 'bands', ...own, description: 'Band structure: eigenfrequencies of a periodic cell along a path of Bloch wave vectors (lossless media; periodic, pec, pmc conditions)',
+    settings: z.strictObject({
+      kPath: z.array(z.strictObject({ label: z.string().min(1).max(16), k: z.array(z.number()).min(1).max(2) })).min(1).meta({ description: 'Path points, k in units of the reciprocal lattice vectors of the periodic conditions in their listed order (b1, b2 with a_i . b_j = 2 pi delta_ij); e.g. Gamma [0, 0], X [0.5, 0], M [0.5, 0.5]' }),
+      interpolate: z.number().int().min(0).max(64).optional().meta({ description: 'Points inserted between consecutive path points (default 4)' }),
+      nBands: z.number().int().min(1).max(32).optional().meta({ description: 'Bands per k point (default 8)' }),
+    }) },
 ];
 
 export const RESULT_NAMES_WAVE2D: Record<string, { fields: string[]; scalars: string[] }> = {
   'emw-2d': {
     fields: ['Ez_re', 'Ez_im', 'Ez_abs', 'Ez_sc_re', 'Ez_sc_im', 'Ez_sc_abs', 'H_re', 'H_im', 'normH', 'Hz_re', 'Hz_im', 'Hz_abs', 'Hz_sc_re', 'Hz_sc_im', 'Hz_sc_abs', 'E_re', 'E_im', 'normE'],
-    scalars: ['S<i><j>_re', 'S<i><j>_im', 'S<i><j>_abs', 'S<i><j>_dB', 'S<i><j>_phase', 'beta_<i>_<k>', 'neff_<i>_<k>', 'P_in', 'P_src_<i>', 'sigma2d_back', 'sigma2d_fwd', 'sigma2d_total', 'freq'],
+    scalars: ['S<i><j>_re', 'S<i><j>_im', 'S<i><j>_abs', 'S<i><j>_dB', 'S<i><j>_phase', 'beta_<i>_<k>', 'neff_<i>_<k>', 'P_in', 'P_src_<i>', 'sigma2d_back', 'sigma2d_fwd', 'sigma2d_total', 'freq',
+      'f_<b>', 'f_<b>_<k>', 'fmax_<b>', 'fmin_<b>', 'kx_<k>', 'ky_<k>'],
   },
   'acoustics-frequency': {
     fields: ['p_re', 'p_im', 'p_abs', 'p_sc_re', 'p_sc_im', 'p_sc_abs', 'v_re', 'v_im', 'normV'],

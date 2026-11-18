@@ -1,0 +1,56 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "PK-06",
+  "class": "c",
+  "generator": "validation/pkg/bilayer_plate.py",
+  "command": "cd validation && uv run python pkg/bilayer_plate.py",
+  "method": "Laminated-plate (biaxial Timoshenko 1925) curvature of a two-layer plate under uniform dT, thin-plate interior limit",
+  "generated_at": "2026-11-18T14:05:12-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "w_curv",
+      "value": -2.0602699631116472,
+      "unit": "1/m",
+      "definition": "centre curvature d2w/dr2 of the bottom surface, z up (< 0: dome, centre up)",
+      "locator": "validation/pkg/bilayer_plate.py clt() (equals timoshenko() with biaxial moduli to round-off)"
+    },
+    {
+      "metric_id": "duz_x1_x2",
+      "value": -3.090404944667471e-06,
+      "unit": "m",
+      "definition": "u_z(x2) - u_z(x1) on the bottom = (d2w/dr2) (x2^2 - x1^2) / 2",
+      "locator": "validation/pkg/bilayer_plate.py clt() (equals timoshenko() with biaxial moduli to round-off)"
+    }
+  ],
+  "inputs": {
+    "substrate": {
+      "t_m": 0.0005,
+      "E": 28000000000.0,
+      "nu": 0.19,
+      "alpha": 1.4e-05
+    },
+    "die": {
+      "t_m": 0.0003,
+      "E": 162580000000.0,
+      "nu": 0.2231,
+      "alpha": 2.600985401459854e-06,
+      "k": 149.038
+    },
+    "dT_K": -100.0,
+    "x1_m": 0.001,
+    "x2_m": 0.002,
+    "eps0_bottom": -0.0016674462665887554,
+    "kappa_timoshenko_check": 2.0602699631116406
+  }
+}

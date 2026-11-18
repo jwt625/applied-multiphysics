@@ -2598,8 +2598,18 @@ def t2_apply(cid: str, d: dict) -> None:
         d["convergence"] = dict(d["convergence"], h_factors=[1, 0.5, 0.25],
                                 note="levels of the DevLog-022 runs (nested, ratio 2): the finest level must also be "
                                 "within the 2e-6 budget; finest 506k DOF, peak RSS 2022 MB (T2 run 2026-11-18)")
-        note("ng_energy carries no extract: the case value includes Sellmeier dispersion, the engine n_g uses the case's "
-             "constant indices (not comparable, DevLog-022 s.2).")
+        # ng_energy (lane E2, DevLog-048 s.6): comparable on sims/si-strip-te0-ng.yaml (same Sellmeier slopes as the
+        # atlas reference); informative on levels 0-1 because the Richardson level 2 exceeds the 2 GB RSS rule
+        R["ng_energy"]["spec"] = "sims/si-strip-te0-ng.yaml"
+        R["ng_energy"]["extract"] = {"kind": "scalar", "name": "ng_0"}
+        R["ng_energy"]["levels"] = [0, 1]
+        R["ng_energy"]["tolerance"] = dict(R["ng_energy"]["tolerance"], after="finest")  # informative: level 1 compared
+        note("ng_energy runs on sims/si-strip-te0-ng.yaml: the case geometry and indices with dn/dlambda of the atlas "
+             "Sellmeier fits (Si Salzberg-Villa / Tatian -82304.03 1/m, SiO2 Malitson -11982.49 1/m at 1.55 um; "
+             "validation/modes3/k1_slopes.py), so it is comparable with the case value. Informative (gate false) on "
+             "levels 0-1 (31k / 126k DOF: 4.1961328 / 4.1961565, converging from below at p about 1.5): the Richardson "
+             "gate needs level 2 (506k DOF, peak RSS about 2.0 GB in the T2 run), above the eval machine's 2 GB rule "
+             "(DevLog-048 s.6).")
     if cid == "EM-61":
         d["spec"] = "sims/micro-coax-lgeom.yaml"
         R["L_geom"]["extract"] = {"kind": "expr", "expr": "Lp * l", "terms": {
@@ -2608,9 +2618,19 @@ def t2_apply(cid: str, d: dict) -> None:
         note("L_total_london and L_kin stay pending: no London-film (kinetic inductance) model in the engine "
              "(DevLog-022 s.3.5); the case passes only when they run.")
     if cid == "WO-63":
-        d["spec"] = {"status": "pending", "ref": "sims/phc-point-defect.yaml",
-                     "reason": "non-gated targets only; the 5x5 supercell reaches 1.0M DOF at the finest level "
-                     "(DevLog-022 s.3.1), above the eval machine's memory rule; the defect mode index is not wired"}
+        # E9 (DevLog-055 s.6): the 1.0M-DOF finest level came from the 1-degree tool-edge pieces of the keepTools rods;
+        # with merged arcs the default levels stay small. The quarter-supercell eigen study returns only the mode
+        # closest to the shift (the defect mode), so its f_0 is the case's band 25.
+        d["spec"] = "sims/phc-point-defect.yaml"
+        R["defect_frequency_band_25"]["extract"] = {"kind": "expr", "expr": "f * a / c", "terms": {
+            "f": {"kind": "scalar", "name": "f_0"},
+            "a": _const(1, "m", "sims/phc-point-defect.yaml params.a (lattice constant, unit by choice)"),
+            "c": _const(1, "m/s", "sims/phc-point-defect.yaml params.c_vac (wave speed in air, unit by choice)")}}
+        # E9 R3 (DevLog-055 s.6): eps p^2 is the analog of the TM energy density eps |E_z|^2 (MPB tutorial L322-335)
+        R["energy_fraction_in_the_defect_region"]["extract"] = {"kind": "expr", "expr": "(eps * Wri + Wbi) / (eps * Wr + Wb)", "terms": {
+            "eps": _const(12, "1", "sims/phc-point-defect.yaml params.eps_rod"),
+            "Wri": {"kind": "result", "node": "W_rods_defect"}, "Wbi": {"kind": "result", "node": "W_bg_defect"},
+            "Wr": {"kind": "result", "node": "W_rods"}, "Wb": {"kind": "result", "node": "W_bg"}}}
     if cid == "CP-06":
         d["status"], d["untestable_reason"] = "unvalidated", None
         d["activation"] = (
@@ -3101,12 +3121,31 @@ def dump(d: dict) -> str:
     )
 
 
+def ext_cases() -> list[dict]:
+    """Cases authored in per-lane modules validation/c/cases_ext/<name>.py (each defines CASES: list[dict]); sorted by
+    module name so the build order is stable. Lets several example lanes add class-c cases without editing this file."""
+    import importlib.util
+
+    out: list[dict] = []
+    for f in sorted((Path(__file__).resolve().parent / "cases_ext").glob("*.py")):
+        if f.name.startswith("_"):
+            continue
+        spec = importlib.util.spec_from_file_location(f"cases_ext_{f.stem}", f)
+        assert spec and spec.loader
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        out.extend(mod.CASES)
+    return out
+
+
 def main() -> int:
     force = "--force" in sys.argv
     out = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else CASES  # --out DIR: tests and diffs
     out.mkdir(parents=True, exist_ok=True)
     ids = []
-    for d in map(apply_audit, all_cases()):
+    # the audit pass (rights by family, access dates, per-case wiring) applies to the built-in cases only; cases_ext
+    # modules are written as their lanes author them (DevLog-055)
+    for d in [*map(apply_audit, all_cases()), *ext_cases()]:
         p = out / f"{d['id']}.yaml"
         ids.append(d["id"])
         if p.exists() and not force:

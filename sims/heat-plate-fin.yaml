@@ -43,17 +43,17 @@ results:
         - {id: T_map_surf, type: surface, expr: ht.T, unit: degC}
 provenance:
   values:
-    params.Lx: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01 (Altair OS-V 0120; FEATool ex_heattransfer4.m L127)", date: 2026-11-06}
-    params.Ly: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
-    physics.ht.bcs.base.settings.T: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
-    physics.ht.bcs.film.settings.h: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
-    physics.ht.bcs.film.settings.T_ext: {basis: benchmark, source: "NAFEMS T4 as given in R3 HT-01", date: 2026-11-06}
-    results.datasets.T_E_pt.points.0: {basis: benchmark, source: "NAFEMS T4 point E as given in R3 HT-01", date: 2026-11-06}
-    materials.solid.override.k: {basis: benchmark, source: "eval/cases/a/HT-01.yaml materials.plate.k (NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4, R3 s.3.1)", date: 2026-11-06}
+    params.Lx: {basis: benchmark, source: "NAFEMS T4 as given in Altair OptiStruct verification OS-V 0120 and FEATool ex_heattransfer4.m line 127 (eval case HT-01)", date: 2026-11-06}
+    params.Ly: {basis: benchmark, source: "NAFEMS T4 via Altair OS-V 0120 (eval case HT-01)", date: 2026-11-06}
+    physics.ht.bcs.base.settings.T: {basis: benchmark, source: "NAFEMS T4 via Altair OS-V 0120 (eval case HT-01)", date: 2026-11-06}
+    physics.ht.bcs.film.settings.h: {basis: benchmark, source: "NAFEMS T4 via Altair OS-V 0120 (eval case HT-01)", date: 2026-11-06}
+    physics.ht.bcs.film.settings.T_ext: {basis: benchmark, source: "NAFEMS T4 via Altair OS-V 0120 (eval case HT-01)", date: 2026-11-06}
+    results.datasets.T_E_pt.points.0: {basis: benchmark, source: "NAFEMS T4 point E via Altair OS-V 0120 (eval case HT-01)", date: 2026-11-06}
+    materials.solid.override.k: {basis: benchmark, source: "eval/cases/a/HT-01.yaml materials.plate.k (NAFEMS T4 via Altair OS-V 0120 / FEATool ex_heattransfer4)", date: 2026-11-06}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice, to be set by the convergence study"}
 assumptions:
   - {text: "2D conduction per unit depth; no internal heat source", paths: [physics.ht]}
 missing:
   - {what: "fin geometry of the plate-and-fin hero: no sourced case defines it", needed_for: [geometry]}
-  - {what: "transient variant (rho, cp, initial state, time window): not defined; NAFEMS T3 (R3 HT-02) is a separate 1D case", needed_for: [solution]}
+  - {what: "transient variant (rho, cp, initial state, time window): not defined; NAFEMS T3 (eval case HT-02) is a separate 1D case", needed_for: [solution]}
 # eval: [HT-01]   (informative pairing: the HT-01 case spec runs on nafems-t4)

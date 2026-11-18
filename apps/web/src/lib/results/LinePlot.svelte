@@ -81,8 +81,12 @@
 		y2Label?: string;
 		/** extra legend / status text (right of the toggles) */
 		note?: string;
+		/** series keys shown without the log toggles (toggles false) */
+		legend?: boolean;
+		/** labelled vertical lines at x values (e.g. the symmetry points of a band path) */
+		xMarks?: Array<{ x: number; label: string }>;
 	}
-	let { series, xLabel, yLabel, logX = $bindable(false), logY = $bindable(false), ariaLabel, toggles = true, y2Label = '', note = '' }: Props = $props();
+	let { series, xLabel, yLabel, logX = $bindable(false), logY = $bindable(false), ariaLabel, toggles = true, y2Label = '', note = '', legend = false, xMarks = [] }: Props = $props();
 	const hasY2 = $derived(series.some((s) => s.y2));
 
 	let wrap: HTMLDivElement;
@@ -171,6 +175,18 @@
 			ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, top + h); ctx.stroke();
 			ctx.fillStyle = ink;
 			ctx.fillText(tickLabel(t), px, top + h + 12);
+		}
+		// labelled x marks (band path symmetry points): a line and the label at the top, right of it
+		for (const m of xMarks) {
+			if (!okX(m.x)) continue;
+			const px = Math.round(X(tx(m.x))) + 0.5;
+			if (px < left - 1 || px > left + w + 1) continue;
+			ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+			ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, top + h); ctx.stroke();
+			ctx.fillStyle = css('--ink');
+			const right = px + 3 + ctx.measureText(m.label).width > left + w;
+			ctx.textAlign = right ? 'right' : 'left';
+			ctx.fillText(m.label, right ? px - 3 : px + 3, top + 10);
 		}
 		ctx.textAlign = 'right';
 		for (const t of yt) {
@@ -268,16 +284,18 @@
 	});
 
 	$effect(() => {
-		void [series, logX, logY, width, height, hover, xLabel, yLabel, y2Label];
+		void [series, logX, logY, width, height, hover, xLabel, yLabel, y2Label, xMarks];
 		draw();
 	});
 </script>
 
 <div class="lp" bind:this={wrap} data-series={series.length}>
-	{#if toggles}
+	{#if toggles || legend}
 		<div class="bar">
-			<label data-tip="Logarithmic x axis (non-positive values are not drawn)"><input type="checkbox" bind:checked={logX} /> log x</label>
-			<label data-tip="Logarithmic y axis (non-positive values are not drawn)"><input type="checkbox" bind:checked={logY} /> log y</label>
+			{#if toggles}
+				<label data-tip="Logarithmic x axis (non-positive values are not drawn)"><input type="checkbox" bind:checked={logX} /> log x</label>
+				<label data-tip="Logarithmic y axis (non-positive values are not drawn)"><input type="checkbox" bind:checked={logY} /> log y</label>
+			{/if}
 			<span class="grow"></span>
 			{#if note}<span class="note">{note}</span>{/if}
 			{#each series as s, k}<span class="key" data-tip="{s.tip ?? s.name}{s.y2 ? '\n(right axis, dashed)' : ''}"><i class:dash={s.y2 || s.dash} style:background={colorOf(s, k)}></i>{s.name}</span>{/each}

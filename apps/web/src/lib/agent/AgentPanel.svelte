@@ -7,14 +7,16 @@
 	import { onMount } from 'svelte';
 	import type { ChatController, ChatState, NavigationHost, ProviderAdapter } from '@amp/agent';
 	import type { Session } from '../workbench/session.svelte';
-	import { DEFAULT_CAPS, mountPanel } from './mount';
+	import { DEFAULT_CAPS, mountPanel, type ProviderAbout } from './mount';
 	import { agentStore } from './store.svelte';
 	import { fmt } from '../gfx/ticks';
+	import { PROVIDER_LABEL, choiceProblem, loadChoice, pageConnectSrc, saveChoice, type ProviderChoice, type ProviderId } from './providers';
 
 	let { s, nav, provider = null }: { s: Session; nav: (actor: string) => NavigationHost; provider?: ProviderAdapter | null } = $props();
 
 	let chat = $state.raw<ChatController | null>(null);
 	let st = $state.raw<ChatState | null>(null);
+	let about = $state.raw<ProviderAbout | null>(null);
 	let failed = $state('');
 	let text = $state('');
 	let keyDraft = $state('');
@@ -23,15 +25,50 @@
 	let caps = $state({ ...DEFAULT_CAPS });
 	let listEl = $state<HTMLDivElement>();
 
+	// provider choice (DevLog-053): stored in localStorage (not secret); a switch re-mounts the agent (new chat)
+	const storage = (() => { try { return window.localStorage; } catch { return null; } })();
+	const choice0 = loadChoice(storage);
+	let choice = $state<ProviderChoice>(choice0);
+	/** custom endpoint drafts (applied with Use) */
+	let urlDraft = $state(choice0.baseURL ?? '');
+	let modelDraft = $state(choice0.model ?? '');
+	const csp = pageConnectSrc();
+	const selfOrigin = typeof location === 'undefined' ? 'http://localhost' : location.origin;
+	const problem = $derived(provider ? null : choiceProblem(choice, csp.sources, selfOrigin));
+	const DEEPSEEK_MODELS = ['deepseek-flash', 'deepseek-v4-pro'];
+
+	let off: (() => void) | null = null;
+	let gen = 0;
+	function unmount() {
+		off?.(); off = null;
+		chat?.abort();
+		if (agentStore.chat === chat) agentStore.chat = null;
+		chat = null; st = null; about = null;
+	}
+	function mount(c: ProviderChoice) {
+		unmount();
+		failed = '';
+		const g = ++gen;
+		if (!provider && choiceProblem(c, csp.sources, selfOrigin)) return;
+		void mountPanel(s, nav, provider ? { provider } : { choice: c }).then((r) => {
+			if (g !== gen) return;
+			chat = r.chat; about = r.about;
+			off = r.chat.subscribe((x) => { st = x; agentStore.tick++; queueMicrotask(() => listEl && (listEl.scrollTop = listEl.scrollHeight)); });
+		}, (e) => { if (g === gen) failed = (e as Error).message; });
+	}
+	function choose(c: ProviderChoice) {
+		choice = c;
+		saveChoice(storage, c);
+		mount(c);
+	}
+	function pickProvider(id: ProviderId) {
+		if (id === 'custom') choose({ id, ...(urlDraft ? { baseURL: urlDraft.trim() } : {}), ...(modelDraft ? { model: modelDraft.trim() } : {}) });
+		else choose({ id });
+	}
+
 	onMount(() => {
-		let off: (() => void) | null = null;
-		let alive = true;
-		void mountPanel(s, nav, provider ? { provider } : {}).then((c) => {
-			if (!alive) return;
-			chat = c;
-			off = c.subscribe((x) => { st = x; agentStore.tick++; queueMicrotask(() => listEl && (listEl.scrollTop = listEl.scrollHeight)); });
-		}, (e) => (failed = (e as Error).message));
-		return () => { alive = false; off?.(); if (agentStore.chat === chat) agentStore.chat = null; };
+		mount(choice0);
+		return () => { gen++; unmount(); };
 	});
 
 	function setCaps() {
@@ -60,19 +97,24 @@
 <div class="ap" data-agent-panel>
 	{#if failed}<div class="crit msg">{failed}</div>{/if}
 	{#if !chat}
-		<div class="dim msg">{failed ? '' : 'mounting the agent...'}</div>
+		{#if !provider}<div class="key">{@render providerRow()}</div>{/if}
+		{#if problem}<div class="warn msg" data-tip={csp.from === 'meta' ? 'connect-src read from this page' : 'connect-src of the build (this page carries no CSP meta tag)'}>{problem}</div>
+		{:else}<div class="dim msg">{failed ? '' : 'mounting the agent...'}</div>{/if}
 	{:else if st}
 		<div class="key">
 			{#if provider}
-				<span class="dim" data-tip="Scripted test provider (@amp/agent ScriptedProvider): no network, no key">provider: scripted mock</span>
-			{:else if st.hasKey}
-				<span data-tip="The key is never shown. In memory: gone when the tab closes. Remembered: kept in this browser's localStorage">key: {st.keyPersisted ? 'remembered on this device' : 'in memory only'}</span>
-				<label><input type="checkbox" checked={st.keyPersisted} onchange={(e) => chat?.setKeyPersist((e.currentTarget as HTMLInputElement).checked)} /> remember</label>
-				<button onclick={() => chat?.clearKey()}>Clear key</button>
+				<span class="dim" data-tip="Scripted test provider: no network, no key">provider: scripted mock</span>
 			{:else}
-				<input type="password" autocomplete="off" spellcheck="false" placeholder="Anthropic API key" bind:value={keyDraft} data-tip="Bring your own key. Sent only to https://api.anthropic.com (the page CSP allows no other destination)" />
-				<label data-tip="Explicit opt-in: store the key in this browser's localStorage"><input type="checkbox" bind:checked={remember} /> remember on this device</label>
-				<button disabled={!keyDraft} onclick={saveKey}>Set</button>
+				{@render providerRow()}
+				{#if st.hasKey}
+					<span data-tip={`The key is never shown. In memory: gone when the tab closes or the provider changes. Remembered: kept in this browser's localStorage under this provider's own name. Sent only to ${about?.endpoint ?? 'the provider'}`}>key: {st.keyPersisted ? 'remembered on this device' : 'in memory only'}</span>
+					<label><input type="checkbox" checked={st.keyPersisted} onchange={(e) => chat?.setKeyPersist((e.currentTarget as HTMLInputElement).checked)} /> remember</label>
+					<button onclick={() => chat?.clearKey()}>Clear key</button>
+				{:else}
+					<input type="password" autocomplete="off" spellcheck="false" placeholder={`${PROVIDER_LABEL[choice.id]} API key`} bind:value={keyDraft} data-tip={`Bring your own key. Sent only to ${about?.endpoint ?? 'the provider'} (the page CSP allows no other destination)`} />
+					<label data-tip="Explicit opt-in: store the key in this browser's localStorage"><input type="checkbox" bind:checked={remember} /> remember on this device</label>
+					<button disabled={!keyDraft} onclick={saveKey}>Set</button>
+				{/if}
 			{/if}
 		</div>
 		<div class="budget mono" data-tip="Estimates from the provider's price table; N/A when a model has no price">
@@ -114,11 +156,30 @@
 	{/if}
 </div>
 
+{#snippet providerRow()}
+	<select class="prov" value={choice.id} disabled={!!st?.busy} onchange={(e) => pickProvider((e.currentTarget as HTMLSelectElement).value as ProviderId)}
+		data-tip={`Model provider. Switching starts a new chat (histories are provider specific); each provider keeps its own key.${about ? `\nendpoint: ${about.endpoint}\nmodel: ${about.model}\n${about.price}` : ''}`}>
+		{#each Object.entries(PROVIDER_LABEL) as [id, label] (id)}<option value={id}>{label}</option>{/each}
+	</select>
+	{#if choice.id === 'deepseek'}
+		<select class="model" value={about?.model ?? choice.model ?? DEEPSEEK_MODELS[0]} disabled={!!st?.busy} onchange={(e) => choose({ id: 'deepseek', model: (e.currentTarget as HTMLSelectElement).value })} data-tip="DeepSeek model id (api-docs.deepseek.com, checked 2026-11-18)">
+			{#each DEEPSEEK_MODELS as m (m)}<option value={m}>{m}</option>{/each}
+		</select>
+	{:else if choice.id === 'custom'}
+		<input class="url" type="url" spellcheck="false" placeholder="https://host/v1" bind:value={urlDraft} data-tip={`Base URL of an OpenAI-compatible Chat Completions API (POST <base>/chat/completions, https only). The page CSP must allow its origin; this page allows: ${csp.sources.join(' ')}`} />
+		<input class="mid" type="text" spellcheck="false" placeholder="model id" bind:value={modelDraft} data-tip="Model id sent in each request. No price table: cost shows N/A" />
+		<button disabled={!!st?.busy || !urlDraft || !modelDraft || (urlDraft === choice.baseURL && modelDraft === choice.model && !!chat)} onclick={() => choose({ id: 'custom', baseURL: urlDraft.trim(), model: modelDraft.trim() })} data-tip="Use this endpoint (starts a new chat)">Use</button>
+	{/if}
+{/snippet}
+
 <style>
 	.ap { position: absolute; inset: 0; display: flex; flex-direction: column; font-size: 11px; background: var(--surface); }
 	.msg { padding: 8px; }
 	.key { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 6px; border-bottom: 1px solid var(--line); }
 	.key input[type='password'] { flex: 1; min-width: 120px; }
+	.key select { height: 20px; font-size: 11px; }
+	.key .url { flex: 1; min-width: 110px; }
+	.key .mid { width: 90px; }
 	.key label { display: flex; gap: 3px; align-items: center; color: var(--ink-2); }
 	.budget { padding: 4px 6px; border-bottom: 1px solid var(--line); color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 10px; }
 	.caps { margin-left: auto; display: flex; gap: 3px; align-items: center; }

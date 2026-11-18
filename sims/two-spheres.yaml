@@ -50,10 +50,10 @@ provenance:
     params.a: {basis: benchmark, source: "eval/cases/c/EM-02.yaml geometry.spec.sphere_a (Palace docs spheres.md)", date: 2026-11-06}
     params.b: {basis: benchmark, source: "eval/cases/c/EM-02.yaml geometry.spec.sphere_b", date: 2026-11-06}
     params.c: {basis: benchmark, source: "eval/cases/c/EM-02.yaml geometry.spec (centre distance 0.05 m)", date: 2026-11-06}
-    params.Rout: {basis: user, date: 2026-11-06, note: "modelling choice as in the L4 gate (spheres.md: 'sufficiently far')"}
-    materials.vacuum.override.eps_r: {basis: benchmark, source: "eval/cases/c/EM-02.yaml materials.vacuum.eps_r (spheres.md L22-23)", date: 2026-11-06}
-    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
-    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (L4 gate)"}
+    params.Rout: {basis: user, date: 2026-11-06, note: "modelling choice as in the earlier verification gate (spheres.md: 'sufficiently far')"}
+    materials.vacuum.override.eps_r: {basis: benchmark, source: "eval/cases/c/EM-02.yaml materials.vacuum.eps_r (spheres.md lines 22-23)", date: 2026-11-06}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (as in the earlier verification gate)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (as in the earlier verification gate)"}
 assumptions:
   - {text: "The sphere interiors are not part of the field domain (perfect conductors)", paths: [geometry.features]}
 # eval: [EM-02]

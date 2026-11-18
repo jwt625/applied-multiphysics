@@ -1,0 +1,122 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-90",
+  "class": "c",
+  "generator": "validation/bloch/gen_expected.py",
+  "command": "cd validation && uv run python bloch/gen_expected.py",
+  "method": "TM gap edges of the square lattice of rods r 0.2a eps 12 in air: MPB resolution study (Richardson) and PWE limit, as for WO-04 (copied from eval/expected/WO-04.json).",
+  "generated_at": "2026-11-18T14:02:27-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "gap_lower",
+      "value": 0.2806643916748245,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "MPB (meep 1.34.0 conda env, read-only), tutorial set-up, resolutions 16, 32, 64, 128, 256; Richardson on the three finest with observed order",
+        "mpb_levels": [
+          {
+            "resolution": 16,
+            "value": 0.28220927118254513
+          },
+          {
+            "resolution": 32,
+            "value": 0.2809479558404588
+          },
+          {
+            "resolution": 64,
+            "value": 0.28072839221249346
+          },
+          {
+            "resolution": 128,
+            "value": 0.2806764805135941
+          },
+          {
+            "resolution": 256,
+            "value": 0.2806666750934975
+          }
+        ],
+        "observed_order": 2.404408356493922,
+        "gci_U": 2.8542733413104576e-06,
+        "pwe_limit_est": 0.28066224255525063,
+        "pwe_finest": 0.28066257049446014,
+        "pwe_tail_est": 3.279392095329859e-07,
+        "mpb_vs_pwe_abs": 2.1491195738576607e-06,
+        "mpb_vs_pwe_rel": 7.65725769853845e-06,
+        "agreement": "same limit",
+        "copied_from": "eval/expected/WO-04.json gap_lower"
+      }
+    },
+    {
+      "metric_id": "gap_upper",
+      "value": 0.4171623956235006,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "MPB (meep 1.34.0 conda env, read-only), tutorial set-up, resolutions 16, 32, 64, 128, 256; Richardson on the three finest with observed order",
+        "mpb_levels": [
+          {
+            "resolution": 16,
+            "value": 0.4167525755714493
+          },
+          {
+            "resolution": 32,
+            "value": 0.41711424941157066
+          },
+          {
+            "resolution": 64,
+            "value": 0.4171560715713104
+          },
+          {
+            "resolution": 128,
+            "value": 0.4171612613942641
+          },
+          {
+            "resolution": 256,
+            "value": 0.41716219219760814
+          }
+        ],
+        "observed_order": 2.4791370242365987,
+        "gci_U": 2.542823656087976e-07,
+        "pwe_limit_est": 0.4171631976452128,
+        "pwe_finest": 0.41716547014388133,
+        "pwe_tail_est": 2.2724986685411614e-06,
+        "mpb_vs_pwe_abs": 8.020217122095552e-07,
+        "mpb_vs_pwe_rel": 1.922564738873059e-06,
+        "agreement": "same limit",
+        "copied_from": "eval/expected/WO-04.json gap_upper"
+      }
+    },
+    {
+      "metric_id": "pwe_limit_lower",
+      "value": 0.28066224255525063,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "PWE limit estimate of eval/expected/WO-04.json (gap_lower precision.pwe_limit_est)"
+      }
+    },
+    {
+      "metric_id": "pwe_limit_upper",
+      "value": 0.4171631976452128,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "PWE limit estimate of eval/expected/WO-04.json (gap_upper precision.pwe_limit_est)"
+      }
+    }
+  ],
+  "inputs": {
+    "lattice": "square",
+    "r_over_a": 0.2,
+    "eps_rod": 12.0,
+    "k_path": "MPB tutorial (Gamma-X-M-Gamma, interpolate 4)"
+  }
+}

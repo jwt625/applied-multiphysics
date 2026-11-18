@@ -16,6 +16,7 @@ import type { MemoryBackend } from './memory/backends.ts';
 import { createAnthropicAdapter, type AnthropicClientLike, type AnthropicClientOptions, type Effort } from './provider/anthropic.ts';
 import type { ProviderAdapter } from './provider/types.ts';
 import type { NavigationHost } from './nav.ts';
+import type { ModelEditor } from './edits.ts';
 import type { StudyRunner } from './runner.ts';
 import type { ResultsHost } from './results.ts';
 import type { OpLog, Registry, BuiltGeometry } from '@amp/spec';
@@ -137,7 +138,7 @@ export function toolSummary(input: unknown): string {
   if (!input || typeof input !== 'object') return '';
   const o = input as Record<string, unknown>;
   const parts: string[] = [];
-  for (const k of ['pointer', 'study', 'mode', 'name', 'seq', 'log', 'kind', 'view']) if (typeof o[k] === 'string' || typeof o[k] === 'number') parts.push(`${k}=${String(o[k])}`);
+  for (const k of ['pointer', 'study', 'mode', 'name', 'seq', 'log', 'kind', 'view', 'action', 'index', 'n', 'preset', 'field', 'colormap', 'range']) if (typeof o[k] === 'string' || typeof o[k] === 'number') parts.push(`${k}=${String(o[k])}`);
   if (Array.isArray(o.ops)) parts.push(`${o.ops.length} op(s): ${o.ops.map((x) => (x as { path?: unknown }).path).filter((x) => typeof x === 'string').join(', ')}`);
   if (Array.isArray(o.ids)) parts.push(`${o.ids.length} id(s)`);
   return parts.join(' ').slice(0, 120);
@@ -152,6 +153,8 @@ export interface MountOptions {
   /** Results values (evaluate / get_table tools; lane R3): the workbench's post worker through the adapter. */
   results?: ResultsHost;
   geometry?: () => BuiltGeometry | null;
+  /** Tree and sweep patch builders for edit_tree and define_sweep (the workbench's state/edit-ops.ts, state/sweep.ts). */
+  editor?: ModelEditor;
   /** Memory backend: `await opfsBackend()` in the browser. */
   memoryBackend: MemoryBackend;
   /** window.localStorage (key persistence after opt-in only); omit to keep the key in memory only. */
@@ -182,7 +185,7 @@ export async function mountAgent(o: MountOptions): Promise<ChatController> {
   const memory = await MemoryStore.open(o.memoryBackend, { forbidden: () => keys.forbidden(), reconcile: true });
   const session = new AgentSession({
     log: o.log, registry: o.registry, memory, nav: o.nav,
-    ...(o.runner ? { runner: o.runner } : {}), ...(o.results ? { results: o.results } : {}), ...(o.geometry ? { geometry: o.geometry } : {}), ...(o.sessionId ? { sessionId: o.sessionId } : {}),
+    ...(o.runner ? { runner: o.runner } : {}), ...(o.results ? { results: o.results } : {}), ...(o.geometry ? { geometry: o.geometry } : {}), ...(o.editor ? { editor: o.editor } : {}), ...(o.sessionId ? { sessionId: o.sessionId } : {}),
     forbidden: () => keys.forbidden(),
   });
   let provider = o.provider;

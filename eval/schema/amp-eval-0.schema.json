@@ -1188,6 +1188,7 @@
         },
         "terms": {
           "type": "object",
+          "description": "expr: name -> sub-extract (scalar, probe, reduce, expr, result) or a constant {value, unit}",
           "additionalProperties": {
             "anyOf": [
               {

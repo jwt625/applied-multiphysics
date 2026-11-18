@@ -12,7 +12,8 @@
 // Dielectric Q by first-order perturbation: Q_d^-1 = sum_cells tan_delta eps_r int |E|^2 / sum eps_r int |E|^2.
 
 import type { Mesh, PhysicsModule, RunContext, Solution, FieldData } from '@amp/spec/types';
-import { buildElementPattern, elementSlots, SparseCholesky } from '@amp/core/la/sparse';
+import { buildElementPattern, elementSlots, SparseCholesky, analyze } from '@amp/core/la/sparse';
+import { buildAMSReal, buildPMGReal, leadingBlock, pcgCsr } from '@amp/core/la/ams-real';
 import { csrMatMat, csrTranspose } from '@amp/core/la/amg';
 import { ndBasis, curlOf, pairIndex, evalVector, tetMatricesP, TET_EDGES } from '@amp/core/fem/hcurl';
 import { buildSpace } from '@amp/core/fem/space';
@@ -203,6 +204,42 @@ export interface CavityProblem {
   spec?: unknown;
   signal?: AbortSignal;
   progress?: (stage: string, frac: number, msg?: string) => void;
+  /**
+   * Linear solver of the shift-invert operator (DevLog-054): 'direct' (default: sparse Cholesky / LDL^T), 'ams'
+   * (preconditioned CG with the auxiliary-space Maxwell preconditioner, order 2 through a p-multigrid level; needs the
+   * negative shift, so it finds the lowest modes), 'auto' (AMS when the direct factor would exceed
+   * EM3D_DIRECT_MAX_BYTES, else direct).
+   */
+  solver?: 'direct' | 'ams' | 'auto';
+  /** inner PCG relative residual of the AMS path (default EM3D_AMS_RTOL) */
+  solverRtol?: number;
+}
+
+/** 'auto': direct factor storage (8 nnzL bytes) above which em3d uses the AMS path. Measured (DevLog-054 s.3.4): factor 119 MiB -> run RSS 0.74-0.82 GB, 237 MiB -> 1.18-1.44 GB; 300 MiB keeps the direct path below the 2 GB budget. */
+export const EM3D_DIRECT_MAX_BYTES = 300 * 2 ** 20;
+/** Default inner PCG relative residual of the AMS path. */
+export const EM3D_AMS_RTOL = 1e-10;
+
+/**
+ * Nodal interpolation Pi_x, Pi_y, Pi_z (nc x nP each) from P1 vector fields to the Whitney DOFs of the free edges
+ * rows < nc (Whitney coefficient of a P1 field u = int_e u . dl = (u_a + u_b) / 2 . (x_b - x_a), the DOF of the discrete
+ * gradient G = [-1, +1] on (a, b)); columns: the vertices of those edges.
+ */
+function whitneyInterpolation(hm: HcurlMesh, inv: Int32Array, nc: number) {
+  const col = new Int32Array(hm.nNodes).fill(-1);
+  let nP = 0;
+  for (let r = 0; r < nc; r++) for (const v of [hm.edges[2 * inv[r]!]!, hm.edges[2 * inv[r]! + 1]!]) if (col[v]! < 0) col[v] = nP++;
+  return [0, 1, 2].map((d) => {
+    const rowptr = new Int32Array(nc + 1), colidx = new Int32Array(2 * nc), val = new Float64Array(2 * nc);
+    for (let r = 0; r < nc; r++) {
+      const a = hm.edges[2 * inv[r]!]!, b = hm.edges[2 * inv[r]! + 1]!;
+      const h = 0.5 * (hm.nodes[3 * b + d]! - hm.nodes[3 * a + d]!);
+      const [c0, c1] = col[a]! < col[b]! ? [col[a]!, col[b]!] : [col[b]!, col[a]!];
+      colidx[2 * r] = c0; colidx[2 * r + 1] = c1; val[2 * r] = h; val[2 * r + 1] = h;
+      rowptr[r + 1] = 2 * r + 2;
+    }
+    return { n: nc, m: nP, rowptr, colidx, val };
+  });
 }
 
 export interface CavityDetail {
@@ -468,12 +505,65 @@ export async function solveCavity(p: CavityProblem): Promise<Solution & { detail
   })();
   let epsMuMax = 0;
   for (let t = 0; t < nT; t++) if (!p.mask || p.mask[t]) epsMuMax = Math.max(epsMuMax, p.epsR[t]! * p.muR[t]!);
-  const sigma = p.shiftHz ? (2 * Math.PI * p.shiftHz / C0) ** 2 : -((Math.PI / diag) ** 2) / epsMuMax;
+  const sigmaBelow = -((Math.PI / diag) ** 2) / epsMuMax;
+  const sigmaShift = p.shiftHz ? (2 * Math.PI * p.shiftHz / C0) ** 2 : sigmaBelow;
   const doProject = p.project ?? true;
+  // linear solver (DevLog-054): direct factor, or AMS-preconditioned CG ('ams'; 'auto' above the direct byte budget)
+  const want = p.solver ?? 'direct';
+  if (want !== 'direct' && want !== 'ams' && want !== 'auto') throw new Error(`em3d: solver '${String(want)}' (direct | ams | auto)`);
+  let sym: ReturnType<typeof analyze> | undefined;
+  let useAms = want === 'ams';
+  let solverReason = '';
+  if (want === 'auto') {
+    sym = analyze(R.pat);
+    const bytes = 8 * Number(sym.nnzL);
+    useAms = bytes > EM3D_DIRECT_MAX_BYTES;
+    solverReason = `auto: direct factor ${(bytes / 2 ** 20).toFixed(0)} MiB ${useAms ? '>' : '<='} ${EM3D_DIRECT_MAX_BYTES / 2 ** 20} MiB`;
+  }
+  const sigma = useAms ? sigmaBelow : sigmaShift;
+  const amsRtol = p.solverRtol ?? EM3D_AMS_RTOL;
+  if (!(amsRtol > 0 && amsRtol < 1)) throw new Error(`em3d: solverRtol ${amsRtol}: expected 0 < rtol < 1`);
+  const amsStats = { setupMs: 0, solves: 0, itMin: Infinity, itMax: 0, itSum: 0, relresMax: 0, nCoarse: 0, nAux: 0 };
+  const linearSolver = useAms ? (A: Float64Array) => {
+    const t0 = performance.now();
+    // free Whitney DOFs are the leading free DOFs (R numbers free DOFs by increasing DOF id, Whitney ids < nE)
+    let nc = 0;
+    while (nc < nf && R.inv[nc]! < nE) nc++;
+    for (let r = nc; r < nf; r++) if (R.inv[r]! < nE) throw new Error('em3d ams: free Whitney DOFs are not a prefix');
+    const Pis = whitneyInterpolation(hm, R.inv, nc);
+    let nV = 0;
+    for (let v = 0; v < hm.nNodes; v++) if (h1Node[v]! >= 0) nV++;
+    const G1 = { n: nc, m: nV, rowptr: gRow.slice(0, nc + 1), colidx: G.colidx.slice(0, gRow[nc]!), val: G.val.slice(0, gRow[nc]!) };
+    let pre: { apply: (b: Float64Array, x: Float64Array) => void };
+    if (order === 1) pre = buildAMSReal({ pat: R.pat, val: A, G: G1, Pis });
+    else {
+      const C = leadingBlock(R.pat, A, nc);
+      const coarse = buildAMSReal({ pat: C.pat, val: C.val, G: G1, Pis });
+      pre = buildPMGReal({ pat: R.pat, val: A, nc, Gf: G, coarse });
+    }
+    amsStats.setupMs = performance.now() - t0; amsStats.nCoarse = nc; amsStats.nAux = nH;
+    return {
+      label: `AMS-PCG (rtol ${amsRtol})`,
+      solveMany: (b: Float64Array, m: number) => {
+        const out = new Float64Array(nf * m);
+        for (let c = 0; c < m; c++) {
+          checkAbort(p.signal);
+          const x = out.subarray(c * nf, (c + 1) * nf);
+          const r = pcgCsr(R.pat, A, pre.apply, b.subarray(c * nf, (c + 1) * nf), x, { rtol: amsRtol, maxIter: 2000 });
+          if (!r.converged) throw new Error(`em3d ams: PCG did not converge (relative residual ${r.relres.toExponential(2)} after ${r.iterations} iterations)`);
+          amsStats.solves++; amsStats.itSum += r.iterations; amsStats.itMin = Math.min(amsStats.itMin, r.iterations); amsStats.itMax = Math.max(amsStats.itMax, r.iterations);
+          amsStats.relresMax = Math.max(amsStats.relresMax, r.relres);
+        }
+        return out;
+      },
+    };
+  } : undefined;
+  if (useAms) p.progress?.('solve', 0.35, `ND${order}: AMS-preconditioned CG (rtol ${amsRtol}), ${nf} free DOFs${solverReason ? `; ${solverReason}` : ''}`);
   timer.start('solve');
   const eig = shiftInvertEigen({
     pat: R.pat, K: R.val, M: Mr, sigma, nWant: p.nModes, kPsd: true,
     ...(doProject ? { project } : {}), tol: p.eigTol ?? 1e-9, blockSize: p.blockSize ?? 4, ...(p.signal ? { signal: p.signal } : {}),
+    ...(sym ? { sym } : {}), ...(linearSolver ? { linearSolver } : {}),
   });
   timer.stop('solve');
   timer.add('factor', eig.stats.factorMs);
@@ -491,6 +581,9 @@ export async function solveCavity(p: CavityProblem): Promise<Solution & { detail
     if (l > 1e-6 * lamScale) { keep.push(i); divRes.push(dr); }
   });
   const freqs = Float64Array.from(keep, (i) => (C0 * Math.sqrt(eig.lambda[i]!)) / (2 * Math.PI));
+  // the AMS path computes the lowest modes (negative shift): equal to the modes closest to a study shift only when the
+  // shift is at or below the lowest of them
+  if (useAms && p.shiftHz && freqs.length && p.shiftHz > freqs[0]!) throw new Error(`em3d ams: the study shift ${p.shiftHz} Hz is above the lowest computed eigenfrequency ${freqs[0]!.toPrecision(6)} Hz; the AMS path finds the lowest modes only, use the direct solver for modes around an interior shift`);
   const ezFraction = new Float64Array(keep.length), azimuthalOrder = new Int32Array(keep.length);
   const fields: FieldData[] = [];
   const scalars: Solution['scalars'] = {};
@@ -515,19 +608,21 @@ export async function solveCavity(p: CavityProblem): Promise<Solution & { detail
     }
   });
   timer.stop('post');
-  const nBelow = p.shiftHz && eig.stats.nNegative !== null ? eig.stats.nNegative - (doProject ? 0 : nH) : null;
+  const nBelow = p.shiftHz && !useAms && eig.stats.nNegative !== null ? eig.stats.nNegative - (doProject ? 0 : nH) : null;
+  const amsLine = useAms ? `AMS-preconditioned CG (${order === 2 ? 'p-multigrid ND2 -> ND1, ' : ''}rtol ${amsRtol}, ${amsStats.solves} solves, iterations ${amsStats.itMin}-${amsStats.itMax}, max relative residual ${amsStats.relresMax.toExponential(2)})` : '';
   const sol = await makeSolution({
     mesh, ...(p.spec !== undefined ? { spec: p.spec } : { problemDigest: { module: 'emw', order, nModes: p.nModes, pec: p.pec, shiftHz: p.shiftHz ?? null, mesh: mesh.hash } }),
     fields, steps: { kind: 'eigen', values: freqs, unit: 'Hz' }, scalars,
-    stats: { dof: nf, nnz: R.pat.nnz, iterations: eig.stats.opApplications, residual: Math.max(0, ...keep.map((i) => eig.residual[i]!)), solver: `shift-invert block Arnoldi, ${eig.stats.factor} (supernodal), gradient projection ${doProject ? 'on' : 'off'}` },
+    stats: { dof: nf, nnz: R.pat.nnz, iterations: eig.stats.opApplications, residual: Math.max(0, ...keep.map((i) => eig.residual[i]!)), solver: `shift-invert block Arnoldi, ${useAms ? amsLine : `${eig.stats.factor} (supernodal)`}, gradient projection ${doProject ? 'on' : 'off'}` },
     timer,
   });
+  if (useAms || solverReason) (sol as Solution & { notes?: string[] }).notes = [...((sol as Solution & { notes?: string[] }).notes ?? []), `linear solver${solverReason ? ` (${solverReason})` : ''}: ${useAms ? `${amsLine}; setup ${amsStats.setupMs.toFixed(0)} ms, ${amsStats.itSum} PCG iterations in total; eigenvalues found below the negative shift (lowest modes), no inertia count` : 'direct'}`];
   attachMesh(sol, mesh);
   return Object.assign(sol, {
     detail: {
       divResidual: Float64Array.from(divRes), eigResidual: Float64Array.from(keep, (i) => eig.residual[i]!), nNull: nH,
       nBelowShift: nBelow === null ? null : nBelow - (doProject ? nH : 0), ezFraction, azimuthalOrder,
-      stats: { ...eig.stats, nCurved, nTets: nT, nDofTotal: nDof, sigma, nNegativeRaw: eig.stats.nNegative },
+      stats: { ...eig.stats, nCurved, nTets: nT, nDofTotal: nDof, sigma, nNegativeRaw: eig.stats.nNegative, ...(useAms ? { amsSetupMs: amsStats.setupMs, amsSolves: amsStats.solves, amsIterations: amsStats.itSum, amsIterMax: amsStats.itMax, amsRelresMax: amsStats.relresMax, amsRtol, amsCoarse: amsStats.nCoarse, amsAux: amsStats.nAux } : {}) },
     },
   });
 }
@@ -561,7 +656,12 @@ export const emwModule: PhysicsModule = {
     const types = bcTypes(ctx.spec, ctx.physicsId);
     if (types.some((t) => t !== 'pec' && t !== 'pmc')) throw new Error('emw eigen: only pec / pmc boundaries');
     const order = ((physicsNode(ctx.spec, ctx.physicsId).settings as { order?: number } | undefined)?.order ?? 2) as 1 | 2;
+    // eigen study `settings.solver` / `settings.rtol` (DevLog-054; registration requested from the coordinator)
+    const ss = (ctx.study.settings ?? {}) as { solver?: unknown; rtol?: unknown };
+    if (ss.solver !== undefined && ss.solver !== 'direct' && ss.solver !== 'ams' && ss.solver !== 'auto') throw new Error(`eigen study solver '${String(ss.solver)}': expected direct, ams or auto`);
+    if (ss.rtol !== undefined && !(Number(ss.rtol) > 0 && Number(ss.rtol) < 1)) throw new Error(`eigen study rtol ${String(ss.rtol)}: expected 0 < rtol < 1`);
     return solveCavity({
+      ...(ss.solver !== undefined ? { solver: ss.solver as 'direct' | 'ams' | 'auto' } : {}), ...(ss.rtol !== undefined ? { solverRtol: Number(ss.rtol) } : {}),
       mesh: ctx.mesh, order, epsR: values.eps_r!, muR: mu, ...(lossy ? { tanDelta: td } : {}), mask, pec: bcSelections(ctx.spec, ctx.physicsId, 'pec'),
       nModes, shiftHz, spec: ctx.spec, signal: ctx.signal, progress: ctx.progress,
     });

@@ -22,7 +22,12 @@ export interface RunRecord {
   fidelity: 'rigorous' | 'realtime';
   /** Head hash of the spec's operation log when the run started (optional, additive to C5; audit S2). */
   oplogHead?: string;
+  /** Linear solver of the run, machine-readable (additive to C5). Merged multiphysics: byPhysics per physics id. */
+  solver?: SolverRecord & { byPhysics?: Record<string, SolverRecord> };
 }
+
+/** kind: 'direct' (sparse Cholesky / LDL^T), 'amg-pcg', 'ams-pcg'; rtol, iterations (max over the run's linear solves), residual (max achieved relative residual) are null for direct solves. */
+export interface SolverRecord { kind: 'direct' | 'amg-pcg' | 'ams-pcg'; rtol: number | null; iterations: number | null; residual: number | null }
 
 export interface Solution {
   meshHash: string;

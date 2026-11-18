@@ -1,0 +1,83 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-91",
+  "class": "c",
+  "generator": "validation/bloch/gen_expected.py",
+  "command": "cd validation && uv run python bloch/gen_expected.py",
+  "method": "TM bands 3 and 8 at X and M of the square rod lattice (r 0.2a, eps 12): plane-wave expansion, nmax 24 (validation/bloch/bloch_refs.py).",
+  "generated_at": "2026-11-18T14:02:27-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "band3_X",
+      "value": 0.5567808792658177,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "PWE TM (validation/c/gen_pwe.py bands, nmax 24, 1793 plane waves)",
+        "floor_abs_nmax20_vs_24_all_bands": 2.8340137124494014e-05,
+        "k_index": 5,
+        "k_reduced": [
+          0.5,
+          0.0
+        ]
+      }
+    },
+    {
+      "metric_id": "band8_X",
+      "value": 1.026297630736537,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "PWE TM (validation/c/gen_pwe.py bands, nmax 24, 1793 plane waves)",
+        "floor_abs_nmax20_vs_24_all_bands": 2.8340137124494014e-05,
+        "k_index": 5,
+        "k_reduced": [
+          0.5,
+          0.0
+        ]
+      }
+    },
+    {
+      "metric_id": "band3_M",
+      "value": 0.49587448973300735,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "PWE TM (validation/c/gen_pwe.py bands, nmax 24, 1793 plane waves)",
+        "floor_abs_nmax20_vs_24_all_bands": 2.8340137124494014e-05,
+        "k_index": 10,
+        "k_reduced": [
+          0.5,
+          0.5
+        ]
+      }
+    },
+    {
+      "metric_id": "band8_M",
+      "value": 0.8798524657825496,
+      "unit": "1 (c/a)",
+      "precision": {
+        "method": "PWE TM (validation/c/gen_pwe.py bands, nmax 24, 1793 plane waves)",
+        "floor_abs_nmax20_vs_24_all_bands": 2.8340137124494014e-05,
+        "k_index": 10,
+        "k_reduced": [
+          0.5,
+          0.5
+        ]
+      }
+    }
+  ],
+  "inputs": {
+    "lattice": "square",
+    "r_over_a": 0.2,
+    "eps_rod": 12.0
+  }
+}

@@ -5,6 +5,8 @@
 // vertex budget `maxVertices` (not the tri6 node count; audit M7). 2D: CDT (tri3 / tri6). 3D: box list -> structured hex8 (h = hmax); single cylinder -> extruded tet4;
 // extrude feature or mixed boxes / z cylinders -> layer stack (stack.ts; tet4, or tet10 at order 2; the 2D size options
 // and refine selections, on 2D sketch ids, act on the shared overlay mesh; z cells from each layer's nz / dz, else hmax).
+// 2D: `periodic` conditions of the physics (physics[*].bcs) make the mesher put the same nodes on both sides of each
+// pair (DevLog-050); specs without them take the unchanged path.
 
 import { resolveParams } from '@amp/spec';
 import { makeResolver, geometryFromSpec, type FeatureNodeLike } from '@amp/geom/spec';
@@ -13,6 +15,7 @@ import { mesh2d, type MeshOptions2D } from './mesh2d.ts';
 import { meshBoxes } from './boxgrid.ts';
 import { meshCylinder } from './solid3d.ts';
 import { meshStack } from './stack.ts';
+import { periodicSelections } from './periodic.ts';
 
 export interface SpecMeshOptions { order?: 1 | 2; cell3d?: 'tet4' | 'prism6' }
 
@@ -31,6 +34,9 @@ export function meshFromSpec(spec: Record<string, unknown>, o: SpecMeshOptions =
     if (mb.size?.grading !== undefined) opts.grade = R.q(mb.size.grading);
     if (mb.refine) opts.refine = mb.refine.map((r) => ({ select: r.select, h: R.q(r.h) }));
     if (mb.budget?.maxNodes) opts.maxVertices = mb.budget.maxNodes;
+    // periodic conditions of the physics: both sides of each pair get the same boundary nodes (DevLog-050)
+    const per = periodicSelections(spec);
+    if (per.length) opts.periodic = per;
     return mesh2d(G.geometry, opts);
   }
   if (!hmax) throw new Error('mesh: 3D spec needs mesh.size.hmax');

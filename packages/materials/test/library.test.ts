@@ -177,8 +177,8 @@ test('registry: property types (with scalar / tensor forms) supersede the provis
   for (const f of readdirSync(sims).filter((x) => x.endsWith('.yaml'))) {
     // sims/ grows with other lanes' types; the materials registration must not change any outcome, except for the sims
     // that use material-registered property forms (MAT_SIMS), checked below against the merged app registry
-    if (MAT_SIMS.includes(f.replace(/\.yaml$/, ''))) continue;
     const text = readFileSync(resolve(sims, f), 'utf8');
+    if (MAT_SIMS.includes(f.replace(/\.yaml$/, '')) || usesMaterialForms(text)) continue;
     const r = parseSpecText(text, reg), r0 = parseSpecText(text, wave1Registry());
     assert.equal(r.ok, r0.ok, `${f}: ${JSON.stringify(r.issues?.slice(0, 2))}`);
     assert.deepEqual(r.issues.map((i) => i.message), r0.issues.map((i) => i.message), f);
@@ -190,11 +190,19 @@ test('registry: property types (with scalar / tensor forms) supersede the provis
  * uniaxial n / eps_r, tensor C): their outcome differs from the provisional seed by design. They must validate with the
  * merged app registry (@amp/physics physicsRegistry: @amp/materials properties + physics registrations; DevLog-031 X4).
  */
-const MAT_SIMS = ['ln-fbar-2d', 'pzt4-cube', 'si-microheater-to', 'tfln-mzm-eo'];
+const MAT_SIMS = ['ln-fbar-2d', 'pzt4-cube', 'si-microheater-to', 'tfln-mzm-eo', 'tfln-rib-air', 'tfln-rib-oxide'];
+/**
+ * Sims added later by other lanes are detected from their text (lane E3, DevLog-049): a tensor / uniaxial override
+ * (`symmetry:`) or a property only @amp/materials registers (dndT, r_eo, p_pe, kappa, Tg, tcr) in a materials override.
+ */
+function usesMaterialForms(text: string): boolean {
+  return /\bsymmetry:|\b(dndT|r_eo|p_pe|kappa|Tg|tcr)\s*:/.test(text);
+}
 test('registry: sims using material-registered property forms validate with the merged app registry', async () => {
   const { physicsRegistry } = await import('../../physics/src/index.ts');
   const sims = resolve(import.meta.dirname, '../../../sims');
-  for (const id of MAT_SIMS) {
+  const detected = readdirSync(sims).filter((x) => x.endsWith('.yaml') && usesMaterialForms(readFileSync(resolve(sims, x), 'utf8'))).map((x) => x.replace(/\.yaml$/, ''));
+  for (const id of new Set([...MAT_SIMS, ...detected])) {
     const r = parseSpecText(readFileSync(resolve(sims, `${id}.yaml`), 'utf8'), physicsRegistry());
     assert.ok(r.ok, `${id}: ${JSON.stringify(r.issues.filter((i) => i.severity !== 'notice').slice(0, 3))}`);
   }

@@ -11,9 +11,8 @@
 // A split suffix of a 2D id moves to the end of the 3D id (`si#2` in layer sub -> `dom:si.sub#2`), as the C2 grammar
 // requires. Layer ids are sub-entities (default `L<k>`, the DevLog-004 grammar); `top` and `bottom` are reserved.
 
-import { buildGeometry2D, combine, toGeometry, type Feature, type Geometry2D, type Obj, type EdgeRec } from './model.ts';
+import { buildGeometry2D, combine, mergeEdgePieces, toGeometry, type Feature, type Geometry2D, type Obj, type EdgeRec } from './model.ts';
 import type { EntityRef, EntityTable } from './types.ts';
-import type { Curve, Vec2 } from './curves.ts';
 import { hyp2 } from './detmath.ts';
 
 export interface StackLayerInput {
@@ -57,70 +56,6 @@ export interface Stack {
   warnings: string[];
 }
 
-/**
- * The geometry with consecutive pieces of one curve merged (same boundary and sides, a degree-2 vertex, contiguous
- * parameters; arcs up to a half turn; collinear lines). Curved edges that were cut into the 1-degree arrangement
- * pieces (a keepTools tool edge, coincident circles of two layers; DevLog-044 O1) otherwise put a mesh vertex every
- * degree on the curve. Vertices are compacted; entity tables are unchanged.
- */
-export function mergeEdgePieces(g: Geometry2D): Geometry2D {
-  const nv = g.vertices.length / 2;
-  const deg = new Int32Array(nv);
-  for (const e of g.edges) { deg[e.v0]!++; deg[e.v1]!++; }
-  const startAt = new Map<number, number[]>();
-  g.edges.forEach((e, i) => { const l = startAt.get(e.v0); if (l) l.push(i); else startAt.set(e.v0, [i]); });
-  const close = (a: number, b: number) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(a), Math.abs(b));
-  const near = (p: Vec2, q: Vec2) => close(p[0], q[0]) && close(p[1], q[1]);
-  const join = (a: Curve, b: Curve): Curve | null => {
-    if (a.kind === 'arc' && b.kind === 'arc' && near(a.c, b.c) && close(a.r, b.r) && close(a.a1, b.a0) && Math.abs(b.a1 - a.a0) <= Math.PI * (1 + 1e-12)) return { ...a, a1: b.a1 };
-    if (a.kind === 'earc' && b.kind === 'earc' && near(a.c, b.c) && close(a.rx, b.rx) && close(a.ry, b.ry) && close(a.rot, b.rot) && close(a.a1, b.a0) && Math.abs(b.a1 - a.a0) <= Math.PI * (1 + 1e-12)) return { ...a, a1: b.a1 };
-    if (a.kind === 'line' && b.kind === 'line') {
-      const ux = a.b[0] - a.a[0], uy = a.b[1] - a.a[1], vx = b.b[0] - b.a[0], vy = b.b[1] - b.a[1];
-      if (Math.abs(ux * vy - uy * vx) <= 1e-12 * hyp2(ux, uy) * hyp2(vx, vy) && ux * vx + uy * vy > 0) return { kind: 'line', a: a.a, b: b.b };
-    }
-    return null;
-  };
-  /** the edge continuing edge i through its end vertex, or -1 */
-  const next = (i: number): number => {
-    const e = g.edges[i]!;
-    if (deg[e.v1] !== 2) return -1;
-    const l = (startAt.get(e.v1) ?? []).filter((j) => j !== i);
-    if (l.length !== 1) return -1;
-    const f = g.edges[l[0]!]!;
-    return f.boundary === e.boundary && f.left === e.left && f.right === e.right ? l[0]! : -1;
-  };
-  const nxt = g.edges.map((_, i) => next(i));
-  const hasPrev = new Uint8Array(g.edges.length);
-  for (const j of nxt) if (j >= 0) hasPrev[j] = 1;
-  const done = new Uint8Array(g.edges.length);
-  const out: Array<{ v0: number; v1: number; curve: Curve; boundary: number; left: number; right: number }> = [];
-  const walk = (i0: number) => {
-    let i = i0;
-    let cur = { ...g.edges[i]! };
-    done[i] = 1;
-    for (let j = nxt[i]!; j >= 0 && !done[j]; j = nxt[j]!) {
-      const m = join(cur.curve, g.edges[j]!.curve);
-      if (m) { cur.curve = m; cur.v1 = g.edges[j]!.v1; }
-      else { out.push(cur); cur = { ...g.edges[j]! }; }
-      done[j] = 1;
-      i = j;
-    }
-    out.push(cur);
-  };
-  g.edges.forEach((_, i) => { if (!done[i] && !hasPrev[i]) walk(i); });
-  g.edges.forEach((_, i) => { if (!done[i]) walk(i); });   // closed loops
-  const map = new Int32Array(nv).fill(-1);
-  let n = 0;
-  const keep = (v: number) => (map[v]! >= 0 ? map[v]! : (map[v] = n++));
-  for (const p of g.pointVertex) keep(p);
-  for (const e of out) { e.v0 = keep(e.v0); e.v1 = keep(e.v1); }
-  const inv = new Int32Array(n);
-  map.forEach((m, v) => { if (m >= 0) inv[m] = v; });
-  const vertices = new Float64Array(2 * n);
-  for (let m = 0; m < n; m++) { vertices[2 * m] = g.vertices[2 * inv[m]!]!; vertices[2 * m + 1] = g.vertices[2 * inv[m]! + 1]!; }
-  return { ...g, vertices, edges: out, pointVertex: Int32Array.from(g.pointVertex, (v) => map[v]!) };
-}
-
 export const capKey = (j: number, below: number, above: number) => `${j}|${below}|${above}`;
 
 const ID_RE = /^[A-Za-z_][A-Za-z0-9_-]*$/;
@@ -144,7 +79,7 @@ export function buildStack(inp: StackInput): Stack {
   const sketches = inp.layers.map((L, k) => {
     if (!(L.thickness > 0) || !Number.isFinite(L.thickness)) fail(`${S}: layer ${L.id ?? k} thickness must be > 0`);
     if (!L.features.length) return null;
-    try { return buildGeometry2D({ features: L.features }); }
+    try { return buildGeometry2D({ features: L.features }, { mergeCurvePieces: false }); }   // merged below (mergeEdgePieces)
     catch (e) { return fail(`${S}: layer ${L.id ?? `L${k}`} sketch: ${(e as Error).message.replace(/^geom: /, '')}`); }
   });
   let xy = 0;

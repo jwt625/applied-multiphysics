@@ -9,6 +9,9 @@ export type { RealFactorKind } from './wasm/front-real.mjs';
 /** Real triangular solve kernel (DevLog-045), state in ./wasm/solve-real.mjs. */
 export { DEFAULT_REAL_SOLVE, setDefaultRealSolve, wasmSolveSupported } from './wasm/solve-real.mjs';
 export type { RealSolveKind } from './wasm/solve-real.mjs';
+/** Complex triangular solve kernel (DevLog-054), state in ./wasm/solve-complex.mjs. */
+export { DEFAULT_COMPLEX_SOLVE, setDefaultComplexSolve, wasmComplexSolveSupported } from './wasm/solve-complex.mjs';
+export type { ComplexSolveKind } from './wasm/solve-complex.mjs';
 /** Warning text when the requested real kernel is not the one used ('wasm' without SIMD), else null. */
 export function realFactorFallbackWarning(kind: 'blocked' | 'wasm' | null | undefined): string | null;
 /** Default 'blocked'; WASM is opt-in. */

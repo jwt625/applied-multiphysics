@@ -2,6 +2,9 @@
 # CI (DevLog-038, lane T1): type checks, unit tests of every package and the web app, and a fast class-a eval subset
 # through the harness CLI. The e2e smoke (apps/web/scripts/e2e-smoke.ts) runs in a separate, non-blocking job with the
 # Playwright headless shell installed on the runner only and software GL (SwiftShader flags are in the launch).
+# Action majors run on Node 24 (runs.using: node24; runner >= 2.327.1), per the release notes: actions/checkout v5.0.0
+# (2025-08-11), actions/setup-node v5.0.0 (2025-09-04; its automatic package-manager cache is the same pnpm cache as the
+# explicit `cache: pnpm` below), actions/upload-artifact v6.0.0 (2025-12-12), pnpm/action-setup v5.0.0 (2026-03-17).
 name: ci
 
 on:
@@ -32,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # pnpm version from package.json "packageManager"
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -54,7 +57,7 @@ jobs:
           done
       - name: upload eval logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: eval-logs
           path: logs/eval-*
@@ -67,9 +70,9 @@ jobs:
     timeout-minutes: 15
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -82,7 +85,7 @@ jobs:
         run: pnpm e2e --skip-3d --timeout-scale 3 --tag ci
       - name: upload e2e logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-logs
           path: logs/ci-e2e-*

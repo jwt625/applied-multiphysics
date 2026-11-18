@@ -2,6 +2,8 @@
 // optional WASM SIMD front kernel ('wasm', ./wasm/front-real.mjs, lane P1 DevLog-016; same arithmetic, bitwise-identical
 // factor) via a `factor` constructor option, default ldlt-select DEFAULT_REAL_FACTOR. SupernodalLDLT solve / solveMany
 // through WASM kernels ('wasm', ./wasm/solve-real.mjs, lane S4 DevLog-045; same arithmetic, bitwise-identical solutions).
+// ComplexSupernodalLDLT (and its subclasses) keep Lr / Li in WebAssembly memory and solve through ./wasm/solve-complex.mjs
+// ('wasm', lane E8 DevLog-054; same arithmetic, bitwise-identical solutions).
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Ported from eo-modulator-atlas engine/src/ldlt.mjs at eb97f96 (GPL-3.0-or-later).
 // Local changes: none (verbatim copy).
@@ -23,6 +25,7 @@
 
 import { resolveRealKernel, WASM_MIN_FRONT } from './wasm/front-real.mjs';
 import { allocRealFactorStorage, ldltSolveWasm, ldltSolveManyWasm, useWasmSolve } from './wasm/solve-real.mjs';
+import { allocComplexFactorStorage, complexLdltSolveWasm, useWasmComplexSolve } from './wasm/solve-complex.mjs';
 
 /**
  * Symbolic analysis of a symmetric CSR pattern (full storage, both triangles, diagonal present).
@@ -646,8 +649,11 @@ export class ComplexSupernodalLDLT {
   constructor(sym) {
     this.sym = sym;
     const nL = sym.Lxp[sym.nsuper];
-    this.Lr = new Float64Array(nL);
-    this.Li = new Float64Array(nL);
+    // Lr / Li in WebAssembly memory when the WASM complex solve is selected and available (else plain arrays)
+    const st = allocComplexFactorStorage(nL, sym.n, sym.Si.length);
+    this.Lr = st.Lr;
+    this.Li = st.Li;
+    this._cws = st.ws;
     this.Dr = new Float64Array(sym.n);
     this.Di = new Float64Array(sym.n);
     this.Fr = new Float64Array(sym.maxFront * sym.maxFront);
@@ -772,6 +778,7 @@ export class ComplexSupernodalLDLT {
 
   /** Solve A x = b for complex b = (br, bi); returns {re, im}. */
   solve(br, bi) {
+    if (useWasmComplexSolve(this._cws)) return complexLdltSolveWasm(this._cws, this.sym, this.Dr, this.Di, br, bi);
     const { n, perm, nsuper, superStart, Sp, Si, Lxp } = this.sym;
     const { Lr, Li, Dr, Di } = this;
     const yr = new Float64Array(n), yi = new Float64Array(n);

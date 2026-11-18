@@ -1,0 +1,406 @@
+# WO-70: Silicon nanowire (n 3.4767, radius 0.3 um) in air, TM plane wave at 1.3 / 1.55 / 1.8 um: 2D scattering width vs Bessel series
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-70
+class: c
+title: 'Silicon nanowire (n 3.4767, radius 0.3 um) in air, TM plane wave at 1.3 / 1.55 / 1.8 um: 2D scattering width vs Bessel
+  series'
+status: unvalidated
+untestable_reason: null
+physics: [optics-scattering]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {radius_m: 3.0e-07, window_half_width_m: 1.5e-06, pml_m: 1.0e-06}
+materials:
+  rod: {n: 3.4767, source: 'materials/silicon.yaml n (Li 1980) at 1.55 um, rounded'}
+  background: {n: 1, source: 'vacuum (assumption: air as vacuum)'}
+bcs:
+- {selection: PML frame, type: pml}
+- {selection: window, type: plane-wave, expr: 'E_z = exp(-j k0 x), 1 V/m'}
+initial: null
+study:
+  type: frequency
+  wavelengths_m: [1.3e-06, 1.55e-06, 1.8e-06]
+references:
+- id: sigma2d_back_0.L0
+  quantity: 2D scattering width, back, lambda0 1.3 um (mesh level 0)
+  metric_id: sigma2d_back_0
+  value: 2.3262012633818898e-06
+  unit: m
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_back_0}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_back}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.3}
+    study: s
+- id: sigma2d_back_0.L1
+  quantity: 2D scattering width, back, lambda0 1.3 um (mesh level 1)
+  metric_id: sigma2d_back_0
+  value: 2.3262012633818898e-06
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_back_0}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_back}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.3}
+    study: s
+- id: sigma2d_fwd_0.L0
+  quantity: 2D scattering width, forward, lambda0 1.3 um (mesh level 0)
+  metric_id: sigma2d_fwd_0
+  value: 4.109946893770991e-06
+  unit: m
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_fwd_0}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_fwd}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.3}
+    study: s
+- id: sigma2d_fwd_0.L1
+  quantity: 2D scattering width, forward, lambda0 1.3 um (mesh level 1)
+  metric_id: sigma2d_fwd_0
+  value: 4.109946893770991e-06
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_fwd_0}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_fwd}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.3}
+    study: s
+- id: sigma2d_total_0.L0
+  quantity: 2D scattering width, total, lambda0 1.3 um (mesh level 0)
+  metric_id: sigma2d_total_0
+  value: 1.3256057526254633e-06
+  unit: m
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_total_0}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_total}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.3}
+    study: s
+- id: sigma2d_total_0.L1
+  quantity: 2D scattering width, total, lambda0 1.3 um (mesh level 1)
+  metric_id: sigma2d_total_0
+  value: 1.3256057526254633e-06
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_total_0}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_total}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.3}
+    study: s
+- id: sigma2d_back_1.L0
+  quantity: 2D scattering width, back, lambda0 1.55 um (mesh level 0)
+  metric_id: sigma2d_back_1
+  value: 6.357128537461542e-07
+  unit: m
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_back_1}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_back}
+- id: sigma2d_back_1.L1
+  quantity: 2D scattering width, back, lambda0 1.55 um (mesh level 1)
+  metric_id: sigma2d_back_1
+  value: 6.357128537461542e-07
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_back_1}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_back}
+- id: sigma2d_fwd_1.L0
+  quantity: 2D scattering width, forward, lambda0 1.55 um (mesh level 0)
+  metric_id: sigma2d_fwd_1
+  value: 1.9770254456927774e-06
+  unit: m
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_fwd_1}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_fwd}
+- id: sigma2d_fwd_1.L1
+  quantity: 2D scattering width, forward, lambda0 1.55 um (mesh level 1)
+  metric_id: sigma2d_fwd_1
+  value: 1.9770254456927774e-06
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_fwd_1}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_fwd}
+- id: sigma2d_total_1.L0
+  quantity: 2D scattering width, total, lambda0 1.55 um (mesh level 0)
+  metric_id: sigma2d_total_1
+  value: 9.230037447158105e-07
+  unit: m
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_total_1}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_total}
+- id: sigma2d_total_1.L1
+  quantity: 2D scattering width, total, lambda0 1.55 um (mesh level 1)
+  metric_id: sigma2d_total_1
+  value: 9.230037447158105e-07
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_total_1}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_total}
+- id: sigma2d_back_2.L0
+  quantity: 2D scattering width, back, lambda0 1.8 um (mesh level 0)
+  metric_id: sigma2d_back_2
+  value: 4.798910921145984e-06
+  unit: m
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_back_2}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_back}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.8}
+    study: s
+- id: sigma2d_back_2.L1
+  quantity: 2D scattering width, back, lambda0 1.8 um (mesh level 1)
+  metric_id: sigma2d_back_2
+  value: 4.798910921145984e-06
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_back_2}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_back}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.8}
+    study: s
+- id: sigma2d_fwd_2.L0
+  quantity: 2D scattering width, forward, lambda0 1.8 um (mesh level 0)
+  metric_id: sigma2d_fwd_2
+  value: 9.428617461141775e-06
+  unit: m
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_fwd_2}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_fwd}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.8}
+    study: s
+- id: sigma2d_fwd_2.L1
+  quantity: 2D scattering width, forward, lambda0 1.8 um (mesh level 1)
+  metric_id: sigma2d_fwd_2
+  value: 9.428617461141775e-06
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_fwd_2}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_fwd}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.8}
+    study: s
+- id: sigma2d_total_2.L0
+  quantity: 2D scattering width, total, lambda0 1.8 um (mesh level 0)
+  metric_id: sigma2d_total_2
+  value: 3.231449823207996e-06
+  unit: m
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_total_2}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_total}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.8}
+    study: s
+- id: sigma2d_total_2.L1
+  quantity: 2D scattering width, total, lambda0 1.8 um (mesh level 1)
+  metric_id: sigma2d_total_2
+  value: 3.231449823207996e-06
+  unit: m
+  tolerance: {rel: 0.0003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-70.json, metric_id: sigma2d_total_2}
+  provenance: {citation: 'Bessel / Hankel series of the circular cylinder, TM (validation/driven/cylinder_mie.py: scipy vs
+      mpmath 50 digits, optical theorem)', locator: 'penetrable-cylinder coefficients from continuity of E_z and dE_z/drho
+      at rho = a (derivation in the script header); Balanis, Advanced Engineering Electromagnetics, 2nd ed., Wiley 2012 sec.
+      11.5 for the series form', accessed: null, generator: validation/driven/cylinder_mie.py}
+  extract: {kind: scalar, name: sigma2d_total}
+  spec:
+    sim: sims/si-nanowire-scattering.yaml
+    params: {lam: 1.8}
+    study: s
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels with a tighter tolerance on the
+    finer one
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (127k DOF, 3 wavelengths in one study) took 5.5 s in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited textbook formulas
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero: {suitable: false, why: verification of a library example}
+spec: {sim: sims/si-nanowire-scattering.yaml, study: s}
+missing: []
+assumptions: [silicon index constant over the three wavelengths (dispersion neglected in both the model and the reference)]
+notes: ['one single-wavelength run per wavelength (per-target spec with the lam override): the harness looks scalars up by
+    the declared names, and a multi-wavelength study suffixes them with the step index']
+lane: E1
+created: '2026-11-18'

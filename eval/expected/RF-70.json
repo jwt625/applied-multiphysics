@@ -1,0 +1,70 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "RF-70",
+  "class": "c",
+  "generator": "validation/driven/cylinder_mie.py",
+  "command": "cd validation && uv run python driven/cylinder_mie.py",
+  "method": "TM plane wave on a PEC circular cylinder (radius 15 mm) at 10 GHz in vacuum: 2D scattering width back, forward and total from the Bessel / Hankel series (scipy vs mpmath, optical theorem).",
+  "generated_at": "2026-11-18T13:31:39-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "sigma2d_back",
+      "value": 0.04919482341547991,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 8.881784197001252e-16,
+        "optical_theorem_rel": 2.220446049250313e-16
+      },
+      "inputs": {
+        "f_Hz": 10000000000.0,
+        "radius_m": 0.015,
+        "k0a": 3.1437675329275225
+      },
+      "locator": "Balanis, Advanced Engineering Electromagnetics, 2nd ed. (2012), sec. 11.5.1 (TM^z PEC cylinder); validation/driven/cylinder_mie.py"
+    },
+    {
+      "metric_id": "sigma2d_fwd",
+      "value": 0.3158385445243406,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 8.881784197001252e-16,
+        "optical_theorem_rel": 2.220446049250313e-16
+      },
+      "inputs": {
+        "f_Hz": 10000000000.0,
+        "radius_m": 0.015,
+        "k0a": 3.1437675329275225
+      },
+      "locator": "Balanis, Advanced Engineering Electromagnetics, 2nd ed. (2012), sec. 11.5.1 (TM^z PEC cylinder); validation/driven/cylinder_mie.py"
+    },
+    {
+      "metric_id": "sigma2d_total",
+      "value": 0.07370830329756312,
+      "unit": "m",
+      "precision": {
+        "method": "Bessel series n = -40..40, mpmath 50 digits",
+        "scipy_vs_mpmath": 8.881784197001252e-16,
+        "optical_theorem_rel": 2.220446049250313e-16
+      },
+      "inputs": {
+        "f_Hz": 10000000000.0,
+        "radius_m": 0.015,
+        "k0a": 3.1437675329275225
+      },
+      "locator": "Balanis, Advanced Engineering Electromagnetics, 2nd ed. (2012), sec. 11.5.1 (TM^z PEC cylinder); validation/driven/cylinder_mie.py"
+    }
+  ]
+}

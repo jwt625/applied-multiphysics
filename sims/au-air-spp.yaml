@@ -1,0 +1,64 @@
+# WO-80 (eval/cases/c/WO-80.yaml): planar Au / air surface plasmon polariton at 659.5 nm; complex permittivity of Au from
+# the library (materials/gold.yaml, Johnson and Christy 1972 n, kappa table row at 0.6595 um); air taken as vacuum (n 1).
+# Reference: analytic planar SPP n_spp = sqrt(eps_m eps_d / (eps_m + eps_d)) (validation/modes3/references.py, mpmath).
+# Thin x-invariant strip (PMC sides = natural condition), PEC far walls 5 um into air and 0.5 um into Au.
+schema: amp-spec/0
+id: au-air-spp
+title: Gold / air surface plasmon
+description: Planar gold / air interface at 659.5 nm; TM surface plasmon with complex gold permittivity (Johnson and Christy); effective index, attenuation and propagation length.
+params:
+  lambda0: {value: 0.6595, unit: um, description: vacuum wavelength}
+  t_au: {value: 0.5, unit: um, description: gold thickness in the window (field decays within about 25 nm)}
+  t_air: {value: 5, unit: um, description: air thickness in the window}
+geometry:
+  dim: 2
+  features:
+    - {id: au, type: rect, settings: {size: ["0.05 um", "t_au"], center: ["0 um", "-t_au/2"]}}
+    - {id: air, type: rect, settings: {size: ["0.05 um", "t_air"], center: ["0 um", "t_air/2"]}}
+materials:
+  - {id: Au, ref: materials/gold, select: ["dom:au"]}
+  - {id: Air, override: {n: 1}, select: ["dom:air"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:au", "dom:air"]
+    settings: {order: 2, loss: true}
+    bcs:
+      - {id: far, type: pec, select: ["bnd:au.bottom", "bnd:air.top"]}
+mesh:
+  size: {hmax: "0.1 um", grading: 0.3}
+  refine:
+    - {select: ["bnd:au.top"], h: "0.004 um"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 1}}
+results:
+  datasets:
+    - {id: sol_modes, type: solution, data: modes}
+  evaluations:
+    - id: ev_modes
+      data: sol_modes
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: kappa_eff, type: global, expr: ewg.kappaEff_0, unit: "1"}
+        - {id: L_prop, type: global, expr: ewg.Lprop_0, unit: um}
+  tables:
+    - {id: tbl_modes, from: ev_modes}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.lambda0: {basis: user, date: 2026-11-18, note: "a row of the Johnson and Christy table (1.88 eV), so n and kappa are table values, not interpolated"}
+    params.t_au: {basis: user, date: 2026-11-18, note: "modelling choice; window truncation checked by halving and doubling the window on 2026-11-18 (change below 1e-11 in Re n_eff)"}
+    params.t_air: {basis: user, date: 2026-11-18, note: "modelling choice (about 13 air decay lengths)"}
+    materials.Air.override.n: {basis: user, date: 2026-11-18, note: "assumption: air as vacuum, the same value in the analytic reference"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: resolves the field decay in gold"}
+    mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "Gold n and kappa at 0.6595 um from the library table (Johnson and Christy 1972 via refractiveindex.info, 0.14 + 3.697 i)", paths: [materials]}
+  - {text: "Planar interface: the strip width has no effect (x-invariant field, PMC sides)", paths: [geometry]}
+# eval: [WO-80]

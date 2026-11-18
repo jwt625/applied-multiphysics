@@ -1,0 +1,81 @@
+# WO-81 (eval/cases/c/WO-81.yaml): Bienstman et al. 2006 leaky photonic wire benchmark: Si wire 500 x 220 nm (n 3.5) on a
+# 1 um SiO2 buffer (n 1.45) over a Si substrate (n 3.5), air top, 1.55 um, fundamental quasi-TE mode; leakage into the
+# substrate through a PML below and beside the window. Half window (PEC on x = 0: E_x-dominant mode is even, so the
+# tangential E_y, E_z vanish there). Reference: P. Bienstman et al., Opt. Quantum Electron. 38, 731-759 (2006),
+# doi 10.1007/s11082-006-9025-9: structure p.732 Fig. 1; CAMFR 2.412372 - 2.9135e-8 j (p.749), aperiodic Fourier modal
+# method 2.412372039 + i 2.9134801e-8 (p.751, Fig. 18 caption). PML strength and window are modelling choices
+# (DevLog-043 s.4 PML study: spread 0.14 % in Im n_eff over strength 1-4 and window changes).
+schema: amp-spec/0
+id: leaky-si-wire
+title: Silicon wire substrate leakage
+description: Si wire 500 x 220 nm on a 1 um oxide buffer over a Si substrate at 1.55 um; quasi-TE mode leaks into the substrate through a PML; complex effective index and leakage loss.
+params:
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+  t_box: {value: 1, unit: um, description: oxide buffer thickness}
+geometry:
+  dim: 2
+  features:
+    - {id: core, type: rect, settings: {size: ["0.25 um", "0.22 um"], center: ["0.125 um", "0.11 um"]}}
+    - {id: airr, type: rect, settings: {size: ["2 um", "1.5 um"], center: ["1 um", "0.75 um"]}}
+    - {id: air, type: difference, settings: {base: airr, tools: [core], keepTools: true}}
+    - {id: box, type: rect, settings: {size: ["2 um", "t_box"], center: ["1 um", "-t_box/2"]}}
+    - {id: sub, type: rect, settings: {size: ["2 um", "1 um"], center: ["1 um", "-t_box - 0.5[um]"]}}
+    - {id: pb, type: rect, settings: {size: ["2 um", "1 um"], center: ["1 um", "-t_box - 1.5[um]"]}}
+    - {id: pr_air, type: rect, settings: {size: ["1 um", "1.5 um"], center: ["2.5 um", "0.75 um"]}}
+    - {id: pr_box, type: rect, settings: {size: ["1 um", "t_box"], center: ["2.5 um", "-t_box/2"]}}
+    - {id: pr_sub, type: rect, settings: {size: ["1 um", "1 um"], center: ["2.5 um", "-t_box - 0.5[um]"]}}
+    - {id: pc, type: rect, settings: {size: ["1 um", "1 um"], center: ["2.5 um", "-t_box - 1.5[um]"]}}
+materials:
+  - {id: Si, override: {n: 3.5}, select: ["dom:core", "dom:sub", "dom:pb", "dom:pr_sub", "dom:pc"]}
+  - {id: SiO2, override: {n: 1.45}, select: ["dom:box", "dom:pr_box"]}
+  - {id: Air, override: {n: 1}, select: ["dom:air", "dom:pr_air"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:core", "dom:air", "dom:box", "dom:sub", "dom:pb", "dom:pr_air", "dom:pr_box", "dom:pr_sub", "dom:pc"]
+    settings:
+      order: 2
+      pml: [{select: ["dom:pb", "dom:pr_air", "dom:pr_box", "dom:pr_sub", "dom:pc"], strength: 2, power: 2}]
+    bcs:
+      - {id: sym, type: pec, select: ["bnd:core.left", "bnd:airr.left", "bnd:box.left", "bnd:sub.left", "bnd:pb.left", "bnd:airr.top", "bnd:pr_air.top"]}
+mesh:
+  size: {hmax: "0.15 um", grading: 0.3}
+  refine:
+    - {select: ["dom:core"], h: "0.03 um"}
+    - {select: ["dom:box"], h: "0.08 um"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 2, neffShift: 2.42}}
+results:
+  datasets:
+    - {id: sol_modes, type: solution, data: modes}
+  evaluations:
+    - id: ev_modes
+      data: sol_modes
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: kappa_eff, type: global, expr: ewg.kappaEff_0, unit: "1"}
+        - {id: loss, type: global, expr: ewg.lossDbPerM_0, unit: dB/m}
+  tables:
+    - {id: tbl_modes, from: ev_modes}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.lambda0: {basis: benchmark, source: "Bienstman et al. 2006, p.732 (1.55 um)", date: 2026-11-18}
+    params.t_box: {basis: benchmark, source: "Bienstman et al. 2006, p.732 Fig. 1 (1 um buffer)", date: 2026-11-18}
+    materials.Si.override.n: {basis: benchmark, source: "Bienstman et al. 2006, p.732 (n_Si 3.5, wire and substrate)", date: 2026-11-18}
+    materials.SiO2.override.n: {basis: benchmark, source: "Bienstman et al. 2006, p.732 (n_SiO2 1.45)", date: 2026-11-18}
+    materials.Air.override.n: {basis: benchmark, source: "Bienstman et al. 2006, p.732 (air top cladding, n 1)", date: 2026-11-18}
+    studies.modes.settings.neffShift: {basis: user, date: 2026-11-18, note: "shift just above the expected mode (selection only)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "Wire geometry 500 x 220 nm from Bienstman et al. 2006 Fig. 1; modelled as the half x >= 0 with a PEC mirror (even quasi-TE mode)", paths: [geometry]}
+  - {text: "PML (complex stretching s = 1 - 2j xi^2) on 1 um layers below the substrate and beside the window; window and PML are modelling choices", paths: [physics]}
+# eval: [WO-81]

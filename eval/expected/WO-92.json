@@ -1,0 +1,56 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-92",
+  "class": "c",
+  "generator": "validation/bloch/gen_expected.py",
+  "command": "cd validation && uv run python bloch/gen_expected.py",
+  "method": "Film eps 4, thickness 0.3 lambda0, in vacuum, TM plane wave at 30 deg: |r| and |tau| (incident amplitude 1).",
+  "generated_at": "2026-11-18T14:02:27-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "r_abs",
+      "value": 0.3993193462251691,
+      "unit": "1",
+      "precision": {
+        "method": "Airy film formula (closed form) cross-checked by a 2 x 2 transfer matrix (validation/bloch/bloch_refs.py)",
+        "route2_diff": 1.5700924586837752e-16,
+        "energy_residual": -1.1102230246251565e-16,
+        "r": [
+          -0.2391839104045448,
+          -0.31976084387130205
+        ]
+      }
+    },
+    {
+      "metric_id": "tau_abs",
+      "value": 0.9168118998629454,
+      "unit": "1",
+      "precision": {
+        "method": "Airy film formula (closed form) cross-checked by a 2 x 2 transfer matrix (validation/bloch/bloch_refs.py)",
+        "route2_diff": 1.5700924586837752e-16,
+        "energy_residual": -1.1102230246251565e-16,
+        "tau": [
+          -0.7341506229105139,
+          0.54915109269709
+        ]
+      }
+    }
+  ],
+  "inputs": {
+    "eps_film": 4.0,
+    "t_over_lambda0": 0.3,
+    "theta_deg": 30.0,
+    "polarization": "TM (E_z)"
+  }
+}

@@ -157,8 +157,8 @@ function stepKindOf(spec: Spec, pid: string, study: StudyNode | null): string | 
     case 'electrostatics': { const n = (p.bcs ?? []).filter((b) => b.type === 'terminal').length; return n > 1 ? `param steps: ${n} terminal solves` : null; }
     case 'heat': return study.type === 'time' ? 'time steps' : null;
     case 'em-modes': case 'emw': case 'emw-axisym': return 'eigen steps';
+    case 'emw-2d': return study.type === 'frequency' ? 'freq steps' : 'eigen steps';
     case 'acoustics': return study.type === 'frequency' ? 'freq steps' : 'eigen steps';
-    case 'emw-2d': return 'freq steps';
     case 'elastic': return study.type === 'eigen' ? 'eigen steps' : null;
     default: return null;
   }

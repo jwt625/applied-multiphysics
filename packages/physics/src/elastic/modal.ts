@@ -13,7 +13,7 @@ import { cellOrder, restrict, type Csr } from '../common/scalar.ts';
 import { defaultRule, gatherX, physGrad, shapeTable } from '../common/lagrange.ts';
 import { shiftInvertEigen } from '../common/eigen.ts';
 import { StageTimer, makeSolution, attachMesh } from '../common/solution.ts';
-import { dofPattern, isoD, scatter, solidConstraints, strainB, voigtSize, type DofMap, type SolidModel } from '../coupled/assemble.ts';
+import { dofPattern, isoD, scatterPair, solidKernel, solidKernelWork, solidConstraints, strainB, voigtSize, type DofMap, type SolidModel } from '../coupled/assemble.ts';
 import type { ElasticProblem } from './index.ts';
 
 /** Eigenvector normalisation of the elastic eigen study (C5 `normalization`; MC merges it into NORMALIZATION). */
@@ -46,7 +46,8 @@ export function assembleSolid(o: SolidAssemblyInput): void {
   const axi = o.model === 'axisym';
   const r = defaultRule(m.cells.type, 2 * cellOrder(m) + (axi ? 1 : 0));
   const t = shapeTable(m.cells.type, r);
-  const X = new Float64Array(nd), G = new Float64Array(nd), B = new Float64Array(nv * nd), DB = new Float64Array(nv * nd);
+  const X = new Float64Array(nd), G = new Float64Array(nd), B = new Float64Array(nv * nd);
+  const kw = solidKernelWork(nv, nd), DB = kw.DB;
   const Ke = new Float64Array(nd * nd), Me = new Float64Array(nd * nd), Fe = new Float64Array(nd);
   const dofs = new Int32Array(nd);
   for (let e = 0; e < nc; e++) {
@@ -61,8 +62,7 @@ export function assembleSolid(o: SolidAssemblyInput): void {
       let rr = 0;
       if (axi) { for (let a = 0; a < k; a++) rr += N[a]! * X[2 * a]!; w *= rr; }
       strainB(o.model, G, N, rr, k, B);
-      for (let i = 0; i < nv; i++) for (let j = 0; j < nd; j++) { let s = 0; for (let l = 0; l < nv; l++) s += D[nv * i + l]! * B[l * nd + j]!; DB[i * nd + j] = s; }
-      for (let a = 0; a < nd; a++) for (let b = a; b < nd; b++) { let s = 0; for (let l = 0; l < nv; l++) s += B[l * nd + a]! * DB[l * nd + b]!; Ke[a * nd + b]! += s * w; }
+      solidKernel(D, B, nv, nd, w, Ke, kw);   // DB = D B, Ke += w B^T DB (zero entries of B skipped; bitwise as the dense sums)
       if (o.M && rho) for (let a = 0; a < k; a++) for (let b = a; b < k; b++) { const v = rho * N[a]! * N[b]! * w; for (let d = 0; d < dim; d++) Me[(dim * a + d) * nd + dim * b + d]! += v; }
       if (o.F && o.body) for (let a = 0; a < k; a++) for (let d = 0; d < dim; d++) Fe[dim * a + d]! += o.body[dim * e + d]! * N[a]! * w;
       if (o.F && o.thermal) {
@@ -73,8 +73,7 @@ export function assembleSolid(o: SolidAssemblyInput): void {
     }
     for (let a = 0; a < nd; a++) for (let b = 0; b < a; b++) { Ke[a * nd + b] = Ke[b * nd + a]!; Me[a * nd + b] = Me[b * nd + a]!; }
     for (let a = 0; a < k; a++) { const v = m.cells.conn[k * e + a]!; for (let d = 0; d < dim; d++) dofs[dim * a + d] = o.uDof[dim * v + d]!; }
-    scatter(o.pat, o.K, dofs, Ke, nd);
-    if (o.M) scatter(o.pat, o.M, dofs, Me, nd);
+    scatterPair(o.pat, o.K, o.M ?? null, dofs, Ke, o.M ? Me : null, nd);
     if (o.F) for (let a = 0; a < nd; a++) if (dofs[a]! >= 0) o.F[dofs[a]!]! += Fe[a]!;
   }
 }

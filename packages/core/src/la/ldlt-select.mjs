@@ -15,6 +15,8 @@ export { DEFAULT_REAL_FACTOR, setDefaultRealFactor, wasmRealSupported } from './
 import { DEFAULT_REAL_FACTOR as REAL_DEFAULT_LIVE, wasmRealSupported as realOk } from './wasm/front-real.mjs';
 // Real triangular solve kernel (lane S4, DevLog-045; default 'wasm'): state in the leaf module ./wasm/solve-real.mjs.
 export { DEFAULT_REAL_SOLVE, setDefaultRealSolve, wasmSolveSupported } from './wasm/solve-real.mjs';
+// Complex triangular solve kernel (lane E8, DevLog-054; default 'wasm'): state in the leaf module ./wasm/solve-complex.mjs.
+export { DEFAULT_COMPLEX_SOLVE, setDefaultComplexSolve, wasmComplexSolveSupported } from './wasm/solve-complex.mjs';
 
 /** Warning text when the requested real kernel is not the one used ('wasm' without SIMD), else null. */
 export function realFactorFallbackWarning(kind) {

@@ -6,7 +6,7 @@ export { SolutionStore, rememberMesh, attachMesh, meshOf, fieldOf } from './stor
 export { integrate, extrema } from './derived.ts';
 export { sample, linePoints, gridPoints, toCsv, type SampleOptions } from './sample.ts';
 export * as refine from './refine.mjs';
-export { locatePoints, interpolate, mapToPhysical, flatPoints, NODE_REF, type PointSet } from './points.ts';
+export { locatePoints, interpolate, recoverDG0, mapToPhysical, flatPoints, NODE_REF, type PointSet } from './points.ts';
 export { compileFieldExpr, evaluateExpr, isPointSet, paramLookup, type ExprOptions, type FieldExpr, type ParamScope, type ParamValue } from './expr.ts';
 export {
   solutionSteps, cutPoints, cutLine, lineCrossings, edgeDataset, domainQuad, boundaryQuad, facetCell, facetsOfBoundaries, cellsOfDomains,

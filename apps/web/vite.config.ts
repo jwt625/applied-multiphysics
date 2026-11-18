@@ -57,7 +57,8 @@ export default defineConfig({
 					'script-src': ['self', 'wasm-unsafe-eval'],
 					'style-src': ['self', 'unsafe-inline'],
 					'img-src': ['self', 'data:', 'blob:'],
-					'connect-src': ['self', 'https://api.anthropic.com'],
+					// LLM providers of the agent panel (BYO key): the preset hosts only, no wildcard (DevLog-053)
+					'connect-src': ['self', 'https://api.anthropic.com', 'https://api.deepseek.com'],
 					'worker-src': ['self'],
 					'font-src': ['self'],
 					'object-src': ['none'],

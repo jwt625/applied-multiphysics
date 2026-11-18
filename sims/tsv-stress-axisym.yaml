@@ -1,0 +1,94 @@
+# PK-01 (eval/cases/c/PK-01.yaml): Cu through-silicon via (TSV) in a Si cell under a uniform temperature change,
+# axisymmetric (r, z) section. Both faces z = 0 and z = H are rollers (u_z = 0), so the field is exactly plane strain
+# (eps_zz = 0) and the two-phase Lame solution for a finite outer radius R with a traction-free rim is exact
+# (validation/pkg/tsv_lame.py; same derivation as the advanced-packaging-atlas case A/MA7, own work). A real TSV has free
+# faces and a liner: near-surface stresses (Ryu et al., IEEE TDMR 11, 35 (2011)) are not modelled here.
+# Modelling inputs NOT from a paper (illustrative): a, R, H, T_ref, T_use. Materials from the library (materials/copper,
+# materials/silicon); E, nu bind from the library; alpha and k are temperature tables there and prepareRun has no
+# temperature for library tables yet (DevLog-049 R1), so they are overrides equal to the library value at 298.15 K.
+# Constant alpha over the temperature change is a modelling simplification (no plasticity, no alpha(T) integral).
+schema: amp-spec/0
+id: tsv-stress-axisym
+title: TSV thermal stress, Cu via in Si (axisymmetric)
+description: Cu via in a Si cell cooled by 100 K, plane-strain axisymmetric section; interface pressure and stresses against the Lame closed form.
+params:
+  a: {value: 5, unit: um, description: via radius}
+  R: {value: 25, unit: um, description: "cell outer radius (equal-area cell of a 44.3 um pitch)"}
+  H: {value: 20, unit: um, description: "modelled height (plane strain: any height gives the same field)"}
+  T_ref: {value: 398.15, unit: K, description: stress-free temperature}
+  T_use: {value: 298.15, unit: K, description: final uniform temperature}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: via, type: rect, settings: {size: ["a", "H"], center: ["a/2", "H/2"]}}
+    - {id: si, type: rect, settings: {size: ["R - a", "H"], center: ["(R + a)/2", "H/2"]}}
+materials:
+  - {id: cu, ref: materials/copper, override: {alpha: {value: 1.6581238447607446e-5, unit: 1/K}, k: {value: 401.004, unit: W/(m*K)}}, select: ["dom:via"]}
+  - {id: silicon, ref: materials/silicon, override: {alpha: {value: 2.600985401459854e-6, unit: 1/K}, k: {value: 149.038, unit: W/(m*K)}}, select: ["dom:si"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:via", "dom:si"]
+    bcs:
+      - {id: uniform, type: temperature, select: ["bnd:si.right", "bnd:via.top", "bnd:via.bottom", "bnd:si.top", "bnd:si.bottom"], settings: {T: "T_use"}}
+  - id: solid
+    type: elastic
+    select: ["dom:via", "dom:si"]
+    settings: {model: axisym}
+    bcs:
+      - {id: face_bottom, type: roller, select: ["bnd:via.bottom", "bnd:si.bottom"]}
+      - {id: face_top, type: roller, select: ["bnd:via.top", "bnd:si.top"]}
+      - {id: rim, type: free, select: ["bnd:si.right"]}
+couplings:
+  - {id: th2sm, type: thermal-expansion, from: ht, to: solid, settings: {Tref: "T_ref"}}
+mesh:
+  size: {hmax: "a/2"}
+studies:
+  - {id: std1, type: stationary, physics: [ht, solid]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: cu_pt, type: cutpoint, data: sol_std1, points: [["a/2", "H/2"]]}
+    - {id: si_pt, type: cutpoint, data: sol_std1, points: [["2*a", "H/2"]]}
+    - {id: rim_pt, type: cutpoint, data: sol_std1, points: [[R, "H/2"]]}
+    - {id: radial, type: cutline, data: sol_std1, from: ["0 um", "H/2"], to: [R, "H/2"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: cu_srr, type: point, data: cu_pt, expr: solid.srr, unit: MPa, label: "radial stress in the Cu (uniform there: minus the interface pressure)"}
+        - {id: cu_szz, type: point, data: cu_pt, expr: solid.szz, unit: MPa, label: "axial stress in the Cu"}
+        - {id: si_srr, type: point, data: si_pt, expr: solid.srr, unit: MPa, label: "radial stress in the Si at r = 2a"}
+        - {id: si_sphi, type: point, data: si_pt, expr: solid.sphi, unit: MPa, label: "hoop stress in the Si at r = 2a"}
+        - {id: rim_ur, type: point, data: rim_pt, expr: solid.u.r, unit: nm, label: "radial displacement of the cell rim"}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: stress_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: sphi_surf, type: surface, expr: solid.sphi, unit: MPa}
+    - id: stress_line
+      type: plot1d
+      items:
+        - {id: srr_curve, type: linegraph, data: radial, x: arc, expr: solid.srr, unit: MPa}
+        - {id: sphi_curve, type: linegraph, data: radial, x: arc, expr: solid.sphi, unit: MPa}
+provenance:
+  values:
+    params.a: {basis: user, date: 2026-11-18, note: "illustrative modelling input (a 10 um diameter via), not from a paper"}
+    params.R: {basis: user, date: 2026-11-18, note: "illustrative modelling input; equal area to a square cell of pitch R sqrt(pi) = 44.3 um"}
+    params.H: {basis: user, date: 2026-11-18, note: "modelling choice: with rollers on both faces the solution does not depend on H"}
+    params.T_ref: {basis: user, date: 2026-11-18, note: "illustrative stress-free temperature, not from a paper"}
+    params.T_use: {basis: user, date: 2026-11-18, note: "illustrative final temperature (25 C)"}
+    materials.cu.override.alpha: {basis: measured, source: "materials/copper.yaml alpha (NIST cryogenic OFHC Cu fit) evaluated by @amp/materials at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
+    materials.cu.override.k: {basis: measured, source: "materials/copper.yaml k (table) evaluated by @amp/materials at 298.15 K", date: 2026-11-18, note: "T is uniform (Dirichlet on every outer boundary), k does not enter"}
+    materials.silicon.override.alpha: {basis: measured, source: "materials/silicon.yaml alpha (Swenson 1983 Table 2) linearly interpolated by @amp/materials at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
+    materials.silicon.override.k: {basis: measured, source: "materials/silicon.yaml k (HPL 1972) at 298.15 K", date: 2026-11-18, note: "k does not enter (uniform T)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; the harness refines it by 1/2 per level (nested)"}
+assumptions:
+  - {text: "Isotropic Si with the Voigt-Reuss-Hill E, nu of materials/silicon.yaml (derived from the cubic C); a real (001) wafer is anisotropic in plane", paths: [materials.silicon]}
+  - {text: "Rollers on both faces give plane strain (eps_zz = 0); free TSV faces, the liner, the barrier and Cu plasticity are not modelled", paths: [physics.solid.bcs]}
+  - {text: "Linear thermo-elasticity with constant alpha at 298.15 K over the 100 K change", paths: [couplings]}
+# eval: [PK-01]

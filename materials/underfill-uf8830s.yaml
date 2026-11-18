@@ -16,6 +16,11 @@ sources:
     url: https://datasheets.tdx.henkel.com/LOCTITE-ECCOBOND-UF-8830S-en_GL.pdf
     access: vendor_open
     read: "text layer p.1-2 of the PDF fetched 2026-11-18 (sha256 e3b67a50cd763228..., 2 pages; PDF not kept): Typical properties of cured material (CTE by TMA below / above Tg, Tg by TMA and DMA, storage modulus by DMA at 25 C), typical properties of uncured material, cure schedule"
+  henkel_lt8234:
+    citation: "Henkel, LOCTITE ECCOBOND UF 8830S product information sheet 'Semiconductor-level underfill for fine-pitch flip-chip devices', 160826/LT-8234 (6/19) US, (c) 2019 Henkel Corporation"
+    url: https://dm.henkel-dam.com/is/content/henkel/lt-8234-Product_information_sheet-loctite-eccobond-uf-8830s
+    access: vendor_open
+    read: "text layer p.1-2 of the PDF fetched 2026-11-18 (sha256 2f351fadff75f497..., 2 pages, PDF creation date 2019-10-22; PDF not kept): table 'Thermal Properties' (Tg by TMA 118 C, CTE1 25, CTE2 100 ppm, DMA 3-point bend modulus 11,496 MPa at 25 C and 352 MPa at 250 C, tan delta peak 127 C); no thermal conductivity on the sheet"
 properties:
   E:
     value: 11500
@@ -26,8 +31,19 @@ properties:
     accessed: 2026-11-18
     uncertainty: {na: "not stated"}
     conditions: {T: "25 degC", text: "DMA storage modulus (frequency not stated), cured per the TDS schedule; used as the elastic modulus"}
-    valid: {T: {unit: degC, range: [25, 25]}, note: "single temperature on the TDS; the modulus drops above Tg (no value on the TDS)"}
-    alternatives: []
+    valid: {T: {unit: degC, range: [25, 25]}, note: "single temperature on the TDS; the modulus drops above Tg (see alternative dma_250c)"}
+    alternatives:
+      - id: dma_250c
+        use: "modulus well above Tg (rubbery plateau), e.g. reflow-temperature sensitivity"
+        value: 352
+        unit: MPa
+        basis: datasheet
+        source: henkel_lt8234
+        locator: "p.2 table 'Thermal Properties', row 'DMA: 3 - Point Bent', condition 250 C, column LOCTITE ECCOBOND UF 8830S: 352 MPa"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {T: "250 degC", text: "DMA 3-point bending (frequency not stated); the same sheet gives 11,496 MPa at 25 C (TDS: 11,500)"}
+        valid: {T: {unit: degC, range: [250, 250]}}
   alpha:
     value: 25
     unit: ppm/K
@@ -82,7 +98,7 @@ properties:
   k:
     value: N/A
     unit: W/(m*K)
-    missing: "thermal conductivity not on the UF 8830S TDS"
+    missing: "thermal conductivity on neither Henkel document read (TDS January 2017, product information sheet LT-8234 6/19; checked 2026-11-18). A distributor listing (Caplinq) is reported by a web search to show 0.6 W/(m K); the page was not readable on 2026-11-18 (HTTP 522, redirect to another distributor), so no value is stored. Sims that need k use a labelled override"
     alternatives: []
   rho:
     value: N/A

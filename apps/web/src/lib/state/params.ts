@@ -41,9 +41,10 @@ export function paramViews(params: Record<string, Def> | undefined, original: Re
 	});
 }
 
-/** Spec value for a new numeric param value, in the param's own form. */
+/** Spec value for a new numeric param value, in the param's own form (a unitless string param stays a string, "7"). */
 export function paramValue(p: ParamView, v: number): unknown {
 	if (p.pointer.endsWith('/value')) return v;
+	if (p.unit === '1') return String(v);
 	return p.unit ? `${v} ${p.unit}` : v;
 }
 

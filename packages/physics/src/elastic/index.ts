@@ -8,7 +8,7 @@
 
 import type { Mesh, PhysicsModule, RunContext, Solution, Spec } from '@amp/spec/types';
 import { NPC, facetNodes, facetsOn, nCells, nNodes } from '../common/mesh.ts';
-import { cellPattern, restrict, SpdSolver, facetTable, cellOrder, type Csr } from '../common/scalar.ts';
+import { cellPattern, cellBlockSlots, restrict, SpdSolver, facetTable, cellOrder, type Csr } from '../common/scalar.ts';
 import { defaultRule, gatherX, physGrad, shapeTable, facetJac, shape, REF_DIM } from '../common/lagrange.ts';
 import { makeSolution, StageTimer, scalar } from '../common/solution.ts';
 import { attachMesh } from '../common/solution.ts';
@@ -17,7 +17,7 @@ import { compileField, spaceOf, evalField } from '../common/field.ts';
 import { eigenStudy, q } from '../common/ctx.ts';
 import { solveElasticModes } from './modal.ts';
 import { solveElasticAxisym } from './axisym.ts';
-import { bcNodes } from '../coupled/assemble.ts';
+import { bcNodes, solidKernel, solidKernelWork } from '../coupled/assemble.ts';
 
 export type Model = 'plane-stress' | 'plane-strain' | '3d' | 'axisym';   // axisym: elastic/axisym.ts (lane MT)
 export type VecFn = (x: Float64Array, n: Float64Array) => number[];
@@ -133,9 +133,11 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
   timer.time('assemble', () => {
     const r = defaultRule(m.cells.type, 2 * cellOrder(m));
     const t = shapeTable(m.cells.type, r);
-    const X = new Float64Array(nd), G = new Float64Array(nd), B = new Float64Array(nv * nd), DB = new Float64Array(nv * nd);
+    const X = new Float64Array(nd), G = new Float64Array(nd), B = new Float64Array(nv * nd);
+    const kw = solidKernelWork(nv, nd), DB = kw.DB;
     const Ke = new Float64Array(nd * nd), Fe = new Float64Array(nd);
     const dofs = new Int32Array(nd);
+    const slots = cellBlockSlots(m, pat, dim);   // pat has the core blockPattern layout (checked by blockElementSlots)
     for (let e = 0; e < nc; e++) {
       if (!mask[e]) continue;
       const D = dMatrix(p.model, p.E[e]!, p.nu[e]!);
@@ -144,8 +146,7 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
       for (let q = 0; q < r.n; q++) {
         const w = physGrad(t, q, X, dim, G) * r.wts[q]!;
         bMatrix(G, k, dim, B);
-        for (let i = 0; i < nv; i++) for (let j = 0; j < nd; j++) { let s = 0; for (let l = 0; l < nv; l++) s += D[nv * i + l]! * B[l * nd + j]!; DB[i * nd + j] = s; }
-        for (let a = 0; a < nd; a++) for (let b = a; b < nd; b++) { let s = 0; for (let l = 0; l < nv; l++) s += B[l * nd + a]! * DB[l * nd + b]!; Ke[a * nd + b]! += s * w; }
+        solidKernel(D, B, nv, nd, w, Ke, kw);   // DB = D B, Ke += w B^T DB (zero entries of B skipped; bitwise as the dense sums)
         if (p.body) for (let a = 0; a < k; a++) for (let d = 0; d < dim; d++) Fe[dim * a + d]! += p.body[dim * e + d]! * t.N[q * k + a]! * w;
         if (p.thermal) {
           let T = 0; for (let a = 0; a < k; a++) T += t.N[q * k + a]! * p.thermal.T[m.cells.conn[k * e + a]!]!;
@@ -157,14 +158,12 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
         }
       }
       for (let a = 0; a < k; a++) { const v = m.cells.conn[k * e + a]!; active[v] = 1; for (let d = 0; d < dim; d++) dofs[dim * a + d] = dim * v + d; }
+      // scatter through the precomputed element slots (DevLog-045 R1, DevLog-054): same entries in the same order as the
+      // former binary search per entry, so K is bitwise unchanged
+      const base = nd * nd * e;
       for (let a = 0; a < nd; a++) {
         F[dofs[a]!]! += Fe[a]!;
-        const row = dofs[a]!;
-        for (let b = 0; b < nd; b++) {
-          const col = dofs[b]!, v = a <= b ? Ke[a * nd + b]! : Ke[b * nd + a]!;
-          let lo = pat.rowptr[row]!, hi = pat.rowptr[row + 1]! - 1;
-          while (lo <= hi) { const mid = (lo + hi) >> 1, c = pat.colidx[mid]!; if (c === col) { K[mid]! += v; break; } if (c < col) lo = mid + 1; else hi = mid - 1; }
-        }
+        for (let b = 0; b < nd; b++) K[slots[base + a * nd + b]!]! += a <= b ? Ke[a * nd + b]! : Ke[b * nd + a]!;
       }
     }
     // boundary loads

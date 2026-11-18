@@ -1,0 +1,100 @@
+# PK-03: RDL microstrip on polyimide: C', L', Z0 from electrostatics vs Hammerstad-Jensen
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: PK-03
+class: c
+title: 'RDL microstrip on polyimide: C'', L'', Z0 from electrostatics vs Hammerstad-Jensen'
+status: unvalidated
+untestable_reason: null
+physics: [electrostatics]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {W_m: 1.0e-05, h_m: 1.0e-05, metal_t_m: 0, box_half_width_m: 0.002, air_height_m: 0.002}
+materials:
+  dielectric: {ref: materials/polyimide-pi2600, eps_r: 2.9, source: HD MicroSystems PI-2600 technical information Table 2
+      (1 kHz) via materials/polyimide-pi2600.yaml}
+  air: {eps_r: 1, source: 'vacuum, as assumed by the closed form'}
+bcs:
+- {selection: strip, type: terminal}
+- {selection: ground plane, type: ground}
+- {selection: box sides and top, type: n . D = 0}
+initial: null
+study: {type: stationary}
+references:
+- quantity: Z01 / c0
+  metric_id: L_per_m
+  value: 4.217046220822712e-07
+  unit: H/m
+  tolerance: {rel: 0.0005, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-03.json, metric_id: L_per_m}
+  provenance: {citation: 'Hammerstad and Jensen, Accurate models for microstrip computer-aided design, IEEE MTT-S Digest 1980,
+      pp. 407-409 (primary not read); formulas from the Qucs technical documentation s.11.1 and scikit-rf skrf/media/mline.py',
+    locator: 'qucs.sourceforge.net/tech/node75.html eqs. (11.4)-(11.6), (11.15)-(11.18) and the accuracy statements there',
+    accessed: null, generator: validation/pkg/microstrip_hj.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: L_per_m}
+  note: closed form better than 0.01 % for W/h <= 1 (source); box truncation about 5e-5 (DevLog-049)
+- quantity: eps_eff / (c0 Z01)
+  metric_id: C_per_m
+  value: 5.850518060257958e-11
+  unit: F/m
+  tolerance: {rel: 0.003, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-03.json, metric_id: C_per_m}
+  provenance: {citation: 'Hammerstad and Jensen, Accurate models for microstrip computer-aided design, IEEE MTT-S Digest 1980,
+      pp. 407-409 (primary not read); formulas from the Qucs technical documentation s.11.1 and scikit-rf skrf/media/mline.py',
+    locator: 'qucs.sourceforge.net/tech/node75.html eqs. (11.4)-(11.6), (11.15)-(11.18) and the accuracy statements there',
+    accessed: null, generator: validation/pkg/microstrip_hj.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: C_per_m}
+  note: eps_eff of the closed form better than 0.2 % (source, eps_r < 128, 0.01 <= W/h <= 100)
+- quantity: Z01 / sqrt(eps_eff)
+  metric_id: Z0
+  value: 84.89986866012278
+  unit: Ohm
+  tolerance: {rel: 0.002, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-03.json, metric_id: Z0}
+  provenance: {citation: 'Hammerstad and Jensen, Accurate models for microstrip computer-aided design, IEEE MTT-S Digest 1980,
+      pp. 407-409 (primary not read); formulas from the Qucs technical documentation s.11.1 and scikit-rf skrf/media/mline.py',
+    locator: 'qucs.sourceforge.net/tech/node75.html eqs. (11.4)-(11.6), (11.15)-(11.18) and the accuracy statements there',
+    accessed: null, generator: validation/pkg/microstrip_hj.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: Z0}
+  note: Z0 carries half the eps_eff error of the closed form
+reference_results: []
+convergence:
+  levels_min: 3
+  ratio_min: 2
+  method: richardson_gci
+  safety_factor: 1.25
+  h_factors: [1, 0.5, 0.25]
+  expected_order: 1
+  note: 'strip-edge field singularity: capacitance converges at order 1 under uniform refinement'
+speed:
+  budget_s: {browser: 3.0, native: null}
+  budget_basis: est. from the lane's own runs on 2026-11-18 (DevLog-049), not a browser measurement
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own derivation and closed forms from cited literature (formulas only); GPL-3.0-or-later code
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: sims/microstrip-rdl.yaml
+missing: []
+assumptions: ['Zero thickness, lossless quasi-static TEM; polyimide eps_r from a 1 kHz data-sheet value.']
+notes: ['Validity of the closed form (source): Z_L1 0.01 % for W/h <= 1, 0.03 % for W/h <= 1000; eps_eff 0.2 % for eps_r <
+    128 and 0.01 <= W/h <= 100. This case: W/h = 1, eps_r = 2.9.']
+lane: E3
+created: '2026-11-18'

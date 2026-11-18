@@ -1,0 +1,983 @@
+# WO-71: Quarter-wave Si3N4 / SiO2 Bragg mirror (6 high-index layers, design 1.55 um) between two ports: |S11|, |S21| at normal and oblique incidence vs transfer matrix
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-71
+class: c
+title: 'Quarter-wave Si3N4 / SiO2 Bragg mirror (6 high-index layers, design 1.55 um) between two ports: |S11|, |S21| at normal
+  and oblique incidence vs transfer matrix'
+status: unvalidated
+untestable_reason: null
+physics: [optics-scattering, rf-sparams]
+dimension: 2D
+units: SI
+geometry:
+  kind: layer_stack
+  spec:
+    n_high_layers: 6
+    t_high_m: 1.55e-6 / (4 * 1.9963)
+    t_low_m: 1.55e-6 / (4 * 1.4444)
+    port_sections_m: [6.0e-07, 6.0e-07]
+    channel_height_m: 1.0e-06
+materials:
+  high: {n: 1.9963, source: 'materials/si3n4-lpcvd.yaml n at 1.55 um, rounded'}
+  low: {n: 1.4444, source: 'materials/sio2-thermal-oxide.yaml n (Malitson 1965) at 1.55 um, rounded'}
+bcs:
+- {selection: channel ends, type: port, expr: '2 modes each; mode 0 uniform (normal incidence), mode 1 cos(pi y / H)'}
+- {selection: channel top / bottom, type: natural (PMC for E_z)}
+initial: null
+study:
+  type: frequency
+  wavelengths_m: [1.3e-06, 1.45e-06, 1.55e-06, 1.7e-06, 1.85e-06]
+references:
+- id: S11_abs.l1300.L0
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.30 um (mesh level 0)'
+  metric_id: S11_abs.l1300
+  value: 0.03948555355634186
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1300}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.3}
+    study: s
+- id: S11_abs.l1300.L1
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.30 um (mesh level 1)'
+  metric_id: S11_abs.l1300
+  value: 0.03948555355634186
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1300}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.3}
+    study: s
+- id: S21_abs.l1300.L0
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.30 um (mesh level 0)'
+  metric_id: S21_abs.l1300
+  value: 0.9992201414404887
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1300}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.3}
+    study: s
+- id: S21_abs.l1300.L1
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.30 um (mesh level 1)'
+  metric_id: S21_abs.l1300
+  value: 0.9992201414404887
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1300}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.3}
+    study: s
+- id: S11_11_abs.l1300.L0
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.30 um (mesh level 0)'
+  metric_id: S11_11_abs.l1300
+  value: 0.9505092188419783
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1300}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.3}
+    study: s
+- id: S11_11_abs.l1300.L1
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.30 um (mesh level 1)'
+  metric_id: S11_11_abs.l1300
+  value: 0.9505092188419783
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1300}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.3}
+    study: s
+- id: S21_11_abs.l1300.L0
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.30 um (mesh level 0)'
+  metric_id: S21_11_abs.l1300
+  value: 0.3106963548167449
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1300}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.3}
+    study: s
+- id: S21_11_abs.l1300.L1
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.30 um (mesh level 1)'
+  metric_id: S21_11_abs.l1300
+  value: 0.3106963548167449
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1300}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.3}
+    study: s
+- id: S11_abs.l1450.L0
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.45 um (mesh level 0)'
+  metric_id: S11_abs.l1450
+  value: 0.9372302751219261
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1450}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.45}
+    study: s
+- id: S11_abs.l1450.L1
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.45 um (mesh level 1)'
+  metric_id: S11_abs.l1450
+  value: 0.9372302751219261
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1450}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.45}
+    study: s
+- id: S21_abs.l1450.L0
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.45 um (mesh level 0)'
+  metric_id: S21_abs.l1450
+  value: 0.34871107151175873
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1450}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.45}
+    study: s
+- id: S21_abs.l1450.L1
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.45 um (mesh level 1)'
+  metric_id: S21_abs.l1450
+  value: 0.34871107151175873
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1450}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.45}
+    study: s
+- id: S11_11_abs.l1450.L0
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.45 um (mesh level 0)'
+  metric_id: S11_11_abs.l1450
+  value: 0.980785968546881
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1450}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.45}
+    study: s
+- id: S11_11_abs.l1450.L1
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.45 um (mesh level 1)'
+  metric_id: S11_11_abs.l1450
+  value: 0.980785968546881
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1450}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.45}
+    study: s
+- id: S21_11_abs.l1450.L0
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.45 um (mesh level 0)'
+  metric_id: S21_11_abs.l1450
+  value: 0.1950868624524896
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1450}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.45}
+    study: s
+- id: S21_11_abs.l1450.L1
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.45 um (mesh level 1)'
+  metric_id: S21_11_abs.l1450
+  value: 0.1950868624524896
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1450}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.45}
+    study: s
+- id: S11_abs.l1550.L0
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.55 um (mesh level 0)'
+  metric_id: S11_abs.l1550
+  value: 0.9596613733609889
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1550}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+- id: S11_abs.l1550.L1
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.55 um (mesh level 1)'
+  metric_id: S11_abs.l1550
+  value: 0.9596613733609889
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1550}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+- id: S21_abs.l1550.L0
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.55 um (mesh level 0)'
+  metric_id: S21_abs.l1550
+  value: 0.2811584046029936
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1550}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+- id: S21_abs.l1550.L1
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.55 um (mesh level 1)'
+  metric_id: S21_abs.l1550
+  value: 0.2811584046029936
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1550}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+- id: S11_11_abs.l1550.L0
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.55 um (mesh level 0)'
+  metric_id: S11_11_abs.l1550
+  value: 0.9488188074549496
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1550}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+- id: S11_11_abs.l1550.L1
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.55 um (mesh level 1)'
+  metric_id: S11_11_abs.l1550
+  value: 0.9488188074549496
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1550}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+- id: S21_11_abs.l1550.L0
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.55 um (mesh level 0)'
+  metric_id: S21_11_abs.l1550
+  value: 0.3158209470883264
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1550}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+- id: S21_11_abs.l1550.L1
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.55 um (mesh level 1)'
+  metric_id: S21_11_abs.l1550
+  value: 0.3158209470883264
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1550}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+- id: S11_abs.l1700.L0
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.70 um (mesh level 0)'
+  metric_id: S11_abs.l1700
+  value: 0.9159056592571065
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1700}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.7}
+    study: s
+- id: S11_abs.l1700.L1
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.70 um (mesh level 1)'
+  metric_id: S11_abs.l1700
+  value: 0.9159056592571065
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1700}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.7}
+    study: s
+- id: S21_abs.l1700.L0
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.70 um (mesh level 0)'
+  metric_id: S21_abs.l1700
+  value: 0.40139360151951214
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1700}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.7}
+    study: s
+- id: S21_abs.l1700.L1
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.70 um (mesh level 1)'
+  metric_id: S21_abs.l1700
+  value: 0.40139360151951214
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1700}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.7}
+    study: s
+- id: S11_11_abs.l1700.L0
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.70 um (mesh level 0)'
+  metric_id: S11_11_abs.l1700
+  value: 0.0811066902926392
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1700}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.7}
+    study: s
+- id: S11_11_abs.l1700.L1
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.70 um (mesh level 1)'
+  metric_id: S11_11_abs.l1700
+  value: 0.0811066902926392
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1700}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.7}
+    study: s
+- id: S21_11_abs.l1700.L0
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.70 um (mesh level 0)'
+  metric_id: S21_11_abs.l1700
+  value: 0.9967054252836058
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1700}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.7}
+    study: s
+- id: S21_11_abs.l1700.L1
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.70 um (mesh level 1)'
+  metric_id: S21_11_abs.l1700
+  value: 0.9967054252836058
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1700}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.7}
+    study: s
+- id: S11_abs.l1850.L0
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.85 um (mesh level 0)'
+  metric_id: S11_abs.l1850
+  value: 0.4956973801330801
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1850}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.85}
+    study: s
+- id: S11_abs.l1850.L1
+  quantity: '|S11| port mode 0 (normal incidence), lambda0 1.85 um (mesh level 1)'
+  metric_id: S11_abs.l1850
+  value: 0.4956973801330801
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_abs.l1850}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.85}
+    study: s
+- id: S21_abs.l1850.L0
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.85 um (mesh level 0)'
+  metric_id: S21_abs.l1850
+  value: 0.8684953122091108
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1850}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.85}
+    study: s
+- id: S21_abs.l1850.L1
+  quantity: '|S21| port mode 0 (normal incidence), lambda0 1.85 um (mesh level 1)'
+  metric_id: S21_abs.l1850
+  value: 0.8684953122091108
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_abs.l1850}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract: {kind: scalar, name: S21_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.85}
+    study: s
+- id: S11_11_abs.l1850.L0
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.85 um (mesh level 0)'
+  metric_id: S11_11_abs.l1850
+  value: 0.47420456050757104
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1850}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.85}
+    study: s
+- id: S11_11_abs.l1850.L1
+  quantity: '|S11| port mode 1 (oblique), lambda0 1.85 um (mesh level 1)'
+  metric_id: S11_11_abs.l1850
+  value: 0.47420456050757104
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S11_11_abs.l1850}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S11_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.85}
+    study: s
+- id: S21_11_abs.l1850.L0
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.85 um (mesh level 0)'
+  metric_id: S21_11_abs.l1850
+  value: 0.8804146947852597
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1850}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.85}
+    study: s
+- id: S21_11_abs.l1850.L1
+  quantity: '|S21| port mode 1 (oblique), lambda0 1.85 um (mesh level 1)'
+  metric_id: S21_11_abs.l1850
+  value: 0.8804146947852597
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: S21_11_abs.l1850}
+  provenance: {citation: 'transfer matrix of the layered stack, cross-checked by an admittance recursion (validation/driven/bragg_tmm.py)',
+    locator: 'routes 1 and 2 in the script header (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.2 matrix form)',
+    accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s
+    terms:
+      s: {kind: scalar, name: S21_11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.85}
+    study: s
+- id: R_quarter_wave.L0
+  quantity: reflectance at the design wavelength, normal incidence (mesh level 0)
+  metric_id: R_quarter_wave
+  value: 0.9209499515210993
+  unit: '1'
+  tolerance: {abs: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-71.json, metric_id: R_quarter_wave}
+  provenance: {citation: quarter-wave stack closed form R = ((1 - (nH/nL)^(2N)) / (1 + (nH/nL)^(2N)))^2, locator: 'Macleod,
+      Thin-Film Optical Filters, 4th ed. (2010), ch. 6; derivation in validation/driven/bragg_tmm.py', accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s * s
+    terms:
+      s: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+- id: R_quarter_wave.L1
+  quantity: reflectance at the design wavelength, normal incidence (mesh level 1)
+  metric_id: R_quarter_wave
+  value: 0.9209499515210993
+  unit: '1'
+  tolerance: {abs: 1.0e-05, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-71.json, metric_id: R_quarter_wave}
+  provenance: {citation: quarter-wave stack closed form R = ((1 - (nH/nL)^(2N)) / (1 + (nH/nL)^(2N)))^2, locator: 'Macleod,
+      Thin-Film Optical Filters, 4th ed. (2010), ch. 6; derivation in validation/driven/bragg_tmm.py', accessed: null, generator: validation/driven/bragg_tmm.py}
+  extract:
+    kind: expr
+    expr: s * s
+    terms:
+      s: {kind: scalar, name: S11_abs}
+  spec:
+    sim: sims/bragg-mirror-ports.yaml
+    params: {lam: 1.55}
+    study: s
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels with a tighter tolerance on the
+    finer one
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (94k DOF) took 1.5 s per wavelength in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited textbook formulas
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero: {suitable: false, why: verification of a library example}
+spec: {sim: sims/bragg-mirror-ports.yaml, study: s}
+missing: []
+assumptions: []
+notes: ['Magnitudes are gated: the sign of a port mode is a normalisation choice, so the phase of S21 is not a property of
+    the structure.', 'Absolute tolerances: |S| is near zero at some wavelengths (S11 at 1.30 um, S11 of mode 1 at 1.70 um).']
+lane: E1
+created: '2026-11-18'

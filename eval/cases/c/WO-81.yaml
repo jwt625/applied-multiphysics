@@ -1,0 +1,126 @@
+# WO-81: Leaky silicon wire (Bienstman 2006 benchmark): 500 x 220 nm Si on 1 um SiO2 over Si, substrate leakage at 1.55 um
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-81
+class: c
+title: 'Leaky silicon wire (Bienstman 2006 benchmark): 500 x 220 nm Si on 1 um SiO2 over Si, substrate leakage at 1.55 um'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    core_m: [5.0e-07, 2.2e-07]
+    buffer_m: 1.0e-06
+    half_window: x >= 0 (PEC mirror)
+    pml_m: 1.0e-06
+materials:
+  si: {n: 3.5, source: Bienstman 2006 p.732}
+  sio2: {n: 1.45, source: Bienstman 2006 p.732}
+  air: {n: 1, source: Bienstman 2006 p.732}
+bcs:
+- {selection: x = 0, type: pec (mirror of the even quasi-TE mode)}
+- {selection: outer layers, type: pml}
+initial: null
+study: {type: eigen, solver: mode, wavelength_m: 1.55e-06, n: 2, shift: 2.42}
+references:
+- id: neff_0.L0
+  quantity: Re n_eff, quasi-TE (mesh level 0)
+  metric_id: neff_0
+  value: 2.412372039
+  unit: '1'
+  tolerance: {abs: 0.00015, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-81.json, metric_id: neff_0}
+  provenance: {citation: 'P. Bienstman et al., Modelling leaky photonic wires: a mode solver comparison, Opt. Quantum Electron.
+      38, 731-759 (2006), doi 10.1007/s11082-006-9025-9', locator: 'structure p.732 Fig. 1; value p.751 Fig. 18 caption (aperiodic
+      Fourier modal method, extrapolated); CAMFR p.749 agrees to 6 digits', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_0}
+  note: tolerance set by the discretisation of the wire corners (measured errors in DevLog-048 s.5); the paper's methods spread
+    2.41233-2.4131 (Table 6)
+- id: neff_0.L1
+  quantity: Re n_eff, quasi-TE (mesh level 1)
+  metric_id: neff_0
+  value: 2.412372039
+  unit: '1'
+  tolerance: {abs: 6.0e-05, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-81.json, metric_id: neff_0}
+  provenance: {citation: 'P. Bienstman et al., Modelling leaky photonic wires: a mode solver comparison, Opt. Quantum Electron.
+      38, 731-759 (2006), doi 10.1007/s11082-006-9025-9', locator: 'structure p.732 Fig. 1; value p.751 Fig. 18 caption (aperiodic
+      Fourier modal method, extrapolated); CAMFR p.749 agrees to 6 digits', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: neff_0}
+  note: tolerance set by the discretisation of the wire corners (measured errors in DevLog-048 s.5); the paper's methods spread
+    2.41233-2.4131 (Table 6)
+- id: kappaEff_0.L0
+  quantity: Im n_eff (substrate leakage), quasi-TE (mesh level 0)
+  metric_id: kappaEff_0
+  value: 2.9134801e-08
+  unit: '1'
+  tolerance: {rel: 0.003, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-81.json, metric_id: kappaEff_0}
+  provenance: {citation: 'P. Bienstman et al., Modelling leaky photonic wires: a mode solver comparison, Opt. Quantum Electron.
+      38, 731-759 (2006), doi 10.1007/s11082-006-9025-9', locator: 'structure p.732 Fig. 1; value p.751 Fig. 18 caption (aperiodic
+      Fourier modal method, extrapolated); CAMFR p.749 agrees to 6 digits', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: kappaEff_0}
+  note: the paper's methods spread 2.45e-8 to 3.0e-8 (Table 6 p.757)
+- id: kappaEff_0.L1
+  quantity: Im n_eff (substrate leakage), quasi-TE (mesh level 1)
+  metric_id: kappaEff_0
+  value: 2.9134801e-08
+  unit: '1'
+  tolerance: {rel: 0.001, after: finest}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-81.json, metric_id: kappaEff_0}
+  provenance: {citation: 'P. Bienstman et al., Modelling leaky photonic wires: a mode solver comparison, Opt. Quantum Electron.
+      38, 731-759 (2006), doi 10.1007/s11082-006-9025-9', locator: 'structure p.732 Fig. 1; value p.751 Fig. 18 caption (aperiodic
+      Fourier modal method, extrapolated); CAMFR p.749 agrees to 6 digits', accessed: '2026-11-18', generator: validation/modes3/references.py}
+  extract: {kind: scalar, name: kappaEff_0}
+  note: the paper's methods spread 2.45e-8 to 3.0e-8 (Table 6 p.757)
+reference_results:
+- {solver: CAMFR (Bienstman 2006 p.749), n_eff: 2.412372 - 2.9135e-8 j}
+- solver: Table 6 p.757 FEM entries
+  n_eff_re: [2.4131, 2.41233]
+  im_e8: [2.97, 2.45]
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels, the finer one with an equal or
+    tighter tolerance
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (140k DOF) 8.6 s in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited published values
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: verification of a library example}
+spec: sims/leaky-si-wire.yaml
+missing: []
+assumptions: []
+lane: E2
+created: '2026-11-18'

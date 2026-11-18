@@ -1,0 +1,154 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-72",
+  "class": "c",
+  "generator": "validation/driven/mmi_eme.py",
+  "command": "cd validation && uv run python driven/mmi_eme.py",
+  "method": "1x2 MMI (Si 3.4767 / SiO2 1.4444, w 0.4, W 2, Lm 4.6, outputs at +-0.5, box 4 um, TE in-plane): |S11| and |S21| of the fundamental modes by bidirectional eigenmode expansion with all transverse modes.",
+  "generated_at": "2026-11-18T13:42:24-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "S11_abs.l1500",
+      "value": 0.1616203905168214,
+      "unit": "1",
+      "precision": {
+        "method": "bidirectional eigenmode expansion, all modes of a P2 transverse grid",
+        "dy_um": 0.005,
+        "change_vs_dy_0.01_um": 8.320487802276899e-06,
+        "energy_error": 7.66053886991358e-15
+      },
+      "inputs": {
+        "lambda0_um": 1.5,
+        "n_core": 3.4767,
+        "n_clad": 1.4444,
+        "w_um": 0.4,
+        "W_um": 2.0,
+        "Lm_um": 4.6,
+        "d_um": 0.5,
+        "Hb_um": 4.0
+      },
+      "locator": "validation/driven/mmi_eme.py (method in the script header)"
+    },
+    {
+      "metric_id": "S21_abs.l1500",
+      "value": 0.6725067206626175,
+      "unit": "1",
+      "precision": {
+        "method": "bidirectional eigenmode expansion, all modes of a P2 transverse grid",
+        "dy_um": 0.005,
+        "change_vs_dy_0.01_um": 1.4444949486547287e-06,
+        "energy_error": 7.66053886991358e-15
+      },
+      "inputs": {
+        "lambda0_um": 1.5,
+        "n_core": 3.4767,
+        "n_clad": 1.4444,
+        "w_um": 0.4,
+        "W_um": 2.0,
+        "Lm_um": 4.6,
+        "d_um": 0.5,
+        "Hb_um": 4.0
+      },
+      "locator": "validation/driven/mmi_eme.py (method in the script header)"
+    },
+    {
+      "metric_id": "S11_abs.l1550",
+      "value": 0.16278204976625635,
+      "unit": "1",
+      "precision": {
+        "method": "bidirectional eigenmode expansion, all modes of a P2 transverse grid",
+        "dy_um": 0.005,
+        "change_vs_dy_0.01_um": 3.113015395056484e-05,
+        "energy_error": 5.773159728050814e-15
+      },
+      "inputs": {
+        "lambda0_um": 1.55,
+        "n_core": 3.4767,
+        "n_clad": 1.4444,
+        "w_um": 0.4,
+        "W_um": 2.0,
+        "Lm_um": 4.6,
+        "d_um": 0.5,
+        "Hb_um": 4.0
+      },
+      "locator": "validation/driven/mmi_eme.py (method in the script header)"
+    },
+    {
+      "metric_id": "S21_abs.l1550",
+      "value": 0.6645358332834876,
+      "unit": "1",
+      "precision": {
+        "method": "bidirectional eigenmode expansion, all modes of a P2 transverse grid",
+        "dy_um": 0.005,
+        "change_vs_dy_0.01_um": 6.469590391078306e-06,
+        "energy_error": 5.773159728050814e-15
+      },
+      "inputs": {
+        "lambda0_um": 1.55,
+        "n_core": 3.4767,
+        "n_clad": 1.4444,
+        "w_um": 0.4,
+        "W_um": 2.0,
+        "Lm_um": 4.6,
+        "d_um": 0.5,
+        "Hb_um": 4.0
+      },
+      "locator": "validation/driven/mmi_eme.py (method in the script header)"
+    },
+    {
+      "metric_id": "S11_abs.l1600",
+      "value": 0.035182329931824664,
+      "unit": "1",
+      "precision": {
+        "method": "bidirectional eigenmode expansion, all modes of a P2 transverse grid",
+        "dy_um": 0.005,
+        "change_vs_dy_0.01_um": 2.9902591198241457e-06,
+        "energy_error": 6.661338147750939e-16
+      },
+      "inputs": {
+        "lambda0_um": 1.6,
+        "n_core": 3.4767,
+        "n_clad": 1.4444,
+        "w_um": 0.4,
+        "W_um": 2.0,
+        "Lm_um": 4.6,
+        "d_um": 0.5,
+        "Hb_um": 4.0
+      },
+      "locator": "validation/driven/mmi_eme.py (method in the script header)"
+    },
+    {
+      "metric_id": "S21_abs.l1600",
+      "value": 0.6511131848576166,
+      "unit": "1",
+      "precision": {
+        "method": "bidirectional eigenmode expansion, all modes of a P2 transverse grid",
+        "dy_um": 0.005,
+        "change_vs_dy_0.01_um": 1.0056833714910951e-05,
+        "energy_error": 6.661338147750939e-16
+      },
+      "inputs": {
+        "lambda0_um": 1.6,
+        "n_core": 3.4767,
+        "n_clad": 1.4444,
+        "w_um": 0.4,
+        "W_um": 2.0,
+        "Lm_um": 4.6,
+        "d_um": 0.5,
+        "Hb_um": 4.0
+      },
+      "locator": "validation/driven/mmi_eme.py (method in the script header)"
+    }
+  ]
+}

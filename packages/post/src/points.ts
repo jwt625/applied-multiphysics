@@ -4,7 +4,7 @@
 // location). Points outside every cell have cell -1 and evaluate to NaN. Only IEEE + - * / and Math.sqrt are used
 // (bit-identical in every JS engine; DevLog-026 s.1.1).
 
-import type { FieldData, Mesh } from '@amp/spec/types';
+import type { CellType, FieldData, Mesh } from '@amp/spec/types';
 import { NPC, nCells } from '@amp/physics/common/mesh';
 import { REF_DIM, shape } from '@amp/physics/common/lagrange';
 import { locatorFor } from './evaluate.ts';
@@ -73,11 +73,89 @@ function checkField(mesh: Mesh, f: FieldData): void {
   throw new Error(`field '${f.name}': space ${f.space} not supported (Nedelec coefficients: use the module's H1 projection, e.g. emw 'E_nodal', or a DG0 field)`);
 }
 
+/** Corner-only cell type of each cell type (the linear element on the same reference cell). */
+const CORNER_TYPE: Partial<Record<string, CellType>> = { tri3: 'tri3', tri6: 'tri3', quad4: 'quad4', tet4: 'tet4', tet10: 'tet4', hex8: 'hex8' };
+/** Reference centroid and reference measure of each corner type. */
+const REF_CENTRE: Partial<Record<string, [number[], number]>> = {
+  tri3: [[1 / 3, 1 / 3, 0], 1 / 2], quad4: [[0.5, 0.5, 0], 1], tet4: [[0.25, 0.25, 0.25], 1 / 6], hex8: [[0.5, 0.5, 0.5], 1],
+};
+const recovered = new WeakMap<FieldData, { mesh: Mesh; corners: Float64Array }>();
+
+/**
+ * Recovery of a DG0 (per cell) field to cell-corner values, the rule of the 2D view (apps/web field2d `recoverDG0`,
+ * DevLog-019 s.1.2): at each corner node, the measure-weighted mean of the values of the cells that share the node
+ * within the same domain (cells.domain), so a node on a material interface keeps one value per domain and jumps across
+ * interfaces stay sharp. Cell measure from the straight corners (|det J| at the reference centroid; exact for
+ * simplices and parallelograms); planar measure also on axisymmetric meshes (as the view). Non-finite cell values are
+ * left out. Bounded by the cell values (a convex combination). Returns nCorner * nc values per cell: index
+ * (cell * nCorner + corner) * nc + component, corners in VTK order (the first nCorner nodes of the cell).
+ * Cached per (field, mesh).
+ */
+export function recoverDG0(mesh: Mesh, f: FieldData): Float64Array {
+  if (f.space !== 'DG0') throw new Error(`recoverDG0: field '${f.name}' is ${f.space}, not DG0`);
+  checkField(mesh, f);
+  const hit = recovered.get(f);
+  if (hit && hit.mesh === mesh) return hit.corners;
+  const type = mesh.cells.type, ct = CORNER_TYPE[type];
+  if (!ct) throw new Error(`recoverDG0: cell type ${type} not supported`);
+  const k = NPC[type], nk = NPC[ct], rd = REF_DIM[ct]!, dim = mesh.dim, nc = f.components, conn = mesh.cells.conn, X = mesh.nodes;
+  const nC = nCells(mesh), dom = mesh.cells.domain;
+  // slot per (corner node, domain): a node's first domain uses the node index, other domains get extra slots
+  const nN = X.length / dim;
+  const first = new Int32Array(nN).fill(-1);
+  const extra = new Map<string, number>();
+  let next = nN;
+  const slot = new Int32Array(nk * nC);
+  for (let c = 0; c < nC; c++) {
+    const g = dom[c]!;
+    for (let a = 0; a < nk; a++) {
+      const v = conn[k * c + a]!;
+      let s = v;
+      if (first[v]! < 0) first[v] = g;
+      else if (first[v] !== g) {
+        const key = `${v}|${g}`;
+        let e = extra.get(key);
+        if (e === undefined) { e = next++; extra.set(key, e); }
+        s = e;
+      }
+      slot[nk * c + a] = s;
+    }
+  }
+  const [rc, rm] = REF_CENTRE[ct]!;
+  const N = new Float64Array(nk), dN = new Float64Array(nk * rd), J = new Float64Array(9);
+  shape(ct, rc, N, dN);
+  const sum = new Float64Array(next * nc), w = new Float64Array(next);
+  for (let c = 0; c < nC; c++) {
+    let ok = true;
+    for (let j = 0; j < nc; j++) if (!Number.isFinite(f.data[c * nc + j]!)) ok = false;
+    if (!ok) continue;
+    J.fill(0);
+    for (let a = 0; a < nk; a++) { const nd = conn[k * c + a]!; for (let p = 0; p < dim; p++) for (let q = 0; q < rd; q++) J[3 * p + q]! += X[dim * nd + p]! * dN[rd * a + q]!; }
+    const det = rd === 2 ? J[0]! * J[4]! - J[1]! * J[3]! : J[0]! * (J[4]! * J[8]! - J[5]! * J[7]!) - J[1]! * (J[3]! * J[8]! - J[5]! * J[6]!) + J[2]! * (J[3]! * J[7]! - J[4]! * J[6]!);
+    const A = Math.abs(det) * rm;
+    for (let a = 0; a < nk; a++) {
+      const s = slot[nk * c + a]!;
+      for (let j = 0; j < nc; j++) sum[nc * s + j]! += A * f.data[c * nc + j]!;
+      w[s]! += A;
+    }
+  }
+  const corners = new Float64Array(nk * nc * nC);
+  for (let c = 0; c < nC; c++)
+    for (let a = 0; a < nk; a++) {
+      const s = slot[nk * c + a]!;
+      for (let j = 0; j < nc; j++) corners[(nk * c + a) * nc + j] = w[s]! > 0 ? sum[nc * s + j]! / w[s]! : NaN;
+    }
+  recovered.set(f, { mesh, corners });
+  return corners;
+}
+
 /**
  * Values (point-major, components per point) and optionally gradients ((point * components + j) * dim + d) of a field
  * at a point set, from each point's own cell. NaN outside. Gradients of a DG0 field are an error (not differentiable).
+ * `smooth`: a DG0 field is read through `recoverDG0` (corner values, linear / bilinear on the cell's corners), as the
+ * 2D view draws it, instead of the cell constant; other spaces are unaffected.
  */
-export function interpolate(f: FieldData, ps: PointSet, o: { grad?: boolean } = {}): { values: Float64Array; grad?: Float64Array } {
+export function interpolate(f: FieldData, ps: PointSet, o: { grad?: boolean; smooth?: boolean } = {}): { values: Float64Array; grad?: Float64Array } {
   const mesh = ps.mesh, dim = mesh.dim, nc = f.components, np = ps.n;
   checkField(mesh, f);
   if (o.grad && f.space === 'DG0') throw new Error(`d(): field '${f.name}' is DG0 (piecewise constant); its derivative is not defined`);
@@ -86,9 +164,19 @@ export function interpolate(f: FieldData, ps: PointSet, o: { grad?: boolean } = 
   const type = mesh.cells.type, k = NPC[type], rd = REF_DIM[type]!, conn = mesh.cells.conn, X = mesh.nodes;
   const N = new Float64Array(k), dN = new Float64Array(k * rd), r = new Float64Array(3);
   const J = new Float64Array(9), gr = new Float64Array(3);
+  const smooth = !!o.smooth && f.space === 'DG0';
+  const corners = smooth ? recoverDG0(mesh, f) : null;
+  const ct = smooth ? CORNER_TYPE[type]! : type, nk = NPC[ct];
+  const Nk = new Float64Array(nk), dNk = new Float64Array(nk * (REF_DIM[ct] ?? rd));
   for (let i = 0; i < np; i++) {
     const c = ps.cell[i]!;
     if (c < 0) continue;
+    if (corners) {
+      r[0] = ps.ref[3 * i]!; r[1] = ps.ref[3 * i + 1]!; r[2] = ps.ref[3 * i + 2]!;
+      shape(ct, r, Nk, dNk);
+      for (let j = 0; j < nc; j++) { let s = 0; for (let a = 0; a < nk; a++) s += Nk[a]! * corners[(nk * c + a) * nc + j]!; values[i * nc + j] = s; }
+      continue;
+    }
     if (f.space === 'DG0') { for (let j = 0; j < nc; j++) values[i * nc + j] = f.data[c * nc + j]!; continue; }
     r[0] = ps.ref[3 * i]!; r[1] = ps.ref[3 * i + 1]!; r[2] = ps.ref[3 * i + 2]!;
     shape(type, r, N, dN);

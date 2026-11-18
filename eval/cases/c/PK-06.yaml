@@ -1,0 +1,110 @@
+# PK-06: Die-on-substrate warpage (3D): centre curvature vs laminated-plate (biaxial Timoshenko) theory
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: PK-06
+class: c
+title: 'Die-on-substrate warpage (3D): centre curvature vs laminated-plate (biaxial Timoshenko) theory'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond, solid-thermal-stress]
+dimension: 3D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    plate_side_m: 0.01
+    die_t_m: 0.0003
+    substrate_t_m: 0.0005
+    probes_bottom_x_m: [0.001, 0.002]
+materials:
+  die: {ref: materials/silicon, E_Pa: 162580000000.0, nu: 0.2231, alpha_per_K: 2.600985401459854e-06, source: 'materials/silicon.yaml
+      (Hill E, nu; alpha at 298.15 K)'}
+  substrate: {ref: materials/bt-hl832nx, E_Pa: 28000000000.0, nu: 0.19, alpha_per_K: 1.4e-05, source: 'MGC HL832NX product
+      page via materials/bt-hl832nx.yaml (in-plane, below Tg)'}
+bcs:
+- {selection: 'x = 0, y = 0', type: roller (quarter symmetry)}
+- {selection: bottom centre patch 0.1 x 0.1 mm, type: u_z = 0}
+- selection: all
+  type: uniform temperature change
+  params: {T_ref_K: 398.15, T_K: 298.15}
+initial: null
+study: {type: stationary}
+references:
+- id: uz_p1
+  quantity: bottom u_z at p1
+  metric_id: uz_p1
+  value: null
+  unit: m
+  tolerance:
+    rule: {type: sign, sign: -1, note: 'dome: the bottom moves down away from the centre patch'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Classical laminated-plate theory for equibiaxial bending of two isotropic layers (own derivation),
+      equal to Timoshenko, J. Opt. Soc. Am. 11, 233 (1925) with biaxial moduli E / (1 - nu); validation/pkg/bilayer_plate.py',
+    locator: 'validation/pkg/bilayer_plate.py clt(), timoshenko(); eval/expected/PK-06.json', accessed: null, generator: validation/pkg/bilayer_plate.py,
+    source_accessed: '2026-11-18'}
+  extract: {kind: result, node: uz_p1}
+- id: uz_p2
+  quantity: bottom u_z at p2
+  metric_id: uz_p2
+  value: null
+  unit: m
+  tolerance:
+    rule: {type: sign, sign: -1, note: 'dome: the bottom moves down away from the centre patch'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Classical laminated-plate theory for equibiaxial bending of two isotropic layers (own derivation),
+      equal to Timoshenko, J. Opt. Soc. Am. 11, 233 (1925) with biaxial moduli E / (1 - nu); validation/pkg/bilayer_plate.py',
+    locator: 'validation/pkg/bilayer_plate.py clt(), timoshenko(); eval/expected/PK-06.json', accessed: null, generator: validation/pkg/bilayer_plate.py,
+    source_accessed: '2026-11-18'}
+  extract: {kind: result, node: uz_p2}
+- id: w_curv
+  quantity: centre curvature d2w/dr2 of the bottom surface from two probes
+  metric_id: w_curv
+  value: -2.0602699631116472
+  unit: 1/m
+  tolerance: {rel: 0.002, note: thin-plate interior limit; the 3D model differs by about 1e-4 at x <= 2 mm (DevLog-049); 2e-3
+      covers the edge zone and the 3D stress state}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: 'Classical laminated-plate theory for equibiaxial bending of two isotropic layers (own derivation),
+      equal to Timoshenko, J. Opt. Soc. Am. 11, 233 (1925) with biaxial moduli E / (1 - nu); validation/pkg/bilayer_plate.py',
+    locator: 'validation/pkg/bilayer_plate.py clt(), timoshenko(); eval/expected/PK-06.json', accessed: null, generator: validation/pkg/bilayer_plate.py,
+    source_accessed: '2026-11-18'}
+  expected: {file: eval/expected/PK-06.json, metric_id: w_curv}
+  extract:
+    kind: combine
+    expr: 2 * (u2 - u1) / ((2[mm])^2 - (1[mm])^2)
+    targets: {u1: uz_p1, u2: uz_p2}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (6.8k and 50k DOF); finer meshes exceed the 2 GB process rule (DevLog-049 R3)
+speed:
+  budget_s: {browser: 10.0, native: null}
+  budget_basis: est. from the lane's own runs on 2026-11-18 (DevLog-049), not a browser measurement
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own derivation and closed forms from cited literature (formulas only); GPL-3.0-or-later code
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: sims/die-warpage-3d.yaml
+missing: []
+assumptions: ['Isotropic layers (BT in-plane constants used isotropically); linear, small deflection; perfect bond; illustrative
+    geometry and temperatures.']
+notes: ['Sign: cooling, the substrate (higher CTE) contracts more and sits on the concave side: dome (centre up), d2w/dr2
+    < 0.']
+lane: E3
+created: '2026-11-18'

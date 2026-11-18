@@ -11,8 +11,8 @@
 //             references of the paired eval cases (scalar, eigen, result and 2D probe extracts) compared with the
 //             browser solution when the case's spec names this sims file.
 // Verdicts: fail = a hard check failed (load, errors, mesh, compute, canvas) or a gated reference is outside a tolerance
-// that is not `after: richardson`; warn = a gated reference outside an `after: richardson` tolerance (one browser
-// level, no extrapolation) or of a case whose spec is still pending. A reference the solution does not provide (no
+// that is not `after: richardson` or `after: finest`; warn = a gated reference outside such a tolerance (one browser
+// level: no extrapolation, not necessarily the finest level) or of a case whose spec is still pending. A reference the solution does not provide (no
 // such scalar, item or field) is recorded as `pending`, as the harness does, without a warning. Canvas "not blank": at
 // least 0.05 % of the canvas pixels differ from its dominant colour (5-bit bins); strip models (aspect 200:1) draw on
 // under 1 % of the canvas. A test threshold, not a physical number.
@@ -131,6 +131,9 @@ class Sampler {
 type Errors = { console: string[]; page: string[] };
 async function newPage(b: Browser): Promise<{ page: Page; errs: Errors }> {
 	const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, serviceWorkers: 'block' });
+	// the per-process RSS rule (2 GB) applies to the browser here: report 2 GB device memory so the sweep worker pool
+	// (engine/pool.ts, floor(deviceMemory / 2) workers) runs one worker; the pool itself is checked outside this smoke
+	await ctx.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'deviceMemory', { get: () => 2, configurable: true }); });
 	const page = await ctx.newPage();
 	const errs: Errors = { console: [], page: [] };
 	page.on('pageerror', (e) => errs.page.push(e.message.slice(0, 500)));
@@ -509,7 +512,7 @@ async function checkSim(b: Browser, id: string, mods: AppMods, sampler: Sampler)
 				const tag = `${r.case} ${r.metric}`;
 				if (r.status === 'outside') {
 					const msg = `${tag}: ${'value' in r ? r.value : ''} vs ${r.ref} ${r.unit} (rel ${'relErr' in r ? r.relErr.toExponential(2) : ''}, tol ${JSON.stringify(r.tol)})`;
-					if (r.tol?.after === 'richardson' || r.casePending) warns.push(`${msg}; single browser level${r.casePending ? ', case spec pending' : ''}`);
+					if (r.tol?.after === 'richardson' || r.tol?.after === 'finest' || r.casePending) warns.push(`${msg}; single browser level${r.casePending ? ', case spec pending' : ''}`);
 					else fails.push(msg);
 				}
 			}

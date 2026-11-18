@@ -59,7 +59,7 @@ properties:
   k:
     value: N/A
     unit: W/(m*K)
-    missing: "TiN film thermal conductivity not read from a primary source"
+    missing: "TiN film thermal conductivity not read from a primary source. Searched 2026-11-18: Baba et al., THERMINIC 2006 (arXiv:0709.1845, open) measured the thermal diffusivity of reactive RF-sputtered TiN films (200-800 nm, N/Ti dependent) but shows it only in figures (Figs. 9-10, not digitized), with k computed from bulk density and heat capacity; no tabulated k. Value depends on deposition and stoichiometry; sims use a labelled override"
     alternatives: []
   alpha:
     value: N/A

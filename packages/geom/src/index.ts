@@ -6,8 +6,8 @@ export * as detmath from './detmath.ts';
 export * from './types.ts';
 export { arrange, type Arrangement, type ArrSub, type ArrFace } from './arrangement.ts';
 export {
-  buildGeometry2D, primitive, combine, resolveEntityIds, selectIndices, domainAreas, type EntityKindKey,
-  type Feature, type GeometrySpec2D, type Geometry2D, type GeomEdge, type Obj, type EdgeRec, type DomainRec, type PointRec,
+  buildGeometry2D, mergeEdgePieces, primitive, combine, resolveEntityIds, selectIndices, domainAreas, type EntityKindKey,
+  type Feature, type GeometrySpec2D, type Geometry2D, type GeomEdge, type Obj, type EdgeRec, type DomainRec, type PointRec, type MergeEdgeOptions,
 } from './model.ts';
 export { extrudeLayered, revolve, boundarySides, type Layer, type Extruded, type Revolved } from './extrude.ts';
 export * as polygon from './polygon.mjs';

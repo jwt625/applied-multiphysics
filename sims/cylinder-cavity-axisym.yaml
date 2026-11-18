@@ -52,10 +52,10 @@ provenance:
   values:
     params.a: {basis: benchmark, source: "eval/cases/a/RF-21.yaml geometry.spec.radius_m (Palace docs examples/cylinder.md)", date: 2026-11-06}
     params.d: {basis: benchmark, source: "eval/cases/a/RF-21.yaml geometry.spec.height_m", date: 2026-11-06}
-    materials.fill.override.eps_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.eps_r (Palace docs cylinder.md, R3 s.3.4)", date: 2026-11-06}
+    materials.fill.override.eps_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.eps_r (Palace documentation, examples/cylinder.md)", date: 2026-11-06}
     materials.fill.override.mu_r: {basis: benchmark, source: "eval/cases/a/RF-21.yaml materials.fill.mu_r", date: 2026-11-06}
     studies.eig.settings.shift: {basis: benchmark, source: "eval/cases/a/RF-21.yaml study.shift", date: 2026-11-06}
-    studies.eig.settings.nModes: {basis: user, date: 2026-11-06, note: "per azimuthal order, as in L4 gates/rf-axisym.ts"}
+    studies.eig.settings.nModes: {basis: user, date: 2026-11-06, note: "per azimuthal order, as in the earlier verification gate"}
     physics.rf.settings.azimuthal: {basis: benchmark, source: "eval/cases/a/RF-21.yaml study.settings.n_note (2D-axisym: m = 0, 1, 2)", date: 2026-11-06}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice; the harness refines it by 1/2 twice (nested)"}
 assumptions:

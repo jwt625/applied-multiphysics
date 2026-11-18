@@ -11,7 +11,7 @@ import type { EvalCase } from './loader.ts';
 import type { LevelObservation, TargetObservation } from './evaluate.ts';
 import type { Solution } from './contract-shim.ts';
 import type { Spec } from './contract-shim.ts';
-import { callPrepare, dtFactorsFor, extractFromSolution, loadDefaultRegistry, setExpressionCompiler, setUnitsApi, specRuntime, type ResultEvaluator, type WorkerResult, type WorkerTarget } from './registry.ts';
+import { callPrepare, dtFactorsFor, extractFromSolution, usesResult, loadDefaultRegistry, setExpressionCompiler, setUnitsApi, specRuntime, type ResultEvaluator, type WorkerResult, type WorkerTarget } from './registry.ts';
 import { importWorkspace } from './workspace.ts';
 import { timeRuns } from './speed.ts';
 import type { LevelTimingSummary } from './source.ts';
@@ -34,7 +34,7 @@ async function main(d: Data): Promise<WorkerResult> {
   type Adapter = { evalItemValue: (spec: unknown, id: string, run: unknown, o: unknown) => { si: number; siUnit: string } | { error: string } };
   let adapter: Adapter | null = null;
   let adapterReason = '';
-  if (d.targets.some((t) => t.ref.extract?.kind === 'result')) {
+  if (d.targets.some((t) => usesResult(t.ref.extract))) {
     try { adapter = (await import(pathToFileURL(join(d.root, 'apps', 'web', 'src', 'lib', 'results', 'adapter.ts')).href)) as Adapter; }
     catch (e) { adapterReason = (e as Error).message.split('\n')[0]!; }
   }
@@ -67,7 +67,7 @@ async function main(d: Data): Promise<WorkerResult> {
     for (const t of d.targets) {
       if (bad.has(t.tid)) continue;
       if (t.ref.levels && !t.ref.levels.includes(i)) continue;   // per-target levels
-      const rf = t.ref.extract?.kind === 'result' ? resultFor(sol, ctx as { mesh: unknown; spec?: unknown }) : undefined;
+      const rf = usesResult(t.ref.extract) ? resultFor(sol, ctx as { mesh: unknown; spec?: unknown }) : undefined;
       const ex = extractFromSolution(sol, t.ref, { mesh: ctx.mesh, ...(registry.sample ? { sample: registry.sample } : {}), ...(t.points ? { points: t.points } : {}), ...(rf ? { result: rf } : {}) });
       if (!('value' in ex)) { bad.set(t.tid, ex); continue; }
       const arr = per.get(t.tid) ?? [];

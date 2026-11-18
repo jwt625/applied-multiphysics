@@ -17,6 +17,7 @@ import { ResultsStore, type StudyRunner, type StudyOutcome } from './runner.ts';
 import type { ResultsHost, ResultsTableJson, DatasetValuesJson } from './results.ts';
 import { MemoryStore } from './memory/store.ts';
 import { containsSecret } from './secrets.ts';
+import type { EditPatch, ModelEditor, SweepAxisDef, TreeOp } from './edits.ts';
 
 const enc = new TextEncoder();
 import type { ImageBlock, TextBlock } from './provider/types.ts';
@@ -52,6 +53,8 @@ export interface AgentSessionOptions {
   forbidden?: () => readonly string[];
   /** Largest single read (default MAX_READ_BYTES); tests lower it to exercise paging. */
   maxReadBytes?: number;
+  /** Tree and sweep patch builders (edit_tree, define_sweep); absent: those tools report <tool>_unavailable. */
+  editor?: ModelEditor;
 }
 
 /** Bounds on tool input before parsing (audit S5: a 2,000-deep value made zod throw RangeError). */
@@ -133,6 +136,7 @@ export class AgentSession {
   private clock: () => string;
   private forbidden: () => readonly string[];
   private maxReadBytes: number;
+  private editor: ModelEditor | undefined;
 
   constructor(o: AgentSessionOptions) {
     this.id = o.sessionId ?? newSessionId();
@@ -144,6 +148,7 @@ export class AgentSession {
     this.clock = o.clock ?? (() => isoNow());
     this.forbidden = o.forbidden ?? (() => []);
     this.maxReadBytes = o.maxReadBytes ?? MAX_READ_BYTES;
+    this.editor = o.editor;
     this.trail = new NavTrail(this.clock);
   }
 
@@ -238,6 +243,51 @@ export class AgentSession {
         this.mark('spec', op.seq);
         const v = structuredIssues(this.log.data, this.registry);
         return ok({ seq: op.seq, valid: v.ok, issueCount: v.count, invalidates: op.invalidates }, v.count ? { data: { issues: v.issues }, source: 'validation' } : undefined);
+      }
+      case 'edit_tree': {
+        const x = a as ToolInput<'edit_tree'>;
+        if (!this.editor) return fail('edit_tree_unavailable');
+        let op: TreeOp;
+        if (x.op === 'add') {
+          if (!x.parent || !x.type) return fail('missing_argument', { need: 'parent and type' }, 'input-validation');
+          op = { op: 'add', parent: x.parent, type: x.type, ...(x.id ? { id: x.id } : {}) };
+        } else {
+          if (!x.pointer) return fail('missing_argument', { need: 'pointer' }, 'input-validation');
+          if (x.op === 'rename') { if (!x.id) return fail('missing_argument', { need: 'id' }, 'input-validation'); op = { op: 'rename', pointer: x.pointer, id: x.id }; }
+          else op = x.op === 'delete' ? { op: 'delete', pointer: x.pointer } : { op: 'duplicate', pointer: x.pointer, ...(x.id ? { id: x.id } : {}) };
+        }
+        const r = this.editor.treeOp(this.log.data, op);
+        if (!r.ok) {
+          const choices = op.op === 'add' && this.editor.addChoices ? this.editor.addChoices(this.log.data, op.parent) : null;
+          return fail('refused', { reason: r.reason, ...(choices ? { types: choices } : {}) }, 'edit');
+        }
+        return this.applyEdit(r, x.reason);
+      }
+      case 'define_sweep': {
+        const x = a as ToolInput<'define_sweep'>;
+        const ed = this.editor;
+        if (!ed) return fail('define_sweep_unavailable');
+        let r: EditPatch;
+        if (x.remove) r = ed.sweepRemove(this.log.data, x.id);
+        else {
+          if (!x.study || !x.axes?.length) return fail('missing_argument', { need: 'study and axes' }, 'input-validation');
+          const axes: SweepAxisDef[] = [];
+          for (const [i, ax] of x.axes.entries()) {
+            const values = ax.values ?? [];
+            const range = ax.start !== undefined || ax.stop !== undefined || ax.n !== undefined;
+            if (values.length && range) return fail('values_or_range', { axis: i + 1, hint: 'give values, or start, stop and n' }, 'input-validation');
+            axes.push({ param: ax.param, mode: values.length ? 'values' : 'range', values, start: ax.start ?? '', stop: ax.stop ?? '', n: ax.n ?? 0, unit: ax.unit ?? '' });
+          }
+          r = ed.sweepSet(this.log.data, { id: x.id, study: x.study, axes });
+        }
+        if (!r.ok) return fail('refused', { reason: r.reason }, 'edit');
+        const out = await this.applyEdit(r, x.reason);
+        if (!out.isError) {
+          if (!x.remove) ed.chooseStudy?.(x.id);
+          const def = x.remove ? null : ed.sweepGet(this.log.data, x.id);
+          if (def) return { ...out, content: [...out.content, { type: 'text', text: toolText({ sweep: 'stored' }, { data: { sweep: def }, source: 'spec' }) }] };
+        }
+        return out;
       }
       case 'revert_op': {
         const x = a as ToolInput<'revert_op'>;
@@ -387,19 +437,23 @@ export class AgentSession {
         const x = a as ToolInput<'run_study'>;
         if (!this.runner) return fail('no_runner');
         const studies = ((this.log.data as { studies?: Array<{ id?: unknown }> }).studies ?? []).map((t) => t.id);
-        if (!studies.includes(x.study)) return fail('unknown_study', { study: x.study, studies }, 'spec');
+        // default (no study named): the host's chosen study when it is a study of the spec, else the first
+        const chosen = this.runner.defaultStudy?.() ?? null;
+        const study = x.study ?? (chosen !== null && studies.includes(chosen) ? chosen : typeof studies[0] === 'string' ? studies[0] : undefined);
+        if (study === undefined) return fail('no_study', { studies }, 'spec');
+        if (!studies.includes(study)) return fail('unknown_study', { study, studies }, 'spec');
         const h = await specHash(this.log.data);
         const ctl = new AbortController();
         const onAbort = () => ctl.abort();
         signal?.addEventListener('abort', onAbort, { once: true });
         let outcome: StudyOutcome;
-        try { outcome = await this.runner.run({ specText: this.log.text, studyId: x.study, signal: ctl.signal, oplogHead: this.log.head }); }
-        catch (e) { outcome = { ok: false, study: x.study, stage: 'runner', message: (e as Error).message }; }
+        try { outcome = await this.runner.run({ specText: this.log.text, studyId: study, signal: ctl.signal, oplogHead: this.log.head }); }
+        catch (e) { outcome = { ok: false, study, stage: 'runner', message: (e as Error).message }; }
         finally { signal?.removeEventListener('abort', onAbort); }
         const at = this.clock();
         this.results.set(outcome, h, at);
-        this.sideEffects.push({ seq: this.sideEffects.length + 1, ts: at, actor: this.actor, kind: 'run', study: x.study, ok: outcome.ok, specHash: h, turn: this.turn, opSeq: this.log.ops.length });
-        return { ...ok(await this.summaryTrusted(outcome, h), { data: this.summaryData(outcome), source: 'results' }), isError: !outcome.ok };
+        this.sideEffects.push({ seq: this.sideEffects.length + 1, ts: at, actor: this.actor, kind: 'run', study, ok: outcome.ok, specHash: h, turn: this.turn, opSeq: this.log.ops.length });
+        return { ...ok({ ...(x.study === undefined ? { study_default: true } : {}), ...(await this.summaryTrusted(outcome, h)) }, { data: this.summaryData(outcome), source: 'results' }), isError: !outcome.ok };
       }
       case 'evaluate': {
         const x = a as ToolInput<'evaluate'>;
@@ -479,10 +533,67 @@ export class AgentSession {
         const x = a as ToolInput<'set_camera'>;
         const req = x.kind === 'fit' ? { kind: 'fit' as const }
           : x.kind === 'preset' ? (x.preset ? { kind: 'preset' as const, preset: x.preset } : null)
-          : (x.target ? { kind: 'look_at' as const, target: x.target as [number, number, number], ...(x.distance !== undefined ? { distance: x.distance } : {}) } : null);
+          : (x.target ? { kind: 'look_at' as const, target: x.target as [number, number, number], ...(x.distance !== undefined ? { distance: x.distance } : {}), ...(x.preset ? { preset: x.preset } : {}) } : null);
         if (!req) return fail('missing_camera_argument');
         const r = await this.nav.setCamera(req);
-        return r.ok ? ok({}) : fail('ui_refused', { message: r.message ?? '' }, 'ui');
+        return r.ok ? ok(r.message ? { note: r.message } : {}) : fail('ui_refused', { message: r.message ?? '' }, 'ui');
+      }
+      case 'cancel_run': {
+        if (!this.nav.cancelRun) return fail('cancel_run_unavailable');
+        const r = await this.nav.cancelRun();
+        return r.ok ? ok(r.message ? { note: r.message } : {}) : fail('ui_refused', { message: r.message ?? '' }, 'ui');
+      }
+      case 'select_sweep_point': {
+        const x = a as ToolInput<'select_sweep_point'>;
+        if (!this.nav.sweep || !this.nav.selectSweepPoint) return fail('select_sweep_point_unavailable');
+        const before = this.nav.sweep();
+        if (!before) return fail('no_sweep', { hint: 'run a parametric study first (run_study with the parametric study id, or Compute in the workbench)' }, 'ui');
+        if (x.index !== undefined) {
+          if (!before.points.some((p) => p.index === x.index)) return fail('no_sweep_point', { index: x.index, total: before.total }, 'ui');
+          const r = await this.nav.selectSweepPoint(x.index);
+          if (!r.ok) return fail('ui_refused', { message: r.message ?? '' }, 'ui');
+        }
+        const sw = this.nav.sweep() ?? before;
+        return ok({ total: sw.total, done: sw.done, shown: sw.shown, ...(x.index !== undefined ? { selected: x.index } : {}) }, { data: sw, source: 'sweep' });
+      }
+      case 'probe': {
+        const x = a as ToolInput<'probe'>;
+        const n = this.nav;
+        if (!n.probeAdd || !n.probeList || !n.probeRemove) return fail('probe_unavailable');
+        if (x.action === 'add') {
+          if (!x.at) return fail('missing_point', { hint: 'at: [x, y] or [x, y, z] in metres' }, 'input-validation');
+          const at: [number, number, number] = [x.at[0]!, x.at[1]!, x.at[2] ?? 0];
+          const r = await n.probeAdd(at);
+          if (!r.ok || !r.probe) return fail('ui_refused', { message: r.message ?? '' }, 'ui');
+          return ok({ n: r.probe.n, inside: r.probe.value !== null }, { data: r.probe, source: 'probe' });
+        }
+        if (x.action === 'remove' || x.action === 'clear') {
+          if (x.action === 'remove' && x.n === undefined) return fail('missing_probe_number');
+          const r = n.probeRemove(x.action === 'clear' ? 'all' : x.n!);
+          if (!r.ok) return fail('ui_refused', { message: r.message ?? '' }, 'ui');
+        }
+        const rows = n.probeList();
+        if (!rows) return fail('no_probe_table', { hint: 'open the results view (set_view_mode results) after a solve' }, 'ui');
+        return ok({ count: rows.length }, { data: { probes: rows }, source: 'probe' });
+      }
+      case 'quick_view': {
+        const x = a as ToolInput<'quick_view'>;
+        if (!this.nav.quickView || !this.nav.setQuickView) return fail('quick_view_unavailable');
+        const patch = Object.fromEntries(Object.entries(x).filter(([, v]) => v !== undefined));
+        // a component for the shown field is checked here too (the view checks a requested field's components itself)
+        if (x.component !== undefined && x.field === undefined) {
+          const cur = this.nav.quickView();
+          const n = cur ? cur.components.length : 0;
+          const bad = cur && (n > 1 ? x.component < -1 || x.component >= n : x.component !== -1 && x.component !== 0);
+          if (bad) return fail('component_out_of_range', { message: n > 1 ? `field ${cur.field ?? ''} has ${n} components: use -1 (magnitude) or 0 .. ${n - 1}` : `field ${cur.field ?? ''} is a scalar: no components`, components: cur.components }, 'input-validation');
+        }
+        if (Object.keys(patch).length) {
+          const r = await this.nav.setQuickView(patch);
+          if (!r.ok) return fail('ui_refused', { message: r.message ?? '', current: this.nav.quickView() }, 'ui');
+        }
+        const v = this.nav.quickView();
+        if (!v) return fail('no_field_drawn', { hint: 'switch to results after a solve (set_view_mode results)' }, 'ui');
+        return ok({ changed: Object.keys(patch) }, { data: v, source: 'view' });
       }
       case 'set_view_mode': {
         const x = a as ToolInput<'set_view_mode'>;
@@ -518,6 +629,16 @@ export class AgentSession {
       }
     }
     return fail('unknown_tool');
+  }
+
+  /** Apply a built patch as one agent op (reason logged), with validation issues, like apply_ops. */
+  private async applyEdit(r: Extract<EditPatch, { ok: true }>, reason: string): Promise<ToolOutput> {
+    let op;
+    try { op = await this.log.apply(r.patch, { actor: this.actor, reason }); }
+    catch (e) { return fail('patch_failed', { message: (e as Error).message }, 'oplog-error'); }
+    this.mark('spec', op.seq);
+    const v = structuredIssues(this.log.data, this.registry);
+    return ok({ seq: op.seq, valid: v.ok, issueCount: v.count, invalidates: op.invalidates }, { data: { id: r.id, pointer: r.pointer, ...(r.note ? { note: r.note } : {}), ...(v.count ? { issues: v.issues } : {}) }, source: 'edit' });
   }
 
   private async summaryTrusted(o: StudyOutcome, h: string): Promise<Record<string, unknown>> {

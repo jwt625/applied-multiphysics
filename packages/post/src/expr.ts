@@ -37,6 +37,11 @@ export interface ExprOptions {
   defs?: Readonly<Record<string, string>>;
   /** step index of the solution fields (default: the last step present, as `fieldOf`) */
   step?: number;
+  /** DG0 fields are read through the corner recovery of the 2D view (`recoverDG0`: linear on the cell corners,
+   * continuous inside each domain, jumps kept at domain interfaces) instead of the cell constant; such a field then
+   * counts as continuous. For plots (cut lines, cut points, grids); evaluations of extrema / integrals should keep
+   * the default (exact cell values). */
+  smooth?: boolean;
 }
 
 export interface FieldExpr {
@@ -182,7 +187,7 @@ function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defs
         clash('field');
         fieldsRead.add(fr.field.name);
         sources.set(name, { k: 'field', field: fr.field, comp: fr.comp });
-        return { kind: 'field', key: name, dim: fieldDim(fr.field), complex: false, continuous: fr.field.space !== 'DG0' };
+        return { kind: 'field', key: name, dim: fieldDim(fr.field), complex: false, continuous: fr.field.space !== 'DG0' || !!o.smooth };
       }
       const sc = scalarRef(name);
       if (sc) { clash('module scalar'); const u = parseUnit(sc.unit || '1'); return { kind: 'const', re: sc.value * u.factor, dim: u.dim, global: true }; }
@@ -214,7 +219,7 @@ function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defs
     const interp = (f: FieldData, grad: boolean) => {
       const c = cache.get(f);
       if (c && (!grad || c.grad)) return c;
-      const r = interpolate(f, ps, { grad });
+      const r = interpolate(f, ps, { grad, ...(o.smooth ? { smooth: true } : {}) });
       cache.set(f, r);
       return r;
     };

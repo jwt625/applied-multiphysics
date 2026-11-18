@@ -31,6 +31,13 @@ export interface Layer2D {
 	disp: RefinedDisplay;
 	/** one value per lattice point, element-major */
 	values?: Float32Array | null;
+	/**
+	 * complex field (DevLog-052): `values` = Re and `values2` = Im at the lattice points, both interpolated linearly and
+	 * combined per fragment: |u|, arg u (atan2, no seam smearing across the branch cut) or Re(u e^(j phase)) (the phase
+	 * animation changes a uniform only). Not combined with `coef`.
+	 */
+	values2?: Float32Array | null;
+	complex?: { mode: 'abs' | 'arg' | 'inst'; phase: number } | null;
 	/** element coefficients for per-fragment evaluation (smooth view, DevLog-019); `values` stay required (range, raw) */
 	coef?: ElementCoef | null;
 	scale?: ScaleMode;
@@ -62,6 +69,7 @@ const VS = `#version 300 es
 in vec2 aPos;
 in vec2 aBary;
 in float aVal;
+in float aVal2;
 in float aReg;
 uniform vec2 uScale;
 uniform vec2 uOffset;
@@ -72,6 +80,7 @@ uniform int uK;
 uniform float uX0;
 uniform highp sampler2D uCoef;
 out float vVal;
+out float vVal2;
 out vec3 vBary;
 out float vX;
 flat out int vReg;
@@ -79,6 +88,7 @@ flat out vec4 vC[5];
 void main() {
 	vBary = vec3(aBary, 1.0 - aBary.x - aBary.y);
 	vVal = aVal * uValSign;
+	vVal2 = aVal2 * uValSign;
 	vReg = int(aReg + 0.5);
 	vX = aPos.x + uX0;
 	for (int k = 0; k < 5; k++) vC[k] = vec4(0.0);
@@ -98,8 +108,11 @@ const FS = `#version 300 es
 precision highp float;
 precision highp int;
 in float vVal;
+in float vVal2;
 in vec3 vBary;
 in float vX;
+uniform int uCx;
+uniform vec2 uCS;
 flat in int vReg;
 flat in vec4 vC[5];
 uniform int uCoefOn;
@@ -142,7 +155,12 @@ float mapT(float v) {
 vec3 lut(float t) { return texture(uLut, vec2(clamp(t, 0.0, 1.0) * (255.0 / 256.0) + 0.5 / 256.0, 0.5)).rgb; }
 /** P2 basis at the parent barycentrics (L0, L1, L2) = (vBary.z, vBary.x, vBary.y), corners 0 1 2, mids 01 12 20 */
 float fieldValue() {
-	if (uCoefOn == 0) return vVal;
+	if (uCoefOn == 0) {
+		if (uCx == 1) return length(vec2(vVal, vVal2));
+		if (uCx == 2) return atan(vVal2, vVal);
+		if (uCx == 3) return uCS.x * vVal - uCS.y * vVal2;
+		return vVal;
+	}
 	float L0 = vBary.z, L1 = vBary.x, L2 = vBary.y;
 	float N[6] = float[6](L0 * (2.0 * L0 - 1.0), L1 * (2.0 * L1 - 1.0), L2 * (2.0 * L2 - 1.0), 4.0 * L0 * L1, 4.0 * L1 * L2, 4.0 * L2 * L0);
 	float c[20] = float[20](vC[0].x, vC[0].y, vC[0].z, vC[0].w, vC[1].x, vC[1].y, vC[1].z, vC[1].w, vC[2].x, vC[2].y, vC[2].z, vC[2].w,
@@ -259,9 +277,9 @@ export class Renderer2D {
 		this.gl = gl;
 		this.prog = compile(gl, VS, FS);
 		this.maxTex = Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) || 2048;
-		for (const n of ['uScale', 'uOffset', 'uMode', 'uLog', 'uMin', 'uMax', 'uLut', 'uRegions', 'uMask', 'uUseMask', 'uWire', 'uWireColor', 'uNLevels', 'uLevels', 'uUniform', 'uUniformColor', 'uValSign', 'uOpacity', 'uCoefOn', 'uNp', 'uK', 'uX0', 'uCoef', 'uNc', 'uMag', 'uPsi', 'uA', 'uB'])
+		for (const n of ['uScale', 'uOffset', 'uMode', 'uLog', 'uMin', 'uMax', 'uLut', 'uRegions', 'uMask', 'uUseMask', 'uWire', 'uWireColor', 'uNLevels', 'uLevels', 'uUniform', 'uUniformColor', 'uValSign', 'uOpacity', 'uCoefOn', 'uNp', 'uK', 'uX0', 'uCoef', 'uNc', 'uMag', 'uPsi', 'uA', 'uB', 'uCx', 'uCS'])
 			this.u[n] = gl.getUniformLocation(this.prog, n);
-		for (const n of ['aPos', 'aBary', 'aVal', 'aReg']) this.loc[n] = gl.getAttribLocation(this.prog, n);
+		for (const n of ['aPos', 'aBary', 'aVal', 'aVal2', 'aReg']) this.loc[n] = gl.getAttribLocation(this.prog, n);
 		this.vao = gl.createVertexArray()!;
 		const tex = () => {
 			const t = gl.createTexture()!;
@@ -297,7 +315,7 @@ export class Renderer2D {
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(6), gl.STATIC_DRAW);
 		gl.enableVertexAttribArray(this.loc.aPos!);
 		gl.vertexAttribPointer(this.loc.aPos!, 2, gl.FLOAT, false, 0, 0);
-		for (const n of ['aBary', 'aVal', 'aReg']) gl.disableVertexAttribArray(this.loc[n]!);
+		for (const n of ['aBary', 'aVal', 'aVal2', 'aReg']) gl.disableVertexAttribArray(this.loc[n]!);
 		const u = this.u;
 		gl.uniform2f(u.uScale!, 1, 1); gl.uniform2f(u.uOffset!, 0, 0); gl.uniform1f(u.uValSign!, 1); gl.uniform1f(u.uOpacity!, 1);
 		gl.uniform1i(u.uCoefOn!, 0); gl.uniform1i(u.uNp!, 1); gl.uniform1i(u.uK!, 2); gl.uniform1i(u.uNc!, 1);
@@ -482,6 +500,15 @@ export class Renderer2D {
 				gl.disableVertexAttribArray(this.loc.aVal!);
 				gl.vertexAttrib1f(this.loc.aVal!, 0);
 			}
+			const vals2 = vals && L.complex && L.values2 && L.values2.length === vals.length ? L.values2 : null;
+			if (vals2) bind(this.valueBuf(e, vals2), 'aVal2', 1);
+			else if (this.loc.aVal2! >= 0) {
+				gl.disableVertexAttribArray(this.loc.aVal2!);
+				gl.vertexAttrib1f(this.loc.aVal2!, 0);
+			}
+			const cxMode = vals2 ? (L.complex!.mode === 'abs' ? 1 : L.complex!.mode === 'arg' ? 2 : 3) : 0;
+			gl.uniform1i(u.uCx!, cxMode);
+			gl.uniform2f(u.uCS!, Math.cos(L.complex?.phase ?? 0), Math.sin(L.complex?.phase ?? 0));
 			const r = L.range ?? { min: 0, max: 1 };
 			gl.uniform1i(u.uMode!, L.kind === 'surface' ? 1 : L.kind === 'contour' ? 2 : 0);
 			gl.uniform1i(u.uLog!, L.scale === 'log' ? 1 : L.scale === 'symlog' ? 2 : 0);

@@ -1,0 +1,338 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-71",
+  "class": "c",
+  "generator": "validation/driven/bragg_tmm.py",
+  "command": "cd validation && uv run python driven/bragg_tmm.py",
+  "method": "Quarter-wave Si3N4 / SiO2 Bragg mirror (6 high-index layers, lam_B 1.55 um) between two SiO2 port sections in a channel with natural walls: |S11|, |S21| of port modes 0 (normal) and 1 (oblique) by the transfer matrix, cross-checked by an admittance recursion and the quarter-wave closed form.",
+  "generated_at": "2026-11-18T13:36:17-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "S11_abs.l1300",
+      "value": 0.03948555355634186,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 8.427703712348019e-17
+      },
+      "inputs": {
+        "lambda0_m": 1.3e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_abs.l1300",
+      "value": 0.9992201414404887,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 8.427703712348019e-17
+      },
+      "inputs": {
+        "lambda0_m": 1.3e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S11_11_abs.l1300",
+      "value": 0.9505092188419783,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 2.7755575615628914e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.3e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 26.7445723359799
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_11_abs.l1300",
+      "value": 0.3106963548167449,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 2.7755575615628914e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.3e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 26.7445723359799
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S11_abs.l1450",
+      "value": 0.9372302751219261,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 2.220446049250313e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.45e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_abs.l1450",
+      "value": 0.34871107151175873,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 2.220446049250313e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.45e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S11_11_abs.l1450",
+      "value": 0.980785968546881,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 1.411542957436638e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.45e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 30.128334616714483
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_11_abs.l1450",
+      "value": 0.1950868624524896,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 1.411542957436638e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.45e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 30.128334616714483
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S11_abs.l1550",
+      "value": 0.9596613733609889,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 1.1102230246251565e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.55e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_abs.l1550",
+      "value": 0.2811584046029936,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 1.1102230246251565e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.55e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S11_11_abs.l1550",
+      "value": 0.9488188074549496,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 2.482534153247273e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.55e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 32.44942728513852
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_11_abs.l1550",
+      "value": 0.3158209470883264,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 2.482534153247273e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.55e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 32.44942728513852
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S11_abs.l1700",
+      "value": 0.9159056592571065,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 1.5700924586837752e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.7e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_abs.l1700",
+      "value": 0.40139360151951214,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 1.5700924586837752e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.7e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S11_11_abs.l1700",
+      "value": 0.0811066902926392,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 1.8041124150158794e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.7e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 36.04919330483219
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_11_abs.l1700",
+      "value": 0.9967054252836058,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 1.8041124150158794e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.7e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 36.04919330483219
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S11_abs.l1850",
+      "value": 0.4956973801330801,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 5.117875266520903e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.85e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_abs.l1850",
+      "value": 0.8684953122091108,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 5.117875266520903e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.85e-06,
+        "port_mode": 0,
+        "angle_in_SiO2_deg": 0.0
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S11_11_abs.l1850",
+      "value": 0.47420456050757104,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 2.6161598475199774e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.85e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 39.821975243682324
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "S21_11_abs.l1850",
+      "value": 0.8804146947852597,
+      "unit": "1",
+      "precision": {
+        "method": "transfer matrix (route 1) vs admittance recursion (route 2)",
+        "route_agreement": 2.6161598475199774e-16
+      },
+      "inputs": {
+        "lambda0_m": 1.85e-06,
+        "port_mode": 1,
+        "angle_in_SiO2_deg": 39.821975243682324
+      },
+      "locator": "validation/driven/bragg_tmm.py routes 1 and 2"
+    },
+    {
+      "metric_id": "R_quarter_wave",
+      "value": 0.9209499515210993,
+      "unit": "1",
+      "precision": {
+        "method": "closed form",
+        "vs_route1": 0.0
+      },
+      "inputs": {
+        "lambda0_m": 1.55e-06,
+        "N": 6,
+        "n_H": 1.9963,
+        "n_L": 1.4444
+      },
+      "locator": "Macleod, Thin-Film Optical Filters, 4th ed. (2010), ch. 6 (quarter-wave stack); derivation in the script header"
+    }
+  ]
+}

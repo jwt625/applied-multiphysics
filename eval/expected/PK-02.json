@@ -1,0 +1,101 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "PK-02",
+  "class": "c",
+  "generator": "validation/pkg/tsv_lame.py",
+  "command": "cd validation && uv run python pkg/tsv_lame.py",
+  "method": "Two-phase plane-strain Lame solution (eps_zz = 0), Cu core radius a in a Si annulus to R, traction-free rim, uniform dT = T_use - T_ref; isotropic constants from the library at 298.15 K (Si: Voigt-Reuss-Hill E, nu)",
+  "generated_at": "2026-11-18T13:47:38-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "cu_srr",
+      "value": 170100106.91368437,
+      "unit": "Pa",
+      "definition": "radial stress in the Cu (uniform; = -p)",
+      "precision": {
+        "method": "exact closed form (3 x 3 solve, float64)"
+      },
+      "locator": "validation/pkg/tsv_lame.py lame() (two-phase plane-strain Lame, finite traction-free outer radius)"
+    },
+    {
+      "metric_id": "cu_szz",
+      "value": 323848369.667531,
+      "unit": "Pa",
+      "definition": "axial stress in the Cu (plane strain)",
+      "precision": {
+        "method": "exact closed form (3 x 3 solve, float64)"
+      },
+      "locator": "validation/pkg/tsv_lame.py lame() (two-phase plane-strain Lame, finite traction-free outer radius)"
+    },
+    {
+      "metric_id": "si_srr_2a",
+      "value": 37209398.387368456,
+      "unit": "Pa",
+      "definition": "radial stress in the Si at r = 2a",
+      "precision": {
+        "method": "exact closed form (3 x 3 solve, float64)"
+      },
+      "locator": "validation/pkg/tsv_lame.py lame() (two-phase plane-strain Lame, finite traction-free outer radius)"
+    },
+    {
+      "metric_id": "si_sphi_2a",
+      "value": -51384407.2968422,
+      "unit": "Pa",
+      "definition": "hoop stress in the Si at r = 2a",
+      "precision": {
+        "method": "exact closed form (3 x 3 solve, float64)"
+      },
+      "locator": "validation/pkg/tsv_lame.py lame() (two-phase plane-strain Lame, finite traction-free outer radius)"
+    },
+    {
+      "metric_id": "si_szz",
+      "value": 39124376.169230714,
+      "unit": "Pa",
+      "definition": "axial stress in the Si (uniform, plane strain)",
+      "precision": {
+        "method": "exact closed form (3 x 3 solve, float64)"
+      },
+      "locator": "validation/pkg/tsv_lame.py lame() (two-phase plane-strain Lame, finite traction-free outer radius)"
+    },
+    {
+      "metric_id": "rim_ur",
+      "value": -1.0024369216656939e-08,
+      "unit": "m",
+      "definition": "radial displacement at r = R",
+      "precision": {
+        "method": "exact closed form (3 x 3 solve, float64)"
+      },
+      "locator": "validation/pkg/tsv_lame.py lame() (two-phase plane-strain Lame, finite traction-free outer radius)"
+    }
+  ],
+  "inputs": {
+    "a_m": 5e-06,
+    "R_m": 2.5e-05,
+    "dT_K": -100.0,
+    "copper": {
+      "E": 123500000000.0,
+      "nu": 0.35,
+      "alpha": 1.6581238447607446e-05,
+      "k": 401.004
+    },
+    "silicon": {
+      "E": 162580000000.0,
+      "nu": 0.2231,
+      "alpha": 2.600985401459854e-06,
+      "k": 149.038
+    },
+    "p_interface_Pa": -170100106.91368437,
+    "p_infinite_matrix_Pa": -177769523.68595144
+  }
+}

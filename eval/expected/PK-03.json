@@ -1,0 +1,60 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "PK-03",
+  "class": "c",
+  "generator": "validation/pkg/microstrip_hj.py",
+  "command": "cd validation && uv run python pkg/microstrip_hj.py",
+  "method": "Hammerstad-Jensen 1980 quasi-static microstrip (zero thickness), via the open re-tabulations named in the locator",
+  "generated_at": "2026-11-18T13:44:53-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "L_per_m",
+      "value": 4.217046220822712e-07,
+      "unit": "H/m",
+      "definition": "Z01 / c0",
+      "precision": {
+        "closed_form_accuracy": "0.01 % (W/h <= 1, Qucs s.11.1)"
+      },
+      "locator": "Qucs technical documentation s.11.1 eqs. (11.4)-(11.6), (11.15)-(11.18); scikit-rf skrf/media/mline.py"
+    },
+    {
+      "metric_id": "C_per_m",
+      "value": 5.850518060257958e-11,
+      "unit": "F/m",
+      "definition": "eps_eff / (c0 Z01)",
+      "precision": {
+        "closed_form_accuracy": "0.01 % (W/h <= 1, Qucs s.11.1); 0.2 % (eps_r < 128, 0.01 <= W/h <= 100, Qucs s.11.1)"
+      },
+      "locator": "Qucs technical documentation s.11.1 eqs. (11.4)-(11.6), (11.15)-(11.18); scikit-rf skrf/media/mline.py"
+    },
+    {
+      "metric_id": "Z0",
+      "value": 84.89986866012278,
+      "unit": "Ohm",
+      "definition": "Z01 / sqrt(eps_eff)",
+      "precision": {
+        "closed_form_accuracy": "0.01 % (W/h <= 1, Qucs s.11.1); half of 0.2 % (eps_r < 128, 0.01 <= W/h <= 100, Qucs s.11.1)"
+      },
+      "locator": "Qucs technical documentation s.11.1 eqs. (11.4)-(11.6), (11.15)-(11.18); scikit-rf skrf/media/mline.py"
+    }
+  ],
+  "inputs": {
+    "W_m": 1e-05,
+    "h_m": 1e-05,
+    "eps_r": 2.9,
+    "u": 1.0,
+    "eps_eff": 2.2174002456238564,
+    "Z01_ohm": 126.4238652040079
+  }
+}

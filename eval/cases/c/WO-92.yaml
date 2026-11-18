@@ -1,0 +1,146 @@
+# WO-92: Film (eps 4, 0.3 lambda0) at 30 deg, TM: reflection and transmission through a Floquet cell
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-92
+class: c
+title: 'Film (eps 4, 0.3 lambda0) at 30 deg, TM: reflection and transmission through a Floquet cell'
+status: unvalidated
+untestable_reason: null
+physics: [optics-scattering]
+dimension: 2D-periodic
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    film_thickness: 0.3
+    unit: lambda0
+    probe_above:
+      value: [0.25, 0.5]
+      unit: um
+    probe_below:
+      value: [0.25, -0.8]
+      unit: um
+materials:
+  film: {eps_r: 4.0, source: test input}
+  background: {eps_r: 1.0, source: vacuum}
+bcs: null
+initial: null
+study: {type: frequency, shift: 'lambda0 = 1 um, TM, incidence 30 deg'}
+references:
+- id: r_abs.L0
+  quantity: '|r| (|E_z| of the reflected wave per unit incident amplitude) (mesh level 0)'
+  metric_id: r_abs
+  value: 0.3993193462251691
+  unit: '1'
+  tolerance: {rel: 0.0005, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-92.json, metric_id: r_abs}
+  provenance: {citation: 'Airy film formula (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.4)', locator: validation/bloch/bloch_refs.py,
+    accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: u / u0
+    terms:
+      u:
+        kind: probe
+        field: Ez_sc_abs
+        point: [2.5e-07, 5.0e-07]
+      u0: {value: 1, unit: V/m, source: sims/floquet-slab-oblique.yaml plane-wave amplitude}
+- id: r_abs.L1
+  quantity: '|r| (|E_z| of the reflected wave per unit incident amplitude) (mesh level 1)'
+  metric_id: r_abs
+  value: 0.3993193462251691
+  unit: '1'
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-92.json, metric_id: r_abs}
+  provenance: {citation: 'Airy film formula (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.4)', locator: validation/bloch/bloch_refs.py,
+    accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: u / u0
+    terms:
+      u:
+        kind: probe
+        field: Ez_sc_abs
+        point: [2.5e-07, 5.0e-07]
+      u0: {value: 1, unit: V/m, source: sims/floquet-slab-oblique.yaml plane-wave amplitude}
+- id: tau_abs.L0
+  quantity: '|tau| (|E_z| of the transmitted wave per unit incident amplitude) (mesh level 0)'
+  metric_id: tau_abs
+  value: 0.9168118998629454
+  unit: '1'
+  tolerance: {rel: 0.0005, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-92.json, metric_id: tau_abs}
+  provenance: {citation: 'Airy film formula (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.4)', locator: validation/bloch/bloch_refs.py,
+    accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: u / u0
+    terms:
+      u:
+        kind: probe
+        field: Ez_abs
+        point: [2.5e-07, -8.0e-07]
+      u0: {value: 1, unit: V/m, source: sims/floquet-slab-oblique.yaml plane-wave amplitude}
+- id: tau_abs.L1
+  quantity: '|tau| (|E_z| of the transmitted wave per unit incident amplitude) (mesh level 1)'
+  metric_id: tau_abs
+  value: 0.9168118998629454
+  unit: '1'
+  tolerance: {rel: 0.0001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-92.json, metric_id: tau_abs}
+  provenance: {citation: 'Airy film formula (Born and Wolf, Principles of Optics, 7th ed., sec. 1.6.4)', locator: validation/bloch/bloch_refs.py,
+    accessed: null, generator: validation/bloch/gen_expected.py}
+  extract:
+    kind: expr
+    expr: u / u0
+    terms:
+      u:
+        kind: probe
+        field: Ez_abs
+        point: [2.5e-07, -8.0e-07]
+      u0: {value: 1, unit: V/m, source: sims/floquet-slab-oblique.yaml plane-wave amplitude}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels
+speed:
+  budget_s: {browser: null, native: 5.0}
+  budget_basis: 'measured 2026-11-18: 0.3 s at level 0 (11,467 DOF), 0.9 s at level 1 (45,053 DOF)'
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited textbook formulas
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero: {suitable: false, why: verification of a library example}
+spec: sims/floquet-slab-oblique.yaml
+missing: []
+assumptions: []
+notes: ['Above the film the scattered field is the reflected plane wave, so its modulus is |r| everywhere; below, the total
+    field is the transmitted wave.']
+lane: E4
+created: '2026-11-18'

@@ -64,7 +64,7 @@ results:
       data: sol_eig
       steps: first
       items:
-        - {id: f_te_active, type: global, expr: solid.f_18, unit: GHz, label: "electrically active thickness-extension mode: largest |floating-terminal voltage| (solid.V_term_k) among the 20 modes, index 18 on the default mesh (MX run 2026-11-07); closed form TE1 6.6229 GHz"}
+        - {id: f_te_active, type: global, expr: solid.f_18, unit: GHz, label: "electrically active thickness-extension mode: largest |floating-terminal voltage| (solid.V_term_k) among the 20 modes, index 18 on the default mesh (own run 2026-11-07); closed form TE1 6.6229 GHz"}
         - {id: V_te_active, type: global, expr: solid.V_term_18, unit: V, label: "floating-terminal voltage of that mode (normalised mode, relative measure only)"}
         - {id: f_te_piston, type: global, expr: solid.f_6, unit: GHz, label: "most piston-like thickness-extension mode: largest |uy| at the plate centre, index 6 on the default mesh"}
     - id: ev_eig
@@ -99,7 +99,7 @@ provenance:
     params.g_metal: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): g_metal = 1[um] 'metal to LN gap'; Blocks 3, 4 at z = g_metal + t_metal/2", date: 2026-11-07}
     params.t_air: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): t_air = w_gap; Block 2 (air) w_dom x t_air centred at 0", date: 2026-11-07}
     params.f_shift: {basis: derived, source: "validation/mp/references.py ln_fbar: TE1 = sqrt(C11 / rho) / (2 t_LN) for the 2D (u_z = 0) plate", date: 2026-11-07, note: "the shift typed in Wentao's model is not used"}
-    couplings.pz.settings.crystals: {basis: derived, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): Rotated System 2, Z-X-Z angles (0, pi/2, pi/2), used by Piezoelectric Material 1; mapped to this 2D frame (model x = his x, model y = his z, model z = -his y): crystal X along the film normal (model y) = cut x, crystal Z along model z = propagation z (equivalently R = Rz(pi/2); derivation DevLog-035 s.2.11; MT DevLog-033 F1: identical modes to the euler form, max rel diff 1.6e-14)", date: 2026-11-07}
+    couplings.pz.settings.crystals: {basis: derived, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): Rotated System 2, Z-X-Z angles (0, pi/2, pi/2), used by Piezoelectric Material 1; mapped to this 2D frame (model x = his x, model y = his z, model z = -his y): crystal X along the film normal (model y) = cut x, crystal Z along model z = propagation z (equivalently R = Rz(pi/2); own derivation; own check 2026-11-07: identical modes to the euler form, max rel diff 1.6e-14)", date: 2026-11-07}
     materials.Air.override.eps_r: {basis: user, date: 2026-11-07, note: "assumption: air as vacuum (materials/air.yaml eps_r is N/A)"}
     mesh.size.hmax: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): Mesh 1 Size hmax 1.0E-5", date: 2026-11-07}
     mesh.refine.0.h: {basis: user, source: "Wentao's model inputs, <NAS>/COMSOL/20250927_LN_FBAR_gapped (inputs only): Free Triangular 1 Size 1 hmax = t_LN/5", date: 2026-11-07}
@@ -108,7 +108,7 @@ assumptions:
   - {text: "Electrodes are ideal conductors in air (boundaries only): they do not touch the LN (1 um gap), so their mass and stiffness do not load the plate; Wentao's model had Al electrode domains in the electrostatics only", paths: [physics.es]}
   - {text: "Open circuit: left electrode grounded, right electrode floating with zero net charge (his Terminal type Charge, Q0 = 0)", paths: [physics.es.bcs]}
   - {text: "LN constants from Warner 1967 via two compilations (Weis-Gaylord for C and eps^S, Ogi for e); composition not stated by the sources", paths: [materials.LN]}
-  - {text: "Laterally infinite plate closed form vs a 100 um wide plate with free ends: the finite plate has a dense set of lateral overtones near TE1 (20 modes in 6.603-6.643 GHz). Comparison modes by index on the default mesh (MX run 2026-11-07): electrically active = largest |V_term| (MT's criterion, DevLog-033 s.4.3), index 18; piston-like = largest centre |uy|, index 6. Indices are mesh-dependent: re-identify after a mesh change", paths: [results.evaluations.ev_eig]}
+  - {text: "Laterally infinite plate closed form vs a 100 um wide plate with free ends: the finite plate has a dense set of lateral overtones near TE1 (20 modes in 6.603-6.643 GHz). Comparison modes by index on the default mesh (own run 2026-11-07): electrically active = largest |V_term| (criterion of the piezoelectric verification), index 18; piston-like = largest centre |uy|, index 6. Indices are mesh-dependent: re-identify after a mesh change", paths: [results.evaluations.ev_eig]}
 missing:
   - {what: "loss (no damping in Wentao's inputs: eta = 0) and the frequency-domain admittance study of his model (Frequency Domain step; not in the engine)", needed_for: [solution]}
 # eval: []   (reference: closed-form thickness modes, validation/mp/references.py ln_fbar)

@@ -37,6 +37,13 @@ references:
   extraction: text
   note: margin vs a converged reference not measured (MPB/Meep at the tutorial resolution); gate pending an independent check
     (DevLog-008 TODO)
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_0}
+      a: {value: 1, unit: m, source: 'sims/phc-point-defect.yaml params.a (lattice constant, unit by choice)'}
+      c: {value: 1, unit: m/s, source: 'sims/phc-point-defect.yaml params.c_vac (wave speed in air, unit by choice)'}
 - quantity: energy fraction in the defect region
   metric_id: energy_fraction_in_the_defect_region
   value: 0.624794702341156
@@ -50,6 +57,15 @@ references:
   extraction: text
   note: region and energy computation at L322-335 of the tutorial; margin vs a converged reference not measured (MPB/Meep
     at the tutorial resolution); gate pending an independent check (DevLog-008 TODO)
+  extract:
+    kind: expr
+    expr: (eps * Wri + Wbi) / (eps * Wr + Wb)
+    terms:
+      eps: {value: 12, unit: '1', source: sims/phc-point-defect.yaml params.eps_rod}
+      Wri: {kind: result, node: W_rods_defect}
+      Wbi: {kind: result, node: W_bg_defect}
+      Wr: {kind: result, node: W_rods}
+      Wb: {kind: result, node: W_bg}
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -63,8 +79,7 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/phc-point-defect.yaml, reason: 'non-gated targets only; the 5x5 supercell reaches 1.0M DOF
-    at the finest level (DevLog-022 s.3.1), above the eval machine''s memory rule; the defect mode index is not wired'}
+spec: sims/phc-point-defect.yaml
 missing: []
 assumptions: []
 source_case: {suite: MPB tutorial, file: doc/docs/Python_Tutorial.md, url: github.com/NanoComp/mpb tag v1.12.0, accessed: '2026-11-06',

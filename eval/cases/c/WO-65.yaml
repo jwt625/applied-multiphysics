@@ -43,7 +43,7 @@ references:
   metric_id: ng_energy
   value: 4.19616697
   unit: '1'
-  tolerance: {abs: 3.0e-06, after: richardson}
+  tolerance: {abs: 3.0e-06, after: finest}
   bounds: null
   basis: P
   form: solver_ref
@@ -51,6 +51,9 @@ references:
   provenance: {citation: EO atlas tier-B, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md L308; K1-fem.json
       extrapolated.ng_energy, accessed: '2026-11-06'}
   extraction: tabulated
+  spec: sims/si-strip-te0-ng.yaml
+  extract: {kind: scalar, name: ng_0}
+  levels: [0, 1]
 reference_results:
 - {solver: tidy3d local mode solver (sanity only), n_eff: 2.44655, U: 0.036, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md
     L310-311}
@@ -85,5 +88,8 @@ source_case: {suite: eo-modulator-atlas tier B, file: validation/reference/K1-fe
     repo, read-only; HEAD 0546007 on 2026-11-06)', accessed: '2026-11-06'}
 lane: L7c
 created: '2026-11-06'
-notes: ['ng_energy carries no extract: the case value includes Sellmeier dispersion, the engine n_g uses the case''s constant
-    indices (not comparable, DevLog-022 s.2).']
+notes: ['ng_energy runs on sims/si-strip-te0-ng.yaml: the case geometry and indices with dn/dlambda of the atlas Sellmeier
+    fits (Si Salzberg-Villa / Tatian -82304.03 1/m, SiO2 Malitson -11982.49 1/m at 1.55 um; validation/modes3/k1_slopes.py),
+    so it is comparable with the case value. Informative (gate false) on levels 0-1 (31k / 126k DOF: 4.1961328 / 4.1961565,
+    converging from below at p about 1.5): the Richardson gate needs level 2 (506k DOF, peak RSS about 2.0 GB in the T2 run),
+    above the eval machine''s 2 GB rule (DevLog-048 s.6).']

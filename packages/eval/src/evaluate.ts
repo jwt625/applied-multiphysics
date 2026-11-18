@@ -92,9 +92,13 @@ const finiteVal = (v: ObservedValue): boolean =>
  * the level-to-level changes shrink, |f_k - f_(k-1)| < |f_(k-1) - f_(k-2)| for every k >= 2 (two zero changes count
  * as shrinking: the levels agree exactly). This is self-convergence evidence; a non-monotone |error| against the
  * reference is reported as a note only. Fewer than 3 levels give no such evidence and do not pass.
+ * Refinement check (DevLog-055): the evidence only counts when the levels were refined, i.e. the DOF grows strictly
+ * from level to level (h shrinks strictly where a level has no DOF). Equal levels (a mesh budget cap, an hFactor that
+ * does not reach the mesher) repeat one solution, so their zero changes are stagnation, not convergence: no pass.
  */
-function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], why: string): { fine: ScalarCheck; shrinking: boolean; monotone: boolean; pass: boolean; reason: string } {
+function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], why: string, sizes: { dof?: Array<number | undefined>; h?: number[] } = {}): { fine: ScalarCheck; shrinking: boolean; monotone: boolean; refined: boolean; pass: boolean; reason: string } {
   const fine = checkScalar(vals[vals.length - 1]!, ref, tol);
+  const ref1 = refinedLevels(sizes.dof, sizes.h);
   // a change at the noise floor counts as zero: levels that agree to round-off (an exact discretization) carry no
   // shrinking signal. Floor: ROUNDOFF_REL x |f|, or NEGLIGIBLE_OF_LIMIT x the tolerance limit for derived targets whose
   // round-off is amplified by cancellation (DevLog-039 H5)
@@ -105,10 +109,24 @@ function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], 
   const e = vals.map((v) => Math.abs(v - ref));
   let monotone = true;
   for (let i = 1; i < e.length; i++) if (e[i]! > e[i - 1]! * (1 + 1e-12) + 1e-300) monotone = false;
-  const pass = fine.pass && shrinking;
+  const pass = fine.pass && shrinking && ref1.refined;
   const changes = d.map((x) => x.toPrecision(3)).join(', ');
-  const reason = `richardson unavailable (${why}); fallback: finest value ${fine.pass ? 'within' : 'outside'} the budget, level-to-level changes ${vals.length < 3 ? 'not checkable (fewer than 3 levels)' : shrinking ? 'shrinking' : 'not shrinking'} (${changes})${monotone ? '' : '; note: |error| vs the reference is non-monotone'}`;
-  return { fine, shrinking, monotone, pass, reason };
+  const reason = `richardson unavailable (${why}); fallback: finest value ${fine.pass ? 'within' : 'outside'} the budget, level-to-level changes ${vals.length < 3 ? 'not checkable (fewer than 3 levels)' : shrinking ? 'shrinking' : 'not shrinking'} (${changes})${ref1.refined ? '' : `; levels not refined (${ref1.detail}): no convergence evidence`}${monotone ? '' : '; note: |error| vs the reference is non-monotone'}`;
+  return { fine, shrinking, monotone, refined: ref1.refined, pass, reason };
+}
+
+/**
+ * Levels refined coarse -> fine: DOF strictly growing where every level has a DOF, else h strictly decreasing where
+ * every level has a finite h; neither known: not refined (no evidence). `detail` names the sizes.
+ */
+export function refinedLevels(dof?: ReadonlyArray<number | undefined>, h?: readonly number[]): { refined: boolean; detail: string } {
+  const strict = (a: readonly number[], up: boolean) => a.every((x, i) => i === 0 || (up ? x > a[i - 1]! : x < a[i - 1]!));
+  if (dof && dof.length && dof.every((x) => x !== undefined && Number.isFinite(x))) {
+    const D = dof as number[];
+    return { refined: strict(D, true), detail: `DOF ${D.join(', ')}` };
+  }
+  if (h && h.length && h.every(Number.isFinite)) return { refined: strict(h, false), detail: `h ${h.map((x) => x.toPrecision(3)).join(', ')}` };
+  return { refined: false, detail: 'no DOF or h per level' };
 }
 
 /** Relative round-off floor of a level-to-level change in the fallback rule: 1000 machine epsilons (2.2e-13). */
@@ -117,11 +135,11 @@ export const ROUNDOFF_REL = 1000 * Number.EPSILON;
 export const NEGLIGIBLE_OF_LIMIT = 1e-6;
 
 /** One sequence through the shared rule: extrapolated value, verdict parts and reason. */
-function richardsonVerdict(vals: number[], hs: number[], ref: number, tol: Reference['tolerance'], opts: EvaluateOptions): { ri: RichardsonRuleResult; value: number; check: ScalarCheck; pass: boolean; fallback: boolean; reason?: string } {
+function richardsonVerdict(vals: number[], hs: number[], ref: number, tol: Reference['tolerance'], opts: EvaluateOptions, dofs?: Array<number | undefined>): { ri: RichardsonRuleResult; value: number; check: ScalarCheck; pass: boolean; fallback: boolean; reason?: string } {
   const band = opts.orderCheck === false ? Infinity : (opts.orderBand ?? RICHARDSON_ORDER_BAND);
   const ri = richardsonRule(vals, hs, { ...(opts.expectedOrder !== undefined ? { expectedOrder: opts.expectedOrder } : {}), band, ...(opts.safetyFactor !== undefined ? { fs: opts.safetyFactor } : {}) });
   if (!ri.available) {
-    const fb = fallbackGate(vals, ref, tol, ri.reason ?? 'unavailable');
+    const fb = fallbackGate(vals, ref, tol, ri.reason ?? 'unavailable', { ...(dofs ? { dof: dofs } : {}), h: hs });
     return { ri, value: fb.fine.value, check: fb.fine, pass: fb.pass, fallback: true, reason: fb.reason };
   }
   const ext = checkScalar(ri.f_ext!, ref, tol);
@@ -241,7 +259,7 @@ export function evaluateTarget(r: Reference, ref: number | number[] | undefined,
       // order: unavailable, finest value with a non-increasing error)
       if (!hs.every(Number.isFinite)) return pendingTarget(r, ref, 'richardson needs h or dof per level', 'error');
       if (lv.some((l) => !Array.isArray(l.value) || (l.value as number[]).length !== ref.length)) return pendingTarget(r, ref, 'richardson on arrays needs the same length on every level', 'error');
-      const rv = ref.map((rf, i) => richardsonVerdict(lv.map((l) => (l.value as number[])[i]!), hs, rf, tol, opts));
+      const rv = ref.map((rf, i) => richardsonVerdict(lv.map((l) => (l.value as number[])[i]!), hs, rf, tol, opts, lv.map((l) => l.dof)));
       riEl = rv.map((x) => x.ri);
       cmp = rv.map((x) => x.value);
       rv.forEach((x, i) => {
@@ -265,7 +283,7 @@ export function evaluateTarget(r: Reference, ref: number | number[] | undefined,
   const rate = lv.length >= 2 && hs.every(Number.isFinite) ? convergenceRateFit(hs, vals.map((v) => v - ref)) : undefined;
   if (after === 'richardson') {
     if (!hs.every(Number.isFinite)) return pendingTarget(r, ref, 'richardson needs h or dof per level', 'error');
-    const v = richardsonVerdict(vals, hs, ref, tol, opts);
+    const v = richardsonVerdict(vals, hs, ref, tol, opts, lv.map((l) => l.dof));
     return verdict(v.pass, {
       value: v.value, ref, diff: v.check.diff, err_abs: v.check.abs_err, err_rel: v.check.rel_err, limit: v.check.limit, limit_basis: v.check.limit_basis,
       u_num: v.fallback ? null : v.ri.u_abs, richardson: v.ri, levels, ...(rate ? { rate } : {}), ...(v.ri.order_ratio !== null ? { order_ratio: v.ri.order_ratio } : {}),
@@ -313,7 +331,7 @@ function evaluateEigenArray(
     const sortedPerLevel = matched.map((v) => idx.map((i) => v[i]!).sort((a, b) => a - b));
     const means = sortedPerLevel.map((s) => s.reduce((a, b) => a + b, 0) / s.length);
     const fineSorted = sortedPerLevel[sortedPerLevel.length - 1]!, fineMean = means[means.length - 1]!;
-    const v = richardsonVerdict(means, hs, order[k]!.v, tol, opts);
+    const v = richardsonVerdict(means, hs, order[k]!.v, tol, opts, lv.map((l) => l.dof));
     ris.push(v.ri);
     if (!v.pass) ok = false;
     if (v.reason && (v.fallback || !v.pass)) reasons.push(`mode(s) ${idx.join(',')}: ${v.reason}`);

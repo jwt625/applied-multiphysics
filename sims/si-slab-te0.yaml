@@ -57,10 +57,10 @@ provenance:
   values:
     params.t_core: {basis: benchmark, source: "eval/cases/a/WO-01.yaml geometry.spec.core_thickness_m", date: 2026-11-06}
     params.lambda0: {basis: benchmark, source: "eval/cases/a/WO-01.yaml study.settings.wavelength_m", date: 2026-11-06}
-    params.L: {basis: user, date: 2026-11-06, note: "modelling choice as in the L4 gate: TM0 field at the wall ~ exp(-5.9/um * 2.5 um)"}
-    params.W: {basis: user, date: 2026-11-06, note: "modelling choice as in the L4 gate"}
-    materials.Si.override.n: {basis: benchmark, source: "eval/cases/a/WO-01.yaml materials.Si.n (eo-modulator-atlas K1, Salzberg-Tatian fit at 1550 nm, R3)", date: 2026-11-06}
-    materials.SiO2.override.n: {basis: benchmark, source: "eval/cases/a/WO-01.yaml materials.SiO2.n (eo-modulator-atlas K1, Malitson fit at 1550 nm, R3)", date: 2026-11-06}
+    params.L: {basis: user, date: 2026-11-06, note: "modelling choice as in the earlier verification gate: TM0 field at the wall ~ exp(-5.9/um * 2.5 um)"}
+    params.W: {basis: user, date: 2026-11-06, note: "modelling choice as in the earlier verification gate"}
+    materials.Si.override.n: {basis: benchmark, source: "eval/cases/a/WO-01.yaml materials.Si.n (eo-modulator-atlas silicon strip case validation/cases/K1.yaml; Salzberg and Villa, J. Opt. Soc. Am. 47, 244 (1957), fit form by Tatian, Appl. Opt. 23, 4477 (1984); at 1550 nm)", date: 2026-11-06}
+    materials.SiO2.override.n: {basis: benchmark, source: "eval/cases/a/WO-01.yaml materials.SiO2.n (eo-modulator-atlas silicon strip case validation/cases/K1.yaml; I. H. Malitson, J. Opt. Soc. Am. 55, 1205 (1965); at 1550 nm)", date: 2026-11-06}
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
     mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice"}
 assumptions:
