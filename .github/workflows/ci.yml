@@ -45,11 +45,12 @@ jobs:
       - name: test (every package and apps/web)
         run: pnpm test
       - name: eval, class-a subset (harness CLI, engine adapter)
+        # --fields ts: the TypeScript exact-field evaluators (the Python ones need uv, not installed on the runner)
         # cases that run in seconds each on a laptop (logs/W3-eval-class-a-20261106T205440.log); exit 2 = a gated target missed
         run: |
           set -e
           for c in EM-01 EM-04 HT-01 HT-02 HT-03 SM-01 SM-02 WO-01 RF-21 AC-02; do
-            node --max-old-space-size=1536 packages/eval/src/cli.ts --case "$c"
+            node --max-old-space-size=1536 packages/eval/src/cli.ts --case "$c" --fields ts
           done
       - name: upload eval logs
         if: always()
