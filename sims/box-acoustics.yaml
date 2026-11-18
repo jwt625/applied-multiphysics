@@ -34,7 +34,16 @@ results:
     - id: ev_eig
       data: sol_eig
       items:
-        - {id: freqs, type: global, expr: ac.freq, unit: Hz}
+        - {id: f_mode1, type: global, expr: ac.f_1, unit: Hz, label: "AC-02 mode 1 (solver index 1; index 0 is the f = 0 constant-pressure mode)"}
+        - {id: f_mode2, type: global, expr: ac.f_2, unit: Hz}
+        - {id: f_mode3, type: global, expr: ac.f_3, unit: Hz}
+        - {id: f_mode4, type: global, expr: ac.f_4, unit: Hz}
+        - {id: f_mode5, type: global, expr: ac.f_5, unit: Hz}
+        - {id: f_mode6, type: global, expr: ac.f_6, unit: Hz}
+        - {id: f_mode7, type: global, expr: ac.f_7, unit: Hz}
+        - {id: f_mode8, type: global, expr: ac.f_8, unit: Hz}
+        - {id: f_mode9, type: global, expr: ac.f_9, unit: Hz}
+        - {id: f_mode10, type: global, expr: ac.f_10, unit: Hz}
   tables:
     - {id: tbl_eig, from: ev_eig}
   plots:

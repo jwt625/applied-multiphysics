@@ -1,6 +1,8 @@
 // Ported from advanced-packaging-atlas/engine/src/la/sparse.mjs at fe39985 (GPL-3.0-or-later). Changes: optional WASM SIMD
 // front kernel ('wasm', ./wasm/front-real.mjs, lane P1 DevLog-016; same arithmetic, bitwise-identical factor) selected by a
-// `factor` option (factorNumeric opts, SparseCholesky options) with default ldlt-select DEFAULT_REAL_FACTOR.
+// `factor` option (factorNumeric opts, SparseCholesky options) with default ldlt-select DEFAULT_REAL_FACTOR. Triangular
+// solves through WASM kernels ('wasm', ./wasm/solve-real.mjs, lane S4 DevLog-045; same arithmetic, bitwise-identical
+// solutions): the factor's Lx is allocated in a per-factor WebAssembly.Memory (allocRealFactorStorage).
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Ported from eo-modulator-atlas engine/src/sparse.mjs at eb97f96 (GPL-3.0-or-later).
 // Local changes: none (verbatim copy).
@@ -13,6 +15,7 @@
 // License: GPL-3.0-or-later.
 
 import { resolveRealKernel, WASM_MIN_FRONT } from './wasm/front-real.mjs';
+import { allocRealFactorStorage, choleskySolveWasm, useWasmSolve } from './wasm/solve-real.mjs';
 
 /**
  * Opt-in timing sink. Set `timingSink.records = []` to collect one record per solver call
@@ -119,6 +122,66 @@ export function elementSlots(pat, elem, k) {
   Object.defineProperty(pat, '_elemSlots', { value: slots, writable: true, configurable: true, enumerable: false });
   Object.defineProperty(pat, '_elemSlotsElem', { value: elem, writable: true, configurable: true, enumerable: false });
   return slots;
+}
+
+/**
+ * Block pattern of a node pattern: every node entry expanded to a bs x bs block (DOF = node * bs + component); rows
+ * sorted (node columns ascending, components ascending within a node). Lane S4, DevLog-045.
+ */
+export function blockPattern(pat, bs) {
+  const n = pat.n * bs,
+    rowptr = new Int32Array(n + 1);
+  for (let i = 0; i < pat.n; i++) {
+    const len = (pat.rowptr[i + 1] - pat.rowptr[i]) * bs;
+    for (let c = 0; c < bs; c++) rowptr[i * bs + c + 1] = len;
+  }
+  for (let i = 0; i < n; i++) rowptr[i + 1] += rowptr[i];
+  const colidx = new Int32Array(rowptr[n]);
+  for (let i = 0; i < pat.n; i++)
+    for (let c = 0; c < bs; c++) {
+      let z = rowptr[i * bs + c];
+      for (let q = pat.rowptr[i]; q < pat.rowptr[i + 1]; q++) for (let d = 0; d < bs; d++) colidx[z++] = pat.colidx[q] * bs + d;
+    }
+  return { n, rowptr, colidx, nnz: rowptr[n] };
+}
+
+/**
+ * CSR slots in `blockPat` (the layout of blockPattern(nodePat, bs)) of every element entry, local DOF bs a + c for node
+ * a, component c: slots[nd^2 e + nd (bs a + c) + bs b + d], nd = k bs. Derived from the node slots (elementSlots on
+ * nodePat, cached there) in O(1) per entry instead of a binary search per entry (DevLog-033 O6; lane S4, DevLog-045).
+ * Cached on blockPat for the elem array and bs. Throws when blockPat does not have the blockPattern layout.
+ */
+export function blockElementSlots(nodePat, blockPat, elem, k, bs) {
+  if (blockPat._blkSlots && blockPat._blkSlotsElem === elem && blockPat._blkSlotsBs === bs) return blockPat._blkSlots;
+  if (blockPat.n !== nodePat.n * bs || blockPat.nnz !== nodePat.nnz * bs * bs) throw new Error('blockElementSlots: blockPat is not blockPattern(nodePat, bs)');
+  const ns = elementSlots(nodePat, elem, k);
+  const ne = elem.length / k,
+    nd = k * bs,
+    out = new Int32Array(nd * nd * ne);
+  const nr = nodePat.rowptr,
+    br = blockPat.rowptr,
+    bc = blockPat.colidx;
+  for (let e = 0; e < ne; e++) {
+    const base = nd * nd * e,
+      nb = k * k * e;
+    for (let a = 0; a < k; a++) {
+      const i = elem[k * e + a],
+        r0 = nr[i];
+      for (let c = 0; c < bs; c++) {
+        const rs = br[bs * i + c],
+          ro = base + nd * (bs * a + c);
+        for (let b = 0; b < k; b++) {
+          const off = rs + (ns[nb + k * a + b] - r0) * bs;
+          if (c === 0 && bc[off] !== bs * elem[k * e + b]) throw new Error('blockElementSlots: blockPat is not blockPattern(nodePat, bs)');
+          for (let d = 0; d < bs; d++) out[ro + bs * b + d] = off + d;
+        }
+      }
+    }
+  }
+  Object.defineProperty(blockPat, '_blkSlots', { value: out, writable: true, configurable: true, enumerable: false });
+  Object.defineProperty(blockPat, '_blkSlotsElem', { value: elem, writable: true, configurable: true, enumerable: false });
+  Object.defineProperty(blockPat, '_blkSlotsBs', { value: bs, writable: true, configurable: true, enumerable: false });
+  return out;
 }
 
 /**
@@ -881,7 +944,8 @@ export function factorNumeric(sym, values, num = null, pat = null, { factor = nu
   const nnzPat = Number(sym.patternKey?.split(':')[1]);
   if (Number.isFinite(nnzPat) && values.length !== nnzPat) throw new Error(`factorNumeric: ${values.length} values for a pattern with ${nnzPat} entries`);
   if (!num || num.sym !== sym) {
-    num = { sym, Lx: new Float64Array(Lxp[nsuper]), ok: false, kernel: 'blocked', work: { F: null, rel: new Int32Array(n), stack: new Float64Array(1024), stackDim: new Int32Array(nsuper) } };
+    const st = allocRealFactorStorage(Lxp[nsuper], n, maxFront);
+    num = { sym, Lx: st.Lx, ws: st.ws, ok: false, kernel: 'blocked', work: { F: null, rel: new Int32Array(n), stack: new Float64Array(1024), stackDim: new Int32Array(nsuper) } };
   }
   const { Lx, work } = num;
   // 'wasm': the front lives in the kernel's memory (fronts below WASM_MIN_FRONT rows still use the JS loops below)
@@ -1139,6 +1203,8 @@ function supernodalSolve(num, bs, outs) {
   const { n, perm, nsuper, superStart, Sp, Si, Lxp, maxFront } = sym;
   const q = bs.length;
   if (q === 1) return [solveNumeric(num, bs[0], outs?.[0] ?? null)];
+  // WASM: one vector at a time (the per-vector arithmetic is the same in both loop orders)
+  if (useWasmSolve(num.ws)) return bs.map((b, k) => choleskySolveWasm(num.ws, sym, b, outs?.[k] ?? null));
   const ys = bs.map((b) => {
     const y = new Float64Array(n);
     for (let i = 0; i < n; i++) y[i] = b[perm[i]];
@@ -1194,6 +1260,7 @@ function supernodalSolve(num, bs, outs) {
 /** Solve A x = b with a numeric factor; b and the result in the original ordering (single-vector supernodalSolve). */
 export function solveNumeric(num, b, out = null) {
   if (!num?.ok) throw new Error('solveNumeric: no successful numeric factorization');
+  if (useWasmSolve(num.ws)) return choleskySolveWasm(num.ws, num.sym, b, out);
   const { sym, Lx } = num;
   const { n, perm, nsuper, superStart, Sp, Si, Lxp, maxFront } = sym;
   const y = new Float64Array(n);

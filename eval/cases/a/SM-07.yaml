@@ -93,7 +93,7 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/plastic-hinge.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
-    a proposal}
+spec: {status: pending, proposed: sims/plastic-hinge.yaml, reason: 'no sims/ model yet (path in ''proposed''); engine gap:
+    plasticity (DevLog-021 s.4.1)'}
 missing: []
 assumptions: [Rotation = curvature x full length L = 10 in (reproduces the VM24 0.01200 at first yield).]

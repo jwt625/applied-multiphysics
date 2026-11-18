@@ -113,7 +113,7 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/devsim-diode-1d.yaml}
+spec: {status: pending, reason: 'no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)', proposed: sims/devsim-diode-1d.yaml}
 missing: []
 assumptions: ['Units follow DEVSIM (cm based): J in A/cm^2 for the 1D device.', 'The DEVSIM golden (double precision, absolute_error
     1e10) has |J_top + J_bot|/|J_top| = 2.45e-2, 3.26e-2, 3.5e-3, 1.5e-4, 4e-6 at 0.1-0.5 V and is 4.0e-2, 4.0e-3, 3.0e-4,

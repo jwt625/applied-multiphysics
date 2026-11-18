@@ -36,7 +36,9 @@ results:
     - id: ev_eig
       data: sol_eig
       items:
-        - {id: cutoffs, type: global, expr: hz.freq, unit: GHz}
+        - {id: fc_TE10, type: global, expr: hz.f_1, unit: GHz, label: "TE10 cutoff (solver index 1; index 0 is the f = 0 null mode)"}
+        - {id: fc_TE20, type: global, expr: hz.f_2, unit: GHz, label: "TE20 cutoff"}
+        - {id: fc_TE01, type: global, expr: hz.f_3, unit: GHz, label: "TE01 cutoff"}
   tables:
     - {id: tbl_eig, from: ev_eig}
   plots:

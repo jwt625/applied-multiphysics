@@ -2,7 +2,9 @@
 // @amp/mesh/spec: mesh an amp-spec/0 model (parsed data). Params are resolved by @amp/spec, the geometry by
 // @amp/geom/spec; the `mesh` block maps to: size.hmax -> hmax, size.hmin -> hmin, size.grading -> grade (growth of the
 // target size per unit distance), refine[{select, h}] -> local refinement by entity id (resolveEntityIds), budget.maxNodes -> the P1
-// vertex budget `maxVertices` (not the tri6 node count; audit M7). 2D: CDT (tri3 / tri6). 3D: box list -> structured hex8 (h = hmax); single cylinder -> extruded tet4.
+// vertex budget `maxVertices` (not the tri6 node count; audit M7). 2D: CDT (tri3 / tri6). 3D: box list -> structured hex8 (h = hmax); single cylinder -> extruded tet4;
+// extrude feature or mixed boxes / z cylinders -> layer stack (stack.ts; tet4, or tet10 at order 2; the 2D size options
+// and refine selections, on 2D sketch ids, act on the shared overlay mesh; z cells from each layer's nz / dz, else hmax).
 
 import { resolveParams } from '@amp/spec';
 import { makeResolver, geometryFromSpec, type FeatureNodeLike } from '@amp/geom/spec';
@@ -10,6 +12,7 @@ import type { Mesh } from '@amp/geom';
 import { mesh2d, type MeshOptions2D } from './mesh2d.ts';
 import { meshBoxes } from './boxgrid.ts';
 import { meshCylinder } from './solid3d.ts';
+import { meshStack } from './stack.ts';
 
 export interface SpecMeshOptions { order?: 1 | 2; cell3d?: 'tet4' | 'prism6' }
 
@@ -31,11 +34,19 @@ export function meshFromSpec(spec: Record<string, unknown>, o: SpecMeshOptions =
     return mesh2d(G.geometry, opts);
   }
   if (!hmax) throw new Error('mesh: 3D spec needs mesh.size.hmax');
+  if (G.stack) {
+    const m2: MeshOptions2D = { hmax };
+    if (mb.size?.hmin !== undefined) m2.hmin = R.q(mb.size.hmin);
+    if (mb.size?.grading !== undefined) m2.grade = R.q(mb.size.grading);
+    if (mb.refine) m2.refine = mb.refine.map((r) => ({ select: r.select, h: R.q(r.h) }));
+    if (mb.budget?.maxNodes) m2.maxVertices = mb.budget.maxNodes;
+    return meshStack(G.stack, { mesh2d: m2, dz: hmax, order: o.order ?? 1 });
+  }
   if (G.solids.every((s) => s.type === 'box'))
     return meshBoxes(G.solids.map((s) => (s.type === 'box' ? { id: s.id, x: s.x, y: s.y, z: s.z } : (null as never))), { h: hmax });
   if (G.solids.length === 1 && G.solids[0]!.type === 'cylinder') {
     const c = G.solids[0]!;
     return meshCylinder(c, { mesh2d: { hmax }, dz: hmax, cell: o.cell3d ?? 'tet4' });
   }
-  throw new Error('mesh: tier-1 3D meshing supports a box list or one cylinder (3D CSG is tier 2)');
+  throw new Error('mesh: this 3D geometry is not a box list, one cylinder or a layer stack; overlapping or rotated 3D solids need true 3D CSG (tier 2): write the model as an extrude feature with 2D sketches');
 }

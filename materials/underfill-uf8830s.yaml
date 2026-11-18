@@ -1,0 +1,93 @@
+# Capillary underfill, one named product (lane T4, DevLog-041): Henkel LOCTITE ECCOBOND UF 8830S technical data sheet.
+# Typical values from the vendor TDS (not specification limits). Values not on the TDS are N/A; nothing is averaged
+# across vendors. Cure per TDS: 30 min ramp 25 -> 150 C, hold 2 h at 150 C.
+schema: amp-material/0
+id: underfill-uf8830s
+name: Capillary underfill, Henkel LOCTITE ECCOBOND UF 8830S
+class: polymer
+description: >-
+  Silica-filled epoxy capillary underfill for flip-chip BGA (TDS: high Tg, low CTE, 260 C reflow capability). Cured
+  storage modulus at 25 C, CTE below and above Tg, Tg by TMA and DMA. alpha (default) = below Tg; alternative
+  above_tg = above Tg. Viscoelastic data, Poisson ratio, k and density of the cured material are not on the TDS.
+verified_on: 2026-11-18
+sources:
+  henkel_uf8830s:
+    citation: "Henkel, Technical Data Sheet LOCTITE ECCOBOND UF 8830S, January-2017 (PDF digitally signed by tdx.henkel.com 2025-11-28)"
+    url: https://datasheets.tdx.henkel.com/LOCTITE-ECCOBOND-UF-8830S-en_GL.pdf
+    access: vendor_open
+    read: "text layer p.1-2 of the PDF fetched 2026-11-18 (sha256 e3b67a50cd763228..., 2 pages; PDF not kept): Typical properties of cured material (CTE by TMA below / above Tg, Tg by TMA and DMA, storage modulus by DMA at 25 C), typical properties of uncured material, cure schedule"
+properties:
+  E:
+    value: 11500
+    unit: MPa
+    basis: datasheet
+    source: henkel_uf8830s
+    locator: "p.1 Typical properties of cured material: Storage Modulus, DMA, @ 25 C 11,500 N/mm2 (1,667,934 psi)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC", text: "DMA storage modulus (frequency not stated), cured per the TDS schedule; used as the elastic modulus"}
+    valid: {T: {unit: degC, range: [25, 25]}, note: "single temperature on the TDS; the modulus drops above Tg (no value on the TDS)"}
+    alternatives: []
+  alpha:
+    value: 25
+    unit: ppm/K
+    cte_kind: unstated
+    basis: datasheet
+    source: henkel_uf8830s
+    locator: "p.1 Coefficient of Thermal Expansion, TMA, ppm/C: Below Tg 25"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "TMA, below Tg (Tg by TMA 118 C)"}
+    valid: {T: {unit: degC, range: [25, 118]}, note: "upper edge = Tg by TMA (TDS); the TDS states no lower edge: 25 C (the TDS reference temperature of the modulus) is used as the lower edge, an assumption"}
+    alternatives: 
+      - id: above_tg
+        use: "CTE above Tg (alpha2)"
+        value: 100
+        unit: ppm/K
+        cte_kind: unstated
+        basis: datasheet
+        source: henkel_uf8830s
+        locator: "p.1 Coefficient of Thermal Expansion, TMA, ppm/C: Above Tg 100"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "TMA, above Tg (118 C by TMA)"}
+        valid: {T: {na: "above Tg (TMA 118 C); upper limit not stated on the TDS"}}
+  Tg:
+    value: 118
+    unit: degC
+    basis: datasheet
+    source: henkel_uf8830s
+    locator: "p.1 Glass Transition Temperature (Tg), C: By TMA 118; By DMA 126.5"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "by TMA (the method of the CTE breakpoint)"}
+    valid: {T: {na: "a transition temperature, not a function of T"}}
+    alternatives: 
+      - id: dma
+        use: "Tg by DMA"
+        value: 126.5
+        unit: degC
+        basis: datasheet
+        source: henkel_uf8830s
+        locator: "p.1 Glass Transition Temperature (Tg), C: By DMA 126.5"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "by DMA"}
+        valid: {T: {na: "a transition temperature"}}
+  nu:
+    value: N/A
+    unit: "1"
+    missing: "Poisson ratio not on the UF 8830S TDS"
+    alternatives: []
+  k:
+    value: N/A
+    unit: W/(m*K)
+    missing: "thermal conductivity not on the UF 8830S TDS"
+    alternatives: []
+  rho:
+    value: N/A
+    unit: kg/m^3
+    missing: "cured density not on the TDS (the TDS lists specific gravity 1.6 at 25 C for the UNCURED material only)"
+    alternatives: []
+missing:
+  - {what: "E above Tg, viscoelastic (Prony / shift) data, cure shrinkage: not on the TDS"}

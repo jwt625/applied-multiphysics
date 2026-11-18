@@ -113,7 +113,7 @@ hero:
   suitable: true
   why: H12 Turing patterns on the GPU
   visual: [A_concentration]
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/well-gray-scott-reaction-diffusion.yaml}
+spec: {status: pending, reason: 'no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)', proposed: sims/well-gray-scott-reaction-diffusion.yaml}
 missing: []
 assumptions: ['Stored x coordinates are linspace(-1, 1, 128) including both ends, while a periodic Fourier grid has spacing
     2/128; we assume the stored array is a label and the data sit on the periodic grid (to verify against the generator before

@@ -62,7 +62,7 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/coax-lumped-wave.yaml}
+spec: {status: pending, reason: 'no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)', proposed: sims/coax-lumped-wave.yaml}
 missing: []
 assumptions: []
 source_case: {suite: Palace examples, file: docs/src/examples/coaxial.md, url: github.com/awslabs/palace tag v0.19.0 (ca9a6a2d1e64a410229c3d7538507e5eae975cc6),

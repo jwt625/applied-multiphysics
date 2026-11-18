@@ -39,7 +39,7 @@ speed:
   reference_timings: []
   note: "budget set after the first timing run (R3 O3)"
 dataset: null
-spec: {status: pending, ref: sims/CP-44.yaml, reason: "atlas config not yet ported to amp-spec/0 (C8)"}
+spec: {status: pending, proposed: sims/CP-44.yaml, reason: "no sims/ model: BOX thickness and sidewall angle are atlas placeholders (missing list; DevLog-035 s.2.9), RF conductor and dielectric line loss not in the engine"}
 rights:
   source_license: CC-BY-4.0
   allowed: [cite_values, re_derive_setup, copy_figures]

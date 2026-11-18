@@ -16,7 +16,8 @@ geometry:
   kind: analytic
   spec: {edge_m: 0.02, polarization: z}
 materials:
-  pzt4: {rho: 7500.0, source: Ansys VM175; matrices N/A}
+  pzt4: {rho: 7500.0, source: 'Ansys VM175 input listing (text): full [c], [e], [eps_r] in materials/pzt-4.yaml (Boucher 1981
+      data set as listed in VM175)'}
 bcs: null
 initial: null
 study: null
@@ -34,6 +35,9 @@ references:
       Results Comparison table', accessed: '2026-11-06'}
   extraction: text
   note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
+  spec: {sim: sims/pzt4-cube.yaml, study: std_sc}
+  extract: {kind: result, node: f1_short}
+  levels: [0]
 - quantity: f2 short
   metric_id: f2_short
   value: 88010.0
@@ -47,6 +51,9 @@ references:
       Results Comparison table', accessed: '2026-11-06'}
   extraction: text
   note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
+  spec: {sim: sims/pzt4-cube.yaml, study: std_sc}
+  extract: {kind: result, node: f2_short}
+  levels: [0]
 - quantity: f1 open
   metric_id: f1_open
   value: 81590.0
@@ -60,6 +67,9 @@ references:
       Results Comparison table', accessed: '2026-11-06'}
   extraction: text
   note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
+  spec: {sim: sims/pzt4-cube.yaml, study: std_oc}
+  extract: {kind: result, node: f1_open}
+  levels: [0]
 - quantity: f2 open
   metric_id: f2_open
   value: 93410.0
@@ -73,6 +83,9 @@ references:
       Results Comparison table', accessed: '2026-11-06'}
   extraction: text
   note: page labels the column kHz; 66560 kHz is implausible for a 20 mm PZT cube, Hz is consistent (flag)
+  spec: {sim: sims/pzt4-cube.yaml, study: std_oc}
+  extract: {kind: result, node: f2_open}
+  levels: [0]
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -86,10 +99,14 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_with_attribution, copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pzt4-cube.yaml}
-missing: ['PZT-4 [c], [e], [eps_r] values']
+spec: {status: pending, reason: 'no single model: short-circuit targets run study std_sc, open-circuit targets study std_oc
+    of sims/pzt4-cube.yaml (target specs)'}
+missing: []
 assumptions: []
 source_case: {suite: Ansys VM175 (pointer), file: Hlp_V_VM175.html, url: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM175.html,
   accessed: '2026-11-06'}
 lane: L7c
 created: '2026-11-06'
+notes: ['Engine: sims/pzt4-cube.yaml (DevLog-035 s.2.10), breathing modes by the sim''s evaluation items (mode indices from
+    VM175). Level 0 only (levels: [0], 36k DOF, peak RSS 1541 MB in the T2 run 2026-11-18): the next default level exceeds
+    the eval machine''s 2 GB RSS rule; the targets are measured values with a 3 % tolerance and no Richardson step.']

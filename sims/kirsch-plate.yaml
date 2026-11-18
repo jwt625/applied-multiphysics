@@ -58,4 +58,4 @@ provenance:
 assumptions:
   - {text: "Finite quarter plate with W/D = 20 approximates the infinite-plate Kirsch solution (SM-01 gate condition)", paths: [params.W]}
   - {text: "Boundary entity names (quarter.left/right/top/bottom, hole.edge) follow the provisional L3 naming", paths: [geometry.features]}
-# eval: [SM-01, SM-02]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)
+# eval: [SM-01]

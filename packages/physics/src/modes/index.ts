@@ -15,6 +15,14 @@
 // Coupled inputs (C11, DevLog-032): with thermo-optic / electro-optic entries in RunContext.inputs, run() goes through
 //   modes/coupled.ts (perturbed permittivity, first-order overlaps, VpiL, Ppi); without inputs the path above is
 //   unchanged. Uniaxial materials (n.perp, n.par) need settings.crystals [{material, cut, propagation, rotation?}].
+// Options (lane S2, DevLog-043; each off unless set, results then unchanged): settings.loss (eps = (n - j kappa)^2
+//   from material kappa), settings.dispersion (eps_g = n (n - lambda dn/dlambda) in n_g; dndlambda per material;
+//   lossy materials: complex eps_g = N (N - lambda dN/dlambda), N = n - j kappa, with dkappadlambda per material or 0),
+//   settings.pml (complex coordinate stretching on outer domains, transform.ts), settings.bend (bend in the x-z plane,
+//   axis parallel to y, metric or conformal model). Complex solves add kappaEff_<k>, Lprop_<k>, bendLossDbPer90_<k>;
+//   runs with PML add pmlFraction_<k>. With a transform (audit fixes 2026-11-18, DevLog-043 s.8): confinement, powerW
+//   and H_t use the transformed eps' and nu weights (physical outside the PML for the metric bend); E_z is reported in
+//   bend coordinates (h E_z, metric model); TE fraction, effective area and all values in PML cells are computational-coordinate values.
 
 import type { FieldData, Mesh, PhysicsModule, RunContext, Solution, Spec, StudyNode } from '@amp/spec/types';
 import { resolveParams, resolveQuantity } from '@amp/spec';
@@ -22,8 +30,12 @@ import { buildVectorModel, solveVectorModes } from './vector-mode.mjs';
 import { NPC, nCells, nNodes, selectEntities } from '../common/mesh.ts';
 import { StageTimer, checkAbort, makeSolution, scalar, attachMesh } from '../common/solution.ts';
 import { runCoupledModes, photonicInputs, crystalsOf, materialOptics, kernelTensor, type Crystal } from './coupled.ts';
+import { modeTransform, type PmlRegion, type BendOptions } from './transform.ts';
+import type { ModeTransform } from './vector-mode.mjs';
 
 const UM = 1e6; // metres -> um
+/** Default PML profile s = 1 - j a xi^p (numerical modelling choice; DevLog-043 s.4 convergence study). */
+export const PML_DEFAULT = { strength: 2, power: 2 } as const;
 
 /** Relative permittivity of a domain: scalar (isotropic) or [xx, xy, yy, zz]; optional loss eps = eps' - j eps''. */
 export type DomainEps = number | [number, number, number, number];
@@ -51,6 +63,17 @@ export interface ModesProblem {
   epsTri?: Float64Array;
   /** a kernel model built earlier for the same mesh, PEC set, order and cell mask (reused by the coupled path) */
   model?: any;
+  /** per domain index: group permittivity eps_g = eps - (lambda / 2) d eps / d lambda = n (n - lambda dn/dlambda)
+   *  (material dispersion in n_g, DevLog-043); omit = non-dispersive (eps_g = eps, complex in a lossy solve) */
+  epsG?: DomainEps[];
+  /** per domain index: loss part of eps_g = epsG - j epsGIm (lossy solves; default epsIm) */
+  epsGIm?: DomainEps[];
+  /** coordinate transform (PML stretching, bend metric), per triangle complex factors (transform.ts modeTransform) */
+  transform?: ModeTransform;
+  /** bend radius (m) of the transform, for bendLossDbPer90_<k> */
+  bendRadius?: number;
+  /** notes carried into the Solution */
+  notes?: string[];
   signal?: AbortSignal;
   progress?: (stage: string, frac: number, msg?: string) => void;
 }
@@ -114,17 +137,24 @@ export async function solveModes(p: ModesProblem, meta: { spec?: unknown; physic
   checkAbort(p.signal);
   const eps = new Float64Array(4 * nT);
   const epsIm = p.epsIm ? new Float64Array(4 * nT) : null;
+  if (p.epsG && p.epsG.length !== nDom) throw new Error(`em-modes: epsG needs one entry per domain (${nDom}), got ${p.epsG.length}`);
+  const epsG = p.epsG ? new Float64Array(4 * nT) : null;
+  if (p.epsGIm && p.epsGIm.length !== nDom) throw new Error(`em-modes: epsGIm needs one entry per domain (${nDom}), got ${p.epsGIm.length}`);
+  const epsGIm = p.epsGIm ? new Float64Array(4 * nT) : null;
   if (p.epsTri && p.epsTri.length !== 4 * nT) throw new Error(`em-modes: epsTri needs 4 * nTris = ${4 * nT} values`);
   for (let t = 0; t < nT; t++) {
     const d = p.mesh.cells.domain[t]!;
     if (p.epsTri) eps.set(p.epsTri.subarray(4 * t, 4 * t + 4), 4 * t);
     else eps.set(tensorOf(p.eps[d]!), 4 * t);
     if (epsIm) epsIm.set(tensorOf(p.epsIm![d]!), 4 * t);
+    if (epsG) epsG.set(tensorOf(p.epsG![d]!), 4 * t);
+    if (epsGIm) epsGIm.set(tensorOf(p.epsGIm![d]!), 4 * t);
   }
   const lam = p.wavelength * UM;
   p.progress?.('solve', 0.1);
   const res = solveVectorModes(model, lam, {
-    eps, epsIm, numModes: p.nModes, nTarget: p.neffShift ?? null, blockSize: p.blockSize ?? 1, tol: p.tol ?? 1e-7, fields: p.fields !== false,
+    eps, epsIm, ...(epsG ? { epsG } : {}), ...(epsGIm ? { epsGIm } : {}), ...(p.transform ? { transform: p.transform } : {}),
+    numModes: p.nModes, nTarget: p.neffShift ?? null, blockSize: p.blockSize ?? 1, tol: p.tol ?? 1e-7, fields: p.fields !== false,
   });
   checkAbort(p.signal);
   timer.add('assemble', res.timing.assembleMs);
@@ -139,6 +169,14 @@ export async function solveModes(p: ModesProblem, meta: { spec?: unknown; physic
     if (Number.isFinite(m.ng)) scalars[`ng_${k}`] = scalar(m.ng, '1');
     scalars[`powerW_${k}`] = scalar(m.powerW, 'W');
     if (m.lossy) scalars[`lossDbPerM_${k}`] = scalar(m.lossDbPerCm * 100, 'dB/m');
+    // complex solves (loss, PML, bend; DevLog-043): -Im n_eff, power 1/e length, loss per 90 degree bend
+    if (m.lossy && (p.epsIm || p.transform)) {
+      scalars[`kappaEff_${k}`] = scalar(m.kappa, '1');
+      if (m.alphaPerUm > 0) scalars[`Lprop_${k}`] = scalar(1e-6 / (2 * m.alphaPerUm), 'm');
+      if (p.bendRadius !== undefined) scalars[`bendLossDbPer90_${k}`] = scalar(m.lossDbPerCm * 100 * (Math.PI / 2) * Math.abs(p.bendRadius), 'dB');
+    }
+    // share of int |E|^2 in PML cells (> 0.5: PML or radiation mode; a note names such modes)
+    if (m.pmlFraction !== undefined) scalars[`pmlFraction_${k}`] = scalar(m.pmlFraction, '1');
     if (!m.fields) return;
     const F = m.fields;
     const normE = new Float64Array(nT);
@@ -151,7 +189,7 @@ export async function solveModes(p: ModesProblem, meta: { spec?: unknown; physic
   if (res.modes[0]) scalars.neff = scalar(res.modes[0].neff, '1');
   const solution = await makeSolution({
     mesh: p.mesh,
-    ...(meta.spec !== undefined ? { spec: meta.spec } : { problemDigest: { module: 'em-modes', physicsId: pid, wavelength: p.wavelength, nModes: p.nModes, order: p.order ?? 2, eps: p.eps, epsIm: p.epsIm ?? null, pec: p.pec ?? [], neffShift: p.neffShift ?? null, meshHash: p.mesh.hash } }),
+    ...(meta.spec !== undefined ? { spec: meta.spec } : { problemDigest: { module: 'em-modes', physicsId: pid, wavelength: p.wavelength, nModes: p.nModes, order: p.order ?? 2, eps: p.eps, epsIm: p.epsIm ?? null, pec: p.pec ?? [], neffShift: p.neffShift ?? null, meshHash: p.mesh.hash, ...(p.epsG ? { epsG: p.epsG } : {}), ...(p.epsGIm ? { epsGIm: p.epsGIm } : {}), ...(p.transform ? { transform: digestTransform(p.transform) } : {}) } }),
     fields,
     steps: { kind: 'eigen', values: Float64Array.from(res.modes.map((m: any) => m.neff)), unit: '1' },
     scalars,
@@ -163,8 +201,16 @@ export async function solveModes(p: ModesProblem, meta: { spec?: unknown; physic
     timer,
   });
   attachMesh(solution, p.mesh);
+  const notes = [...(p.notes ?? []), ...(p.transform ? (res.warnings as string[]).map((w) => `em-modes: ${w}`) : [])];
+  if (notes.length) (solution as Solution & { notes?: string[] }).notes = notes;
   p.progress?.('done', 1);
   return { solution, result: res, model };
+}
+
+/** Small digest of a transform for the problem hash (sums of the factor arrays). */
+function digestTransform(t: ModeTransform) {
+  const sum = (a?: Float64Array | null) => (a ? a.reduce((x, v, i) => x + v * ((i % 7) + 1), 0) : null);
+  return { model: t.model ?? 'metric', sx: sum(t.sx), sy: sum(t.sy), h: sum(t.h) };
 }
 
 // ------------------------------------------------------------------------------------------------- spec adapter
@@ -259,6 +305,115 @@ export function problemFromContext(ctx: RunContext, crystals?: Map<string, Cryst
   const cellMask = new Uint8Array(nc);
   for (let c = 0; c < nc; c++) cellMask[c] = active.has(mesh.cells.domain[c]!) ? 1 : 0;
   for (const d of active) if (eps[d] === undefined) throw new Error(`em-modes: domain ${mesh.entities.domains[d]!.id} has no n / eps_r in RunContext.materials`);
+  // DevLog-043 options (all off unless set): loss, dispersion, pml, bend
+  const set = (ph.settings ?? {}) as AnyRec;
+  const notes: string[] = [];
+  const matsIn = (spec.materials ?? []).map((m) => ({ m, props: ctx.materials[m.id], doms: selectEntities(mesh.entities, 'domains', m.select).filter((d) => active.has(d)) }))
+    .filter((r) => r.props && r.doms.length);
+  let epsIm: DomainEps[] | undefined;
+  if (set.loss === true) {
+    const im: DomainEps[] = new Array(nDom).fill(0);
+    const used: string[] = [];
+    for (const { m, props, doms } of matsIn) {
+      if (props!['kappa.perp'] !== undefined || props!['kappa.par'] !== undefined) throw new Error(`em-modes loss: uniaxial kappa of material '${m.id}' is not supported yet`);
+      const kap = props!.kappa;
+      if (kap === undefined) continue;
+      if (!(kap >= 0)) throw new Error(`em-modes loss: material '${m.id}' kappa = ${kap} must be >= 0`);
+      const n = props!.n;
+      if (n === undefined) throw new Error(`em-modes loss: material '${m.id}' has kappa but no n (eps = (n - j kappa)^2 needs both)`);
+      // N = n + i kappa (e^{-i omega t}) == n - j kappa (e^{+j omega t}); eps = n^2 - kappa^2 - j 2 n kappa
+      for (const d of doms) { eps[d] = n * n - kap * kap; im[d] = 2 * n * kap; }
+      used.push(`${m.id} (n ${n}, kappa ${kap}: eps = ${n * n - kap * kap} - j ${2 * n * kap})`);
+    }
+    if (used.length) {
+      epsIm = im;
+      const ngNote = set.dispersion !== undefined && set.dispersion !== false ? '' : '; n_g is the real part of the complex group index with eps_g = eps (no material dispersion)';
+      notes.push(`em-modes loss: complex permittivity eps = (n - j kappa)^2 for ${used.join('; ')}${ngNote}`);
+    }
+    else notes.push('em-modes loss: on, but no material of the selection has kappa (lossless solve)');
+  } else {
+    const withK = matsIn.filter((r) => r.props!.kappa !== undefined).map((r) => r.m.id);
+    if (withK.length) notes.push(`em-modes: material(s) ${withK.join(', ')} have kappa but settings.loss is off (lossless solve)`);
+  }
+  let epsG: DomainEps[] | undefined;
+  let epsGIm: DomainEps[] | undefined;
+  if (set.dispersion !== undefined && set.dispersion !== false) {
+    const lam = wavelength;
+    const dObj = (typeof set.dispersion === 'object' && set.dispersion !== null ? set.dispersion : {}) as AnyRec;
+    const map = (dObj.dndlambda ?? {}) as Record<string, unknown>;
+    const kMap = (dObj.dkappadlambda ?? {}) as Record<string, unknown>;
+    const g: Array<DomainEps | undefined> = eps.map((e) => e);
+    const gIm: DomainEps[] | undefined = epsIm ? epsIm.slice() : undefined;
+    const missing: string[] = [];
+    const used: string[] = [];
+    const lossyUsed: string[] = [];
+    const kappaConst: string[] = [];
+    const dOf = (id: string, props: Record<string, number>, comp?: 'perp' | 'par'): number | undefined => {
+      const mv = map[id];
+      if (mv !== undefined) {
+        const v = comp ? (typeof mv === 'object' && mv !== null && comp in (mv as AnyRec) ? (mv as AnyRec)[comp] : undefined) : mv;
+        if (v === undefined) return undefined;
+        return typeof v === 'number' ? v : q(v, `dispersion.dndlambda.${id}${comp ? `.${comp}` : ''}`);
+      }
+      return comp ? props[`dn_dlambda.${comp}`] : props.dn_dlambda;
+    };
+    for (const { m, props, doms } of matsIn) {
+      const P = props!;
+      if (P.n !== undefined && Number.isFinite(P.n)) {
+        const dn = dOf(m.id, P);
+        if (dn === undefined || !Number.isFinite(dn)) { missing.push(m.id); continue; }
+        const n = P.n, ng = n - lam * dn;
+        const kap = epsIm ? P.kappa : undefined;
+        if (kap !== undefined && gIm) {
+          // lossy: eps_g = N (N - lambda dN/dlambda), N = n - j kappa, dN/dlambda = dn/dlambda - j dkappa/dlambda
+          const kv = kMap[m.id];
+          const dkIn = kv !== undefined ? (typeof kv === 'number' ? kv : q(kv, `dispersion.dkappadlambda.${m.id}`)) : P.dkappa_dlambda;
+          if (dkIn !== undefined && !Number.isFinite(dkIn)) throw new Error(`em-modes dispersion: dkappa/dlambda of material '${m.id}' is not finite`);
+          const dk = dkIn ?? 0;
+          if (dkIn === undefined) kappaConst.push(m.id);
+          for (const d of doms) { g[d] = n * n - kap * kap - lam * (n * dn - kap * dk); gIm[d] = 2 * n * kap - lam * (n * dk + kap * dn); }
+          lossyUsed.push(`${m.id} (n ${n}, kappa ${kap}, dn/dlambda ${dn} 1/m, dkappa/dlambda ${dkIn === undefined ? '0 (not given)' : `${dk} 1/m`})`);
+          continue;
+        }
+        for (const d of doms) g[d] = n * ng;
+        used.push(`${m.id} (n ${n}, dn/dlambda ${dn} 1/m, material n_g ${ng})`);
+      } else if (P['n.perp'] !== undefined && P['n.par'] !== undefined) {
+        const o = materialOptics(m.id, P, crystals ?? crystalsOf(ctx));
+        const dp = dOf(m.id, P, 'perp'), de = dOf(m.id, P, 'par');
+        if (!o || dp === undefined || de === undefined || !Number.isFinite(dp) || !Number.isFinite(de)) { missing.push(`${m.id} (perp and par)`); continue; }
+        const gi = (i: number) => o.n[i]! * (o.n[i]! - lam * (i === 2 ? de : dp));
+        const t = kernelTensor(o.A, [gi(0), gi(1), gi(2)], `material '${m.id}' (eps_g)`);
+        for (const d of doms) g[d] = t;
+        used.push(`${m.id} (n.perp ${P['n.perp']}, n.par ${P['n.par']}, dn/dlambda perp ${dp}, par ${de} 1/m)`);
+      } else missing.push(`${m.id} (no n: eps_r-only materials have no dispersion data)`);
+    }
+    if (missing.length) throw new Error(`em-modes dispersion: no dn/dlambda for material(s) ${missing.join(', ')} (settings.dispersion.dndlambda.<material> in 1/m, or a library dn_dlambda); no default is assumed`);
+    epsG = g.map((e) => e ?? 1);
+    if (gIm) epsGIm = gIm;
+    if (used.length) notes.push(`em-modes dispersion: n_g with eps_g = n (n - lambda dn/dlambda) at lambda = ${lam} m for ${used.join('; ')}`);
+    if (lossyUsed.length) notes.push(`em-modes dispersion: lossy material(s) with complex eps_g = N (N - lambda dN/dlambda), N = n - j kappa, dN/dlambda = dn/dlambda - j dkappa/dlambda, at lambda = ${lam} m: ${lossyUsed.join('; ')}; n_g is the real part of the complex group index`);
+    if (kappaConst.length) notes.push(`em-modes dispersion: no dkappa/dlambda for ${kappaConst.join(', ')} (settings.dispersion.dkappadlambda.<material> in 1/m or a material dkappa_dlambda): kappa treated as wavelength-independent in n_g`);
+  }
+  let transform: ModeTransform | undefined;
+  let bendRadius: number | undefined;
+  const pmlIn = set.pml as Array<AnyRec> | undefined;
+  const bendIn = set.bend as AnyRec | undefined;
+  if ((pmlIn && pmlIn.length) || bendIn) {
+    const pml: PmlRegion[] = (pmlIn ?? []).map((r, i) => {
+      const doms = selectEntities(mesh.entities, 'domains', (r.select ?? []) as string[]);
+      if (!doms.length) throw new Error(`em-modes pml[${i}]: select matches no domain`);
+      const off = doms.filter((d) => !active.has(d));
+      if (off.length) throw new Error(`em-modes pml[${i}]: domain(s) ${off.map((d) => mesh.entities.domains[d]!.id).join(', ')} are not in the physics selection`);
+      const pair = (v: unknown, w: string): [number, number] | undefined => (v === undefined ? undefined : [q((v as unknown[])[0], `pml[${i}].${w}[0]`), q((v as unknown[])[1], `pml[${i}].${w}[1]`)]);
+      const x = pair(r.x, 'x'), y = pair(r.y, 'y');
+      return { domains: doms, strength: r.strength !== undefined ? Number(r.strength) : PML_DEFAULT.strength, power: r.power !== undefined ? Number(r.power) : PML_DEFAULT.power, ...(x ? { x } : {}), ...(y ? { y } : {}) };
+    });
+    const bend: BendOptions | undefined = bendIn ? { radius: q(bendIn.radius, 'bend.radius'), x0: bendIn.x0 !== undefined ? q(bendIn.x0, 'bend.x0') : 0, model: (bendIn.model as 'metric' | 'conformal' | undefined) ?? 'metric' } : undefined;
+    const tr = modeTransform(mesh, { pml, ...(bend ? { bend } : {}), ...(active.size < nDom ? { cellMask } : {}), domainName: (d) => mesh.entities.domains[d]!.id });
+    transform = { sx: tr.sx, sy: tr.sy, h: tr.h, model: tr.model };
+    if (bend) { bendRadius = bend.radius; notes.push(`em-modes bend: ${bend.model} model, radius ${bend.radius} m, centre of curvature at x = ${(bend.x0 ?? 0) - bend.radius} m (bend in the x-z plane, axis parallel to y); n_eff referenced to the radius |R| at x = ${bend.x0 ?? 0} m${bend.model === 'metric' ? '; field Ez is reported in bend coordinates (h Ez, h = 1 + (x - x0) / R)' : ''}${bend.model === 'conformal' ? '; conformal = Heiblum-Harris scalar equivalent index n (1 + (x - x0) / R), an approximation' : ''}`); }
+    if (tr.layers.length) notes.push(`em-modes pml: ${tr.layers.map((l) => `${mesh.entities.domains[l.domain]!.id}${l.x ? ` x ${l.x[0]} -> ${l.x[1]} m` : ''}${l.y ? ` y ${l.y[0]} -> ${l.y[1]} m` : ''}`).join('; ')}; s = 1 - j a xi^p (a, p per entry; defaults a ${PML_DEFAULT.strength}, p ${PML_DEFAULT.power})`);
+  }
   const pec: string[] = [];
   for (const b of (ph.bcs ?? []) as Array<{ type: string; select: string[] }>) if (b.type === 'pec') pec.push(...b.select);
   // inactive cells (outside the physics selection) get no DOFs: their boundary acts as PEC (kernel `dead` triangles)
@@ -266,6 +421,8 @@ export function problemFromContext(ctx: RunContext, crystals?: Map<string, Cryst
   return {
     mesh, eps: eps.map((e) => e ?? 1), pec, wavelength, nModes, ...(neffShift !== undefined ? { neffShift } : {}),
     ...(order ? { order } : {}), ...(active.size < nDom ? { cellMask } : {}), signal: ctx.signal, progress: ctx.progress,
+    ...(epsIm ? { epsIm } : {}), ...(epsG ? { epsG } : {}), ...(epsGIm ? { epsGIm } : {}), ...(transform ? { transform } : {}), ...(bendRadius !== undefined ? { bendRadius } : {}),
+    ...(notes.length ? { notes } : {}),
   };
 }
 
@@ -278,7 +435,12 @@ export const emModes: PhysicsModule = {
     if (!r.ready) throw new Error(`em-modes not ready: ${r.reasons.join('; ')}`);
     if (photonicInputs(ctx).length || ctx.inputs?.length) {
       const crystals = crystalsOf(ctx);
-      return runCoupledModes(ctx, problemFromContext(ctx, crystals), (p) => solveModes(p, { spec: ctx.spec, physicsId: ctx.physicsId }));
+      const base = problemFromContext(ctx, crystals);
+      // the first-order overlaps of the coupled path are not transformed (DevLog-043 O1)
+      if (base.transform) throw new Error('em-modes: pml / bend together with thermo-optic or electro-optic couplings is not supported yet');
+      const sol = await runCoupledModes(ctx, base, (p) => solveModes(p, { spec: ctx.spec, physicsId: ctx.physicsId }));
+      if (base.notes?.length) { const x = sol as Solution & { notes?: string[] }; x.notes = [...new Set([...(x.notes ?? []), ...base.notes])]; }
+      return sol;
     }
     const out = await solveModes(problemFromContext(ctx), { spec: ctx.spec, physicsId: ctx.physicsId });
     return out.solution;

@@ -53,13 +53,22 @@ export interface SweepPoint {
 export const SWEEP_HELD = 3;
 export interface SweepState { studyId: string; innerId: string; axes: SweepAxis[]; points: SweepPoint[]; spec: string; done: number; startedAt: number }
 
-/** The first parametric study of the data (amp-spec/0 core type `parametric`), or null. */
-export function parametricOf(data: unknown): { index: number; id: string; inner: string; sweep: Array<Record<string, unknown>> } | null {
+/** The first parametric study of the data (amp-spec/0 core type `parametric`), or the study `id` when it is parametric; else null. */
+export function parametricOf(data: unknown, id?: string): { index: number; id: string; inner: string; sweep: Array<Record<string, unknown>> } | null {
 	const st = (data as { studies?: Array<{ id?: string; type?: string; settings?: { study?: string; sweep?: Array<Record<string, unknown>> } }> } | null)?.studies ?? [];
-	const i = st.findIndex((x) => x?.type === 'parametric');
+	const i = st.findIndex((x) => x?.type === 'parametric' && (id === undefined || x.id === id));
 	if (i < 0) return null;
 	const n = st[i]!;
 	return { index: i, id: n.id ?? `#${i}`, inner: n.settings?.study ?? '', sweep: n.settings?.sweep ?? [] };
+}
+
+/** Studies of the data: id, type, physics (study picker). */
+export function studiesOf(data: unknown): Array<{ id: string; type: string; physics: string[]; inner?: string }> {
+	const st = (data as { studies?: Array<{ id?: unknown; type?: unknown; physics?: unknown; settings?: { study?: unknown } }> } | null)?.studies ?? [];
+	return st.filter((x) => typeof x?.id === 'string').map((x) => ({
+		id: x.id as string, type: String(x.type ?? ''), physics: Array.isArray(x.physics) ? x.physics.filter((p): p is string => typeof p === 'string') : [],
+		...(typeof x.settings?.study === 'string' ? { inner: x.settings.study } : {})
+	}));
 }
 
 /** SI value -> display unit (affine degC handled by the spec's unit table). */
@@ -110,6 +119,11 @@ export class Session {
 	solvedSeq = $state(0);
 	/** Compute runs a parametric study as a sweep (workbench only; Play solves the single study at the slider values) */
 	sweepEnabled = false;
+	/** study picker (DevLog-040): the study Compute solves; null = the default (a parametric study as a sweep when
+	 *  sweeps are on, else the first study). A choice that no longer exists in the spec falls back to the default. */
+	study = $state<string | null>(null);
+	/** study of the displayed solution when it came from an explicit choice (null = the default run; results/api.ts runStudies) */
+	solvedStudy = $state<string | null>(null);
 	/** parametric sweep of the last Compute (DevLog-020 s.1.3); null when the spec has none */
 	sweep = $state.raw<SweepState | null>(null);
 	/** displayed sweep point (dataset), -1 when there is no sweep */
@@ -144,6 +158,19 @@ export class Session {
 		const s = new Session(await ModelState.open(id, text, reg));
 		s.caseInfo = await loadCaseFor(id, text).catch(() => null);
 		return s;
+	}
+
+	/** The explicit study choice when it is a study of the current spec, else null (default run). */
+	get chosenStudy(): string | null {
+		const c = this.study;
+		return c !== null && studiesOf(this.model.data).some((x) => x.id === c) ? c : null;
+	}
+	/** Study the next Compute solves (the picker shows it): the choice, else the default. */
+	get runStudy(): string | null {
+		const c = this.chosenStudy;
+		if (c !== null) return c;
+		const par = this.sweepEnabled ? parametricOf(this.model.data) : null;
+		return par ? par.id : (studiesOf(this.model.data)[0]?.id ?? null);
 	}
 
 	get dim(): number {
@@ -310,9 +337,11 @@ export class Session {
 		return this.handle(o, 'mesh', spec, meshScale);
 	}
 
-	/** Full run: mesh, then the physics module (C4) of the first study; a parametric study runs as a sweep. */
+	/** Full run: mesh, then the physics modules (C4, C11) of the chosen study (default: the first; a parametric study
+	 *  runs as a sweep). */
 	async compute(meshScale = 1): Promise<RunOutcome> {
-		const par = parametricOf(this.model.data);
+		const choice = this.chosenStudy;
+		const par = choice !== null ? parametricOf(this.model.data, choice) : parametricOf(this.model.data);
 		if (par && meshScale === 1 && this.sweepEnabled) return this.computeSweep(par);
 		this.sweepToken++;
 		this.reToken++;
@@ -322,8 +351,10 @@ export class Session {
 		this.active = -1;
 		const spec = this.model.specHash;
 		let text = this.model.text;
-		// the runner solves the first study: a parametric study in front is taken out of the run copy
-		if (par && par.index === 0) {
+		// an explicit choice is passed to the runner (a parametric choice runs its inner study at the base params);
+		// the default run solves the first study: a parametric study in front is taken out of the run copy
+		const studyId = choice === null ? undefined : par ? par.inner : choice;
+		if (choice === null && par && par.index === 0) {
 			try { text = await this.runText(par, {}, this.snapshot()); }
 			catch (e) { return this.handle({ kind: 'error', message: `parametric study ${par.id}: ${(e as Error).message}`, ms: 0 }, 'compute', spec, meshScale); }
 		}
@@ -333,7 +364,8 @@ export class Session {
 		this.notes = [];
 		if (meshScale === 1) appLog.clearProgress();
 		const kase = this.useCase && this.caseInfo ? { case: this.caseInfo.data } : {};
-		const o = await this.engine.run(text, { meshScale, ...kase }, this.handlers(this.runStart, spec, 'run'));
+		const o = await this.engine.run(text, { meshScale, ...kase, ...(studyId !== undefined ? { studyId } : {}) }, this.handlers(this.runStart, spec, 'run'));
+		if (o.kind === 'result') this.solvedStudy = choice;
 		return this.handle(o, 'compute', spec, meshScale);
 	}
 
@@ -433,6 +465,7 @@ export class Session {
 		this.pointLoading = -1;
 		this.active = -1;
 		this.solution = null;
+		this.solvedStudy = this.chosenStudy;
 		this.sweep = { studyId: par.id, innerId: par.inner, axes, points, spec, done: 0, startedAt: t0 };
 		this.status = 'solving';
 		this.runStart = t0;

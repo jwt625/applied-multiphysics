@@ -13,13 +13,13 @@ sources:
     citation: "AWS Palace documentation, examples/cpw.md 'Crosstalk Between Coplanar Waveguides' (Apache-2.0), github.com/awslabs/palace, branch main"
     url: https://github.com/awslabs/palace/blob/main/docs/src/examples/cpw.md
     access: open
-    read: "raw markdown fetched 2026-11-06 (sha256 dfe6c1e8...), lines 21-24; read by L10. The page's reference [1] (Visser, Antenna Theory and Applications, 2012) is cited for Z0, not for the material values"
+    read: "raw markdown fetched 2026-11-06 (sha256 dfe6c1e8...), lines 21-24; read. The page's reference [1] (Visser, Antenna Theory and Applications, 2012) is cited for Z0, not for the material values"
     licence: Apache-2.0
   nist_cryo_sapphire:
     citation: "NIST Cryogenic Technologies Group, Material properties: Sapphire, trc.nist.gov"
     url: https://trc.nist.gov/cryogenics/materials/Sapphire/Sapphire_rev.htm
     access: open
-    read: "web page fetched and read by L10 2026-11-06 (expansion coefficient 5-80 K and linear expansion 15-300 K fits; crystal direction not stated)"
+    read: "web page fetched and read 2026-11-06 (expansion coefficient 5-80 K and linear expansion 15-300 K fits; crystal direction not stated)"
 properties:
   eps_r:
     tensor:
@@ -66,12 +66,12 @@ properties:
   rho:
     value: N/A
     unit: kg/m^3
-    missing: "not read from a source in this lane"
+    missing: "not read from a source for this library"
     alternatives: []
   k:
     value: N/A
     unit: W/(m*K)
-    missing: "not read from a source in this lane (NIST cryogenic page gives expansion only)"
+    missing: "not read from a source for this library (NIST cryogenic page gives expansion only)"
     alternatives: []
 missing:
   - {property: eps_r, what: "measured microwave permittivity tensor of sapphire vs temperature (e.g. whispering-gallery-mode resonator data) not read; candidates are paywalled"}

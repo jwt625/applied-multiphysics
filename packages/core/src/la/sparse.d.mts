@@ -14,6 +14,10 @@ export function buildElementPattern(n: number, elem: Int32Array, k: number): Csr
 export function elementSlots(pat: CsrPattern, elem: Int32Array, k: number): Int32Array;
 /** CSR slots of the 3 x 3 local entries of every triangle. */
 export function triangleSlots(pat: CsrPattern, tri: Int32Array): Int32Array;
+/** Node pattern expanded to bs x bs blocks (DOF = node * bs + component), rows sorted (lane S4, DevLog-045). */
+export function blockPattern(pat: CsrPattern, bs: number): CsrPattern;
+/** Slots in blockPattern(nodePat, bs) of every element entry, local DOF bs a + c; nd^2 per element, nd = k bs (cached). */
+export function blockElementSlots(nodePat: CsrPattern, blockPat: CsrPattern, elem: Int32Array, k: number, bs: number): Int32Array;
 /** Index of entry (i, j), -1 when absent. */
 export function entryIndex(pat: CsrPattern, i: number, j: number): number;
 export function matVec(pat: CsrPattern, val: Float64Array, x: Float64Array, out?: Float64Array | null): Float64Array;

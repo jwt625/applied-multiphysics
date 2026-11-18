@@ -38,8 +38,13 @@ export const PROPERTY_DEFS: readonly PropertyDef[] = [
   { name: 'mu_r', unit: '1', description: 'Relative permeability', scalar: true, tensor: [] },
   { name: 'sigma', unit: 'S/m', description: 'Electrical conductivity', scalar: true, tensor: [] },
   { name: 'rho_e', unit: 'ohm*m', description: 'Electrical resistivity', scalar: true, tensor: [] },
+  { name: 'tcr', unit: '1/K', description: 'Temperature coefficient of resistance (1/rho_e) d rho_e / dT at the stated reference temperature', scalar: true, tensor: [] },
   { name: 'n', unit: '1', description: 'Refractive index (real part); uniaxial: perp = n_o, par = n_e', scalar: true, tensor: ['uniaxial'] },
+  { name: 'kappa', unit: '1', description: 'Extinction coefficient: imaginary part of the complex refractive index N = n + i kappa (kappa >= 0 = loss, exp(-i omega t)); eps = N^2; uniaxial: perp, par', scalar: true, tensor: ['uniaxial'] },
   { name: 'dndT', unit: '1/K', description: 'Thermo-optic coefficient dn/dT', scalar: true, tensor: ['uniaxial'] },
+  { name: 'p_pe', unit: '1', description: 'Photoelastic (elasto-optic) tensor p_IJ, Voigt 6x6, Delta(eps^-1)_I = p_IJ S_J (engineering shear strain), crystal frame', scalar: false, tensor: ['cubic', 'trigonal-3m'],
+    components: { cubic: ['p11', 'p12', 'p44'], 'trigonal-3m': ['p11', 'p12', 'p13', 'p14', 'p31', 'p33', 'p41', 'p44'] } },
+  { name: 'Tg', unit: 'K', description: 'Glass transition temperature (method DMA / TMA / DSC in conditions); polymers store alpha1 (below Tg) as alpha and alpha2 as alternative above_tg', scalar: true, tensor: [] },
   { name: 'r_eo', unit: 'm/V', description: 'Linear electro-optic (Pockels) tensor r_ij, Voigt rows, crystal frame', scalar: false, tensor: ['trigonal-3m'] },
   { name: 'c', unit: 'm/s', description: 'Speed of sound', scalar: true, tensor: [] },
   { name: 'mu', unit: 'Pa*s', description: 'Dynamic viscosity', scalar: true, tensor: [] },
@@ -72,6 +77,10 @@ export const tensorComponents = (def: PropertyDef, s: Symmetry): readonly string
  * - uniaxial: 3x3 diagonal diag(perp, perp, par), optic / c axis = frame z.
  * - r_eo trigonal-3m: 6x3 Voigt rows (xx, yy, zz, yz, xz, xy) x field (x, y, z), mirror plane = y-z, c axis = z:
  *   [[0, -r22, r13], [0, r22, r13], [0, 0, r33], [0, r51, 0], [r51, 0, 0], [-r22, 0, 0]].
+ * - p_pe (6x6 Voigt photoelastic, not symmetric in general): cubic [[p11, p12, p12, 0, 0, 0], [p12, p11, p12, ...],
+ *   [p12, p12, p11, ...], diag p44 on the shear rows]; trigonal-3m (x = a axis, mirror plane y-z, as C and r_eo):
+ *   [[p11, p12, p13, p14, 0, 0], [p12, p11, p13, -p14, 0, 0], [p31, p31, p33, 0, 0, 0], [p41, -p41, 0, p44, 0, 0],
+ *    [0, 0, 0, 0, p44, p41], [0, 0, 0, 0, p14, (p11 - p12) / 2]] (Nye, class 3m).
  * `prop` selects the form where a symmetry is shared (trigonal-3m: C, e_piezo, r_eo; default r_eo / C as before).
  */
 export function tensorMatrix(symmetry: Symmetry, c: Record<string, number>, prop?: string): number[][] {
@@ -80,6 +89,17 @@ export function tensorMatrix(symmetry: Symmetry, c: Record<string, number>, prop
     if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`tensor component ${k} missing or N/A`);
     return v;
   };
+  if (prop === 'p_pe') {
+    if (symmetry === 'cubic') {
+      const [a, b, d] = [g('p11'), g('p12'), g('p44')];
+      return [[a, b, b, 0, 0, 0], [b, a, b, 0, 0, 0], [b, b, a, 0, 0, 0], [0, 0, 0, d, 0, 0], [0, 0, 0, 0, d, 0], [0, 0, 0, 0, 0, d]];
+    }
+    if (symmetry === 'trigonal-3m') {
+      const [p11, p12, p13, p14, p31, p33, p41, p44] = ['p11', 'p12', 'p13', 'p14', 'p31', 'p33', 'p41', 'p44'].map(g) as [number, number, number, number, number, number, number, number];
+      return [[p11, p12, p13, p14, 0, 0], [p12, p11, p13, -p14, 0, 0], [p31, p31, p33, 0, 0, 0], [p41, -p41, 0, p44, 0, 0], [0, 0, 0, 0, p44, p41], [0, 0, 0, 0, p14, (p11 - p12) / 2]];
+    }
+    throw new Error(`p_pe: symmetry ${symmetry} not supported`);
+  }
   if (prop === 'e_piezo') {
     if (symmetry === 'trigonal-3m') { const [e15, e22, e31, e33] = [g('e15'), g('e22'), g('e31'), g('e33')]; return [[0, 0, 0, 0, e15, -e22], [-e22, e22, 0, e15, 0, 0], [e31, e31, e33, 0, 0, 0]]; }
     const [e15, e31, e33] = [g('e15'), g('e31'), g('e33')];

@@ -24,6 +24,24 @@ mesh:
   size: {hmax: "4*a"}
 studies:
   - {id: eig, type: eigen, physics: [rf], settings: {nModes: 2, shift: "2.5 GHz"}}
+results:
+  datasets:
+    - {id: sol_eig, type: solution, data: eig}
+  evaluations:
+    - id: ev_eig
+      data: sol_eig
+      items:
+        - {id: f_low, type: global, expr: rf.f_0, unit: GHz, label: "lowest mode (coarse 3D level)"}
+        - {id: Q_d, type: global, expr: rf.Q_0, unit: "1", label: "dielectric Q of the lowest mode (1 / tan_delta for a homogeneous fill)"}
+  tables:
+    - {id: tbl_eig, from: ev_eig}
+  plots:
+    - id: E_mode
+      type: plot3d
+      data: sol_eig
+      steps: 0
+      items:
+        - {id: E_mode_surf, type: surface, expr: rf.normE, unit: V/m}
 provenance:
   values:
     params.a: {basis: benchmark, source: "eval/cases/a/RF-21.yaml geometry.spec.radius_m (Palace docs examples/cylinder.md)", date: 2026-11-06}
@@ -35,4 +53,4 @@ provenance:
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice: coarse; the case levels 1, 0.5, 0.25 give h = 4a, 2a, a"}
 assumptions:
   - {text: "Walls are PEC", paths: [physics.rf.bcs.walls]}
-# eval: [RF-21]
+# eval: [RF-21, RF-01]

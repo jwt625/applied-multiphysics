@@ -1,0 +1,44 @@
+# Lithium tantalate (lane T4, DevLog-041): ordinary and extraordinary indices tabulated by Bond 1965 (room temperature).
+# Composition (congruent or stoichiometric) not stated in the entries read; EO, piezo and RF data not authored (see
+# eo-modulator-atlas materials.json `missing`: no primary readable there either).
+schema: amp-material/0
+id: litao3
+name: Lithium tantalate (LiTaO3)
+class: crystal
+description: >-
+  LiTaO3, trigonal 3m, uniaxial optics (c axis = frame z): n_o, n_e measured at 0.45-4.0 um (Bond 1965), linear
+  interpolation between the tabulated wavelengths.
+verified_on: 2026-11-18
+frame: "crystal axes: z = c axis (optic axis)"
+sources:
+  bond1965:
+    citation: "W. L. Bond, Measurement of the refractive indices of several crystals, J. Appl. Phys. 36, 1674-1677 (1965)"
+    doi: 10.1063/1.1703106
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/LiTaO3/nk/Bond-o.yml
+    access: paywalled
+    read: "primary not read; tables from the refractiveindex.info entries (CC0) LiTaO3/nk/Bond-o.yml (sha256 562ca3db5bdb...) and Bond-e.yml (sha256 23ca4c3395ee...), fetched 2026-11-18, 22 rows each 0.45-4.00 um, comment 'Room temperature'; all rows transcribed"
+    licence: "refractiveindex.info database: CC0 1.0"
+properties:
+  n:
+    tensor:
+      symmetry: uniaxial
+      components:
+        perp:
+          table: {x: lambda, x_unit: um, xs: [0.45, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00, 1.20, 1.40, 1.60, 1.80, 2.00, 2.20, 2.40, 2.60, 2.80, 3.00, 3.20, 3.40, 3.60, 3.80, 4.00], ys: [2.2420, 2.2160, 2.1834, 2.1652, 2.1538, 2.1454, 2.1391, 2.1305, 2.1236, 2.1174, 2.1120, 2.1066, 2.1009, 2.0951, 2.0891, 2.0825, 2.0755, 2.0680, 2.0601, 2.0513, 2.0424, 2.0335]}
+          locator: "Bond-o.yml tabulated n (ordinary)"
+        par:
+          table: {x: lambda, x_unit: um, xs: [0.45, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00, 1.20, 1.40, 1.60, 1.80, 2.00, 2.20, 2.40, 2.60, 2.80, 3.00, 3.20, 3.40, 3.60, 3.80, 4.00], ys: [2.2468, 2.2205, 2.1878, 2.1696, 2.1578, 2.1493, 2.1432, 2.1341, 2.1273, 2.1213, 2.1170, 2.1115, 2.1053, 2.0993, 2.0936, 2.0871, 2.0799, 2.0727, 2.0649, 2.0561, 2.0473, 2.0377]}
+          locator: "Bond-e.yml tabulated n (extraordinary)"
+    unit: "1"
+    basis: measured
+    source: bond1965
+    locator: "refractiveindex.info LiTaO3/nk/Bond-o.yml and Bond-e.yml (perp = n_o, par = n_e)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entries; primary not read"}
+    conditions: {text: "room temperature (database comment); sample composition not stated in the entries"}
+    n_medium: unstated
+    n_medium_note: "database entries do not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "room temperature, not quantified"}, note: "tabulated 0.45-4.0 um; nodes 1.4 and 1.6 um around 1.55 um (piecewise-linear derivative)"}
+    alternatives: []
+missing:
+  - {what: "LiTaO3 r_eo, eps_r, C, e_piezo, dn/dT, density: no primary read for this library (eo-modulator-atlas lists the same gap)"}

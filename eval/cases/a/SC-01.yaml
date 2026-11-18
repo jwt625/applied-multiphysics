@@ -78,8 +78,8 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/pn-junction.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
-    a proposal}
+spec: {status: pending, proposed: sims/pn-junction.yaml, reason: 'no sims/ model yet (path in ''proposed''); engine gap:
+    semiconductor drift-diffusion / nonlinear Poisson (DevLog-021 s.4.1)'}
 missing: [Primary source for eps_r of Si (R3 lists 11.7 and 11.1; 11.1 has no source; the Ioffe NSM page failed TLS on 2026-11-06).]
 assumptions: ['eps_r = 11.7 is an input of the test, not a measured target. Sensitivity: E_max scales as eps_r^-1/2, so
     11.9 gives -0.84 % (eval/expected/SC-01.json E_max_PB_0V.epsr11.9); V_bi does not depend on eps_r.']

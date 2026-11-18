@@ -14,6 +14,7 @@ import { facetsOn, facetNodes, nNodes } from '../common/mesh.ts';
 import { shiftInvertEigen } from '../common/eigen.ts';
 import { StageTimer, makeSolution, attachMesh } from '../common/solution.ts';
 import { cellProps, bcSelections, bcTypes, eigenStudy, physicsNode, optionalCellProp, q } from '../common/ctx.ts';
+import { solveAcousticsFrequency, wave2dReadiness } from '../wave2d/index.ts';
 
 export interface AcousticProblem {
   mesh: Mesh;
@@ -93,6 +94,13 @@ export const acousticsModule: PhysicsModule = {
   readiness(spec, physicsId) {
     const reasons: string[] = [];
     try {
+      // frequency-domain study (lane S1, DevLog-042): the wave2d solver, 2D planar meshes
+      const stF = (spec.studies ?? []).filter((s) => !(s as { physics?: string[] }).physics || (s as { physics?: string[] }).physics!.includes(physicsId));
+      if (stF.some((s) => s.type === 'frequency') && !stF.some((s) => s.type === 'eigen')) {
+        reasons.push(...wave2dReadiness(spec, physicsId, 'acoustics'));
+        if ((spec.geometry as { dim?: number; axisym?: boolean } | undefined)?.dim !== 2 || (spec.geometry as { axisym?: boolean }).axisym) reasons.push('frequency study: 2D planar geometry only (wave2d)');
+        return { ready: reasons.length === 0, reasons };
+      }
       const p = physicsNode(spec, physicsId);
       for (const b of p.bcs ?? []) {
         if (b.type === 'sound-hard') continue;
@@ -110,6 +118,7 @@ export const acousticsModule: PhysicsModule = {
     return { ready: reasons.length === 0, reasons };
   },
   async run(ctx: RunContext) {
+    if (ctx.study.type === 'frequency') return solveAcousticsFrequency(ctx);
     const { mask, values } = cellProps(ctx, ['c']);
     const rho = optionalCellProp(ctx, 'rho', mask);
     const matsUsed = new Set((ctx.spec.materials ?? []).filter((mt) => Object.keys(ctx.materials[mt.id] ?? {}).length).map((mt) => mt.id));

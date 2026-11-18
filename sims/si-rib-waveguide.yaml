@@ -88,4 +88,4 @@ missing:
   - {what: "t = 0 point of the WO-02 table needs a geometry variant without the slab (zero-thickness feature)", needed_for: [geometry, eval]}
   - {what: "Si/SiO2 SOI rib geometry for the 'Si rib' hero: no sourced case defines it (WO-01 is a 1D slab)", needed_for: [geometry]}
   - {what: "which mode (polarization) WO-02 gates is not stated in the R3 summary", needed_for: [eval]}
-# eval: [WO-02, WO-01]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)
+# eval: [WO-02]

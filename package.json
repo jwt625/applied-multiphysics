@@ -12,7 +12,8 @@
   "scripts": {
     "check": "pnpm -r --if-present check",
     "test": "pnpm -r --if-present test",
-    "eval": "pnpm --filter @amp/eval --if-present eval"
+    "eval": "pnpm --filter @amp/eval --if-present eval",
+    "e2e": "pnpm --filter @amp/web e2e"
   },
   "devDependencies": {
     "typescript": "5.9.3",

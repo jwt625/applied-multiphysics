@@ -1,0 +1,232 @@
+# Pure aluminum for heaters, pads and plasmonics (lane T4, DevLog-041). Handbook values from the NIST solder
+# database (each table names its compiled source), recommended k(T) of Ho-Powell-Liley 1972 (transcribed from the
+# advanced-packaging-atlas data file), optical constants of evaporated films (Rakic 1995; McPeak 2015 alternative).
+schema: amp-material/0
+id: aluminum
+name: Aluminum, pure
+class: metal
+description: >-
+  Pure (99.99 % class) aluminum. Bulk handbook density, heat capacity, expansion, elastic moduli, resistivity and TCR;
+  evaluated recommended thermal conductivity; complex refractive index of evaporated films (thin-film electrical and
+  thermal values differ from bulk and are not stored).
+verified_on: 2026-11-18
+sources:
+  nist_solder_db_v4:
+    citation: "T. Siewert, S. Liu, D. R. Smith, J. C. Madeni, Database for solder properties with emphasis on new lead-free solders, release 4.0, NIST and Colorado School of Mines (2002-02-11)"
+    url: https://www.msed.nist.gov/solder/NIST_LeadfreeSolder_v4.pdf
+    access: open
+    read: "text layer of the local copy (cache/materials/gold/solderdb.txt, fetched 2026-11-06), Tables 1.10, 2.2.5, 2.2.7, 2.2.8 re-read 2026-11-18; a compilation: each table names its source (Lange 1956, AIP Handbook 1957, Smithells 1983, ASM Handbook Vol. 6 1993)"
+  hpl1972:
+    citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
+    doi: 10.1063/1.3253100
+    url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
+    access: open
+    read: "not re-read; values transcribed from the advanced-packaging-atlas data file, which read the p.305 recommended-value table on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/metals.yaml at fe39985 (al.properties.k)"
+  rakic1995:
+    citation: "A. D. Rakic, Algorithm for the determination of intrinsic optical constants of metal films: application to aluminum, Appl. Opt. 34(22), 4755-4767 (1995)"
+    doi: 10.1364/AO.34.004755
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/Al/nk/Rakic.yml
+    access: paywalled
+    read: "primary not read; n, k table from the refractiveindex.info entry (CC0) Al/nk/Rakic.yml fetched 2026-11-18 (sha256 e93b31fe8215...), 206 rows 1.24e-4 to 200 um, comment: optical and electron-energy-loss data for evaporated-aluminum films analysed (Kramers-Kronig + semiquantum model); all 27 rows from 0.413 to 2.755 um transcribed"
+    licence: "refractiveindex.info database: CC0 1.0"
+  mcpeak2015:
+    citation: "K. M. McPeak, S. V. Jayanti, S. J. P. Kress, S. Meyer, S. Iotti, A. Rossinelli, D. J. Norris, Plasmonic films can easily be better: rules and recipes, ACS Photonics 2, 326-333 (2015)"
+    doi: 10.1021/ph5004237
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/Al/nk/McPeak.yml
+    access: open
+    read: "paper not read; n, k table from the refractiveindex.info entry (CC0) Al/nk/McPeak.yml fetched 2026-11-18 (sha256 4cc03719aeee...), 297 rows 0.15-1.7 um, comment 'Thermally evaporated Al at 150 A/s, template stripped from Si wafer'; rows at >= 0.05 um spacing from 0.40 to 1.68 um transcribed"
+    licence: "refractiveindex.info database: CC0 1.0"
+properties:
+  rho:
+    value: 2.702
+    unit: g/cm^3
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Aluminum: density (20 C) 2.702 g/cm3 (Lange, Handbook of Chemistry 1956, as cited)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "20 degC"}
+    valid: {T: {unit: degC, range: [20, 20]}}
+    alternatives: []
+  E:
+    value: 68.9
+    unit: GPa
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 1.10 row Aluminum 99.996, annealed: E 68.9 GPa, G 26.5 GPa (Gray, AIP Handbook 1957, as cited); Table 2.2.7 lists 69 GPa (ASM Handbook Vol. 6)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "99.996 % Al, annealed; temperature not stated"}
+    valid: {T: {na: "temperature not stated (room temperature by context)"}}
+    alternatives: []
+  G:
+    value: 26.5
+    unit: GPa
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 1.10 row Aluminum 99.996, annealed: G 26.5 GPa"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "99.996 % Al, annealed"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  nu:
+    value: 0.300
+    unit: "1"
+    basis: derived
+    source: nist_solder_db_v4
+    locator: "Table 1.10 row Aluminum 99.996, annealed: E 68.9 GPa, G 26.5 GPa"
+    accessed: 2026-11-18
+    derivation: "nu = E / (2 G) - 1 = 68.9 / 53.0 - 1 = 0.3000 (isotropic relation, computed)"
+    uncertainty: {na: "propagated from unstated E and G uncertainties"}
+    conditions: {text: "99.996 % Al, annealed"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  k:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 223.2, 250, 273.2, 298.2, 300, 323.2, 350, 373.2, 400, 473.2, 500, 573.2, 600]
+      ys: [2.37, 2.35, 2.35, 2.36, 2.37, 2.37, 2.39, 2.40, 2.40, 2.40, 2.37, 2.36, 2.33, 2.31]
+    unit: W/(cm*K)
+    basis: measured
+    source: hpl1972
+    locator: "journal p.305, Thermal conductivity of aluminum, recommended values (solid)"
+    accessed: 2026-10-20
+    uncertainty: {na: "not transcribed in the advanced-packaging-atlas project"}
+    conditions: {text: "high-purity bulk Al, recommended values"}
+    alternatives: []
+  cp:
+    value: 902.1
+    unit: J/(kg*K)
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Aluminum: heat capacity (25 C) 5.817 g-cal/(g-at K), 902.1 J/(kg K) (Lange 1956, as cited)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}}
+    alternatives: []
+  alpha:
+    value: 23.03
+    unit: ppm/K
+    cte_kind: unstated
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Aluminum: thermal expansion coefficient (20 C) 23.03 x 1e-6 /K (Lange 1956, as cited); Table 2.2.7: 23.5 (ASM Handbook Vol. 6); Table 2.2.6: 22.3"
+    accessed: 2026-11-18
+    uncertainty: {range: [22.3, 23.5], unit: ppm/K, note: "spread of the three tables of the same database (different compiled sources)"}
+    conditions: {T: "20 degC"}
+    valid: {T: {unit: degC, range: [20, 20]}}
+    alternatives: []
+  rho_e:
+    value: 2.62
+    unit: uohm*cm
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Aluminum: electrical resistivity (20 C) '2.62; 2.828#' (1e-6 ohm cm; 2.62 Lange 1956, 2.828 AIP Handbook 1957 p.5-204)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "20 degC", text: "bulk; thin films have higher resistivity (not stored)"}
+    valid: {T: {unit: degC, range: [20, 20]}, note: "use tcr for small excursions"}
+    alternatives:
+      - id: aip1957
+        use: "sensitivity (second value printed in the same cell)"
+        value: 2.828
+        unit: uohm*cm
+        basis: handbook
+        source: nist_solder_db_v4
+        locator: "Table 2.2.5 row Aluminum: 2.828 (marked #, AIP Handbook 1957)"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {T: "20 degC"}
+        valid: {T: {unit: degC, range: [20, 20]}}
+  tcr:
+    value: 4.2e-3
+    unit: 1/K
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.8 row Aluminum: 293 K, resistivity 2.61, TCR 4.2 (1e-3 /K) (Smithells Metals Reference Book, 6th ed. 1983, p.16-2, as cited)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "293 K"}
+    valid: {T: {unit: K, range: [293, 293]}}
+    note: "Table 2.2.8 prints the resistivity unit as 'ohm.cm'; the values (Al 2.61, Cu 1.58) are micro-ohm cm (inference); only the TCR is used here"
+    alternatives: []
+  n:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [0.41328, 0.44280, 0.47687, 0.51660, 0.56357, 0.61993, 0.65225, 0.68881, 0.72932, 0.77491, 0.79478, 0.81569, 0.83774, 0.88561, 0.91166, 0.93928, 0.96863, 0.99988, 1.0332, 1.1271, 1.2399, 1.3776, 1.5498, 1.7712, 2.0664, 2.4797, 2.7552]
+      ys: [0.52135, 0.60790, 0.72780, 0.87340, 1.0728, 1.3660, 1.5724, 1.8301, 2.1606, 2.6154, 2.7675, 2.7668, 2.6945, 2.2802, 1.9739, 1.6784, 1.4867, 1.4359, 1.3998, 1.3281, 1.3157, 1.3899, 1.5782, 1.9205, 2.4738, 3.3372, 3.9380]
+    unit: "1"
+    basis: measured
+    source: rakic1995
+    locator: "refractiveindex.info Al/nk/Rakic.yml, tabulated nk, column n, all rows 0.41328-2.7552 um"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "evaporated Al films (critically analysed literature data); room temperature by context; linear interpolation between nodes (1.3776, 1.5498, 1.7712 um around 1.55 um)"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "temperature not stated"}}
+    alternatives:
+      - id: mcpeak2015
+        use: "sensitivity: template-stripped evaporated film (one deposition), 0.40-1.68 um"
+        table:
+          x: lambda
+          x_unit: um
+          xs: [0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30, 1.35, 1.43, 1.48, 1.53, 1.58, 1.63, 1.68]
+          ys: [0.375150842, 0.489220122, 0.625686295, 0.789405353, 0.992465612, 1.246364405, 1.559751729, 1.958355454, 2.373653298, 2.204898553, 1.64715608, 1.302164463, 1.126639087, 1.043454926, 1.009905005, 1.005317282, 1.021736807, 1.049913391, 1.08667656, 1.132981867, 1.20897633, 1.265153644, 1.325289614, 1.385662006, 1.44609075, 1.427335087]
+        unit: "1"
+        basis: measured
+        source: mcpeak2015
+        locator: "refractiveindex.info Al/nk/McPeak.yml, tabulated nk, column n, rows at >= 0.05 um spacing"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated in the database entry"}
+        conditions: {text: "thermally evaporated at 150 A/s, template stripped from a Si wafer (database comment)"}
+        n_medium: unstated
+        n_medium_note: "database entry does not state air or vacuum wavelength"
+        valid: {T: {na: "temperature not stated"}}
+  kappa:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [0.41328, 0.44280, 0.47687, 0.51660, 0.56357, 0.61993, 0.65225, 0.68881, 0.72932, 0.77491, 0.79478, 0.81569, 0.83774, 0.88561, 0.91166, 0.93928, 0.96863, 0.99988, 1.0332, 1.1271, 1.2399, 1.3776, 1.5498, 1.7712, 2.0664, 2.4797, 2.7552]
+      ys: [5.0008, 5.3676, 5.7781, 6.2418, 6.7839, 7.4052, 7.7354, 8.0601, 8.3565, 8.4914, 8.3866, 8.2573, 8.1878, 8.1134, 8.3058, 8.5970, 9.0655, 9.4939, 9.8914, 10.969, 12.245, 13.784, 15.656, 17.991, 20.982, 25.004, 27.580]
+    unit: "1"
+    basis: measured
+    source: rakic1995
+    locator: "refractiveindex.info Al/nk/Rakic.yml, tabulated nk, column k, all rows 0.41328-2.7552 um"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "as n"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "temperature not stated"}}
+    alternatives:
+      - id: mcpeak2015
+        use: "sensitivity (as n)"
+        table:
+          x: lambda
+          x_unit: um
+          xs: [0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30, 1.35, 1.43, 1.48, 1.53, 1.58, 1.63, 1.68]
+          ys: [4.226433266, 4.778319404, 5.320477736, 5.851936501, 6.368986418, 6.852329839, 7.27391404, 7.571403838, 7.522581337, 7.188085811, 7.393045594, 7.928721983, 8.511598888, 9.083765639, 9.649917519, 10.18335224, 10.70579031, 11.21616325, 11.71967858, 12.21775953, 12.99198306, 13.46516297, 13.94978109, 14.41873986, 14.8956765, 15.38951869]
+        unit: "1"
+        basis: measured
+        source: mcpeak2015
+        locator: "refractiveindex.info Al/nk/McPeak.yml, tabulated nk, column k, rows at >= 0.05 um spacing"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated in the database entry"}
+        conditions: {text: "as n"}
+        n_medium: unstated
+        n_medium_note: "database entry does not state air or vacuum wavelength"
+        valid: {T: {na: "temperature not stated"}}
+  mu_r:
+    value: N/A
+    unit: "1"
+    missing: "no magnetic-susceptibility source read for aluminum for this library"
+    alternatives: []
+missing:
+  - {what: "thin-film resistivity and thermal conductivity of sputtered / evaporated Al (deposition and thickness dependent; not stored)"}
+  - {property: alpha, what: "alpha(T) table (only the 20 C handbook value)"}

@@ -71,7 +71,7 @@ export function optomechReadiness(spec: Spec, node: CouplingNode): string[] {
   const out: string[] = [];
   try {
     const el = physicsNode(spec, node.from), op = physicsNode(spec, node.to);
-    if (!(spec.geometry as { axisym?: boolean }).axisym) out.push('optomechanical: needs an axisymmetric geometry (emw-axisym); 3D is not implemented (DevLog-034 s.3)');
+    if (!(spec.geometry as { axisym?: boolean }).axisym) out.push('optomechanical: needs an axisymmetric geometry (emw-axisym); 3D is not implemented');
     for (const b of el.bcs ?? []) if (!['fixed', 'roller', 'free'].includes(b.type)) out.push(`${node.from}: condition '${b.type}' not supported in an optomechanical run (fixed, roller, free)`);
     for (const b of op.bcs ?? []) if (b.type !== 'pec') out.push(`${node.to}: condition '${b.type}' not supported (pec; other boundaries are PMC)`);
     const az = ((op as { settings?: { azimuthal?: number[] } }).settings ?? {}).azimuthal;

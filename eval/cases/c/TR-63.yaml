@@ -60,7 +60,7 @@ rights:
   allowed: [cite_values, re_derive_setup, reference_by_hash]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pdebench-2d-diff-react.yaml}
+spec: {status: pending, reason: 'no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)', proposed: sims/pdebench-2d-diff-react.yaml}
 missing: [stored group/dataset names and dtype (probe failed), 'boundary condition: paper D.9 does not state it in the extracted
     text; R3 says Neumann (no-flux)']
 assumptions: []

@@ -15,6 +15,8 @@ export interface SolveOptions {
   eps: Float64Array;
   epsIm?: Float64Array | null;
   epsG?: Float64Array | null;
+  /** loss part of eps_g = epsG - j epsGIm (lossy solves; default epsIm) */
+  epsGIm?: Float64Array | null;
   numModes?: number;
   nTarget?: number | null;
   tol?: number;
@@ -31,13 +33,17 @@ export interface SolveOptions {
   shiftFromWarm?: boolean;
   refineSteps?: number;
   marginSides?: Array<'left' | 'right' | 'bottom' | 'top'>;
+  /** coordinate transform (PML stretching sx, sy; bend metric h), complex [re, im] per triangle (DevLog-043) */
+  transform?: ModeTransform | null;
 }
+export interface ModeTransform { sx?: Float64Array | null; sy?: Float64Array | null; h?: Float64Array | null; model?: 'metric' | 'conformal' }
 export const VECTOR_LABELS: readonly string[];
+export const PML_FRACTION_MAX: number;
 export function buildVectorModel(mesh: KernelTriMesh, opts?: VectorModelOptions): any;
-export function materialTensors(model: any, opts: { eps: Float64Array; epsIm?: Float64Array | null; epsG?: Float64Array | null }): {
-  eps: Float64Array; epsG: Float64Array; epsIm: Float64Array | null; nMax: number; indices: number[]; pairs: any; ngValid?: boolean;
+export function materialTensors(model: any, opts: { eps: Float64Array; epsIm?: Float64Array | null; epsG?: Float64Array | null; epsGIm?: Float64Array | null }): {
+  eps: Float64Array; epsG: Float64Array; epsIm: Float64Array | null; epsGIm: Float64Array | null; epsGc?: { re: Float64Array; im: Float64Array }; nMax: number; indices: number[]; pairs: any; ngValid?: boolean;
 };
-export function assembleVector(model: any, epsT: Float64Array, k0: number, withConst?: boolean): { A: Float64Array; B: Float64Array };
+export function assembleVector(model: any, epsT: Float64Array, k0: number, withConst?: boolean, nuT?: Float64Array | null): { A: Float64Array; B: Float64Array };
 export function solveVectorModes(model: any, lambdaUm: number, opts: SolveOptions): any;
 export function vectorPerturbation(model: any, mode: any, dEpsT: Float64Array, lambdaUm: number): number;
 export function selectVectorMode(result: any, polarization: 'TE' | 'TM', order?: number): any;

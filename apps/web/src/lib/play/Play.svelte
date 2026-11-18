@@ -24,8 +24,7 @@
 	import { unitLabel } from '../gfx/units';
 	import { HOOKS } from '../shell/hooks';
 	import AgentPanel from '../agent/AgentPanel.svelte';
-	import { captureGraphics } from '../gfx/capture';
-	import { navTrail, type NavigationHost, type NavResult } from '../state/nav.svelte';
+	import { makeNavHost, type NavigationHost } from '../state/nav.svelte';
 	import type { ProviderAdapter } from '@amp/agent';
 
 	let { simId, share = '' }: { simId: string; share?: string } = $props();
@@ -39,22 +38,11 @@
 	let mock = $state.raw<ProviderAdapter | null>(null);
 	$effect(() => { if (agentOpen) agentMounted = true; });
 
-	// navigation host of the Play view (agent tools; UI state only, recorded in the navigation trail)
+	// navigation host of the Play view (agent tools; UI state only, recorded in the navigation trail; shared factory)
 	function navHost(actor: string): NavigationHost {
-		const rec = (tool: string, args: Record<string, unknown>, r: NavResult) => navTrail.record(actor, tool, args, r);
-		const none = (tool: string, args: Record<string, unknown>) => rec(tool, args, { ok: false, message: 'the Play view has no model tree or settings; open the workbench' });
-		return {
-			focusNode: (pointer) => none('focus_node', { pointer }),
-			openSettings: (pointer, field) => none('open_settings', { pointer, ...(field ? { field } : {}) }),
-			highlightSelection: (ids) => rec('highlight_selection', { ids }, { ok: false, message: 'highlight is available in the workbench' }),
-			setCamera: (req) => rec('set_camera', { ...req }, { ok: false, message: 'camera control is available in the workbench' }),
-			setViewMode: (m) => rec('set_view_mode', { mode: m }, ((mode = m), { ok: true })),
-			screenshot: async (view) => {
-				const c = captureGraphics();
-				rec('screenshot', { view: view ?? 'graphics' }, c ? { ok: true } : { ok: false, message: 'graphics canvas not available' });
-				return c ? { mediaType: 'image/png', ...c } : null;
-			}
-		};
+		return makeNavHost(actor, { setViewMode: (m) => ((mode = m), { ok: true }) }, (tool) =>
+			tool === 'focus_node' || tool === 'open_settings' ? 'the Play view has no model tree or settings; open the workbench'
+			: tool === 'highlight_selection' ? 'highlight is available in the workbench' : 'camera control is available in the workbench');
 	}
 	let s = $state.raw<Session | null>(null);
 	let failed = $state('');

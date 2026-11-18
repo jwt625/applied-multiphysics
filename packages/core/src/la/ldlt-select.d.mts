@@ -6,6 +6,9 @@ export type FactorKind = 'base' | 'blocked' | 'wasm';
 /** Real SPD / LDL^T front kernel (DevLog-016), state in ./wasm/front-real.mjs. */
 export { DEFAULT_REAL_FACTOR, setDefaultRealFactor, wasmRealSupported } from './wasm/front-real.mjs';
 export type { RealFactorKind } from './wasm/front-real.mjs';
+/** Real triangular solve kernel (DevLog-045), state in ./wasm/solve-real.mjs. */
+export { DEFAULT_REAL_SOLVE, setDefaultRealSolve, wasmSolveSupported } from './wasm/solve-real.mjs';
+export type { RealSolveKind } from './wasm/solve-real.mjs';
 /** Warning text when the requested real kernel is not the one used ('wasm' without SIMD), else null. */
 export function realFactorFallbackWarning(kind: 'blocked' | 'wasm' | null | undefined): string | null;
 /** Default 'blocked'; WASM is opt-in. */

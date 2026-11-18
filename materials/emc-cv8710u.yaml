@@ -1,0 +1,132 @@
+# Epoxy molding compound, one named product (lane T4, DevLog-041): Panasonic CV8710U (CV8710 series data sheet). Typical,
+# not guaranteed values. alpha (default) = CTE-1 below Tg; alternative above_tg = CTE-2.
+schema: amp-material/0
+id: emc-cv8710u
+name: Epoxy molding compound, Panasonic CV8710U
+class: polymer
+description: >-
+  Fused-silica-filled (88.5 wt %, spherical, max 20 um) epoxy molding compound. Flexural modulus at 25 C and 260 C,
+  CTE below / above Tg (TMA), Tg 160 C (TMA), specific gravity, thermal conductivity (hot wire, 25 C), dielectric
+  constant and dissipation factor at 1 MHz.
+verified_on: 2026-11-18
+sources:
+  panasonic_cv8710:
+    citation: "Panasonic Corporation Electronic Materials Business Division, Data Sheet Encapsulation Materials CV8710 series, No. 200908-3, Sep. 2020 ('The data in the above table are not guaranteed values')"
+    url: https://api.pim.na.industrial.panasonic.com/file_stream/main/fileversion/247174
+    access: vendor_open
+    read: "text layer p.1 property table of the PDF fetched 2026-11-18 (sha256 aca340dde2f14e32..., 3 pages; PDF not kept); column CV8710U used (CV8710MYC is the low-alpha grade)"
+properties:
+  E:
+    value: 24
+    unit: GPa
+    basis: datasheet
+    source: panasonic_cv8710
+    locator: "p.1 table row Flexural Modulus (@25 C), JIS K6911, CV8710U: 24 GPa"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC", text: "flexural modulus (JIS K6911), used as the elastic modulus"}
+    valid: {T: {unit: degC, range: [25, 25]}}
+    alternatives: 
+      - id: t260c
+        use: "modulus above Tg (260 C, reflow)"
+        value: 0.7
+        unit: GPa
+        basis: datasheet
+        source: panasonic_cv8710
+        locator: "p.1 table row Flexural Modulus (@260 C), JIS K6911, CV8710U: 0.7 GPa"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {T: "260 degC"}
+        valid: {T: {unit: degC, range: [260, 260]}}
+  alpha:
+    value: 9
+    unit: ppm/K
+    cte_kind: unstated
+    basis: datasheet
+    source: panasonic_cv8710
+    locator: "p.1 table row CTE-1, TMA, condition <Tg, CV8710U: 9 ppm/C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "TMA, below Tg (160 C by TMA)"}
+    valid: {T: {unit: degC, range: [25, 160]}, note: "upper edge = Tg (TMA); the data sheet states no lower edge: 25 C (its reference temperature for the other values) is used, an assumption"}
+    alternatives: 
+      - id: above_tg
+        use: "CTE-2 above Tg"
+        value: 36
+        unit: ppm/K
+        cte_kind: unstated
+        basis: datasheet
+        source: panasonic_cv8710
+        locator: "p.1 table row CTE-2, TMA, condition >Tg, CV8710U: 36 ppm/C"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "TMA, above Tg"}
+        valid: {T: {na: "above Tg (TMA 160 C); upper limit not stated"}}
+  Tg:
+    value: 160
+    unit: degC
+    basis: datasheet
+    source: panasonic_cv8710
+    locator: "p.1 table row Glass Transition Temp. (Tg), TMA, CV8710U: 160 C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "by TMA"}
+    valid: {T: {na: "a transition temperature"}}
+    alternatives: []
+  rho:
+    value: 1.98
+    unit: g/cm^3
+    derivation: "density = specific gravity x 1 g/cm3 (water reference; reference temperature of water not stated)"
+    basis: datasheet
+    source: panasonic_cv8710
+    locator: "p.1 table row Specific gravity, JIS K6911, 25 C, CV8710U: 1.98"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}}
+    alternatives: []
+  k:
+    value: 0.95
+    unit: W/(m*K)
+    basis: datasheet
+    source: panasonic_cv8710
+    locator: "p.1 table row Thermal Conductivity, hot wire method, 25 C, CV8710U: 0.95 W/mK"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}}
+    alternatives: []
+  eps_r:
+    value: 4.0
+    unit: "1"
+    basis: datasheet
+    source: panasonic_cv8710
+    locator: "p.1 table row Dielectric Constant (1MHz), JIS K6911, CV8710U: 4.0"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {f: "1 MHz"}
+    valid: {f: {unit: MHz, range: [1, 1]}, T: {na: "temperature not stated"}}
+    alternatives: []
+  tan_delta:
+    value: 0.01
+    unit: "1"
+    basis: datasheet
+    source: panasonic_cv8710
+    locator: "p.1 table row Dissipation Factor (1MHz), JIS K6911, CV8710U: 0.010"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {f: "1 MHz"}
+    valid: {f: {unit: MHz, range: [1, 1]}, T: {na: "temperature not stated"}}
+    alternatives: []
+  nu:
+    value: N/A
+    unit: "1"
+    missing: "Poisson ratio not on the CV8710 data sheet"
+    alternatives: []
+  cp:
+    value: N/A
+    unit: J/(kg*K)
+    missing: "specific heat not on the CV8710 data sheet"
+    alternatives: []
+missing:
+  - {what: "viscoelastic data and cure shrinkage (mold shrinkage 0.21 % at 25 C is on the data sheet; no property type)"}

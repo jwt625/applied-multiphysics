@@ -276,6 +276,8 @@ export interface RunSource {
 	activeParams: ParamMap | undefined;
 	activeLabel: string;
 	model: { data: unknown };
+	/** study of the shown solution when it is not the default run (workbench study picker, DevLog-040); absent / null = the first study */
+	solvedStudy?: string | null;
 }
 
 const keys = new WeakMap<Solution, Promise<string>>();
@@ -286,12 +288,13 @@ export function runKey(sol: Solution): Promise<string> {
 	return k;
 }
 
-/** Study ids a session run answers for: the first study (the browser runner solves it); when it is parametric, also
- *  its inner study; and every parametric study that sweeps one of those (a single run at the base params or a sweep
- *  point is one point of it; the parametric single run re-points its solution datasets the same way). */
-export function runStudies(spec: unknown): string[] {
+/** Study ids a session run answers for: the solved study (`solved`, the workbench study picker; default the first
+ *  study, which the browser runner solves without a choice); when it is parametric, also its inner study; and every
+ *  parametric study that sweeps one of those (a single run at the base params or a sweep point is one point of it; the
+ *  parametric single run re-points its solution datasets the same way). */
+export function runStudies(spec: unknown, solved?: string | null): string[] {
 	const st = ((spec as { studies?: Array<{ id?: unknown; type?: unknown; settings?: { study?: unknown } }> } | null)?.studies ?? []);
-	const first = st[0];
+	const first = (solved ? st.find((x) => x.id === solved) : undefined) ?? st[0];
 	if (!first || typeof first.id !== 'string') return [];
 	const out = [first.id];
 	if (first.type === 'parametric' && typeof first.settings?.study === 'string') out.push(first.settings.study);
@@ -313,5 +316,5 @@ export async function runOf(s: RunSource): Promise<ResultsRun | null> {
 	const sol = s.solution, mesh = s.mesh;
 	if (!sol || !mesh || !s.activeParams || sol.meshHash !== mesh.hash) return null;
 	const params = paramsOf(sol, s.activeParams);
-	return { key: await runKey(sol), solution: sol, mesh, params, studies: runStudies(s.model.data), label: s.activeLabel };
+	return { key: await runKey(sol), solution: sol, mesh, params, studies: runStudies(s.model.data, s.solvedStudy), label: s.activeLabel };
 }

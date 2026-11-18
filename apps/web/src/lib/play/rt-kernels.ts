@@ -40,7 +40,7 @@ export const RT_DEFS: Record<RtKernelId, RtDef> = {
 			['Re 20 steady', { nD: 40, Re: 20, uMax: 0.1 }, 'DFG 2D-1 Reynolds number: steady wake'],
 			['Re 250', { nD: 40, Re: 250, uMax: 0.08 }, 'Stronger shedding']
 		],
-		caveat: 'realtime fidelity. Strouhal gate FL-04 passes (DevLog-005); drag and lift are not validated (staircase cylinder, c_D,max +5.9 %, c_L,max +12 % vs FEATFLOW at D 60).',
+		caveat: 'realtime fidelity. Strouhal gate FL-04 passes; drag and lift are not validated (staircase cylinder, c_D,max +5.9 %, c_L,max +12 % vs FEATFLOW at D 60).',
 		async make(device, P, rt) {
 			const { grid, params } = rt.dfgGrid(P.nD!);
 			const k = new rt.LbmD2Q9();
@@ -63,7 +63,7 @@ export const RT_DEFS: Record<RtKernelId, RtDef> = {
 		],
 		tools: [['pec', 'PEC', 'Perfect electric conductor'], ['dielectric', 'dielectric', 'Lossless dielectric, eps_r 4'], ['erase', 'erase', 'Back to vacuum']],
 		presets: [['point source', { scene: 0 }, 'Point source in free space']],
-		caveat: 'realtime fidelity. Dispersion, CPML normal-incidence and PEC cavity gates pass (DevLog-005); oblique CPML reflection is not gated.',
+		caveat: 'realtime fidelity. Dispersion, CPML normal-incidence and PEC cavity gates pass; oblique CPML reflection is not gated.',
 		async make(device, P, rt) {
 			const grid = { nx: 640, ny: 400, dx: 1e-3 };
 			const k = new rt.FdtdTMz();
@@ -86,7 +86,7 @@ export const RT_DEFS: Record<RtKernelId, RtDef> = {
 		],
 		tools: [['seed', 'seed', 'u = 0.5, v = 0.25'], ['erase', 'erase', 'u = 1, v = 0']],
 		presets: [],
-		caveat: 'realtime fidelity, model units (The Well domain). GPU vs CPU and pattern-class gates pass (DevLog-005); no pointwise match to The Well frames (explicit Euler vs ETDRK4).',
+		caveat: 'realtime fidelity, model units (The Well domain). GPU vs CPU and pattern-class gates pass; no pointwise match to The Well frames (explicit Euler vs ETDRK4).',
 		async make(device, P, rt) {
 			const k = new rt.GrayScott();
 			await k.init(device, { f: P.f!, k: P.k!, ic: 0, blobs: 480, sigma: 0.04, seed: 7 }, { nx: 512, ny: 512, dx: 1 / 64 });

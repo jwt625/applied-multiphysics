@@ -1,0 +1,97 @@
+# Ajinomoto Build-up Film ABF GL-102 (lane T4, DevLog-041): values for the named grade as printed by peer-reviewed
+# package papers (paper model inputs; the Ajinomoto brochure was not reachable, APA R4). In-plane (x-y) CTE only.
+schema: amp-material/0
+id: abf-gl102
+name: Build-up film, Ajinomoto ABF GL-102
+class: polymer
+description: >-
+  Silica-filled epoxy build-up dielectric film for package substrates. Young's modulus, in-plane CTE below and above
+  150 C (tensile TMA), Tg by DMA, Poisson ratio. Out-of-plane CTE, k and Dk / Df not read.
+verified_on: 2026-11-18
+sources:
+  ectc2025_00148:
+    citation: "Effective build-up substrate design for warpage reduction and reliability enhancement in advanced semiconductor packages, Proc. IEEE ECTC 2025, pp. 847-851"
+    doi: 10.1109/ECTC51687.2025.00148
+    access: local_cache
+    read: "text extract of the local copy (advanced-packaging-atlas references/ectc51687.2025.00148/text.md) re-read 2026-11-18: p.2 Table I 'Characteristics of ABF after curing', column ABF-GL: CTE x-y (25-150 C, tensile TMA) 20 ppm/C, CTE x-y (150-240 C) 49 ppm/C, Tg (DMA) 171 C, Young's modulus 13 GPa"
+  ectc2024_00392:
+    citation: "Fine pitch (<= 10 um) die to wafer Cu-Cu TCB on organic polymer build up films, Proc. IEEE ECTC 2024"
+    doi: 10.1109/ECTC51529.2024.00392
+    access: local_cache
+    read: "text extract of the local copy (advanced-packaging-atlas references/ectc51529.2024.00392/text.md) re-read 2026-11-18: Table II 'Polymer dielectric comparison', column Epoxy Resin ABF GL-102 [15]: CTE 20 ppm/K, elastic modulus 13 GPa; text: ABF GL-102 thermal budget <= 250 C"
+  ectc2026_00103:
+    citation: "Study of SeWaRe failure in a glass-core substrate with redistribution layers, Proc. IEEE ECTC 2026, pp. 610-617"
+    doi: 10.1109/ECTC51846.2026.00103
+    access: local_cache
+    read: "text extract of the local copy (advanced-packaging-atlas references/ectc51846.2026.00103/text.md) re-read 2026-11-18: p.4 Table II row Dielectric (ABF GL-102): CTE 20 (T < 150 C), 49 (T > 150 C), E 13 GPa, nu 0.29; p.2-3: 15 um ABF GL-102 layers"
+properties:
+  E:
+    value: 13
+    unit: GPa
+    basis: paper_model_input
+    source: ectc2025_00148
+    locator: "p.2 Table I column ABF-GL: Young's modulus 13 GPa; same value for 'ABF GL-102' in ECTC 2024 Table II and ECTC 2026 Table II"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated; three papers print the same value"}
+    conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated (room temperature by context)"}}
+    alternatives: []
+  nu:
+    value: 0.29
+    unit: "1"
+    basis: paper_model_input
+    source: ectc2026_00103
+    locator: "p.4 Table II row Dielectric (ABF GL-102): Poisson ratio 0.29"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  alpha:
+    value: 20
+    unit: ppm/K
+    cte_kind: unstated
+    basis: paper_model_input
+    source: ectc2025_00148
+    locator: "p.2 Table I column ABF-GL: CTE x-y (25-150 C) 20 ppm/C, tensile TMA; ECTC 2026 Table II: 20 for T < 150 C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "in-plane (x-y); out-of-plane not given"}
+    valid: {T: {unit: degC, range: [25, 150]}, note: "breakpoint 150 C as printed (not the DMA Tg 171 C)"}
+    alternatives: 
+      - id: above_150c
+        use: "in-plane CTE 150-240 C"
+        value: 49
+        unit: ppm/K
+        cte_kind: unstated
+        basis: paper_model_input
+        source: ectc2025_00148
+        locator: "p.2 Table I column ABF-GL: CTE x-y (150-240 C) 49 ppm/C"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "in-plane (x-y)"}
+        valid: {T: {unit: degC, range: [150, 240]}}
+  Tg:
+    value: 171
+    unit: degC
+    basis: paper_model_input
+    source: ectc2025_00148
+    locator: "p.2 Table I column ABF-GL: Tg (DMA) 171 C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "by DMA"}
+    valid: {T: {na: "a transition temperature"}}
+    alternatives: []
+  k:
+    value: N/A
+    unit: W/(m*K)
+    missing: "ABF GL-102 thermal conductivity not read (vendor brochure not reachable)"
+    alternatives: []
+  eps_r:
+    value: N/A
+    unit: "1"
+    missing: "ABF GL-102 Dk not read (vendor brochure not reachable)"
+    alternatives: []
+missing:
+  - {what: "out-of-plane CTE, E above Tg, Dk / Df, k of ABF GL-102: not read"}
+  - {what: "the Table I column of ECTC 2025 is labelled ABF-GL (series); identification with GL-102 rests on the matching E and CTE in ECTC 2024 / 2026, which name GL-102"}

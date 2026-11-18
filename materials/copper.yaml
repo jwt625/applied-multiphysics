@@ -14,38 +14,38 @@ sources:
     doi: 10.1063/1.3253100
     url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
     access: open
-    read: "not re-read by L10; APA lane read the p.332 recommended-value table (page render) on 2026-10-20"
+    read: "not re-read; the advanced-packaging-atlas project read the p.332 recommended-value table (page render) on 2026-10-20"
     via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (cu_bulk.properties.k)"
   matula1979:
     citation: "R. A. Matula, Electrical resistivity of copper, gold, palladium, and silver, J. Phys. Chem. Ref. Data 8, 1147-1298 (1979)"
     doi: 10.1063/1.555614
     url: https://srd.nist.gov/jpcrdreprint/1.555614.pdf
     access: open
-    read: "not re-read by L10; APA lane read p.1161 Table 2 and the interpolation rule (p.1160) on 2026-10-20"
+    read: "not re-read; the advanced-packaging-atlas project read p.1161 Table 2 and the interpolation rule (p.1160) on 2026-10-20"
     via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (cu_bulk.properties.sigma)"
   ledbetter_naimon1974:
     citation: "H. M. Ledbetter, E. R. Naimon, Elastic properties of metals and alloys. II. Copper, J. Phys. Chem. Ref. Data 3, 897-935 (1974)"
     doi: 10.1063/1.3253150
     url: https://srd.nist.gov/jpcrdreprint/1.3253150.pdf
     access: open
-    read: "not re-read by L10; APA lane read p.923 Table 10 and p.925 Table 12 on 2026-10-20"
+    read: "not re-read; the advanced-packaging-atlas project read p.923 Table 10 and p.925 Table 12 on 2026-10-20"
     via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (cu_bulk.properties.elastic)"
   nist_cryo_ofhc_cu:
     citation: "NIST Cryogenic Technologies Group, Material properties: OFHC copper (UNS C10100/C10200), trc.nist.gov (page revised 2010-02-03)"
     url: https://trc.nist.gov/cryogenics/materials/OFHC%20Copper/OFHC_Copper_rev1.htm
     access: open
-    read: "web page fetched and read by L10 2026-11-06 (specific heat and expansion coefficient fits); cached under cache/materials/copper/"
+    read: "web page fetched and read 2026-11-06 (specific heat and expansion coefficient fits); cached under cache/materials/copper/"
   janaf1998_cu:
     citation: "M. W. Chase Jr., NIST-JANAF Thermochemical Tables, 4th ed., J. Phys. Chem. Ref. Data Monograph 9 (1998), p.1005, Copper (Cu) reference-state table"
     url: https://janaf.nist.gov/tables/Cu-001.html
     access: open
-    read: "not re-read by L10; APA lane read the web table and the monograph page on 2026-10-21"
+    read: "not re-read; the advanced-packaging-atlas project read the web table and the monograph page on 2026-10-21"
     via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (cu_bulk.properties.cp)"
   nist_solder_db_v4:
     citation: "T. Siewert, S. Liu, D. R. Smith, J. C. Madeni, Database for solder properties with emphasis on new lead-free solders, release 4.0, NIST and Colorado School of Mines (2002-02-11)"
     url: https://www.msed.nist.gov/solder/NIST_LeadfreeSolder_v4.pdf
     access: open
-    read: "text layer, Table 2.2.5 (pdf p.37) and Table 2.2.7 (pdf p.39), read by L10 2026-11-06; a compilation, each table names its own source"
+    read: "text layer, Table 2.2.5 (pdf p.37) and Table 2.2.7 (pdf p.39), read 2026-11-06; a compilation, each table names its own source"
 properties:
   rho:
     value: 8.96
@@ -131,7 +131,7 @@ properties:
     source: [nist_cryo_ofhc_cu, janaf1998_cu]
     locator: "200-300 K: NIST OFHC copper specific-heat fit (log10 y = sum a_i (log10 T)^i, a..h = -1.91844, -0.15973, 8.61013, -18.996, 21.9661, -12.7328, 3.54322, -0.3797; 4-300 K); 400-700 K: JANAF p.1005 Cp 25.318 / 25.912 / 26.481 / 26.996 J/(K mol), A_r 63.546"
     accessed: 2026-10-21
-    derivation: "tabulated by the APA lane: NIST fit evaluated at 200-300 K; JANAF c_p = Cp / (A_r x 1e-3 kg/mol); step at the join: JANAF 384.9 J/(kg K) at 300 K vs the NIST fit 389.4 (-1.2 %)"
+    derivation: "tabulated in the advanced-packaging-atlas project: NIST fit evaluated at 200-300 K; JANAF c_p = Cp / (A_r x 1e-3 kg/mol); step at the join: JANAF 384.9 J/(kg K) at 300 K vs the NIST fit 389.4 (-1.2 %)"
     uncertainty: {rel: 0.05, note: "NIST fit error 5 % (T >= 15 K); JANAF part not stated"}
     conditions: {p: "0.1 MPa"}
     alternatives: []
@@ -164,7 +164,7 @@ properties:
   mu_r:
     value: N/A
     unit: "1"
-    missing: "no primary magnetic-susceptibility source read for Cu in this lane; a spec that needs mu_r must state it (with basis) as an override"
+    missing: "no primary magnetic-susceptibility source read for Cu for this library; a spec that needs mu_r must state it (with basis) as an override"
     alternatives: []
 missing:
   - {what: "electroplated and thin-film Cu (resistivity, modulus, CTE) not covered"}

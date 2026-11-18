@@ -1,0 +1,78 @@
+# Indium tin oxide film on glass (lane T4, DevLog-041): one named commercial deposition (Xinyan XY15S ITO-glass, 110 nm)
+# with optical constants and resistivity from the same paper (Minenkov et al. 2024, open access).
+schema: amp-material/0
+id: ito-xy15s
+name: Indium tin oxide film (Xinyan XY15S ITO-glass, 110 nm)
+class: dielectric_film
+description: >-
+  Commercial ITO-on-glass (Xinyan Technology XY15S, 110 +- 1 nm). Complex refractive index 0.40-1.69 um from
+  variable-angle ellipsometry with a Drude term (free-carrier, epsilon-near-zero near 1.2 um for this film); resistivity
+  by 4-wire sensing and from the ellipsometric Drude fit. ITO properties depend strongly on deposition and anneal.
+verified_on: 2026-11-18
+sources:
+  minenkov2024:
+    citation: "A. Minenkov, S. Hollweger, J. Duchoslav, O. Erdene-Ochir, M. Weise, E. Ermilova, A. Hertwig, M. Schiek, Monitoring the electrochemical failure of indium tin oxide electrodes via operando ellipsometry complemented by electron microscopy and spectroscopy, ACS Appl. Mater. Interfaces 16, 9517-9531 (2024)"
+    doi: 10.1021/acsami.3c17923
+    url: https://pmc.ncbi.nlm.nih.gov/articles/PMC10895603/
+    access: open
+    read: "PMC full text (HTML) read 2026-11-18: Table 1 (thickness, 4-wire sheet resistance and resistivity, ellipsometric resistivity) with footnote I (XY15S, Xinyan Technology), and the text on the optical model (Tauc-Lorentz + Gaussian oscillators + Drude term + roughness layer; its Subsection 4.2 not read). n, k table from the refractiveindex.info entry (CC0) In2O3-SnO2/nk/Minenkov-glass.yml (sha256 2861e8774e0d..., 706 rows 0.19146-1.68869 um, 'Numerical data kindly provided by Manuela Schiek', comment '110 nm thick ITO layer on glass type XY15S purchased from Xinyan Technology LTD.'); rows at >= 0.05 um spacing from 0.40 to 1.685 um transcribed"
+    licence: "article open access (PMC); refractiveindex.info database: CC0 1.0"
+properties:
+  n:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [0.40101, 0.45225, 0.50348, 0.55468, 0.60582, 0.65689, 0.70788, 0.75875, 0.80950, 0.86011, 0.91055, 0.96081, 1.01338, 1.06480, 1.11622, 1.16766, 1.21912, 1.27062, 1.32216, 1.37376, 1.42543, 1.47718, 1.52902, 1.58097, 1.63302, 1.68520]
+      ys: [2.04210, 1.96586, 1.90288, 1.84527, 1.78897, 1.73162, 1.67166, 1.60790, 1.53928, 1.46477, 1.38321, 1.29316, 1.18739, 1.06935, 0.93218, 0.76873, 0.57293, 0.38484, 0.28888, 0.25032, 0.23336, 0.22606, 0.22395, 0.22502, 0.22823, 0.23301]
+    unit: "1"
+    basis: measured
+    source: minenkov2024
+    locator: "refractiveindex.info In2O3-SnO2/nk/Minenkov-glass.yml (data of paper Fig. 3, pristine ITO-glass), tabulated, column n, 26 rows 0.40101-1.68520 um"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "110 nm ITO on glass, XY15S plates from Xinyan Technology (paper Table 1 footnote I); ambient conditions; ellipsometry model with a Drude term"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "ambient (paper), not quantified"}}
+    alternatives: []
+  kappa:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [0.40101, 0.45225, 0.50348, 0.55468, 0.60582, 0.65689, 0.70788, 0.75875, 0.80950, 0.86011, 0.91055, 0.96081, 1.01338, 1.06480, 1.11622, 1.16766, 1.21912, 1.27062, 1.32216, 1.37376, 1.42543, 1.47718, 1.52902, 1.58097, 1.63302, 1.68520]
+      ys: [0.01121, 0.00747, 0.00735, 0.00880, 0.01121, 0.01447, 0.01859, 0.02369, 0.02999, 0.03774, 0.04738, 0.05949, 0.07596, 0.09779, 0.12915, 0.17916, 0.27342, 0.46053, 0.69079, 0.89361, 1.07007, 1.22844, 1.37415, 1.51059, 1.63998, 1.76384]
+    unit: "1"
+    basis: measured
+    source: minenkov2024
+    locator: "refractiveindex.info In2O3-SnO2/nk/Minenkov-glass.yml (data of paper Fig. 3, pristine ITO-glass), tabulated, column k, 26 rows 0.40101-1.68520 um"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "110 nm ITO on glass, XY15S plates from Xinyan Technology (paper Table 1 footnote I); ambient conditions; ellipsometry model with a Drude term"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "ambient (paper), not quantified"}}
+    alternatives: []
+  rho_e:
+    value: 1.4e-4
+    unit: ohm*cm
+    basis: measured
+    source: minenkov2024
+    locator: "Table 1 column ITO-glass: 4-wire sensing resistivity rho(4W) 1.4 +- 0.2 (1e-4 ohm cm); measured sheet resistance R_S 2.9 +- 0.1 ohm; thickness d 110 +- 1 nm (from ellipsometry)"
+    accessed: 2026-11-18
+    uncertainty: {abs: 0.2e-4, unit: ohm*cm, note: "standard deviation over samples and measurements (N = 6), Table 1 footnote"}
+    conditions: {text: "pristine XY15S ITO-glass, ambient"}
+    valid: {T: {na: "ambient, not quantified"}}
+    alternatives:
+      - id: ellipsometry
+        use: "sensitivity: effective resistivity from the Drude term of the optical model (the same model that gives n, kappa)"
+        value: 1.7e-4
+        unit: ohm*cm
+        basis: measured
+        source: minenkov2024
+        locator: "Table 1 column ITO-glass: ellipsometry resistivity rho(E) 1.7 +- 0.2 (1e-4 ohm cm)"
+        accessed: 2026-11-18
+        uncertainty: {abs: 0.2e-4, unit: ohm*cm}
+        conditions: {text: "effective value of the ellipsometric model"}
+        valid: {T: {na: "ambient, not quantified"}}
+missing:
+  - {what: "RF permittivity, thermal conductivity, expansion and mechanics of ITO: not read"}

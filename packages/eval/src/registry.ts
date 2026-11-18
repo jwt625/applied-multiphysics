@@ -11,7 +11,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PhysicsModule, RunContext, Solution } from './contract-shim.ts';
 import type { Spec } from './contract-shim.ts';
-import type { EvalCase, Extract, LoadedCase, Reference, SpecRef } from './loader.ts';
+import { parse as parseYamlText } from 'yaml';
+import type { EvalCase, Extract, LoadedCase, Reference, SimOverride, SpecRef } from './loader.ts';
 import { targetId } from './loader.ts';
 import type { LevelObservation, TargetObservation } from './evaluate.ts';
 import { REPO_ROOT } from './node-io.ts';
@@ -121,12 +122,18 @@ export async function specRuntime(root = REPO_ROOT, physicsRegistry?: unknown): 
 export function resetSpecRuntime(): void { specRt = null; }
 
 const DIMLESS = new Set(['', '1', '-', 'dimensionless']);
+/** A unit string may carry a note in parentheses after a dimensionless unit, e.g. `1 (c/a)`: read as `1` (DevLog-039 H2). */
+export function unitCore(u: string | undefined): string {
+  const s = (u ?? '').trim();
+  const m = /^(\S*)\s+\([^()]*\)$/.exec(s);
+  return m && DIMLESS.has(m[1]!) ? m[1]! : s;
+}
 let unitsApi: SpecRuntime['units'] | null = null;
 export function setUnitsApi(u: SpecRuntime['units'] | null): void { unitsApi = u; }
 
 /** Convert a value from unit `from` to unit `to`: equal strings, dimensionless aliases, or @amp/spec units (affine degC). */
 export function convertUnit(value: number, from: string | undefined, to: string): { value: number } | { error: string } {
-  const a = (from ?? '').trim(), b = to.trim();
+  const a = unitCore(from), b = unitCore(to);
   if (a === b || (DIMLESS.has(a) && DIMLESS.has(b))) return { value };
   if (!unitsApi) return { error: `unit mismatch: '${a}' vs '${b}' (no unit converter loaded)` };
   try {
@@ -173,7 +180,8 @@ export function extractFromSolution(
     if ('pending' in t || 'error' in t) return t;
     if (!unitsApi) return { error: `extract kind '${ex.kind}' needs the units API (@amp/spec)` };
     let tu;
-    try { tu = unitsApi.parseUnit(DIMLESS.has(r.unit.trim()) ? '1' : r.unit); } catch (e) { return { error: `target unit '${r.unit}': ${(e as Error).message}` }; }
+    const ru = unitCore(r.unit);
+    try { tu = unitsApi.parseUnit(DIMLESS.has(ru) ? '1' : ru); } catch (e) { return { error: `target unit '${r.unit}': ${(e as Error).message}` }; }
     if (!unitsApi.dimEq(t.dim, tu.dim)) return { error: `${ex.kind} result has dimension [${t.dim.join(',')}], target unit '${r.unit}' has [${tu.dim.join(',')}]` };
     return { value: (t.si - tu.offset) / tu.factor };
   }
@@ -196,12 +204,14 @@ export function extractFromSolution(
     catch (e) { return { error: `sample(${part.field}): ${(e as Error).message}` }; }
     // a dimensionless target unit on a field target names a relative metric (e.g. relative L2): samples stay in the
     // engine's SI field unit, like the evaluator's; a dimensional target unit converts the samples to it
-    const relField = ex.kind === 'field' && DIMLESS.has(r.unit.trim());
+    const relField = ex.kind === 'field' && DIMLESS.has(unitCore(r.unit));
     for (const v of Array.from(vals)) { const c = Number.isFinite(v) && !relField ? conv(v, fd.unit) : v; if (typeof c !== 'number') return c; out.push(c); }
   }
   return ex.kind === 'probe' ? { value: out[0]! } : { value: { values: out } };
 }
 
+/** Constants an expr / combine extract may use without a term (as @amp/spec BUILTIN_SCOPE): pi. */
+const BUILTIN_CONST = new Map<string, { si: number; dim: number[] }>([['pi', { si: Math.PI, dim: [0, 0, 0, 0, 0, 0, 0] }]]);
 type TermResult = { si: number; dim: number[] } | { pending: string } | { error: string };
 let compileExpr: ((src: string, scope: { resolve(n: string): unknown }) => { dim: number[]; constant: { re: number; im: number } | null }) | null = null;
 /** @amp/core/expr compileExpression, set by the worker (or tests) before expr extracts are evaluated. */
@@ -250,7 +260,7 @@ function termSI(sol: Solution, t: Extract | { value: number; unit: string }, o: 
       scope.set(k, r);
     }
     try {
-      const c = compileExpr(t.expr, { resolve: (n: string) => { const v = scope.get(n); return v ? { kind: 'const', re: v.si, dim: v.dim } : null; } });
+      const c = compileExpr(t.expr, { resolve: (n: string) => { const v = scope.get(n) ?? BUILTIN_CONST.get(n); return v ? { kind: 'const', re: v.si, dim: v.dim } : null; } });
       if (!c.constant) return { error: `expr "${t.expr}" is not constant over its terms` };
       if (c.constant.im !== 0) return { error: `expr "${t.expr}" is complex` };
       return { si: c.constant.re, dim: c.dim };
@@ -303,6 +313,15 @@ async function resolveSpec(c: EvalCase, root: string, physicsRegistry: unknown):
     if (!r.ok || !r.spec) return { error: `spec ${s}: ${rt.formatIssues(r.issues).split('\n').slice(0, 5).join(' | ')}` };
     return { spec: r.spec };
   }
+  if (isSimOverride(s)) {
+    const p = join(root, s.sim);
+    if (!existsSync(p)) return { error: `spec file ${s.sim} not found` };
+    const o = applyOverrides(readFileSync(p, 'utf8'), s);
+    if ('error' in o) return { error: `spec ${s.sim}: ${o.error}` };
+    const r = rt.validateSpec(o.data, registry);
+    if (!r.ok || !r.spec) return { error: `spec ${s.sim} with overrides: ${rt.formatIssues(r.issues).split('\n').slice(0, 5).join(' | ')}` };
+    return { spec: r.spec };
+  }
   if (s && typeof s === 'object') {
     const r = rt.validateSpec(s, registry);
     if (!r.ok || !r.spec) return { error: `embedded spec: ${rt.formatIssues(r.issues).split('\n').slice(0, 5).join(' | ')}` };
@@ -311,9 +330,37 @@ async function resolveSpec(c: EvalCase, root: string, physicsRegistry: unknown):
   return { error: 'spec missing' };
 }
 
-/** Study of a multiphysics case: the case's study type, else the first non-parametric study, else the first. */
-function caseStudy(spec: Spec, c: EvalCase): { id: string } | undefined {
+export function isSimOverride(s: unknown): s is SimOverride {
+  return !!s && typeof s === 'object' && typeof (s as { sim?: unknown }).sim === 'string';
+}
+
+/** Parse a sims file and apply the params overrides of a {sim, params} reference (H1): a number replaces the value
+ *  (unit kept), a string replaces the value expression (unit dropped: the expression carries its own). */
+export function applyOverrides(text: string, s: SimOverride): { data: Record<string, unknown> } | { error: string } {
+  let data: unknown;
+  try { data = parseYamlText(text); } catch (e) { return { error: `YAML: ${(e as Error).message.split('\n')[0]}` }; }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return { error: 'not a mapping' };
+  const d = data as Record<string, unknown>;
+  const params = (d.params ?? {}) as Record<string, unknown>;
+  for (const [k, v] of Object.entries(s.params ?? {})) {
+    if (!(k in params)) return { error: `params override '${k}': no such param (has: ${Object.keys(params).join(', ') || 'none'})` };
+    const old = params[k];
+    const base = old && typeof old === 'object' && !Array.isArray(old) ? { ...(old as Record<string, unknown>) } : {};
+    if (typeof v === 'string') delete base.unit;
+    params[k] = { ...base, value: v };
+  }
+  d.params = params;
+  if (s.study !== undefined) {
+    const st = (d.studies ?? []) as Array<{ id?: unknown }>;
+    if (!st.some((x) => x && x.id === s.study)) return { error: `study '${s.study}' not in the file (has: ${st.map((x) => String(x?.id)).join(', ')})` };
+  }
+  return { data: d };
+}
+
+/** Study of a multiphysics case: the reference's study, else the case's study type, else the first non-parametric study, else the first. */
+function caseStudy(spec: Spec, c: EvalCase, studyId?: string): { id: string } | undefined {
   const st = ((spec as { studies?: Array<{ id: string; type: string }> }).studies ?? []);
+  if (studyId !== undefined) return st.find((x) => x.id === studyId);
   const want = (((c as { study?: { type?: string } }).study?.type) ?? '').replace('transient', 'time');
   return st.find((x) => x.type === want) ?? st.find((x) => x.type !== 'parametric') ?? st[0];
 }
@@ -369,7 +416,7 @@ export class EngineSource implements Source {
     if (entries.length > 1) {
       // multiphysics (C11): the @amp/physics study driver orders and runs the study's physics (DevLog-031)
       if (!this.reg.studyReadiness || !this.reg.runStudy) return { pending: `spec has ${entries.length} physics entries; @amp/physics exports no study driver (runStudy, studyReadiness)` };
-      const st = caseStudy(rs.spec, c);
+      const st = caseStudy(rs.spec, c, isSimOverride(sp) ? sp.study : undefined);
       if (!st) return { error: 'spec has no study' };
       const rd = this.reg.studyReadiness(rs.spec, st.id);
       if (!rd.ready) return { pending: `study '${st.id}' not ready: ${rd.reasons.join('; ')}` };
@@ -385,7 +432,8 @@ export class EngineSource implements Source {
     const rd = m.readiness(rs.spec, e.id);
     if (!rd.ready) return { pending: `module '${e.type}' not ready: ${rd.reasons.join('; ')}` };
     if (!this.reg.prepare) return { pending: `module '${e.type}' registered but no prepareRun hook to build the RunContext (mesh)` };
-    return { module: m, spec: rs.spec, physicsId: e.id };
+    const sid = isSimOverride(sp) ? sp.study : undefined;
+    return { module: m, spec: rs.spec, physicsId: e.id, ...(sid ? { studyId: sid } : {}) };
   }
 
   /** Targets grouped by their effective spec (target `spec`, else the case-level one; Follow-up 3 item 3). */
@@ -393,9 +441,10 @@ export class EngineSource implements Source {
     const c = lc.data!;
     const m = new Map<string, { spec: SpecRef; refs: Reference[]; label: string }>();
     for (const r of c.references) {
+      if (r.extract?.kind === 'combine') continue;   // computed from other targets after the groups ran (H3)
       const sp = r.spec ?? c.spec;
       const key = JSON.stringify(sp);
-      const g = m.get(key) ?? { spec: sp, refs: [], label: typeof sp === 'string' ? sp : r.spec ? `target spec of ${targetId(r)}` : 'case spec' };
+      const g = m.get(key) ?? { spec: sp, refs: [], label: typeof sp === 'string' ? sp : isSimOverride(sp) ? specLabel(sp) : r.spec ? `target spec of ${targetId(r)}` : 'case spec' };
       g.refs.push(r);
       m.set(key, g);
     }
@@ -409,12 +458,24 @@ export class EngineSource implements Source {
       const s = await this.select(lc, g.spec);
       parts.push('module' in s ? { runnable: true, reason: `run ${s.order ? `study '${s.studyId}' (${s.order.join(' -> ')})` : `'${s.module.type}'`} on ${hFactorsFor(lc.data!).length} level(s) in a worker` } : 'pending' in s ? { runnable: false, reason: s.pending } : { runnable: false, reason: s.error, error: true });
     }
+    if (!gs.length) return { runnable: false, reason: 'no target runs on a spec (combine targets only)' };
     if (gs.length === 1) return parts[0]!;
     return { runnable: parts.some((p) => p.runnable), reason: parts.map((p, i) => `[${gs[i]!.label}] ${p.reason}`).join('; '), ...(parts.some((p) => p.error) ? { error: true } : {}) };
   }
 
   async observe(lc: LoadedCase, opts: ObserveOptions): Promise<CaseObservation> {
+    const o = await this.observeGroups(lc, opts);
+    const combos = lc.data!.references.filter((r) => r.extract?.kind === 'combine');
+    if (!combos.length || o.kind !== 'observed') return o;
+    if (!unitsApi) { const { rt } = await specRuntime(this.root, this.reg.specRegistry); unitsApi ??= rt?.units ?? null; }
+    const ce = await importWorkspace<{ compileExpression?: Parameters<typeof setExpressionCompiler>[0] }>('@amp/core/expr', this.root);
+    for (const r of combos) o.targets[targetId(r)] = combineTarget(r, lc.data!.references, o.targets, ce.mod?.compileExpression ?? null);
+    return o;
+  }
+
+  private async observeGroups(lc: LoadedCase, opts: ObserveOptions): Promise<CaseObservation> {
     const gs = this.groups(lc);
+    if (!gs.length) return { kind: 'pending', reason: 'no target runs on a spec (combine targets only)' };
     if (gs.length === 1) return this.observeGroup(lc, gs[0]!.spec, gs[0]!.refs, opts);
     // several specs: one worker run per spec; a group's pending / error / timeout applies to its targets only
     const targets: Record<string, TargetObservation | { pending: string } | { error: string } | { timeout: string }> = {};
@@ -491,6 +552,52 @@ export class EngineSource implements Source {
       ...(dim !== undefined ? { dim } : {}), ...(w.speed ? { speed: w.speed } : {}),
     };
   }
+}
+
+function specLabel(s: SimOverride): string {
+  const ps = Object.entries(s.params ?? {}).map(([k, v]) => `${k}=${v}`).join(',');
+  return `${s.sim}${ps ? ` [${ps}]` : ''}${s.study ? ` study ${s.study}` : ''}`;
+}
+
+type TargetObs = TargetObservation | { pending: string } | { error: string } | { timeout: string };
+/** H3: a target computed per mesh level from other targets' observed values (each in its own target unit, with that
+ *  unit's dimension), so one target can span several specs. Levels are matched by hFactor. */
+export function combineTarget(r: Reference, refs: Reference[], obs: Record<string, TargetObs>, compile: typeof compileExpr): TargetObs {
+  const ex = r.extract!;
+  if (!ex.expr || !ex.targets) return { error: "extract kind 'combine' needs expr and targets" };
+  if (!compile) return { error: 'combine needs @amp/core/expr (not loaded)' };
+  if (!unitsApi) return { error: 'combine needs the units API (@amp/spec)' };
+  const parsed = (u: string) => { const c = unitCore(u); return unitsApi!.parseUnit(DIMLESS.has(c) ? '1' : c); };
+  const inputs: Array<{ name: string; levels: LevelObservation[]; u: { dim: number[]; factor: number; offset: number } }> = [];
+  for (const [name, tid] of Object.entries(ex.targets)) {
+    const o = obs[tid];
+    const src = refs.find((x) => targetId(x) === tid);
+    if (!o || !src) return { pending: `combine input '${tid}' was not observed` };
+    if ('pending' in o) return { pending: `combine input '${tid}': ${o.pending}` };
+    if ('error' in o) return { error: `combine input '${tid}': ${o.error}` };
+    if ('timeout' in o) return { timeout: `combine input '${tid}': ${o.timeout}` };
+    try { inputs.push({ name, levels: o.levels, u: parsed(src.unit) }); } catch (e) { return { error: `combine input '${tid}' unit '${src.unit}': ${(e as Error).message}` }; }
+  }
+  let tu;
+  try { tu = parsed(r.unit); } catch (e) { return { error: `target unit '${r.unit}': ${(e as Error).message}` }; }
+  const levels: LevelObservation[] = [];
+  for (const l0 of inputs[0]!.levels) {
+    const row = inputs.map((inp) => inp.levels.find((l) => l.h === l0.h));
+    if (row.some((l) => !l || typeof l.value !== 'number')) continue;
+    const scope = new Map(inputs.map((inp, k) => [inp.name, { si: (row[k]!.value as number) * inp.u.factor + inp.u.offset, dim: inp.u.dim }]));
+    let v: number;
+    try {
+      const c = compile(ex.expr, { resolve: (n: string) => { const x = scope.get(n) ?? BUILTIN_CONST.get(n); return x ? { kind: 'const', re: x.si, dim: x.dim } : null; } });
+      if (!c.constant || c.constant.im !== 0) return { error: `combine expr "${ex.expr}" is not a real constant over its targets` };
+      if (!unitsApi.dimEq(c.dim, tu.dim)) return { error: `combine expr has dimension [${c.dim.join(',')}], target unit '${r.unit}' has [${tu.dim.join(',')}]` };
+      v = (c.constant.re - tu.offset) / tu.factor;
+    } catch (e) { return { error: `combine expr "${ex.expr}": ${(e as Error).message}` }; }
+    const dof = row.reduce((a, l) => a + (l!.dof ?? 0), 0);
+    const wall = row.reduce((a, l) => a + (l!.wall_ms ?? 0), 0);
+    levels.push({ value: v, ...(l0.h !== undefined ? { h: l0.h } : {}), ...(dof ? { dof } : {}), ...(wall ? { wall_ms: wall } : {}) });
+  }
+  if (!levels.length) return { pending: 'combine: no mesh level observed for every input target' };
+  return { levels };
 }
 
 function samplePoints(expected: unknown, key: string | undefined): number[][] | undefined {

@@ -6,7 +6,7 @@ name: Lithium niobate, congruent (LiNbO3)
 class: crystal
 description: >-
   Trigonal 3m crystal, c axis = frame z. n_o / n_e from the Zelmon 1997 congruent-LN Sellmeier fits. The RF / EO rows
-  of Weis and Gaylord 1985 do not state the sample composition (EO DevLog-038), so 'congruent' is established for the
+  of Weis and Gaylord 1985 do not state the sample composition (EO), so 'congruent' is established for the
   optical dispersion only.
 verified_on: 2026-11-06
 frame: "crystal axes: z = c (optic axis, extraordinary), y-z mirror plane, x = a"
@@ -22,14 +22,14 @@ sources:
     citation: "R. S. Weis, T. K. Gaylord, Lithium niobate: summary of physical properties and crystal structure, Appl. Phys. A 37, 191-203 (1985)"
     doi: 10.1007/BF00614817
     access: local_cache
-    read: "not re-read by L10; EO lane T3 read Table 1 (p.197) and Table 4 (p.199) from 110 and 260 dpi page renders on 2026-10-15 (subscription copy, local only)"
-    via: "eo-modulator-atlas engine/data/materials.json at bc68738 (library.lithium_niobate_congruent) and DevLog-038"
+    read: "not re-read; the eo-modulator-atlas project read Table 1 (p.197) and Table 4 (p.199) from 110 and 260 dpi page renders on 2026-10-15 (subscription copy, local only)"
+    via: "eo-modulator-atlas engine/data/materials.json at bc68738 (library.lithium_niobate_congruent) and its development log"
   ogi2002:
     citation: "H. Ogi, Y. Kawasaki, M. Hirao, H. Ledbetter, Acoustic spectroscopy of lithium niobate: elastic and piezoelectric coefficients, J. Appl. Phys. 92, 2451-2456 (2002)"
     doi: 10.1063/1.1497702
     url: https://hdl.handle.net/11094/84216
     access: open
-    read: "Osaka University repository copy (version of record, personal use), p.2452 text and p.2455 Table III read from a page render by lane MX 2026-11-07"
+    read: "Osaka University repository copy (version of record, personal use), p.2452 text and p.2455 Table III read from a page render 2026-11-07"
 properties:
   n:
     tensor:
@@ -143,7 +143,7 @@ properties:
     unit: GPa
     basis: measured
     source: weis1985
-    locator: "Table 6 p.200 'Elastic stiffness coefficients [x 10^11 N/m^2] at constant electric field', row c^E [23] (Warner, Onoe, Coquin 1967): 2.03 0.53 0.75 0.09 2.45 0.60 (c11 c12 c13 c14 c33 c44); read from a page render by lane MX 2026-11-07"
+    locator: "Table 6 p.200 'Elastic stiffness coefficients [x 10^11 N/m^2] at constant electric field', row c^E [23] (Warner, Onoe, Coquin 1967): 2.03 0.53 0.75 0.09 2.45 0.60 (c11 c12 c13 c14 c33 c44); read from a page render 2026-11-07"
     accessed: 2026-11-07
     derivation: "1e11 N/m^2 = 100 GPa (exact); C66 = (C11 - C12)/2 by symmetry"
     uncertainty: {na: "not stated per row; other rows of Table 6: [24] Smith-Welsh 2.030 0.573 0.752 0.085 2.424 0.595, [27] 2.0 0.54 0.6 0.08 2.43 0.60"}
@@ -171,7 +171,7 @@ properties:
     unit: C/m^2
     basis: measured
     source: ogi2002
-    locator: "Table III p.2455, column 'Warner and co-workers (Ref. 28)': e15 3.7, e22 2.5, e31 0.2, e33 1.3 C/m^2 (same column: C values identical to Weis-Gaylord Table 6 row [23]); read from a page render by lane MX 2026-11-07"
+    locator: "Table III p.2455, column 'Warner and co-workers (Ref. 28)': e15 3.7, e22 2.5, e31 0.2, e33 1.3 C/m^2 (same column: C values identical to Weis-Gaylord Table 6 row [23]); read from a page render 2026-11-07"
     accessed: 2026-11-07
     uncertainty: {na: "not stated; other columns of Table III: Smith-Welsh 3.76 2.43 0.23 1.33, Kovacs 3.69 2.42 0.30 1.77"}
     conditions: {text: "stress constants e; signs as printed by Ogi (all positive; Ogi states no axis convention). Consistent with the IRE 1949 axes of Weis-Gaylord, under which d22 and d33 are positive (Weis p.197); not verified against Warner 1967 itself"}
@@ -180,7 +180,7 @@ properties:
   dndT:
     value: N/A
     unit: 1/K
-    missing: "no open primary source found (lane MX, 2026-11-07, for MO request M1): Moretti et al., J. Appl. Phys. 98, 036101 (2005), doi 10.1063/1.1988987 (n_o and n_e at 632 and 1523 nm, 320-515 K) is paywalled and its CNR IRIS record has no file; Weis-Gaylord 1985 p.197 (refractive-index paragraph) only points to refs [30]-[32] (temperature-dependent indices, no numbers in the review); Jundt 1997 (n_e only), Schlarb-Betzler 1993 and Edwards-Lawrence 1984 not reachable openly; Gayer et al. 2008 is MgO-doped LN, not undoped congruent"
+    missing: "no open primary source found (searched 2026-11-07): Moretti et al., J. Appl. Phys. 98, 036101 (2005), doi 10.1063/1.1988987 (n_o and n_e at 632 and 1523 nm, 320-515 K) is paywalled and its CNR IRIS record has no file; Weis-Gaylord 1985 p.197 (refractive-index paragraph) only points to refs [30]-[32] (temperature-dependent indices, no numbers in the review); Jundt 1997 (n_e only), Schlarb-Betzler 1993 and Edwards-Lawrence 1984 not reachable openly; Gayer et al. 2008 is MgO-doped LN, not undoped congruent"
     n_medium: unstated
     alternatives: []
   rho:
@@ -193,7 +193,7 @@ properties:
     uncertainty: {na: "not stated"}
     conditions: {text: "composition not stated at this point of the source"}
     valid: {T: {na: "temperature not stated"}}
-    note: "added 2026-11-07 by lane MX (DevLog-035), was N/A; read from the text layer of the local subscription copy (p.194) by MX"
+    note: "added 2026-11-07, was N/A; read from the text layer of the local subscription copy (p.194)"
     alternatives:
       - id: ogi2002_measured
         use: "sensitivity (measured on a congruent-grown crystal)"
@@ -207,6 +207,6 @@ properties:
         conditions: {text: "Ogi et al. specimen"}
         valid: {T: {na: "temperature not stated"}}
 missing:
-  - {property: r_eo, what: "Pockels coefficients at 1550 nm / 1957 nm: none in Weis and Gaylord Table 4; the 633 nm clamped row is the default (EO DevLog-038)"}
+  - {property: r_eo, what: "Pockels coefficients at 1550 nm / 1957 nm: none in Weis and Gaylord Table 4; the 633 nm clamped row is the default (EO)"}
   - {property: n, what: "temperature dependence of n_o, n_e (Zelmon 1997 fits are at 21 C only)"}
   - {what: "photoelastic tensor not authored"}

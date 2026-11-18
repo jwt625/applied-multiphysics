@@ -42,3 +42,42 @@ export function slabMesh(o: SlabMeshOptions): Mesh {
   }
   return { ...m, cells: { ...m.cells, domain: dom }, entities: { ...m.entities, domains: [{ id: 'dom:clad' }, { id: 'dom:core' }] } };
 }
+
+/** Graded 1D node coordinates: segments [a, b] with n cells each, geometric grading toward one end (ratio r of the
+ *  largest to the smallest cell; r = 1 uniform; toward 'a' = smallest cells at a). Shared endpoints appear once. */
+export function gradedLine(segs: Array<{ a: number; b: number; n: number; r?: number; toward?: 'a' | 'b' | 'both' }>): number[] {
+  const out: number[] = [];
+  for (const [i, s] of segs.entries()) {
+    const r = s.r ?? 1, n = s.n;
+    const w: number[] = [];
+    if (s.toward === 'both') {
+      const h = Math.ceil(n / 2);
+      for (let k = 0; k < n; k++) { const kk = k < h ? k : n - 1 - k; w.push(h > 1 ? r ** (kk / (h - 1)) : 1); }
+    } else for (let k = 0; k < n; k++) w.push(n > 1 ? r ** (k / (n - 1)) : 1);
+    if (s.toward === 'b') w.reverse();
+    const tot = w.reduce((x, y) => x + y, 0);
+    let acc = 0;
+    if (i === 0) out.push(s.a);
+    for (let k = 0; k < n; k++) { acc += w[k]!; out.push(k === n - 1 ? s.b : s.a + (s.b - s.a) * (acc / tot)); }
+  }
+  return out;
+}
+
+/** Tensor-product tri3 mesh on explicit node lines xs, ys (m) with named domains from the cell centroid. Boundaries as
+ *  rectTriMesh: bnd:rect.bottom | right | top | left. */
+export function tensorMesh(xs: number[], ys: number[], domains: string[], domainOf: (x: number, y: number) => number): Mesh {
+  const at = (arr: number[]) => (s: number) => {
+    const u = s * (arr.length - 1), i = Math.min(arr.length - 2, Math.floor(u + 1e-12));
+    const t = u - i;
+    return (arr[i]! + (arr[i + 1]! - arr[i]!) * t - arr[0]!) / (arr[arr.length - 1]! - arr[0]!);
+  };
+  const m = rectTriMesh({ x: [xs[0]!, xs[xs.length - 1]!], y: [ys[0]!, ys[ys.length - 1]!], nx: xs.length - 1, ny: ys.length - 1, order: 1, xs: at(xs), ys: at(ys) });
+  const nc = m.cells.conn.length / 3;
+  const dom = new Int32Array(nc);
+  for (let c = 0; c < nc; c++) {
+    let x = 0, y = 0;
+    for (let q = 0; q < 3; q++) { x += m.nodes[2 * m.cells.conn[3 * c + q]!]!; y += m.nodes[2 * m.cells.conn[3 * c + q]! + 1]!; }
+    dom[c] = domainOf(x / 3, y / 3);
+  }
+  return { ...m, cells: { ...m.cells, domain: dom }, entities: { ...m.entities, domains: domains.map((id) => ({ id })) } };
+}

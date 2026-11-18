@@ -1,5 +1,5 @@
 # SM-02: NAFEMS LE1: elliptic membrane, plane stress
-# Built by validation/a/build_cases.py from eval/expected/SM-02.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+# Built by validation/a/build_cases.py from cited values (no basis-D target, no expected JSON). Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
 schema: amp-eval/0
 id: SM-02
 class: a

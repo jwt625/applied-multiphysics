@@ -44,6 +44,7 @@ references:
   provenance: {citation: Pozar ch. 3, locator: 'validation/a/gen_em.py::rf02; eval/expected/RF-02.json targets[metric_id=fc_TE10]',
     accessed: null}
   expected: {file: eval/expected/RF-02.json, metric_id: fc_TE10}
+  extract: {kind: eigen, floor: 1000000.0, index: 0}
 - quantity: f_c TE20
   metric_id: fc_TE20
   definition: cutoff
@@ -57,6 +58,7 @@ references:
   provenance: {citation: Pozar ch. 3, locator: 'validation/a/gen_em.py::rf02; eval/expected/RF-02.json targets[metric_id=fc_TE20]',
     accessed: null}
   expected: {file: eval/expected/RF-02.json, metric_id: fc_TE20}
+  extract: {kind: eigen, floor: 1000000.0, index: 1}
 - quantity: f_c TE01
   metric_id: fc_TE01
   definition: cutoff
@@ -70,6 +72,7 @@ references:
   provenance: {citation: Pozar ch. 3, locator: 'validation/a/gen_em.py::rf02; eval/expected/RF-02.json targets[metric_id=fc_TE01]',
     accessed: null}
   expected: {file: eval/expected/RF-02.json, metric_id: fc_TE01}
+  extract: {kind: eigen, floor: 1000000.0, index: 2}
 - quantity: arg S21
   metric_id: S21_phase_10GHz_L50mm
   definition: -beta L wrapped, f = 10 GHz
@@ -112,8 +115,7 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/wr90-guide.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
-    proposal}
+spec: sims/wr90-te-cutoffs.yaml
 missing: []
 assumptions: [S21/S11 targets belong to a 3D variant; split into its own case or sub-spec when the L2 models land (audit
     M10).]

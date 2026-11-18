@@ -50,6 +50,7 @@ references:
       (fetched 2026-11-06), accessed: '2026-11-06'}
   note: '1.5 % band: the target equals the infinite-plate value; the finite quarter lies between the infinite (50.0 MPa)
     and free-disk (50.5 MPa) bounds'
+  extract: {kind: result, node: syy_D}
 - quantity: sigma_yy(D), infinite plate
   metric_id: sigma_yy_D_infinite
   definition: E e*/2
@@ -78,8 +79,7 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/nafems-t1-hotspot.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a
-    proposal}
+spec: sims/nafems-t1-hotspot.yaml
 missing: ['Hot-spot radius 1.0: from the Abaqus deck via advanced-packaging-atlas; no live public page states it (Altair
     OS-V 0100 omits geometry).', 'Membrane geometry from the Abaqus deck, now unreachable at its MIT URL; no live public
     page states the 10 x 10 quarter size (Altair page omits geometry).']

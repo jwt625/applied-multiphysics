@@ -16,15 +16,16 @@ export interface Headline { id: string; label: string; value: number | null; uni
 
 /**
  * `results`: the spec's results block (C10); anything else (absent, legacy list) yields no headlines. `o.spec`: the
- * whole spec data (root studies and physics prefixes); `o.label`: dataset label of the run (sweep point).
+ * whole spec data (root studies and physics prefixes); `o.label`: dataset label of the run (sweep point); `o.study`:
+ * the solved study when it is not the first (workbench study picker).
  */
-export async function headlines(results: unknown, sol: Solution, mesh: Mesh, params: Map<string, ParamInfo>, post: PostClient | ResultsClient, o: { spec?: unknown; label?: string } = {}): Promise<Headline[]> {
+export async function headlines(results: unknown, sol: Solution, mesh: Mesh, params: Map<string, ParamInfo>, post: PostClient | ResultsClient, o: { spec?: unknown; label?: string; study?: string | null } = {}): Promise<Headline[]> {
 	const items = headlineItems(results);
 	if (!items.length) return [];
 	const spec = o.spec ?? { results };
 	const parent = new Map(resultNodes(results).filter((n) => n.parent).map((n) => [n.id, n.parent!]));
 	// without the full spec the root study cannot be checked: accept the items' own studies (behaviour before R3)
-	const studies = o.spec ? runStudies(o.spec) : [...new Set(items.map((h) => h.study).filter((x): x is string => !!x))];
+	const studies = o.spec ? runStudies(o.spec, o.study) : [...new Set(items.map((h) => h.study).filter((x): x is string => !!x))];
 	const run: ResultsRun = { key: await runKey(sol), solution: sol, mesh, params: paramsOf(sol, params), studies, label: o.label ?? '' };
 	const rc = post instanceof ResultsClient ? post : resultsClient(post);
 	const tables = new Map<string, Promise<ResultTable | Error>>();

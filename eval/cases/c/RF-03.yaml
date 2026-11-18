@@ -34,6 +34,7 @@ references:
   expected: {file: eval/expected/RF-03.json, metric_id: Z0_anisotropic}
   provenance: {citation: 'uniaxial-to-isotropic map (eps_eq = sqrt(eps_x eps_y), h'' = h sqrt(eps_x/eps_y)) + partial-capacitance
       conformal map (this lane)', locator: palace docs/src/examples/cpw.md L18-25 (inputs), accessed: null, generator: validation/c/gen_palace.py}
+  extract: {kind: scalar, name: Z0}
 - quantity: Z0 printed by Palace docs
   metric_id: Z0_printed_by_Palace_docs
   value: 56.02
@@ -48,6 +49,11 @@ references:
   extraction: text
   note: equals the isotropic eps 9.3 conformal map with the 30 pi prefactor (56.019 Ohm); not the uniaxial substrate the docs
     describe (audit B1)
+  spec:
+    sim: sims/cpw-sapphire.yaml
+    params: {eps_par: 9.3}
+    note: 'isotropic variant: eps_par = eps_perp = 9.3 (case reference Z0_isotropic_9p3)'
+  extract: {kind: scalar, name: Z0}
 - quantity: Z0 isotropic eps 9.3 (variant)
   metric_id: Z0_isotropic_9p3
   value: 55.98025465947027
@@ -61,6 +67,11 @@ references:
   provenance: {citation: partial-capacitance conformal map (this lane), locator: palace docs/src/examples/cpw.md L18-25, accessed: null,
     generator: validation/c/gen_palace.py}
   note: for a solver run with isotropic eps 9.3 only
+  spec:
+    sim: sims/cpw-sapphire.yaml
+    params: {eps_par: 9.3}
+    note: 'isotropic variant: eps_par = eps_perp = 9.3 (case reference Z0_isotropic_9p3)'
+  extract: {kind: scalar, name: Z0}
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -74,7 +85,7 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/cpw-sapphire.yaml}
+spec: sims/cpw-sapphire.yaml
 missing: [enclosure size of the 2D cross-section (solver choice; report the truncation study)]
 assumptions: ['Uniaxial sapphire, C axis normal to the substrate (cpw.md L21-24): eps 9.3 in plane, 11.5 normal; the planar-interface
     map to an isotropic layer is exact for the Laplace equation, the partial-capacitance step is the approximation.']

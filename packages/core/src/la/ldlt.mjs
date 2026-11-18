@@ -1,6 +1,7 @@
 // Ported from advanced-packaging-atlas/engine/src/la/ldlt.mjs at fe39985 (GPL-3.0-or-later). Changes: SupernodalLDLT takes an
 // optional WASM SIMD front kernel ('wasm', ./wasm/front-real.mjs, lane P1 DevLog-016; same arithmetic, bitwise-identical
-// factor) via a `factor` constructor option, default ldlt-select DEFAULT_REAL_FACTOR.
+// factor) via a `factor` constructor option, default ldlt-select DEFAULT_REAL_FACTOR. SupernodalLDLT solve / solveMany
+// through WASM kernels ('wasm', ./wasm/solve-real.mjs, lane S4 DevLog-045; same arithmetic, bitwise-identical solutions).
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Ported from eo-modulator-atlas engine/src/ldlt.mjs at eb97f96 (GPL-3.0-or-later).
 // Local changes: none (verbatim copy).
@@ -21,6 +22,7 @@
 // License: GPL-3.0-or-later.
 
 import { resolveRealKernel, WASM_MIN_FRONT } from './wasm/front-real.mjs';
+import { allocRealFactorStorage, ldltSolveWasm, ldltSolveManyWasm, useWasmSolve } from './wasm/solve-real.mjs';
 
 /**
  * Symbolic analysis of a symmetric CSR pattern (full storage, both triangles, diagonal present).
@@ -428,7 +430,9 @@ export class SupernodalLDLT {
     this.sym = sym;
     this.factorKind = factor; // null: ldlt-select DEFAULT_REAL_FACTOR at each factor() call
     this.kernel = 'blocked';
-    this.Lx = new Float64Array(sym.Lxp[sym.nsuper]);
+    const st = allocRealFactorStorage(sym.Lxp[sym.nsuper], sym.n, sym.maxFront, sym.Sp[sym.nsuper]);
+    this.Lx = st.Lx;
+    this.ws = st.ws;
     this.D = new Float64Array(sym.n);
     this.F = null;
     this.rel = new Int32Array(sym.n);
@@ -556,6 +560,7 @@ export class SupernodalLDLT {
 
   /** Solve for q right-hand sides stored one after another in b (length n * q); one pass over L. */
   solveMany(b, q, out) {
+    if (useWasmSolve(this.ws)) return ldltSolveManyWasm(this.ws, this.sym, this.D, b, q, out);
     const { n, perm, nsuper, superStart, Sp, Si, Lxp } = this.sym;
     const { Lx, D } = this;
     const y = new Float64Array(n * q);
@@ -603,6 +608,7 @@ export class SupernodalLDLT {
   }
 
   solve(b, out) {
+    if (useWasmSolve(this.ws)) return ldltSolveWasm(this.ws, this.sym, this.D, b, out);
     const { n, perm, nsuper, superStart, Sp, Si, Lxp } = this.sym;
     const { Lx, D } = this;
     const y = new Float64Array(n);

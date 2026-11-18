@@ -32,6 +32,7 @@ references:
   provenance: {citation: conformal map (this lane); EO atlas K6a closed form, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md
       L345; validation/reference/K6a.json closed_form_t0_infinite, accessed: null, generator: validation/c/gen_suites.py,
     source_accessed: '2026-11-06'}
+  extract: {kind: scalar, name: C_per_m}
 - quantity: n_RF
   metric_id: n_rf
   value: 2.5199206336708304
@@ -44,6 +45,13 @@ references:
   expected: {file: eval/expected/RF-62.json, metric_id: n_rf}
   provenance: {citation: as above, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md L346, accessed: null,
     generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
+  extract:
+    kind: expr
+    expr: c0 * sqrt(Lp * Cp)
+    terms:
+      Lp: {kind: scalar, name: L_per_m}
+      Cp: {kind: scalar, name: C_per_m}
+      c0: {value: 299792458, unit: m/s, source: SI definition of the metre (exact)}
 - quantity: Z0
   metric_id: Z0
   value: 39.32845936007282
@@ -56,6 +64,7 @@ references:
   expected: {file: eval/expected/RF-62.json, metric_id: Z0}
   provenance: {citation: as above, locator: eo-modulator-atlas DevLog/DevLog-028-open-source-references.md L347, accessed: null,
     generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
+  extract: {kind: scalar, name: Z0}
 reference_results:
 - {solver: 'EO tier-B P2 FEM, t = 0, R -> inf', C_pF_per_m: 213.729, U: 0.014, Z0_ohm: 39.3282, locator: eo-modulator-atlas
     DevLog/DevLog-028-open-source-references.md L345-347}
@@ -72,7 +81,7 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/cpw-halfspace.yaml}
+spec: sims/cpw-halfspace.yaml
 missing: []
 assumptions: []
 source_case: {suite: eo-modulator-atlas tier B, file: validation/reference/K6a.json, url: 'eo-modulator-atlas (sibling repo,

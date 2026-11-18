@@ -93,7 +93,7 @@ function checkLeaf(issues: Issue[], where: string, l: Leaf | AltLeaf, def: Prope
   const singleNumber = typeof l.value === 'number' || l.tensor !== undefined;
   if (singleNumber && !l.valid) issues.push({ path: `${where}.valid`, message: 'a single-number value needs `valid` (range per T / lambda / f, or {na: reason})' });
   if (l.valid) checkValid(issues, `${where}.valid`, l.valid);
-  if ((def.name === 'n' || def.name === 'dndT') && !l.n_medium) issues.push({ path: `${where}.n_medium`, message: 'refractive-index data need n_medium: air | vacuum | unstated' });
+  if ((def.name === 'n' || def.name === 'dndT' || def.name === 'kappa') && !l.n_medium) issues.push({ path: `${where}.n_medium`, message: 'refractive-index data need n_medium: air | vacuum | unstated' });
   if (l.n_medium === 'unstated' && !l.n_medium_note) issues.push({ path: `${where}.n_medium_note`, message: 'n_medium unstated needs a note' });
   for (const k of ['basis', 'source', 'locator', 'accessed', 'uncertainty', 'conditions'] as const)
     if (l[k] === undefined) issues.push({ path: `${where}.${k}`, message: `${k} required for a non-N/A value` });

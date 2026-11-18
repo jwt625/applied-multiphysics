@@ -1,5 +1,5 @@
 # SM-22: NAFEMS LE10: thick elliptic plate under uniform pressure
-# Built by validation/a/build_cases.py from eval/expected/SM-22.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+# Built by validation/a/build_cases.py from cited values (no basis-D target, no expected JSON). Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
 schema: amp-eval/0
 id: SM-22
 class: a
@@ -66,8 +66,8 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/nafems-le10.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
-    a proposal}
+spec: {status: pending, proposed: sims/nafems-le10.yaml, reason: 'no sims/ model yet (path in ''proposed''); engine gap:
+    3D thick elliptic plate needs an extruded 2D section; spec 3D geometry is a box list or one cylinder (DevLog-037 s.1)'}
 missing: []
 assumptions: [Sign per FeenoX (compressive at the loaded face); Altair states the magnitude only., 'Altair''s page cites
     ''NAFEMS R0015 - Selected benchmarks for natural frequency analysis'' as its reference, which is a citation slip (LE10

@@ -1029,7 +1029,7 @@
 			{/if}
 		</div>
 	{:else if mode === 'results' && sol && field && !drawable}
-		<div class="unav"><div class="na">Field {field.name} ({field.space}): no display yet</div><div class="dim">the viewer draws nodal (H1) and per-cell (DG0) fields; {field.space} needs an H1 projection from @amp/physics or Nedelec evaluation in @amp/post (DevLog-011 s.5)</div></div>
+		<div class="unav"><div class="na">Field {field.name} ({field.space}): no display yet</div><div class="dim">the viewer draws nodal (H1) and per-cell (DG0) fields; {field.space} needs an H1 projection from @amp/physics or Nedelec evaluation in @amp/post</div></div>
 	{/if}
 
 	{#if cb}

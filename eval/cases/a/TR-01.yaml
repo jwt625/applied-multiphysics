@@ -134,8 +134,8 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/dispersion-reactor.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/
-    id is a proposal}
+spec: {status: pending, proposed: sims/dispersion-reactor.yaml, reason: 'no sims/ model yet (path in ''proposed''); engine
+    gap: advection-diffusion-reaction: heat has no advection or linear reaction term (DevLog-021 s.4.1)'}
 missing: []
 assumptions: []
 field_reference:

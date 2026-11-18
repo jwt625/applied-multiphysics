@@ -45,7 +45,7 @@ results:
     - id: ev_eig
       data: sol_eig
       items:
-        - {id: edges, type: global, expr: wave.freq, unit: THz}
+        - {id: f_lower, type: global, expr: wave.f_0, unit: THz, label: "lower gap edge: lowest mode of the half cell (omega / omega0 = f / (c0 / lambda0))"}
   tables:
     - {id: tbl_eig, from: ev_eig}
   plots:

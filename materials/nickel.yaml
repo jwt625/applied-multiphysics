@@ -1,0 +1,131 @@
+# Nickel, bulk (lane T4, DevLog-041), for UBM, barrier and lid plating. Handbook values from the NIST solder database
+# compilation; recommended k(T) of Ho-Powell-Liley 1972 and Poisson ratio of Ledbetter-Reed 1973 (both transcribed from
+# the advanced-packaging-atlas data file). Electroplated / electroless Ni (Ni-P) differs from bulk and is not stored.
+schema: amp-material/0
+id: nickel
+name: Nickel, bulk
+class: metal
+description: >-
+  Bulk nickel: handbook density, heat capacity, expansion, resistivity, TCR and Young's modulus; evaluated k(T) and
+  Poisson ratio. Ferromagnetic: mu_r is field dependent and not stored.
+verified_on: 2026-11-18
+sources:
+  nist_solder_db_v4:
+    citation: "T. Siewert, S. Liu, D. R. Smith, J. C. Madeni, Database for solder properties with emphasis on new lead-free solders, release 4.0, NIST and Colorado School of Mines (2002-02-11)"
+    url: https://www.msed.nist.gov/solder/NIST_LeadfreeSolder_v4.pdf
+    access: open
+    read: "text layer of the local copy (cache/materials/gold/solderdb.txt, fetched 2026-11-06), Tables 1.10, 2.2.5, 2.2.7, 2.2.8 re-read 2026-11-18; a compilation: each table names its source (Lange 1956, AIP Handbook 1957, Smithells 1983, ASM Handbook Vol. 6 1993)"
+  hpl1972:
+    citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
+    doi: 10.1063/1.3253100
+    url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
+    access: open
+    read: "not re-read; values transcribed from the advanced-packaging-atlas data file, which read the p.370 recommended-value table on 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/metals.yaml at fe39985 (ni.properties.k)"
+  ledbetter_reed1973:
+    citation: "H. M. Ledbetter, R. P. Reed, Elastic properties of metals and alloys, I. Iron, nickel, and iron-nickel alloys, J. Phys. Chem. Ref. Data 2, 531-618 (1973)"
+    doi: 10.1063/1.3253127
+    access: open
+    read: "not re-read; value transcribed from the advanced-packaging-atlas data file (journal p.583 Table 18, Poisson ratio of nickel, best value 0.296, uncertainty 0.029), read in the advanced-packaging-atlas project 2026-10-20"
+    via: "advanced-packaging-atlas engine/data/materials/metals.yaml at fe39985 (ni.properties.elastic.nu)"
+properties:
+  rho:
+    value: 8.9
+    unit: g/cm^3
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Nickel: density (20 C) '8.90; 8.8#' (8.90 Lange 1956; 8.8 AIP Handbook 1957); Table 2.2.7: 8.9"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "20 degC"}
+    valid: {T: {unit: degC, range: [20, 20]}}
+    alternatives: []
+  E:
+    value: 210
+    unit: GPa
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 1.10 row Nickel >99.0, wrought, annealed: E 210 GPa (Gray, AIP Handbook 1957, as cited); Table 2.2.7: 199 GPa (ASM Handbook Vol. 6)"
+    accessed: 2026-11-18
+    uncertainty: {range: [199, 210], unit: GPa, note: "two tables of the same database"}
+    conditions: {text: ">99.0 % Ni, wrought, annealed"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  nu:
+    value: 0.296
+    unit: "1"
+    basis: measured
+    source: ledbetter_reed1973
+    locator: "journal p.583 Table 18, Poisson ratio of nickel: best value 0.296"
+    accessed: 2026-10-20
+    uncertainty: {abs: 0.029}
+    conditions: {text: "polycrystalline Ni, evaluated best value"}
+    valid: {T: {na: "room temperature by context, not quantified in the transcribed value"}}
+    alternatives: []
+  k:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 223.2, 250, 273.2, 298.2, 300, 323.2, 350, 373.2, 400, 473.2, 500, 573.2, 600]
+      ys: [1.07, 1.02, 0.975, 0.941, 0.909, 0.907, 0.880, 0.850, 0.827, 0.802, 0.741, 0.722, 0.673, 0.656]
+    unit: W/(cm*K)
+    basis: measured
+    source: hpl1972
+    locator: "journal p.370, Thermal conductivity of nickel, recommended values (solid)"
+    accessed: 2026-10-20
+    uncertainty: {na: "not transcribed in the advanced-packaging-atlas project"}
+    conditions: {text: "high-purity bulk Ni, recommended values"}
+    alternatives: []
+  cp:
+    value: 442.6
+    unit: J/(kg*K)
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Nickel: heat capacity (25 C) 6.21 g-cal/(g-at K), 442.6 J/(kg K) (Lange 1956, as cited)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}}
+    alternatives: []
+  alpha:
+    value: 12.8
+    unit: ppm/K
+    cte_kind: unstated
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Nickel: thermal expansion coefficient (20 C) 12.8 x 1e-6 /K (Lange 1956, as cited); Table 2.2.7: 13.3 (ASM Handbook Vol. 6)"
+    accessed: 2026-11-18
+    uncertainty: {range: [12.8, 13.3], unit: ppm/K, note: "two tables of the same database"}
+    conditions: {T: "20 degC"}
+    valid: {T: {unit: degC, range: [20, 20]}}
+    alternatives: []
+  rho_e:
+    value: 6.9
+    unit: uohm*cm
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Nickel: electrical resistivity (20 C) '6.9; 7.24#' (1e-6 ohm cm; 6.9 Lange 1956, 7.24 AIP Handbook 1957); Table 2.2.8: 6.2 at 293 K (Smithells)"
+    accessed: 2026-11-18
+    uncertainty: {range: [6.2, 7.24], unit: uohm*cm, note: "spread of the values printed in Tables 2.2.5 and 2.2.8"}
+    conditions: {T: "20 degC", text: "bulk; plated Ni and Ni-P differ (not stored)"}
+    valid: {T: {unit: degC, range: [20, 20]}, note: "use tcr for small excursions"}
+    alternatives: []
+  tcr:
+    value: 0.0068
+    unit: 1/K
+    note: "Table 2.2.8 prints the resistivity unit as ohm.cm; the values are micro-ohm cm (inference); only the TCR is used here"
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.8 row Nickel: 293 K, resistivity 6.2, TCR 6.8 (1e-3 /K) (Smithells 1983 p.16-2, as cited)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "293 K"}
+    valid: {T: {unit: K, range: [293, 293]}}
+    alternatives: []
+  mu_r:
+    value: N/A
+    unit: "1"
+    missing: "ferromagnetic: permeability depends on field, frequency and processing; no source read"
+    alternatives: []
+missing:
+  - {what: "electroplated Ni and electroless Ni-P (UBM) properties: not stored (bulk only)"}

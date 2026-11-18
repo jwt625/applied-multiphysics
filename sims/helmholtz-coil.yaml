@@ -69,4 +69,4 @@ provenance:
 assumptions:
   - {text: "Finite square coil cross-section s replaces the filament of the closed form; its effect on B(center) must be bounded in the EM-04 gate", paths: [params.s]}
   - {text: "r = 0 (air_box.left) is the symmetry axis, handled by the axisymmetric formulation; outer boundaries truncate the open domain with n x A = 0", paths: [physics.mf.bcs.outer]}
-# eval: [EM-04, EM-03]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)
+# eval: [EM-04]

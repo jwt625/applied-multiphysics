@@ -46,7 +46,7 @@ speed:
   reference_timings: []
   note: "budget set after the first timing run (R3 O3)"
 dataset: null
-spec: {status: pending, ref: sims/si-rib-waveguide.yaml, reason: "engine em-modes exists (L4 gate passes, DevLog-010 s.4.1); the harness has no parametric-sweep targets (8 slab thicknesses in one target), t = 0 needs a geometry variant without the slab, and the gate model takes the larger n_eff of two half-window runs (PEC / PMC on x = 0); DevLog-014 s.5"}
+spec: {status: pending, ref: sims/hadley-rib-wo02.yaml, reason: "sims/hadley-rib-wo02.yaml (case window) gives 7 of 8 thicknesses within tolerance on 3 nested levels (DevLog-022 s.8), but t = 0 is not modelled, the target is one 8-point array (no per-thickness spec override yet), and the 3 levels need 1.0-2.6M DOF at 2.5-5.5 GB RSS (above the eval machine rule of 2 GB). Earlier note (DevLog-014 s.5): the hero sims/si-rib-waveguide.yaml takes the larger n_eff of two half-window runs (PEC / PMC on x = 0)"}
 rights:
   source_license: "JLT paywalled; values via GPL-3.0 femwell"
   allowed: [cite_values, re_derive_setup]

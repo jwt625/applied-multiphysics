@@ -36,6 +36,7 @@ references:
   expected: {file: eval/expected/CP-03.json, metric_id: T_center}
   provenance: {citation: closed form; target Rohsenow-Choi 1963 p. 106 ex. 6.5 via VM58, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
       Results Comparison table', accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
+  extract: {kind: scalar, name: T_max}
 - quantity: T_surface
   metric_id: T_surface
   value: 487.5105902777777
@@ -48,6 +49,7 @@ references:
   expected: {file: eval/expected/CP-03.json, metric_id: T_surface}
   provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
       Results Comparison table', accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
+  extract: {kind: scalar, name: T_min}
 - quantity: q per 1 ft
   metric_id: q_per_ft
   value: 100.08377583671476
@@ -60,6 +62,15 @@ references:
   expected: {file: eval/expected/CP-03.json, metric_id: q_per_ft}
   provenance: {citation: as above, locator: 'ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
       Results Comparison table', accessed: null, generator: validation/c/gen_suites.py, source_accessed: '2026-11-06'}
+  extract:
+    kind: expr
+    expr: h * (Ts - Tinf) * 2 * pi * r0 * L
+    terms:
+      Ts: {kind: scalar, name: T_min}
+      h: {value: 28.391316688883375, unit: W/(m^2*K), source: 'eval/cases/c/CP-03.yaml bcs[0].params.h_W_per_m2K'}
+      Tinf: {value: 294.26111111111106, unit: K, source: 'eval/cases/c/CP-03.yaml bcs[0].params.T_inf_K'}
+      r0: {value: 0.009525, unit: m, source: eval/cases/c/CP-03.yaml geometry.spec.r0_m}
+      L: {value: 0.3048, unit: m, source: eval/cases/c/CP-03.yaml geometry.spec.length_m}
 reference_results: []
 convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
 speed:
@@ -74,11 +85,12 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_with_attribution, copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/heated-wire.yaml}
+spec: sims/heated-wire.yaml
 missing: []
 assumptions: []
 source_case: {suite: Ansys VM58 (pointer), file: Hlp_V_VM58.html, url: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM58.html,
   accessed: '2026-11-06'}
-notes: ['Targets in degF on the VM58 page: 419.9 / 417.9 F, 341.5 Btu/hr; this case uses SI.']
+notes: ['Targets in degF on the VM58 page: 419.9 / 417.9 F, 341.5 Btu/hr; this case uses SI.', 'q_per_ft is the energy balance
+    h (T_surface - T_inf) 2 pi r0 L on the computed T_surface: it restates T_surface (2 independent checks, DevLog-022 s.2).']
 lane: L7c
 created: '2026-11-06'

@@ -37,12 +37,13 @@ export function loadCaseFile(path: string, root = REPO_ROOT): LoadedCase {
   const stem = basename(path).replace(/\.ya?ml$/, '');
   const dirClass = basename(dirname(path));
   // First pass to learn id / explicit expected path; then re-parse with the expected JSON attached.
+  const fileExists = (r: string) => existsSync(join(root, r));
   const first = parseCase(text, rel, { stem, dirClass });
   const id = typeof first.data?.id === 'string' ? first.data.id : stem;
   const explicit = typeof first.data?.expected === 'string' ? first.data.expected : null;
   const ep = expectedPathFor(root, id, explicit);
   const expectedText = existsSync(ep) ? readFileSync(ep, 'utf8') : null;
-  return parseCase(text, rel, { stem, dirClass, expectedText, expectedFile: relative(root, ep) });
+  return parseCase(text, rel, { stem, dirClass, expectedText, expectedFile: relative(root, ep), fileExists });
 }
 
 export function loadCases(filter: CaseFilter = {}, root = REPO_ROOT): LoadedCase[] {

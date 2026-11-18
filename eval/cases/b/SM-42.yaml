@@ -40,7 +40,7 @@ speed:
   reference_timings: []
   note: "budget set after the first timing run (R3 O3)"
 dataset: null
-spec: {status: pending, ref: sims/SM-42.yaml, reason: "atlas sim config not yet ported to amp-spec/0 (C8)"}
+spec: {status: pending, proposed: sims/SM-42.yaml, reason: "no sims/ model: 3D layered stack (spec 3D geometry is a box list or one cylinder, DevLog-037 s.1); stress-free temperature N/A in the case. Thermal strain from the spec exists (heat -> elastic, DevLog-035)"}
 rights:
   source_license: "IEEE (paywalled); values cited from the atlas database"
   allowed: [cite_values, re_derive_setup]

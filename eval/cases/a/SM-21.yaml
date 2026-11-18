@@ -34,7 +34,7 @@ references:
   metric_id: DX_A
   definition: radial displacement at A
   value: 5.9000000000000004e-05
-  unit: length
+  unit: m
   tolerance: {rel: 0.001, after: richardson}
   bounds: null
   basis: D
@@ -43,11 +43,16 @@ references:
   provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
       targets[metric_id=DX_A]', accessed: null}
   expected: {file: eval/expected/SM-21.json, metric_id: DX_A}
+  extract:
+    kind: probe
+    field: u
+    component: 0
+    point: [0.1, 0.0]
 - quantity: DX_B
   metric_id: DX_B
   definition: radial displacement at B
   value: 4.0e-05
-  unit: length
+  unit: m
   tolerance: {rel: 0.001, after: richardson}
   bounds: null
   basis: D
@@ -56,11 +61,16 @@ references:
   provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
       targets[metric_id=DX_B]', accessed: null}
   expected: {file: eval/expected/SM-21.json, metric_id: DX_B}
+  extract:
+    kind: probe
+    field: u
+    component: 0
+    point: [0.2, 0.0]
 - quantity: DX_D
   metric_id: DX_D
   definition: u_x at D
   value: 3.695518130045147e-05
-  unit: length
+  unit: m
   tolerance: {rel: 0.001, after: richardson}
   bounds: null
   basis: D
@@ -69,11 +79,16 @@ references:
   provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
       targets[metric_id=DX_D]', accessed: null}
   expected: {file: eval/expected/SM-21.json, metric_id: DX_D}
+  extract:
+    kind: probe
+    field: u
+    component: 0
+    point: [0.18477590650225736, 0.07653668647301796]
 - quantity: DY_D
   metric_id: DY_D
   definition: u_y at D
   value: 1.530733729460359e-05
-  unit: length
+  unit: m
   tolerance: {rel: 0.001, after: richardson}
   bounds: null
   basis: D
@@ -82,11 +97,16 @@ references:
   provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
       targets[metric_id=DY_D]', accessed: null}
   expected: {file: eval/expected/SM-21.json, metric_id: DY_D}
+  extract:
+    kind: probe
+    field: u
+    component: 1
+    point: [0.18477590650225736, 0.07653668647301796]
 - quantity: DX_F
   metric_id: DX_F
   definition: u_x at F
   value: 2.8284271247461906e-05
-  unit: length
+  unit: m
   tolerance: {rel: 0.001, after: richardson}
   bounds: null
   basis: D
@@ -95,6 +115,11 @@ references:
   provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
       targets[metric_id=DX_F]', accessed: null}
   expected: {file: eval/expected/SM-21.json, metric_id: DX_F}
+  extract:
+    kind: probe
+    field: u
+    component: 0
+    point: [0.14142135623730953, 0.1414213562373095]
 - quantity: SIXX_A
   metric_id: SIXX_A
   definition: sigma_rr at A
@@ -108,6 +133,10 @@ references:
   provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
       targets[metric_id=SIXX_A]', accessed: null}
   expected: {file: eval/expected/SM-21.json, metric_id: SIXX_A}
+  extract:
+    kind: probe
+    field: sxx
+    point: [0.1, 0.0]
 - quantity: SIYY_A
   metric_id: SIYY_A
   definition: sigma_tt at A
@@ -121,6 +150,10 @@ references:
   provenance: {citation: Lame (Code_Aster REFERENCE='ANALYTIQUE'), locator: 'validation/a/gen_solid.py::sm21; eval/expected/SM-21.json
       targets[metric_id=SIYY_A]', accessed: null}
   expected: {file: eval/expected/SM-21.json, metric_id: SIYY_A}
+  extract:
+    kind: probe
+    field: syy
+    point: [0.1, 0.0]
 reference_results:
 - {solver: Code_Aster sslv04a VALE_CALC (3D PENTA6/HEXA8), DX_A: 5.89502757871e-05, DX_B: 3.99591545793e-05, SIXX_A: -59.2225501361,
   SIYY_A: 100.415918124}
@@ -136,11 +169,11 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: [copy_v_doc_text]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/lame-cylinder.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
-    a proposal}
+spec: sims/lame-cylinder.yaml
 missing: ['Mesh geometry (radii, sector angle) is in the MED mesh, not in the .comm; thickness N/A.']
 assumptions: ['Radii a = 0.1, b = 0.2 inferred from the test''s own ANALYTIQUE values (unique: b/a = 2 from u(a)/u(b) =
     5.9/4.0, then a from u(b) = 4.0e-5); sector 45 deg inferred from points E, F at 45 deg and D at 22.5 deg (DX = DY at
-    E and F).']
+    E and F).', 'Length unit of the Code_Aster mesh taken as m (displacement unit = length unit, E and p in MPa); displacement
+    targets are written in m, values unchanged (T2, DevLog-039).']
 source_case: {suite: Code_Aster astest, file: astest/sslv04a.comm, url: gitlab.com/codeaster/src/-/raw/main/astest/sslv04a.comm,
   accessed: '2026-11-06'}

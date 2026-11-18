@@ -1,0 +1,141 @@
+# BT (bismaleimide-triazine) core laminate, one named product (lane T4, DevLog-041): Mitsubishi Gas Chemical CCL-HL832NX
+# type A, typical properties from the MGC product web page. In-plane (X, Y) CTE only; out-of-plane values not given.
+schema: amp-material/0
+id: bt-hl832nx
+name: BT core laminate, MGC CCL-HL832NX type A
+class: polymer
+description: >-
+  Halogen-free glass-fabric BT copper-clad laminate for IC package substrates (CSP, BGA, flip chip). Young's modulus,
+  Poisson ratio, in-plane CTE alpha1 / alpha2, Tg (DMA, TMA), density, specific heat, thermal conductivity, Dk / Df at
+  1-10 GHz. Orthotropy (z) not given by the source: in-plane values only.
+verified_on: 2026-11-18
+sources:
+  mgc_hl832:
+    citation: "Mitsubishi Gas Chemical Company, Non-haloganated Low CTE BT Resin Laminate for IC Plastic Packages, product web page, table 'Typical properties of Materials', column HL832NX (A)"
+    url: https://d3nxinunz3v6qf.cloudfront.net/eng/products/sc/btprint/lineup/hfbt.html
+    access: vendor_open
+    read: "HTML page fetched 2026-11-18 (sha256 0010f96209456879..., CDN host of mgc.co.jp /eng/products/sc/btprint/lineup/hfbt.html; page not kept): property table rows Dielectric Constant, Dissipation Factor, Flexural / Young's Modulus, Glass Transition Temp. (DMA, TMA), CTE X,Y alpha1 / alpha2, Density, Specific heat, Thermal Conductivity, Poisson's ratio; no revision date on the page; measurement conditions other than those named are not given"
+properties:
+  E:
+    value: 28
+    unit: GPa
+    basis: datasheet
+    source: mgc_hl832
+    locator: "Typical properties, HL832NX (A): Young's Modulus 28 GPa (Flexural Modulus 28 GPa)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "direction and temperature not stated (in-plane by context of a laminate)"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  nu:
+    value: 0.19
+    unit: "1"
+    basis: datasheet
+    source: mgc_hl832
+    locator: "Typical properties, HL832NX (A): Poisson's ratio 0.19"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "direction not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  alpha:
+    value: 14
+    unit: ppm/K
+    cte_kind: unstated
+    basis: datasheet
+    source: mgc_hl832
+    locator: "Typical properties, HL832NX (A): Coefficient of Thermal Expansion X,Y alpha1 14 ppm/C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "in-plane X,Y, below Tg; method not stated (Tg by TMA 200 C)"}
+    valid: {T: {na: "below Tg (TMA 200 C, DMA 230 C); lower limit not stated"}}
+    alternatives: 
+      - id: above_tg
+        use: "in-plane alpha2 above Tg"
+        value: 5
+        unit: ppm/K
+        cte_kind: unstated
+        basis: datasheet
+        source: mgc_hl832
+        locator: "Typical properties, HL832NX (A): CTE X,Y alpha2 5 ppm/C"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "in-plane X,Y, above Tg"}
+        valid: {T: {na: "above Tg; upper limit not stated"}}
+  Tg:
+    value: 230
+    unit: degC
+    basis: datasheet
+    source: mgc_hl832
+    locator: "Typical properties, HL832NX (A): Glass Transition Temp. DMA 230 C, TMA 200 C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "by DMA"}
+    valid: {T: {na: "a transition temperature"}}
+    alternatives: 
+      - id: tma
+        use: "Tg by TMA"
+        value: 200
+        unit: degC
+        basis: datasheet
+        source: mgc_hl832
+        locator: "Typical properties, HL832NX (A): Glass Transition Temp. TMA 200 C"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "by TMA"}
+        valid: {T: {na: "a transition temperature"}}
+  rho:
+    value: 2.1
+    unit: g/cm^3
+    basis: datasheet
+    source: mgc_hl832
+    locator: "Typical properties, HL832NX (A): Density 2.1 g/cm3"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  cp:
+    value: 1.0
+    unit: J/(g*K)
+    basis: datasheet
+    source: mgc_hl832
+    locator: "Typical properties, HL832NX (A): Specific heat 1.00 J/g K"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  k:
+    value: 0.8
+    unit: W/(m*K)
+    basis: datasheet
+    source: mgc_hl832
+    locator: "Typical properties, HL832NX (A): Thermal Conductivity 0.8 W/m K"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "direction and temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  eps_r:
+    table: {x: f, x_unit: GHz, xs: [1, 5, 10], ys: [4.9, 4.8, 4.7]}
+    unit: "1"
+    basis: datasheet
+    source: mgc_hl832
+    locator: "Typical properties, HL832NX (A): Dielectric Constant 1 GHz 4.9, 5 GHz 4.8, 10 GHz 4.7"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "method and temperature not stated; linear interpolation between the three printed frequencies"}
+    alternatives: []
+  tan_delta:
+    table: {x: f, x_unit: GHz, xs: [1, 5, 10], ys: [0.011, 0.011, 0.012]}
+    unit: "1"
+    basis: datasheet
+    source: mgc_hl832
+    locator: "Typical properties, HL832NX (A): Dissipation Factor 1 GHz 0.011, 5 GHz 0.011, 10 GHz 0.012"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "method and temperature not stated"}
+    alternatives: []
+missing:
+  - {what: "out-of-plane (z) CTE and modulus, E(T): not on the page"}

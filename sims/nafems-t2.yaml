@@ -29,11 +29,22 @@ results:
   datasets:
     - {id: sol_std1, type: solution, data: std1}
     - {id: T_B_pt, type: cutpoint, data: sol_std1, points: [[L, w/2]]}
+    - {id: axis, type: cutline, data: sol_std1, from: ["0 m", w/2], to: [L, w/2], n: 200}
   evaluations:
     - id: ev_std1
       data: sol_std1
       items:
         - {id: T_B, type: point, data: T_B_pt, expr: ht.T, unit: K}
+  plots:
+    - id: T_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: T_map_surf, type: surface, expr: ht.T, unit: K}
+    - id: T_line
+      type: plot1d
+      items:
+        - {id: T_curve, type: linegraph, data: axis, x: arc, expr: ht.T, unit: K}
 provenance:
   values:
     params.L: {basis: benchmark, source: "eval/cases/a/HT-03.yaml geometry.spec.rod_m (NAFEMS T2, R3 s.3.1)", date: 2026-11-06}
@@ -45,3 +56,4 @@ provenance:
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice"}
 assumptions:
   - {text: "Stefan-Boltzmann constant from @amp/physics SIGMA_SB (CODATA 2018 exact), as the case target T_B.k55.6.sigma_codata assumes", paths: [physics.ht.bcs.endB]}
+# eval: [HT-03]

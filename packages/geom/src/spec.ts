@@ -9,15 +9,57 @@
 //   polyline e0.. (+ v0..), box xmin/xmax/ymin/ymax/zmin/zmax, cylinder side/bottom/top (bottom at `base`).
 //   union / intersection / difference (single-domain target): result domain = feature id; fragment: origin ids
 //   joined with '&'; boundaries keep their creating feature's id; pieces `#k`; `parent` lists the origins.
+// 3D layer stacks (DevLog-044): in a dim 3 geometry the 2D features are sketches for one `extrude` feature, whose
+//   layers each name a sketch (earlier 2D features); names in stack.ts. Boxes and z cylinders that are neither a box
+//   list nor one cylinder are converted to a stack (stackFromSolids).
 
 import * as z from 'zod';
-import { quantity, vector, nodeId, resolveQuantity, type Registration, type Registry, type ScopeValue } from '@amp/spec';
+import { quantity, vector, nodeId, resolveQuantity, POS, type Registration, type Registry, type ScopeValue, type CheckIssue } from '@amp/spec';
 import { buildGeometry2D, type Feature, type Geometry2D } from './model.ts';
+import { buildStack, stackFromSolids, MIXED_STACK_ID, type Stack } from './stack.ts';
 import type { Vec2 } from './curves.ts';
 
 const owner = '@amp/geom';
-const D2 = ['2d', '2d-axisym'] as const;
+/** 2D features: 2D and axisymmetric geometries, and sketches of an extrude feature in 3D (DevLog-044) */
+const D2 = ['2d', '2d-axisym', '3d'] as const;
 const ids = z.array(nodeId).min(1);
+const SKETCH_TYPES = new Set(['rect', 'circle', 'ellipse', 'polygon', 'arc', 'polyline', 'union', 'intersection', 'difference', 'fragment']);
+const layerSchema = z.strictObject({
+  id: nodeId.optional(),
+  z0: quantity('m').optional(),
+  thickness: quantity('m', POS),
+  sketch: z.array(nodeId),
+  nz: z.number().int().min(1).max(100000).optional(),
+  dz: quantity('m', POS).optional(),
+});
+/** extrude check: every sketch id names an earlier 2D feature; layer ids unique, not reserved */
+function checkExtrude(n: Record<string, unknown>, ctx: { spec: Record<string, unknown> }): CheckIssue[] {
+  const out: CheckIssue[] = [];
+  const feats = ((ctx.spec.geometry as { features?: Array<{ id: string; type: string }> } | undefined)?.features ?? []);
+  const self = feats.findIndex((f) => f.id === n.id);
+  const before = new Map(feats.slice(0, self < 0 ? feats.length : self).map((f) => [f.id, f.type]));
+  const layers = ((n.settings as { layers?: Array<{ id?: string; sketch?: string[] }> } | undefined)?.layers ?? []);
+  const seen = new Set<string>();
+  layers.forEach((L, k) => {
+    const lid = L.id ?? `L${k}`;
+    if (lid === 'top' || lid === 'bottom') out.push({ path: ['settings', 'layers', k, 'id'], message: `layer id '${lid}' is reserved (stack top / bottom caps)` });
+    if (seen.has(lid)) out.push({ path: ['settings', 'layers', k, 'id'], message: `duplicate layer id '${lid}'` });
+    seen.add(lid);
+    (L.sketch ?? []).forEach((x, j) => {
+      const t = before.get(x);
+      if (t === undefined) out.push({ path: ['settings', 'layers', k, 'sketch', j], code: 'unknown_feature', message: `'${x}' is not an earlier geometry feature` });
+      else if (!SKETCH_TYPES.has(t)) out.push({ path: ['settings', 'layers', k, 'sketch', j], message: `'${x}' is a ${t}; a layer sketch takes 2D features` });
+    });
+  });
+  return out;
+}
+
+/** box / cylinder check: in a geometry of mixed boxes / cylinders (a stack) the stack id is reserved (DevLog-044 s.7) */
+function checkSolid(n: Record<string, unknown>, ctx: { spec: Record<string, unknown> }): CheckIssue[] {
+  const geo = ctx.spec.geometry as { dim?: number; features?: Array<{ type: string }> } | undefined;
+  if (n.id !== MIXED_STACK_ID || !geo || typeof geo.dim !== 'number' || !Array.isArray(geo.features) || !isStack3D({ dim: geo.dim, features: geo.features })) return [];
+  return [{ path: ['id'], message: `id '${MIXED_STACK_ID}' is reserved in a geometry of mixed boxes / cylinders: it names the whole stack (dom:${MIXED_STACK_ID}, bnd:${MIXED_STACK_ID}.top / .bottom); rename the solid` }];
+}
 
 export const GEOM_FEATURES: Registration[] = [
   { kind: 'feature', type: 'rect', owner, dims: D2, description: 'Axis-aligned rectangle; boundaries bottom/right/top/left, points p0..p3',
@@ -40,9 +82,12 @@ export const GEOM_FEATURES: Registration[] = [
     settings: z.strictObject({ base: nodeId, tools: ids, keepTools: z.boolean().optional() }) },
   { kind: 'feature', type: 'fragment', owner, dims: D2, refs: ['inputs'], description: 'Split overlapping inputs into explicit pieces named by their origin domains joined with &',
     settings: z.strictObject({ inputs: ids }) },
-  { kind: 'feature', type: 'box', owner, dims: ['3d'], description: 'Axis-aligned box; boundaries xmin/xmax/ymin/ymax/zmin/zmax',
+  { kind: 'feature', type: 'extrude', owner, dims: ['3d'], check: checkExtrude,
+    description: 'Layer stack along z: each layer (id, thickness, optional z0, nz or dz) extrudes its own sketch of earlier 2D features; domains <2D domain>.<layer>, walls <2D boundary>.<layer>, caps <2D domain>.<layer>.top / .bottom',
+    settings: z.strictObject({ z0: quantity('m').optional(), layers: z.array(layerSchema).min(1) }) },
+  { kind: 'feature', type: 'box', owner, dims: ['3d'], check: checkSolid, description: 'Axis-aligned box; boundaries xmin/xmax/ymin/ymax/zmin/zmax',
     settings: z.strictObject({ size: vector('m', 3), center: vector('m', 3) }) },
-  { kind: 'feature', type: 'cylinder', owner, dims: ['3d'], description: 'Circular cylinder from base centre along axis; boundaries side/bottom/top',
+  { kind: 'feature', type: 'cylinder', owner, dims: ['3d'], check: checkSolid, description: 'Circular cylinder from base centre along axis; boundaries side/bottom/top',
     settings: z.strictObject({ radius: quantity('m'), height: quantity('m'), base: vector('m', 3), axis: z.enum(['x', 'y', 'z']) }) },
 ];
 
@@ -106,11 +151,67 @@ export function featureFromSpec(n: FeatureNodeLike, R: Resolver): Feature {
   }
 }
 
-/** Spec geometry block -> built 2D geometry, or the 3D primitive list (3D CSG is tier 2, DevLog-001 A6). */
+/** Feature ids a 2D feature consumes or references. */
+const inputsOf = (n: FeatureNodeLike): string[] => {
+  const s = n.settings ?? {};
+  if (n.type === 'difference') return [s.base as string, ...(s.tools as string[])];
+  if (n.type === 'union' || n.type === 'intersection' || n.type === 'fragment') return s.inputs as string[];
+  return [];
+};
+
+/** extrude node -> Stack: each layer's sketch = the listed 2D features and their transitive inputs, in spec order. */
+export function stackFromSpec(features: FeatureNodeLike[], ext: FeatureNodeLike, R: Resolver): Stack {
+  const pos = new Map(features.map((f, i) => [f.id, i]));
+  const set = (ext.settings ?? {}) as { z0?: unknown; layers: Array<{ id?: string; z0?: unknown; thickness: unknown; sketch: string[]; nz?: number; dz?: unknown }> };
+  const layers = set.layers.map((L) => {
+    const need = new Set<string>();
+    const walk = (id: string) => {
+      if (need.has(id)) return;
+      const i = pos.get(id);
+      if (i === undefined) throw new Error(`geom: extrude ${ext.id}: sketch feature '${id}' not found`);
+      const n = features[i]!;
+      if (!SKETCH_TYPES.has(n.type)) throw new Error(`geom: extrude ${ext.id}: '${id}' is a ${n.type}; a layer sketch takes 2D features`);
+      need.add(id);
+      for (const x of inputsOf(n)) walk(x);
+    };
+    for (const x of L.sketch) walk(x);
+    const sk = features.filter((f) => need.has(f.id)).map((f) => featureFromSpec(f, R));
+    const out: Parameters<typeof buildStack>[0]['layers'][number] = { thickness: R.q(L.thickness), features: sk };
+    if (L.id !== undefined) out.id = L.id;
+    if (L.z0 !== undefined) out.z0 = R.q(L.z0);
+    if (L.nz !== undefined) out.nz = L.nz;
+    if (L.dz !== undefined) out.dz = R.q(L.dz);
+    return out;
+  });
+  return buildStack({ id: ext.id, z0: set.z0 !== undefined ? R.q(set.z0) : 0, layers });
+}
+
+/** dim 3 geometry that is meshed as a layer stack: an extrude feature, or boxes / cylinders that are neither a box
+ * list nor a single cylinder. */
+export function isStack3D(geo: { dim: number; features: Array<{ type: string }> }): boolean {
+  if (geo.dim !== 3) return false;
+  const f = geo.features;
+  if (f.some((x) => x.type === 'extrude')) return true;
+  return f.length > 0 && !f.every((x) => x.type === 'box') && !(f.length === 1 && f[0]!.type === 'cylinder');
+}
+
+/**
+ * Spec geometry block -> built 2D geometry, or 3D: the primitive list (box list, one cylinder) and, for an extrude
+ * feature or mixed boxes / z cylinders, the layer stack (true 3D CSG is tier 2, DevLog-001 A6).
+ */
 export function geometryFromSpec(geo: { dim: number; axisym?: boolean; features: FeatureNodeLike[] }, R: Resolver):
-  { dim: 2; geometry: Geometry2D } | { dim: 3; solids: Solid3D[] } {
+  { dim: 2; geometry: Geometry2D } | { dim: 3; solids: Solid3D[]; stack?: Stack } {
   if (geo.dim === 2) return { dim: 2, geometry: buildGeometry2D({ axisym: !!geo.axisym, features: geo.features.map((f) => featureFromSpec(f, R)) }) };
   if (geo.dim !== 3) throw new Error(`geom: dim ${geo.dim} not supported`);
+  const ext = geo.features.filter((f) => f.type === 'extrude');
+  if (ext.length > 1) throw new Error(`geom: one extrude feature per geometry (found ${ext.map((f) => f.id).join(', ')}); put every layer in one stack`);
+  if (ext.length === 1) {
+    const prim = geo.features.filter((f) => f.type === 'box' || f.type === 'cylinder');
+    if (prim.length) throw new Error(`geom: ${prim.map((f) => f.id).join(', ')}: box / cylinder cannot be combined with an extrude feature; draw them as rect / circle sketches in its layers`);
+    return { dim: 3, solids: [], stack: stackFromSpec(geo.features, ext[0]!, R) };
+  }
+  const sketch = geo.features.filter((f) => SKETCH_TYPES.has(f.type));
+  if (sketch.length) throw new Error(`geom: 2D features (${sketch.map((f) => f.id).join(', ')}) in a 3D geometry are sketches for an extrude feature, and there is none`);
   const solids = geo.features.map((n): Solid3D => {
     const s = n.settings ?? {};
     if (n.type === 'box') {
@@ -120,7 +221,8 @@ export function geometryFromSpec(geo: { dim: number; axisym?: boolean; features:
     }
     if (n.type === 'cylinder')
       return { type: 'cylinder', id: n.id, radius: R.q(s.radius), height: R.q(s.height), base: R.vec(s.base, 3) as [number, number, number], axis: s.axis as 'x' | 'y' | 'z' };
-    throw new Error(`geom: 3D feature '${n.type}' is not supported in tier 1 (box, cylinder)`);
+    throw new Error(`geom: 3D feature '${n.type}' is not supported in tier 1 (box, cylinder, extrude)`);
   });
+  if (isStack3D(geo)) return { dim: 3, solids, stack: stackFromSolids(solids) };
   return { dim: 3, solids };
 }

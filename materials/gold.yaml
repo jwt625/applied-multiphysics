@@ -6,27 +6,41 @@ class: metal
 description: >-
   Bulk high-purity gold. Electrical conductivity follows from the tabulated resistivity (sigma = 1 / rho_e, package
   rule). Evaporated / electroplated thin films are generally less conductive and are not covered.
-verified_on: 2026-11-06
+verified_on: 2026-11-18
 sources:
   hpl1972:
     citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
     doi: 10.1063/1.3253100
     url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
     access: open
-    read: "not re-read by L10; APA lane read the p.340 recommended-value table on 2026-10-20"
+    read: "not re-read; the advanced-packaging-atlas project read the p.340 recommended-value table on 2026-10-20"
     via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (au.properties.k)"
   matula1979:
     citation: "R. A. Matula, Electrical resistivity of copper, gold, palladium, and silver, J. Phys. Chem. Ref. Data 8, 1147-1298 (1979)"
     doi: 10.1063/1.555614
     url: https://srd.nist.gov/jpcrdreprint/1.555614.pdf
     access: open
-    read: "not re-read by L10; APA lane read p.1209 Table 5 on 2026-10-20; EO lane read the 293 K entry (2.214e-8 ohm m) on 2026-10-14"
+    read: "not re-read; the advanced-packaging-atlas project read p.1209 Table 5 on 2026-10-20; the eo-modulator-atlas project read the 293 K entry (2.214e-8 ohm m) on 2026-10-14"
     via: "advanced-packaging-atlas engine/data/materials/metals.yaml at 608b1dc (au.properties.sigma); eo-modulator-atlas engine/data/materials.json at bc68738 (library.gold_bulk_293k)"
   nist_solder_db_v4:
     citation: "T. Siewert, S. Liu, D. R. Smith, J. C. Madeni, Database for solder properties with emphasis on new lead-free solders, release 4.0, NIST and Colorado School of Mines (2002-02-11)"
     url: https://www.msed.nist.gov/solder/NIST_LeadfreeSolder_v4.pdf
     access: open
-    read: "text layer, Table 1.10 (pdf p.16) and Table 2.2.5 (pdf p.37), read by L10 2026-11-06; cached under cache/materials/gold/"
+    read: "text layer, Table 1.10 (pdf p.16) and Table 2.2.5 (pdf p.37), read 2026-11-06; cached under cache/materials/gold/"
+  johnson1972:
+    citation: "P. B. Johnson, R. W. Christy, Optical constants of the noble metals, Phys. Rev. B 6(12), 4370-4379 (1972)"
+    doi: 10.1103/PhysRevB.6.4370
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/Au/nk/Johnson.yml
+    access: paywalled
+    read: "primary not read (paywalled); n, k table from the refractiveindex.info entry (CC0) Au/nk/Johnson.yml fetched 2026-11-18 (sha256 9f4bdab6bd49...), 49 rows 0.1879-1.937 um, comment 'Room temperature'; rows 0.4133-1.937 um transcribed unchanged"
+    licence: "refractiveindex.info database: CC0 1.0"
+  olmon2012:
+    citation: "R. L. Olmon, B. Slovick, T. W. Johnson, D. Shelton, S.-H. Oh, G. D. Boreman, M. B. Raschke, Optical dielectric function of gold, Phys. Rev. B 86, 235147 (2012), Supplemental Material"
+    doi: 10.1103/PhysRevB.86.235147
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/Au/nk/Olmon-ev.yml
+    access: paywalled
+    read: "primary not read; n, k table from the refractiveindex.info entry (CC0) Au/nk/Olmon-ev.yml fetched 2026-11-18 (sha256 be778621e649...), 448 rows 0.3-24.93 um, comment 'Evaporated gold'; every row at >= 0.05 um spacing from 0.4 to 2.474 um transcribed (41 rows)"
+    licence: "refractiveindex.info database: CC0 1.0"
 properties:
   rho:
     value: 19.3
@@ -107,8 +121,62 @@ properties:
     conditions: {T: "20 degC", text: "value at 20 C; kind (mean vs instantaneous) not stated by the source"}
     valid: {T: {unit: degC, range: [20, 20]}, note: "single stated temperature"}
     alternatives: []
+  n:
+    table: {x: lambda, x_unit: um, xs: [0.4133, 0.4305, 0.4509, 0.4714, 0.4959, 0.5209, 0.5486, 0.5821, 0.6168, 0.6595, 0.7045, 0.7560, 0.8211, 0.8920, 0.9840, 1.0880, 1.2160, 1.3930, 1.6100, 1.9370], ys: [1.46, 1.45, 1.38, 1.31, 1.04, 0.62, 0.43, 0.29, 0.21, 0.14, 0.13, 0.14, 0.16, 0.17, 0.22, 0.27, 0.35, 0.43, 0.56, 0.92]}
+    unit: "1"
+    basis: measured
+    source: johnson1972
+    locator: "refractiveindex.info Au/nk/Johnson.yml, tabulated nk, column n, rows 0.4133-1.937 um (Johnson-Christy photon-energy grid)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "evaporated films, room temperature (database comment); linear interpolation between the coarse nodes (e.g. 1.393 and 1.610 um around 1.55 um)"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "room temperature, not quantified"}}
+    note: "complex index N = n + i kappa; the bulk DC values (rho_e) and these optical constants come from different samples"
+    alternatives:
+      - id: olmon2012_evaporated
+        use: "sensitivity and wider range (to 2.474 um), denser grid"
+        table: {x: lambda, x_unit: um, xs: [0.400, 0.450, 0.500, 0.550, 0.600, 0.650, 0.700, 0.750, 0.800, 0.850, 0.900, 0.950, 1.000, 1.050, 1.100, 1.150, 1.200, 1.250, 1.300, 1.350, 1.430, 1.480, 1.530, 1.580, 1.630, 1.680, 1.730, 1.780, 1.830, 1.880, 1.930, 1.980, 2.038, 2.098, 2.153, 2.205, 2.258, 2.315, 2.365, 2.418, 2.474], ys: [1.588, 1.472, 0.8197, 0.3256, 0.2041, 0.1546, 0.1328, 0.1248, 0.1244, 0.1286, 0.1358, 0.1451, 0.1559, 0.1680, 0.1810, 0.1949, 0.2096, 0.2250, 0.2400, 0.2551, 0.2824, 0.2988, 0.3157, 0.3331, 0.3510, 0.3695, 0.3885, 0.4082, 0.4286, 0.4497, 0.4715, 0.4942, 0.5224, 0.5524, 0.5814, 0.6087, 0.6380, 0.6695, 0.6984, 0.7293, 0.7623]}
+        unit: "1"
+        basis: measured
+        source: olmon2012
+        locator: "refractiveindex.info Au/nk/Olmon-ev.yml, tabulated nk, column n, rows at >= 0.05 um spacing from 0.4 to 2.474 um (values rounded to 4 significant digits as printed in the entry)"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated in the database entry; primary not read"}
+        conditions: {text: "evaporated gold film (database comment); ellipsometry (paper title), temperature not stated in the entry"}
+        n_medium: unstated
+        n_medium_note: "database entry does not state air or vacuum wavelength"
+        valid: {T: {na: "temperature not stated"}}
+  kappa:
+    table: {x: lambda, x_unit: um, xs: [0.4133, 0.4305, 0.4509, 0.4714, 0.4959, 0.5209, 0.5486, 0.5821, 0.6168, 0.6595, 0.7045, 0.7560, 0.8211, 0.8920, 0.9840, 1.0880, 1.2160, 1.3930, 1.6100, 1.9370], ys: [1.958, 1.948, 1.914, 1.849, 1.833, 2.081, 2.455, 2.863, 3.272, 3.697, 4.103, 4.542, 5.083, 5.663, 6.350, 7.150, 8.145, 9.519, 11.21, 13.78]}
+    unit: "1"
+    basis: measured
+    source: johnson1972
+    locator: "refractiveindex.info Au/nk/Johnson.yml, tabulated nk, column k, rows 0.4133-1.937 um (Johnson-Christy photon-energy grid)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "evaporated films, room temperature (database comment); linear interpolation between the coarse nodes (e.g. 1.393 and 1.610 um around 1.55 um)"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "room temperature, not quantified"}}
+    note: "complex index N = n + i kappa; the bulk DC values (rho_e) and these optical constants come from different samples"
+    alternatives:
+      - id: olmon2012_evaporated
+        use: "sensitivity and wider range (to 2.474 um), denser grid"
+        table: {x: lambda, x_unit: um, xs: [0.400, 0.450, 0.500, 0.550, 0.600, 0.650, 0.700, 0.750, 0.800, 0.850, 0.900, 0.950, 1.000, 1.050, 1.100, 1.150, 1.200, 1.250, 1.300, 1.350, 1.430, 1.480, 1.530, 1.580, 1.630, 1.680, 1.730, 1.780, 1.830, 1.880, 1.930, 1.980, 2.038, 2.098, 2.153, 2.205, 2.258, 2.315, 2.365, 2.418, 2.474], ys: [1.915, 1.855, 1.787, 2.507, 3.122, 3.647, 4.126, 4.575, 5.004, 5.420, 5.825, 6.222, 6.613, 6.999, 7.380, 7.759, 8.134, 8.506, 8.865, 9.214, 9.796, 10.14, 10.48, 10.82, 11.16, 11.50, 11.84, 12.18, 12.52, 12.85, 13.19, 13.52, 13.93, 14.35, 14.74, 15.10, 15.48, 15.88, 16.24, 16.61, 17.00]}
+        unit: "1"
+        basis: measured
+        source: olmon2012
+        locator: "refractiveindex.info Au/nk/Olmon-ev.yml, tabulated nk, column k, rows at >= 0.05 um spacing from 0.4 to 2.474 um (values rounded to 4 significant digits as printed in the entry)"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated in the database entry; primary not read"}
+        conditions: {text: "evaporated gold film (database comment); ellipsometry (paper title), temperature not stated in the entry"}
+        n_medium: unstated
+        n_medium_note: "database entry does not state air or vacuum wavelength"
+        valid: {T: {na: "temperature not stated"}}
   mu_r:
     value: N/A
     unit: "1"
-    missing: "no magnetic-susceptibility source read for gold in this lane"
+    missing: "no magnetic-susceptibility source read for gold for this library"
     alternatives: []

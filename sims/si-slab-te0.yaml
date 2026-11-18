@@ -35,6 +35,7 @@ studies:
 results:
   datasets:
     - {id: sol_modes, type: solution, data: modes}
+    - {id: across, type: cutline, data: sol_modes, from: ["0 um", "-L"], to: ["0 um", "L"], n: 400}
   evaluations:
     - id: ev_modes
       data: sol_modes
@@ -42,6 +43,16 @@ results:
         - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
   tables:
     - {id: tbl_modes, from: ev_modes}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
+    - id: E_line
+      type: plot1d
+      items:
+        - {id: E_curve, type: linegraph, data: across, x: arc, expr: ewg.normE, unit: V/m}
 provenance:
   values:
     params.t_core: {basis: benchmark, source: "eval/cases/a/WO-01.yaml geometry.spec.core_thickness_m", date: 2026-11-06}

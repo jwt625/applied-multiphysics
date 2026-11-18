@@ -1,0 +1,128 @@
+# SAC305 solder (Sn-3.0Ag-0.5Cu), lane T4 (DevLog-041). Physical data from the Indium Corporation Indalloy 256 product data
+# sheet; default elastic modulus E(T) and CTE(T) from a peer-reviewed package model (TCPMT 2025, transcribed from the
+# advanced-packaging-atlas data file) because the data-sheet Young's modulus (6.9 GPa) is a quasi-static tensile value
+# far below the moduli used in package mechanics (kept as an alternative). Viscoplastic (Anand) data: not stored here.
+schema: amp-material/0
+id: sac305
+name: SAC305 solder (Sn-3.0Ag-0.5Cu)
+class: metal
+description: >-
+  Lead-free solder for C4 bumps and BGA balls. Solidus 217 C, liquidus 220 C (data sheet). Elastic-only data: creep
+  and plasticity (Anand) are not represented by this library.
+verified_on: 2026-11-18
+sources:
+  indium_pds_100346:
+    citation: "Indium Corporation, Product Data Sheet Indalloy 256 (SAC305) for Preforms, Form No. 100346 R0 (c)2024"
+    url: https://www.indium.com/wp-content/uploads/2025/03/Indalloy256-for-Preforms-PDS-100346-R0-1.pdf
+    access: vendor_open
+    read: "text layer of the 1-page PDF fetched 2026-11-18 (sha256 a376690b5546eb85..., created 2024-12-09; PDF not kept): Indalloy 256 Properties table (liquidus, solidus, density, thermal conductivity, CTE, electrical resistivity, Young's modulus, Poisson's ratio, strengths, elongation)"
+  tcpmt2025_3614186:
+    citation: "Board-level reliability of 100 x 100 mm large glass packages: warpage and thermomechanical reliability for AI/HPC applications, IEEE Trans. Compon. Packag. Manuf. Technol. 16(2) (2026)"
+    doi: 10.1109/TCPMT.2025.3614186
+    access: paywalled
+    read: "not re-read (its Table III is an image in the advanced-packaging-atlas text extract); values transcribed from the advanced-packaging-atlas data file, which read the p.7 Table III page render on 2026-10-20 (row 13 SAC 305 Solder: E -50 C 52.5 GPa, 220 C 33.6 GPa, nu 0.29, CTE 2.05e-5 / 2.50e-5 /C; the paper cites Zhang et al., Microelectron. Reliab. 54, 281 (2014), which prints Anand parameters only, so the primary of this elastic / CTE set is not identified)"
+    via: "advanced-packaging-atlas engine/data/materials/solders.yaml at fe39985 (sac305.properties.elastic, .cte)"
+properties:
+  rho:
+    value: 7.35
+    unit: g/cm^3
+    basis: datasheet
+    source: indium_pds_100346
+    locator: "Indalloy 256 Properties: Density 7.35 g/cc"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  k:
+    value: 61
+    unit: W/(m*K)
+    basis: datasheet
+    source: indium_pds_100346
+    locator: "Indalloy 256 Properties: Thermal Conductivity 61 W/mK"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  rho_e:
+    value: 13.2
+    unit: uohm*cm
+    basis: datasheet
+    source: indium_pds_100346
+    locator: "Indalloy 256 Properties: Electrical Resistivity 13.2 uOhm-cm"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  E:
+    table: {x: T, x_unit: degC, xs: [-50, 220], ys: [52.5, 33.6]}
+    unit: GPa
+    basis: paper_model_input
+    source: tcpmt2025_3614186
+    locator: "p.7 Table III row 13 SAC 305 Solder, elasticity: -50 C 52.5 GPa, 220 C 33.6 GPa (as transcribed in the advanced-packaging-atlas project)"
+    accessed: 2026-10-20
+    uncertainty: {na: "not stated"}
+    conditions: {text: "two printed points; linear in T between them (interpolation, as the paper's model table implies; not a measured curve)"}
+    note: "220 C is above the solidus (217 C, data sheet); use below 217 C"
+    alternatives:
+      - id: indium_pds
+        use: "reference only: data-sheet quasi-static tensile modulus (far below the dynamic / ultrasonic moduli used in package mechanics)"
+        value: 6.9
+        unit: GPa
+        basis: datasheet
+        source: indium_pds_100346
+        locator: "Indalloy 256 Properties: Young's Modulus 6.9 GPa (1,000 ksi)"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "temperature and test rate not stated"}
+        valid: {T: {na: "temperature not stated"}}
+  nu:
+    value: 0.29
+    unit: "1"
+    basis: paper_model_input
+    source: tcpmt2025_3614186
+    locator: "p.7 Table III row 13 SAC 305 Solder: Poisson ratio 0.29 (as transcribed in the advanced-packaging-atlas project)"
+    accessed: 2026-10-20
+    uncertainty: {na: "not stated"}
+    conditions: {text: "constant over the table temperatures"}
+    valid: {T: {unit: degC, range: [-50, 220]}}
+    alternatives: 
+      - id: indium_pds
+        use: "sensitivity (data sheet)"
+        value: 0.35
+        unit: "1"
+        basis: datasheet
+        source: indium_pds_100346
+        locator: "Indalloy 256 Properties: Poisson's Ratio 0.35"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "temperature not stated"}
+        valid: {T: {na: "temperature not stated"}}
+  alpha:
+    table: {x: T, x_unit: degC, xs: [-50, 220], ys: [20.5, 25.0]}
+    unit: ppm/K
+    cte_kind: unstated
+    basis: paper_model_input
+    source: tcpmt2025_3614186
+    locator: "p.7 Table III row 13 SAC 305 Solder, CTE -50 C 2.05e-5 /C, 220 C 2.50e-5 /C (as transcribed in the advanced-packaging-atlas project; kind not labelled in Table III)"
+    accessed: 2026-10-20
+    uncertainty: {na: "not stated"}
+    conditions: {text: "two printed points, linear between them"}
+    alternatives:
+      - id: indium_pds
+        use: "sensitivity (data-sheet constant)"
+        value: 21
+        unit: ppm/K
+        cte_kind: unstated
+        basis: datasheet
+        source: indium_pds_100346
+        locator: "Indalloy 256 Properties: CTE 21 ppm/C (temperature range not stated)"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "range not stated"}
+        valid: {T: {na: "temperature range not stated"}}
+missing:
+  - {what: "cp, Anand viscoplastic parameters (tier 2 in the advanced-packaging-atlas data), creep: not stored"}
+  - {what: "primary of the default E(T), nu, CTE(T) set (TCPMT 2025 Table III cites Zhang et al. 2014, which gives no elastic data)"}

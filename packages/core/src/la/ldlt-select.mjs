@@ -13,6 +13,8 @@ import { WasmComplexLDLT, wasmLdltSupported } from './ldlt-wasm.mjs';
 // by sparse.mjs factorNumeric / SparseCholesky and ldlt.mjs SupernodalLDLT), re-exported here.
 export { DEFAULT_REAL_FACTOR, setDefaultRealFactor, wasmRealSupported } from './wasm/front-real.mjs';
 import { DEFAULT_REAL_FACTOR as REAL_DEFAULT_LIVE, wasmRealSupported as realOk } from './wasm/front-real.mjs';
+// Real triangular solve kernel (lane S4, DevLog-045; default 'wasm'): state in the leaf module ./wasm/solve-real.mjs.
+export { DEFAULT_REAL_SOLVE, setDefaultRealSolve, wasmSolveSupported } from './wasm/solve-real.mjs';
 
 /** Warning text when the requested real kernel is not the one used ('wasm' without SIMD), else null. */
 export function realFactorFallbackWarning(kind) {

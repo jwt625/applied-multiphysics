@@ -17,13 +17,15 @@ function newSessionId(): string {
 	return 's-' + [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
 }
 
-/** StudyRunner over the session's worker (C6): solves the current model text, first study (browser runner limit). */
+/** StudyRunner over the session's worker (C6): solves the current model text; any study of the spec (run_study's
+ *  `study` becomes the workbench study choice, so the picker, plots and tables follow it; DevLog-040). */
 export function studyRunner(s: Session, summarize: (sol: never) => unknown): StudyRunner {
 	return {
 		async run({ specText, studyId, signal }): Promise<StudyOutcome> {
 			const studies = ((s.model.data as { studies?: Array<{ id: string }> } | null)?.studies ?? []);
 			if (specText !== s.model.text) return { ok: false, study: studyId, stage: 'runner', message: 'the browser runner solves the current model text only' };
-			if (studies[0]?.id !== studyId) return { ok: false, study: studyId, stage: 'runner', message: `the browser runner solves the first study (${studies[0]?.id ?? 'none'}) only` };
+			if (!studies.some((x) => x.id === studyId)) return { ok: false, study: studyId, stage: 'runner', message: `no study '${studyId}' (studies: ${studies.map((x) => x.id).join(', ') || 'none'})` };
+			s.study = studyId;
 			const onAbort = () => s.cancel();
 			signal.addEventListener('abort', onAbort, { once: true });
 			try {

@@ -1,4 +1,5 @@
 // Ported from eo-modulator-atlas/engine/src/vector-mode.mjs at 0546007 (GPL-3.0-or-later). Changes: model built from a generic triangle mesh (nodes, tri, triRegion) with explicit PEC edge / node sets instead of an EO CrossSection, window sides, mirror option and EO meshing (refinedWindowModel, autoWindowModel, AUTO_SIZING removed); EO material tables (vectorMaterialTensors, tensor4, dispersion anchors, metalEps) replaced by caller-supplied per-triangle permittivity tensors (eps, optional epsIm loss and epsG group tensors; materialTensors keeps the validation, nMax, index list and SPP pairs); block Arnoldi / Ritz imported from @amp/core la/arnoldi (extracted there verbatim), Q4 from @amp/core fem/quadrature TRI_Q4, triangleGeometry from @amp/core fem/tri, LDL^T and analyze from @amp/core la/ldlt, la/sparse; region confinement keyed by model.regionNames; window-margin diagnostic on the mesh bounding box; EO-coupled exports removed (vectorEoOverlap, vectorOpticalFields, sampleStaticFieldQ).
+// Later changes (lane S2, DevLog-043, 2026-11-18): diagonal permeability weights nu in the element routines, coordinate transforms (PML stretching, bend metric; `transform` option, complex path, modes nearest the shift kept), complex transformed eps_g in n_g, cancellation-free csqrt imaginary part. Audit fixes (2026-11-18): complex eps_g in lossy solves (epsGIm), bend default shift from the physical window, per-mode PML fraction and PML-aware ranking with the default shift, nu-weighted Poynting / H_t and transformed eps' in the confinement integrals.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Full-vector optical eigenmode solver on a conforming triangle mesh: Nedelec (H(curl)) edge elements for the
 // transverse field and Lagrange elements for the longitudinal field, Lee-Sun-Cendes beta^2 formulation, solved by
@@ -40,6 +41,10 @@ import { TRI_Q4 } from '@amp/core/fem/quadrature';
 const Q4 = TRI_Q4;
 /** Labels carried by every vector result (element order label added per model). */
 export const VECTOR_LABELS = Object.freeze(['full_vector_optical']);
+/** PML fraction above which a mode counts as a PML / radiation mode (numerical modelling choice, not a physical value). */
+export const PML_FRACTION_MAX = 0.5;
+/** Extra eigenpairs computed with PML and the default shift, ranked by PML fraction. */
+const PML_EXTRA_CANDIDATES = 6;
 const ORDER_LABELS = { 1: 'nedelec1_p1', 2: 'nedelec1_deg2_p2' };
 /** Free-space impedance mu0 c (ohm), CODATA 2018 (mu0 = 1.25663706212e-6 N/A^2, c exact). */
 const ETA0 = 1.25663706212e-6 * 299792458;
@@ -349,10 +354,12 @@ function metalPairs(per) {
 /**
  * Validated per-triangle permittivity tensors (replaces EO vectorMaterialTensors).
  * @param {ReturnType<typeof buildVectorModel>} model
- * @param {{eps:Float64Array, epsIm?:Float64Array|null, epsG?:Float64Array|null}} opts 4 per triangle [xx, xy, yy, zz];
- *   eps = eps - j epsIm (epsIm >= 0 for loss); epsG = eps - (lambda/2) d eps / d lambda (group term; default eps,
- *   i.e. non-dispersive materials)
- * @returns {{eps:Float64Array, epsG:Float64Array, epsIm:Float64Array|null, nMax:number, indices:number[], pairs:any, ngValid?:boolean}}
+ * @param {{eps:Float64Array, epsIm?:Float64Array|null, epsG?:Float64Array|null, epsGIm?:Float64Array|null}} opts 4 per
+ *   triangle [xx, xy, yy, zz]; eps = eps - j epsIm (epsIm >= 0 for loss); group term eps_g = eps - (lambda/2) d eps / d lambda
+ *   = epsG - j epsGIm (default eps_g = eps, i.e. non-dispersive materials; a lossy solve then uses the complex eps). In a
+ *   lossy solve epsGIm defaults to epsIm when only epsG is given. Lossy solves set epsGc = {re, im} (eps_g = re + j im)
+ *   for the complex n_g numerator; lossless solves keep the real eps_g.
+ * @returns {{eps:Float64Array, epsG:Float64Array, epsIm:Float64Array|null, epsGIm:Float64Array|null, epsGc?:{re:Float64Array, im:Float64Array}, nMax:number, indices:number[], pairs:any, ngValid?:boolean}}
  */
 export function materialTensors(model, opts = {}) {
   const { mesh, dead } = model;
@@ -367,6 +374,8 @@ export function materialTensors(model, opts = {}) {
   const epsG = need(opts.epsG, 'epsG') ?? Float64Array.from(eps);
   let epsIm = need(opts.epsIm, 'epsIm');
   if (epsIm && !epsIm.some((v) => v !== 0)) epsIm = null;
+  // complex group term of a lossy solve (audit fix 2026-11-18): Im eps_g enters the Hellmann-Feynman numerator
+  const epsGIm = epsIm ? (need(opts.epsGIm, 'epsGIm') ?? Float64Array.from(epsIm)) : null;
   // one record per region (first live triangle), for the SPP pair list and the index list
   const per = model.regionNames.map(() => null);
   let nMax2 = 0;
@@ -394,7 +403,10 @@ export function materialTensors(model, opts = {}) {
     const a = p.eps[0], b = p.eps[1], c = p.eps[2], r = Math.sqrt(0.25 * (a - c) * (a - c) + b * b);
     for (const v of [0.5 * (a + c) + r, 0.5 * (a + c) - r, p.eps[3]]) if (v > 0) indices.push(Math.sqrt(v));
   }
-  return { eps, epsG, epsIm, nMax: Math.sqrt(nMax2), indices, pairs: metalPairs(per) };
+  const out = { eps, epsG, epsIm, epsGIm, nMax: Math.sqrt(nMax2), indices, pairs: metalPairs(per) };
+  // re shares the epsG array, so in-place perturbations of mt.epsG (epsDeltaGroup) stay in the numerator
+  if (epsGIm) out.epsGc = { re: epsG, im: epsGIm.map((v) => -v) };
+  return out;
 }
 
 
@@ -445,12 +457,18 @@ function evalBasis(order, geo, edges, t, L, B) {
   }
 }
 
-/** Order-2 element matrices by quadrature (exact: integrands of degree <= 4). Layout as elementMatricesP1, nloc = 14. */
-function elementMatricesQ(t, model, epsT, k0, withConst, ae, be, B) {
+/**
+ * Order-2 element matrices by quadrature (exact: integrands of degree <= 4). Layout as elementMatricesP1, nloc = 14.
+ * nuT (optional, S2 DevLog-043): 3 per triangle [nu~_xx, nu~_yy, nu_zz] for a diagonal relative permeability
+ * mu = diag(mu_x, mu_y, mu_z): nu~ = (1 / mu_y, 1 / mu_x) weights the transverse mass of B', nu_zz = 1 / mu_z the
+ * curl-curl block of A' (identity when absent; the absent branch is the original code).
+ */
+function elementMatricesQ(t, model, epsT, k0, withConst, ae, be, B, nuT = null) {
   const { nt, nz } = NLOC[model.order];
   const nloc = nt + nz;
   const A = model.area[t];
   const exx = epsT[4 * t], exy = epsT[4 * t + 1], eyy = epsT[4 * t + 2], ezz = epsT[4 * t + 3];
+  const nuX = nuT ? nuT[3 * t] : 1, nuY = nuT ? nuT[3 * t + 1] : 1, nuZ = nuT ? nuT[3 * t + 2] : 1;
   const k02 = k0 * k0;
   ae.fill(0, 0, nloc * nloc);
   be.fill(0, 0, nloc * nloc);
@@ -465,8 +483,13 @@ function elementMatricesQ(t, model, epsT, k0, withConst, ae, be, B) {
         const vjx = B.vx[j], vjy = B.vy[j];
         let av = -k02 * (eix * vjx + eiy * vjy);
         if (withConst) {
-          av += B.curl[i] * B.curl[j];
-          be[nloc * i + j] += w * (vix * vjx + viy * vjy);
+          if (nuT) {
+            av += nuZ * B.curl[i] * B.curl[j];
+            be[nloc * i + j] += w * (nuX * vix * vjx + nuY * viy * vjy);
+          } else {
+            av += B.curl[i] * B.curl[j];
+            be[nloc * i + j] += w * (vix * vjx + viy * vjy);
+          }
         }
         ae[nloc * i + j] += w * av;
       }
@@ -490,8 +513,10 @@ function elementMatricesQ(t, model, epsT, k0, withConst, ae, be, B) {
  * Assemble A' and B' (values on the model CSR pattern) for a per-triangle tensor field.
  * @param {Float64Array} epsT 4 per triangle [xx, xy, yy, zz]
  * @param {boolean} [withConst=true] include eps-independent terms (false: only the eps-linear part, e.g. loss)
+ * @param {Float64Array|null} [nuT] 3 per triangle [nu~_xx, nu~_yy, nu_zz] weighting the eps-independent terms
+ *   (diagonal permeability of a coordinate transform, DevLog-043); null = identity (original code path)
  */
-export function assembleVector(model, epsT, k0, withConst = true) {
+export function assembleVector(model, epsT, k0, withConst = true, nuT = null) {
   const { pattern, mesh, dead } = model;
   const nloc = model.dof.nloc, nl2 = nloc * nloc;
   const nnz = pattern.pat.nnz;
@@ -501,8 +526,8 @@ export function assembleVector(model, epsT, k0, withConst = true) {
   const pos = pattern.pos;
   for (let t = 0; t < mesh.nTris; t++) {
     if (dead[t]) continue;
-    if (model.order === 1) elementMatricesP1(t, model, epsT, k0, withConst, ae, be);
-    else elementMatricesQ(t, model, epsT, k0, withConst, ae, be, Bb);
+    if (model.order === 1) elementMatricesP1(t, model, epsT, k0, withConst, ae, be, nuT);
+    else elementMatricesQ(t, model, epsT, k0, withConst, ae, be, Bb, nuT);
     const o = nl2 * t;
     for (let q = 0; q < nl2; q++) {
       const p = pos[o + q];
@@ -519,18 +544,19 @@ export function assembleVector(model, epsT, k0, withConst = true) {
  * Writes into ae (A' local) and be (B' local), row-major 6x6, local orientation already multiplied by edge signs.
  * withConst: include the eps-independent terms (curl-curl in A', T_tt in B').
  */
-function elementMatricesP1(t, model, epsT, k0, withConst, ae, be) {
+function elementMatricesP1(t, model, epsT, k0, withConst, ae, be, nuT = null) {
   const { geo, area, edges } = model;
   const A = area[t];
   const gx0 = geo.gx[3 * t], gx1 = geo.gx[3 * t + 1], gx2 = geo.gx[3 * t + 2];
   const gy0 = geo.gy[3 * t], gy1 = geo.gy[3 * t + 1], gy2 = geo.gy[3 * t + 2];
   const gx = [gx0, gx1, gx2], gy = [gy0, gy1, gy2];
   const exx = epsT[4 * t], exy = epsT[4 * t + 1], eyy = epsT[4 * t + 2], ezz = epsT[4 * t + 3];
-  // G[i][j] = g_i . M . g_j for M = I and M = eps_t
+  // G[i][j] = g_i . M . g_j for M = I (or nu~ = diag(nuX, nuY) with nuT) and M = eps_t
   const GI = new Float64Array(9), GE = new Float64Array(9);
+  const nuX = nuT ? nuT[3 * t] : 1, nuY = nuT ? nuT[3 * t + 1] : 1, nuZ = nuT ? nuT[3 * t + 2] : 1;
   for (let i = 0; i < 3; i++)
     for (let j = 0; j < 3; j++) {
-      GI[3 * i + j] = gx[i] * gx[j] + gy[i] * gy[j];
+      GI[3 * i + j] = nuT ? nuX * gx[i] * gx[j] + nuY * gy[i] * gy[j] : gx[i] * gx[j] + gy[i] * gy[j];
       GE[3 * i + j] = gx[i] * (exx * gx[j] + exy * gy[j]) + gy[i] * (exy * gx[j] + eyy * gy[j]);
     }
   const s = [edges.triSign[3 * t], edges.triSign[3 * t + 1], edges.triSign[3 * t + 2]];
@@ -551,7 +577,7 @@ function elementMatricesP1(t, model, epsT, k0, withConst, ae, be) {
       const sg = s[k] * s[l];
       let av = -k02 * mass(GE);
       if (withConst) {
-        av += A * ck * cl;
+        av += nuT ? nuZ * A * ck * cl : A * ck * cl;
         be[6 * k + l] = sg * mass(GI);
       }
       ae[6 * k + l] = sg * av;
@@ -617,13 +643,17 @@ export function solveVectorModes(model, lambdaUm, opts = {}) {
       for (let q = 0; q < dg.length; q++) mt.epsG[q] += sc * dg[q];
     } else mt.ngValid = false;
   }
-  // default shift: above the largest dielectric index and, for lossy metal, above every planar SPP index (audit V4)
-  const nDefault = Math.max(mt.nMax, mt.epsIm ? mt.pairs.nSppMax : 0) * Math.sqrt(1 + 1e-3);
+  // coordinate transform (PML stretching, bend metric; DevLog-043): complex transformed eps, nu and eps_g tensors
+  const tr = opts.transform ? transformTensors(model, mt, opts.transform) : null;
+  // default shift: above the largest dielectric index and, for lossy metal, above every planar SPP index (audit V4);
+  // with a bend, scaled by the largest metric factor Re h of the physical window (live cells outside every PML; the
+  // stretched PML continues h outward and would place the shift among PML modes)
+  const nDefault = Math.max(mt.nMax, mt.epsIm ? mt.pairs.nSppMax : 0) * Math.sqrt(1 + 1e-3) * (tr ? tr.hMaxPhys : 1);
   // warm shift (lossless only): 2 % above the previous solve's top n_eff (wavelength / parameter sweeps); solveReal
   // falls back to the default shift when the inertia shows an eigenvalue above it or a pivot was perturbed
   let nTarget = opts.nTarget ?? nDefault;
   let warmShift = false;
-  if (opts.nTarget == null && !mt.epsIm && opts.shiftFromWarm !== false && opts.warm?.neffMax > 0) {
+  if (opts.nTarget == null && !mt.epsIm && !tr && opts.shiftFromWarm !== false && opts.warm?.neffMax > 0) {
     const h = opts.warm.neffMax * 1.02;
     if (h < nDefault) {
       nTarget = h;
@@ -631,6 +661,13 @@ export function solveVectorModes(model, lambdaUm, opts = {}) {
     }
   }
   const sigma = k0 * k0 * nTarget * nTarget;
+  if (tr) {
+    // eps' and nu are complex: real and imaginary parts assembled separately (both blocks are linear in eps, nu)
+    const { A, B } = assembleVector(model, tr.epsRe, k0, true, tr.nuRe);
+    const L = assembleVector(model, tr.epsImS, k0, true, tr.nuIm);
+    const tAsm = performance.now();
+    return solveComplex({ model, mt, k0, lambdaUm, nTarget, sigma, A, B, Ai: L.A, Bi: L.B, numModes, tol, blockSize, opts, t0, tAsm, transform: tr });
+  }
   const { A, B } = assembleVector(model, mt.eps, k0, true);
   let Ai = null, Bi = null;
   if (mt.epsIm) {
@@ -641,6 +678,68 @@ export function solveVectorModes(model, lambdaUm, opts = {}) {
   const tAsm = performance.now();
   const common = { model, mt, k0, lambdaUm, nTarget, sigma, A, B, Ai, Bi, numModes, tol, blockSize, opts, t0, tAsm, warmShift, nDefault };
   return Ai ? solveComplex(common) : solveReal(common);
+}
+
+/**
+ * Transformed material tensors of a diagonal coordinate map (DevLog-043 s.2.1). transform: {sx, sy, h} per triangle as
+ * complex pairs [re, im] (Float64Array of 2 * nTris each, or null = 1) and model 'metric' (default) | 'conformal'.
+ * metric (orthogonal map with metric factors (sx, sy, h)): eps'_x = eps_x sy h / sx, eps'_y = eps_y sx h / sy,
+ * eps'_z = eps_z sx sy / h, eps'_xy = eps_xy h; mu' the same with mu = 1, so nu~ = (1 / mu'_y, 1 / mu'_x) =
+ * (sy / (sx h), sx / (sy h)), nu_zz = h / (sx sy). conformal (Heiblum-Harris scalar equivalent index): eps h^2, then the
+ * PML map with h = 1. The complex eps = eps' - j eps'' of a lossy material is transformed as a whole. Returns real and
+ * imaginary parts (imaginary part signed, not negated) and sets mt.epsGc (complex transformed eps_g) for n_g.
+ */
+function transformTensors(model, mt, T) {
+  const nT = model.mesh.nTris;
+  const model_ = T.model ?? 'metric';
+  if (model_ !== 'metric' && model_ !== 'conformal') fail(`transform.model must be metric or conformal; got ${model_}`);
+  for (const k of ['sx', 'sy', 'h']) if (T[k] != null && !(T[k] instanceof Float64Array && T[k].length === 2 * nT)) fail(`transform.${k} must be a Float64Array of length 2 * nTris`);
+  const epsRe = new Float64Array(4 * nT), epsImS = new Float64Array(4 * nT);
+  const gRe = new Float64Array(4 * nT), gIm = new Float64Array(4 * nT);
+  const nuRe = new Float64Array(3 * nT), nuIm = new Float64Array(3 * nT);
+  const mul = (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
+  const div = (a, b) => cdiv(a[0], a[1], b[0], b[1]);
+  // pmlTri: cells with a stretching factor != 1 (PML); hMaxPhys: largest Re h over live cells outside the PML
+  const pmlTri = new Uint8Array(nT);
+  let hMax = 1, hMaxPhys = 1, nPml = 0;
+  for (let t = 0; t < nT; t++) {
+    const sx = T.sx ? [T.sx[2 * t], T.sx[2 * t + 1]] : [1, 0];
+    const sy = T.sy ? [T.sy[2 * t], T.sy[2 * t + 1]] : [1, 0];
+    const h = T.h ? [T.h[2 * t], T.h[2 * t + 1]] : [1, 0];
+    if (sx[0] !== 1 || sx[1] !== 0 || sy[0] !== 1 || sy[1] !== 0) pmlTri[t] = 1;
+    if (!model.dead[t]) {
+      if (!(h[0] > 0)) fail(`triangle ${t}: bend metric factor Re h = ${h[0]} <= 0 (the window reaches the bend centre)`);
+      hMax = Math.max(hMax, h[0]);
+      if (pmlTri[t]) nPml++;
+      else hMaxPhys = Math.max(hMaxPhys, h[0]);
+    }
+    let f, nu;
+    if (model_ === 'metric') {
+      f = [div(mul(sy, h), sx), h, div(mul(sx, h), sy), div(mul(sx, sy), h)];
+      nu = [div(sy, mul(sx, h)), div(sx, mul(sy, h)), div(h, mul(sx, sy))];
+    } else {
+      const h2 = mul(h, h);
+      f = [mul(h2, div(sy, sx)), h2, mul(h2, div(sx, sy)), mul(h2, mul(sx, sy))];
+      nu = [div(sy, sx), div(sx, sy), div([1, 0], mul(sx, sy))];
+    }
+    for (let c = 0; c < 4; c++) {
+      const e = [mt.eps[4 * t + c], mt.epsIm ? -mt.epsIm[4 * t + c] : 0];
+      const p = mul(e, f[c]);
+      epsRe[4 * t + c] = p[0];
+      epsImS[4 * t + c] = p[1];
+      const g = mul([mt.epsG[4 * t + c], mt.epsGIm ? -mt.epsGIm[4 * t + c] : 0], f[c]);
+      gRe[4 * t + c] = g[0];
+      gIm[4 * t + c] = g[1];
+    }
+    for (let c = 0; c < 3; c++) {
+      nuRe[3 * t + c] = nu[c][0];
+      nuIm[3 * t + c] = nu[c][1];
+    }
+  }
+  mt.epsGc = { re: gRe, im: gIm };
+  // post-processing with the transformed tensors (confinement, power, PML fraction)
+  mt.trPost = { epsRe, nuRe, nuIm, pmlTri: nPml ? pmlTri : null };
+  return { epsRe, epsImS, nuRe, nuIm, hMax, hMaxPhys, model: model_, pml: nPml > 0, bend: !!T.h };
 }
 
 function solveReal({ model, mt, k0, lambdaUm, nTarget, sigma, A, B, numModes, tol, blockSize, opts, t0, tAsm, warmShift, nDefault }) {
@@ -775,7 +874,7 @@ function solveReal({ model, mt, k0, lambdaUm, nTarget, sigma, A, B, numModes, to
  * satisfies C conj(z-) = conj(lambda) conj(z-); the dominant one gives the physical pair. Final eigenvalue from the
  * complex (unconjugated) Rayleigh quotient theta = -(z^T A z) / (z^T B z).
  */
-function solveComplex({ model, mt, k0, lambdaUm, nTarget, sigma, A, B, Ai, Bi, numModes, tol, blockSize, opts, t0, tAsm }) {
+function solveComplex({ model, mt, k0, lambdaUm, nTarget, sigma, A, B, Ai, Bi, numModes, tol, blockSize, opts, t0, tAsm, transform = null }) {
   const pat = model.pattern.pat;
   const n = pat.n;
   const Kr = new Float64Array(pat.nnz), Ki = new Float64Array(pat.nnz);
@@ -810,10 +909,15 @@ function solveComplex({ model, mt, k0, lambdaUm, nTarget, sigma, A, B, Ai, Bi, n
       out.set(y.im, n);
       return out;
     });
-  const maxBasis = opts.maxBasis ?? Math.max(30, 8 * numModes + 10);
+  // PML with the default shift: PML / radiation modes can lie nearer the shift than the guided or leaky mode, so extra
+  // candidates are computed and ranked by their PML fraction (below); a user shift keeps the plain ranking
+  const pmlTri = transform ? (mt.trPost?.pmlTri ?? null) : null;
+  const autoPml = !!(pmlTri && opts.nTarget == null);
+  const nCand = autoPml ? numModes + PML_EXTRA_CANDIDATES : numModes;
+  const maxBasis = opts.maxBasis ?? Math.max(30, 8 * nCand + 10);
   // the realified operator carries each eigenvalue of C together with eigenvalues of conj(C): ask for twice the
   // modes, recover the physical pairs, remove duplicates, keep numModes
-  const ar = blockArnoldi(2 * n, op, { nWant: 2 * numModes, blockSize, maxBasis, tol, X0: null, maxRestarts: opts.maxRestarts ?? 30, seed: 20261015, realOnly: false });
+  const ar = blockArnoldi(2 * n, op, { nWant: 2 * nCand, blockSize, maxBasis, tol, X0: null, maxRestarts: opts.maxRestarts ?? 30, seed: 20261015, realOnly: false });
   const raw = [];
   for (let k = 0; k < ar.vecs.length; k++) {
     const { re, im } = ar.vecs[k];
@@ -869,7 +973,16 @@ function solveComplex({ model, mt, k0, lambdaUm, nTarget, sigma, A, B, Ai, Bi, n
     return Math.hypot(re, im) / Math.sqrt(na * nb);
   };
   for (const r of raw) if (!uniq.some((u) => Math.hypot(u.theta[0] - r.theta[0], u.theta[1] - r.theta[1]) <= 1e-8 * Math.hypot(...r.theta) && herm(u, r) > 0.99)) uniq.push(r);
-  const kept = uniq.slice(0, numModes);
+  // with a coordinate transform (PML) the spectrum holds many strongly damped PML / radiation modes: keep the numModes
+  // eigenvalues nearest the shift (shift-invert ranking), then list them by Re n_eff descending. With PML cells every
+  // candidate gets its PML fraction; with the default shift, modes at or below PML_FRACTION_MAX rank first
+  if (pmlTri) for (const r of uniq) r.pmlFraction = pmlFractionOf(model, r, pmlTri);
+  let kept;
+  if (transform) {
+    const byDist = uniq.slice().sort((a, b) => Math.hypot(a.theta[0] - sigma, a.theta[1]) - Math.hypot(b.theta[0] - sigma, b.theta[1]));
+    const ranked = autoPml ? [...byDist.filter((r) => r.pmlFraction <= PML_FRACTION_MAX), ...byDist.filter((r) => !(r.pmlFraction <= PML_FRACTION_MAX))] : byDist;
+    kept = ranked.slice(0, numModes).sort((a, b) => b.theta[0] - a.theta[0]);
+  } else kept = uniq.slice(0, numModes);
   const tEig = performance.now();
   const modes = kept.map((md) => postProcess(model, mt, k0, md, opts));
   const tPost = performance.now();
@@ -881,9 +994,40 @@ function solveComplex({ model, mt, k0, lambdaUm, nTarget, sigma, A, B, Ai, Bi, n
   const above = modes.filter((m) => m.neff > nTarget);
   if (above.length) warnings.push(`${above.length} returned mode(s) have Re n_eff above the shift n_target = ${nTarget} (max ${Math.max(...above.map((m) => m.neff))}); modes above the shift compete by |mu| and the list may not be the highest-n_eff set`);
   if (kept.length < numModes) warnings.push(`only ${kept.length} distinct mode(s) of ${numModes} requested were recovered from the realified operator`);
-  return finishResult({ model, k0, lambdaUm, nTarget, sigma, modes, ar, solves, warnings, staticPivots: fr.nPerturbed, inertia: null, spp: mt.pairs,
+  if (pmlTri) {
+    const pmlDom = modes.map((m, k) => [k, m]).filter(([, m]) => !(m.pmlFraction <= PML_FRACTION_MAX));
+    if (pmlDom.length) warnings.push(`mode(s) ${pmlDom.map(([k, m]) => `${k} (n_eff ${m.neff.toFixed(6)}, PML fraction ${m.pmlFraction.toFixed(3)})`).join(', ')} hold more than ${PML_FRACTION_MAX} of int |E|^2 in the PML: PML or radiation modes, not guided or leaky modes of the window${opts.nTarget == null ? '; no better candidate was found near the default shift: set neffShift just above the expected n_eff' : '; move neffShift closer to the expected n_eff'}`);
+  }
+  const res = finishResult({ model, k0, lambdaUm, nTarget, sigma, modes, ar, solves, warnings, staticPivots: fr.nPerturbed, inertia: null, spp: mt.pairs,
     timing: { assembleMs: tAsm - t0, factorMs: tFac - tAsm, eigenMs: tEig - tFac, postMs: tPost - tEig, solveTotalMs: tPost - t0 },
     warm: null });
+  if (transform) res.transform = { model: transform.model, pml: transform.pml, bend: transform.bend, hMax: transform.hMax };
+  return res;
+}
+
+/** Share of int |E|^2 dA (computational coordinates, |e_t|^2 / |beta|^2 + |e_z|^2) in the cells flagged by pmlTri. */
+function pmlFractionOf(model, md, pmlTri) {
+  const { mesh, geo, area, edges } = model;
+  const { nloc } = model.dof;
+  const beta = csqrt(md.theta[0], md.theta[1]);
+  const b2 = beta[0] * beta[0] + beta[1] * beta[1];
+  const cr = new Float64Array(nloc), ci = new Float64Array(nloc);
+  const B = newBasisBuffers(model.order), P = newPoint();
+  let tot = 0, inPml = 0;
+  for (let t = 0; t < mesh.nTris; t++) {
+    if (model.dead[t]) continue;
+    gatherLocal(model, md.xr, md.xi, t, cr, ci);
+    let a = 0;
+    for (const q of Q4) {
+      evalBasis(model.order, geo, edges, t, q, B);
+      pointFields(model, B, cr, ci, P);
+      const et = P.et, ez = P.ez;
+      a += q[3] * area[t] * ((et[0] * et[0] + et[1] * et[1] + et[2] * et[2] + et[3] * et[3]) / b2 + ez[0] * ez[0] + ez[1] * ez[1]);
+    }
+    tot += a;
+    if (pmlTri[t]) inPml += a;
+  }
+  return tot > 0 ? inPml / tot : NaN;
 }
 
 function finishResult({ model, k0, lambdaUm, nTarget, sigma, modes, ar, solves, warnings, staticPivots, inertia, timing, warm, spp = null, shift = null }) {
@@ -924,7 +1068,9 @@ function cdiv(ar, ai, br, bi) {
 function csqrt(re, im) {
   const m = Math.hypot(re, im);
   const r = Math.sqrt(0.5 * (m + re));
-  const i = Math.sqrt(Math.max(0, 0.5 * (m - re)));
+  // Im part: |im| / (2 r) when re > 0 (no cancellation in m - re for |im| << re; the old form lost all digits of a
+  // low-loss Im beta below ~1e-8 relative, DevLog-043 s.7 2026-11-18 09:07); unchanged for im = 0
+  const i = re > 0 && r > 0 ? Math.abs(im) / (2 * r) : Math.sqrt(Math.max(0, 0.5 * (m - re)));
   return [r, im < 0 ? -i : i];
 }
 
@@ -993,6 +1139,7 @@ function postProcess(model, mt, k0, md, opts) {
   const cr = new Float64Array(nloc), ci = new Float64Array(nloc);
   const B = newBasisBuffers(model.order);
   const P = newPoint();
+  const tp = mt.trPost ?? null;
   let pCr = 0, pCi = 0, pSr = 0, pSi = 0, exx = 0, eyy = 0, ezz = 0, ngr = 0, ngi = 0, e2 = 0, e4 = 0, energyTot = 0;
   const regionPc = new Float64Array(2 * regionNames.length), regionEnergy = new Float64Array(regionNames.length);
   // window-margin diagnostic: power within 10 % of the smaller bounding-box size from the bounding-box sides
@@ -1003,7 +1150,8 @@ function postProcess(model, mt, k0, md, opts) {
   for (let t = 0; t < nT; t++) {
     if (model.dead[t]) continue;
     gatherLocal(model, md.xr, md.xi, t, cr, ci);
-    const o = 4 * t, e = mt.eps, g = mt.epsG;
+    // with a transform: energy with Re of the transformed eps', Poynting with the nu~ weights (H_t = z x nu~ e_t')
+    const o = 4 * t, e = tp ? tp.epsRe : mt.eps, g = mt.epsGc ? mt.epsGc.re : mt.epsG, gc = mt.epsGc ?? null;
     const At = area[t];
     let tPr = 0, tPi = 0, tEn = 0;
     for (const q of Q4) {
@@ -1012,10 +1160,23 @@ function postProcess(model, mt, k0, md, opts) {
       const w = q[3] * At;
       const et = P.et, ep = P.etp, ez = P.ez;
       // Poynting integrand e_t . conj(e_t') and unconjugated e_t . e_t'
-      tPr += w * (et[0] * ep[0] + et[1] * ep[1] + et[2] * ep[2] + et[3] * ep[3]);
-      tPi += w * (et[1] * ep[0] - et[0] * ep[1] + et[3] * ep[2] - et[2] * ep[3]);
-      pSr += w * (et[0] * ep[0] - et[1] * ep[1] + et[2] * ep[2] - et[3] * ep[3]);
-      pSi += w * (et[0] * ep[1] + et[1] * ep[0] + et[2] * ep[3] + et[3] * ep[2]);
+      if (tp) {
+        const nxr = tp.nuRe[3 * t], nxi = tp.nuIm[3 * t], nyr = tp.nuRe[3 * t + 1], nyi = tp.nuIm[3 * t + 1];
+        // per component c = e conj(e'), u = e e'; weighted conj(nu) c and nu u
+        const cxr = et[0] * ep[0] + et[1] * ep[1], cxi = et[1] * ep[0] - et[0] * ep[1];
+        const cyr = et[2] * ep[2] + et[3] * ep[3], cyi = et[3] * ep[2] - et[2] * ep[3];
+        const uxr = et[0] * ep[0] - et[1] * ep[1], uxi = et[0] * ep[1] + et[1] * ep[0];
+        const uyr = et[2] * ep[2] - et[3] * ep[3], uyi = et[2] * ep[3] + et[3] * ep[2];
+        tPr += w * (nxr * cxr + nxi * cxi + nyr * cyr + nyi * cyi);
+        tPi += w * (nxr * cxi - nxi * cxr + nyr * cyi - nyi * cyr);
+        pSr += w * (nxr * uxr - nxi * uxi + nyr * uyr - nyi * uyi);
+        pSi += w * (nxr * uxi + nxi * uxr + nyr * uyi + nyi * uyr);
+      } else {
+        tPr += w * (et[0] * ep[0] + et[1] * ep[1] + et[2] * ep[2] + et[3] * ep[3]);
+        tPi += w * (et[1] * ep[0] - et[0] * ep[1] + et[3] * ep[2] - et[2] * ep[3]);
+        pSr += w * (et[0] * ep[0] - et[1] * ep[1] + et[2] * ep[2] - et[3] * ep[3]);
+        pSi += w * (et[0] * ep[1] + et[1] * ep[0] + et[2] * ep[3] + et[3] * ep[2]);
+      }
       const ax = et[0] * et[0] + et[1] * et[1], ay = et[2] * et[2] + et[3] * et[3], az = ez[0] * ez[0] + ez[1] * ez[1];
       exx += w * ax;
       eyy += w * ay;
@@ -1026,8 +1187,17 @@ function postProcess(model, mt, k0, md, opts) {
       // group-index numerator (unconjugated): e_t . eps_g . e_t + theta eps_g,zz e_z^2
       const f = symTensorForm(et, et, g[o], g[o + 1], g[o + 2]);
       const ez2r = ez[0] * ez[0] - ez[1] * ez[1], ez2i = 2 * ez[0] * ez[1];
-      ngr += w * (f[0] + g[o + 3] * (theta[0] * ez2r - theta[1] * ez2i));
-      ngi += w * (f[1] + g[o + 3] * (theta[0] * ez2i + theta[1] * ez2r));
+      if (gc) {
+        // transformed (complex) eps_g = gr + j gi (DevLog-043): form(gr) + j form(gi), theta eps_g,zz e_z^2 complex
+        const fi = symTensorForm(et, et, gc.im[o], gc.im[o + 1], gc.im[o + 2]);
+        const zr = gc.re[o + 3], zi = gc.im[o + 3];
+        const tzr = theta[0] * ez2r - theta[1] * ez2i, tzi = theta[0] * ez2i + theta[1] * ez2r;
+        ngr += w * (f[0] - fi[1] + zr * tzr - zi * tzi);
+        ngi += w * (f[1] + fi[0] + zr * tzi + zi * tzr);
+      } else {
+        ngr += w * (f[0] + g[o + 3] * (theta[0] * ez2r - theta[1] * ez2i));
+        ngi += w * (f[1] + g[o + 3] * (theta[0] * ez2i + theta[1] * ez2r));
+      }
       const m2 = (ax + ay) / b2 + az;
       e2 += w * m2;
       e4 += w * m2 * m2;
@@ -1075,6 +1245,7 @@ function postProcess(model, mt, k0, md, opts) {
     x: md.xr,
     xBx: md.xBx[0],
   };
+  if (md.pmlFraction !== undefined) mode.pmlFraction = md.pmlFraction;
   if (lossy) {
     Object.assign(mode, {
       lossy: true,
@@ -1092,7 +1263,7 @@ function postProcess(model, mt, k0, md, opts) {
   mode.amplitudeScale = scale;
   const s2 = scale[0] * scale[0] + scale[1] * scale[1];
   mode.powerW = (1e-12 * pTot * s2) / (2 * ETA0 * k0);
-  if (opts.fields !== false) mode.fields = modeFields(model, md.xr, md.xi, beta, k0, scale);
+  if (opts.fields !== false) mode.fields = modeFields(model, md.xr, md.xi, beta, k0, scale, tp);
   return mode;
 }
 
@@ -1134,7 +1305,7 @@ function fieldScale(model, xr, xi, beta) {
  * E_z = j (ez + j ezIm), H_z = j (hz + j hzIm). ezNode (and ezNodeIm) at mesh nodes (vertex DOFs; P2 edge bubbles
  * vanish at nodes).
  */
-function modeFields(model, xr, xi, beta, k0, s) {
+function modeFields(model, xr, xi, beta, k0, s, tp = null) {
   const { mesh, geo, edges } = model;
   const { nloc } = model.dof;
   const nT = mesh.nTris;
@@ -1164,8 +1335,16 @@ function modeFields(model, xr, xi, beta, k0, s) {
     pointFields(model, B, cr, ci, P);
     const ex = mul(sb[0], sb[1], P.et[0], P.et[1]), ey = mul(sb[0], sb[1], P.et[2], P.et[3]);
     const ez = mul(s[0], s[1], P.ez[0], P.ez[1]);
-    // H_t = z x e_t' / (k0 eta0): (H_x, H_y) = (-e'_y, e'_x) / (k0 eta0)
-    const hx = mul(s[0], s[1], -P.etp[2] * hk, -P.etp[3] * hk), hy = mul(s[0], s[1], P.etp[0] * hk, P.etp[1] * hk);
+    // H_t = z x e_t' / (k0 eta0): (H_x, H_y) = (-e'_y, e'_x) / (k0 eta0); with a transform z x nu~ e_t'
+    let hx, hy;
+    if (tp) {
+      const wx = mul(tp.nuRe[3 * t], tp.nuIm[3 * t], P.etp[0], P.etp[1]), wy = mul(tp.nuRe[3 * t + 1], tp.nuIm[3 * t + 1], P.etp[2], P.etp[3]);
+      hx = mul(s[0], s[1], -wy[0] * hk, -wy[1] * hk);
+      hy = mul(s[0], s[1], wx[0] * hk, wx[1] * hk);
+    } else {
+      hx = mul(s[0], s[1], -P.etp[2] * hk, -P.etp[3] * hk);
+      hy = mul(s[0], s[1], P.etp[0] * hk, P.etp[1] * hk);
+    }
     const hz = mul(sb[0], sb[1], P.curl[0] * hk, P.curl[1] * hk);
     F.ex[t] = ex[0]; F.ey[t] = ey[0]; F.ez[t] = ez[0]; F.hx[t] = hx[0]; F.hy[t] = hy[0]; F.hz[t] = hz[0];
     if (lossy) {

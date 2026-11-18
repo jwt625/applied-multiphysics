@@ -5,7 +5,7 @@ Values of regenerable targets are read from eval/expected/<ID>.json (written by 
 gen_suites.py, gen_devsim.py); cited values are typed here with their locator. Every case was checked
 against its primary source on 2026-11-06 (pages kept in cache/eval-c/sources/, gitignored).
 
-Run: cd validation && uv run python c/build_cases.py [--force]
+Run: cd validation && uv run python c/build_cases.py [--force] [--out DIR]; check: uv run python c/test_build_matches.py
 """
 
 from __future__ import annotations
@@ -39,7 +39,18 @@ HFW = "huggingface.co/datasets/polymathic-ai"
 DARUS = "darus.uni-stuttgart.de doi:10.18419/darus-2986 (dataset version 8.0, released 2024-02-13)"
 PDEB_PAPER = "Takamoto et al., PDEBench, NeurIPS 2022 Datasets and Benchmarks, arXiv:2210.07182v7 (2024-08-26)"
 WELL_PAPER = "Ohana et al., The Well, NeurIPS 2024 Datasets and Benchmarks, arXiv:2412.00568"
-PENDING = {"status": "pending", "reason": "amp-spec/0 models not yet published by lane L2; sims/ id is a proposal"}
+PENDING = {"status": "pending", "reason": "no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)"}
+PENDING_REF = "sims/ model exists but is not wired to this case's targets (see notes)"
+
+
+def spec_default(sim: str | None) -> dict:
+    """Pending spec of a case with no wiring: `ref` when sims/<sim>.yaml exists, else `proposed` (T2, DevLog-039)."""
+    if not sim:
+        return dict(PENDING)
+    path = f"sims/{sim}.yaml"
+    if (ROOT / path).exists():
+        return {"status": "pending", "reason": PENDING_REF, "ref": path}
+    return dict(PENDING, proposed=path)
 CONV = {"levels_min": 3, "ratio_min": 1.5, "method": "richardson_gci", "safety_factor": 1.25}
 CONV_DS = {
     "method": "none",
@@ -188,7 +199,7 @@ def case(
             "dataset": dataset,
             "rights": rts,
             "hero": hero,
-            "spec": dict(PENDING, ref=f"sims/{sim}.yaml") if sim else PENDING,
+            "spec": spec_default(sim),
             "missing": missing or [],
             "assumptions": assumptions or [],
         }
@@ -601,7 +612,7 @@ def all_cases() -> list[dict]:
             notes=["The expected JSON also holds the lambda sweep 0.025-1.6 um of coaxial.md L223-231 (all agree)."],
             spd=speed(2.0, "axisym magnetostatics, by analogy with EM-03; est."),
             source_case=src_case("Palace examples", "docs/src/examples/coaxial.md", PALACE, "palace/coaxial.md"),
-            sim="micro-coax-london",
+            sim="micro-coax-lgeom",
         )
     )
 
@@ -916,7 +927,7 @@ def all_cases() -> list[dict]:
             materials={"pzt4": {"rho": 7500.0, "source": "Ansys VM175; matrices N/A"}},
             missing=["PZT-4 [c], [e], [eps_r] values"],
             source_case=src_case("Ansys VM175 (pointer)", "Hlp_V_VM175.html", vmloc.format(175).split(",")[0]),
-            sim="pzt-cube",
+            sim="pzt4-cube",
         )
     )
 
@@ -975,7 +986,7 @@ def all_cases() -> list[dict]:
             hero={"suitable": True, "why": "photonic band diagram (H7)", "visual": ["band_diagram", "Ez_mode"]},
             spd=speed(2.0, "R3 est. < 2 s for a 30-point k path"),
             source_case=src_case("MPB tutorial", "doc/docs/Python_Tutorial.md", MPB, "mpb/Python_Tutorial.md"),
-            sim="phc-square-rods",
+            sim="phc-square-rods-lower",
         )
     )
     cs.append(
@@ -2525,6 +2536,113 @@ def _dstat(q, note, tol=None):
         note=note,
     )
 
+def _const(value: float, unit: str, source: str) -> dict:
+    return {"value": value, "unit": unit, "source": source}
+
+
+CP06_LEVELS = [0]  # 3D piezo eigen: the second default level (hFactor 0.667) exceeds the eval machine's 2 GB RSS rule (T2 run)
+C0_SI = _const(299792458, "m/s", "SI definition of the metre (exact)")
+
+
+def t2_apply(cid: str, d: dict) -> None:
+    """T2 wiring per case (DevLog-039 s.5): spec, per-target spec / extract, status texts. Extracts name engine scalars
+    (RESULT_NAMES), evaluation items of the sim (`result`) or expressions over them with constants sourced in the case."""
+    R = {r.get("metric_id") or r["quantity"]: r for r in d["references"]}
+    note = lambda s: d.__setitem__("notes", (d.get("notes") or []) + [s])  # noqa: E731
+    if cid == "HT-61":
+        d["spec"] = "sims/poisson-square.yaml"
+        R["u_max"]["extract"] = {"kind": "expr", "expr": "u / K1", "terms": {
+            "u": {"kind": "scalar", "name": "T_max"},
+            "K1": _const(1, "K", "analog unit: sims/poisson-square.yaml solves -lap u = 1 as heat with k = 1 W/(m K), Q = 1 W/m^3, so T in K = u")}}
+    if cid == "CP-03":
+        d["spec"] = "sims/heated-wire.yaml"
+        R["T_center"]["extract"] = {"kind": "scalar", "name": "T_max"}
+        R["T_surface"]["extract"] = {"kind": "scalar", "name": "T_min"}
+        R["q_per_ft"]["extract"] = {"kind": "expr", "expr": "h * (Ts - Tinf) * 2 * pi * r0 * L", "terms": {
+            "Ts": {"kind": "scalar", "name": "T_min"},
+            "h": _const(28.391316688883375, "W/(m^2*K)", "eval/cases/c/CP-03.yaml bcs[0].params.h_W_per_m2K"),
+            "Tinf": _const(294.26111111111106, "K", "eval/cases/c/CP-03.yaml bcs[0].params.T_inf_K"),
+            "r0": _const(0.009525, "m", "eval/cases/c/CP-03.yaml geometry.spec.r0_m"),
+            "L": _const(0.3048, "m", "eval/cases/c/CP-03.yaml geometry.spec.length_m")}}
+        note("q_per_ft is the energy balance h (T_surface - T_inf) 2 pi r0 L on the computed T_surface: it restates "
+             "T_surface (2 independent checks, DevLog-022 s.2).")
+    if cid == "RF-62":
+        d["spec"] = "sims/cpw-halfspace.yaml"
+        R["C_per_length"]["extract"] = {"kind": "scalar", "name": "C_per_m"}
+        R["n_rf"]["extract"] = {"kind": "expr", "expr": "c0 * sqrt(Lp * Cp)", "terms": {
+            "Lp": {"kind": "scalar", "name": "L_per_m"}, "Cp": {"kind": "scalar", "name": "C_per_m"}, "c0": dict(C0_SI)}}
+        R["Z0"]["extract"] = {"kind": "scalar", "name": "Z0"}
+    if cid == "RF-03":
+        d["spec"] = "sims/cpw-sapphire.yaml"
+        R["Z0_anisotropic"]["extract"] = {"kind": "scalar", "name": "Z0"}
+        iso = {"sim": "sims/cpw-sapphire.yaml", "params": {"eps_par": 9.3},
+               "note": "isotropic variant: eps_par = eps_perp = 9.3 (case reference Z0_isotropic_9p3)"}
+        for k in ("Z0_isotropic_9p3", "Z0_printed_by_Palace_docs"):
+            R[k]["spec"] = dict(iso)
+            R[k]["extract"] = {"kind": "scalar", "name": "Z0"}
+    if cid == "WO-04":
+        d["spec"] = {"status": "pending", "reason": "no single model: gap_lower runs on sims/phc-square-rods-lower.yaml, "
+                     "gap_upper on sims/phc-square-rods-upper.yaml (target specs)"}
+        for k, s in (("gap_lower", "lower"), ("gap_upper", "upper"), ("pwe_gap_lower", "lower"), ("pwe_gap_upper", "upper"),
+                     ("mpb32_gap_lower", "lower"), ("mpb32_gap_upper", "upper")):
+            R[k]["spec"] = f"sims/phc-square-rods-{s}.yaml"
+            R[k]["extract"] = {"kind": "expr", "expr": "f * a / c", "terms": {
+                "f": {"kind": "scalar", "name": "f_0"},
+                "a": _const(1, "m", f"sims/phc-square-rods-{s}.yaml params.a (lattice constant, unit by choice)"),
+                "c": _const(1, "m/s", f"sims/phc-square-rods-{s}.yaml params.c_vac (wave speed in air, unit by choice)")}}
+        note("Engine: lowest eigenfrequency of the quarter cell at M (even, even) = band 1 maximum, and at X (odd, even) = "
+             "band 2 minimum (DevLog-022 s.3.3 symmetry-class scan); PWE / MPB-32 targets reuse the same extracts (info).")
+    if cid == "WO-65":
+        d["spec"] = "sims/si-strip-te0.yaml"
+        R["n_eff_TE0"]["extract"] = {"kind": "scalar", "name": "neff_0"}
+        d["convergence"] = dict(d["convergence"], h_factors=[1, 0.5, 0.25],
+                                note="levels of the DevLog-022 runs (nested, ratio 2): the finest level must also be "
+                                "within the 2e-6 budget; finest 506k DOF, peak RSS 2022 MB (T2 run 2026-11-18)")
+        note("ng_energy carries no extract: the case value includes Sellmeier dispersion, the engine n_g uses the case's "
+             "constant indices (not comparable, DevLog-022 s.2).")
+    if cid == "EM-61":
+        d["spec"] = "sims/micro-coax-lgeom.yaml"
+        R["L_geom"]["extract"] = {"kind": "expr", "expr": "Lp * l", "terms": {
+            "Lp": {"kind": "scalar", "name": "L_per_m"},
+            "l": _const(4.0e-05, "m", "eval/cases/c/EM-61.yaml geometry.spec.length_m")}}
+        note("L_total_london and L_kin stay pending: no London-film (kinetic inductance) model in the engine "
+             "(DevLog-022 s.3.5); the case passes only when they run.")
+    if cid == "WO-63":
+        d["spec"] = {"status": "pending", "ref": "sims/phc-point-defect.yaml",
+                     "reason": "non-gated targets only; the 5x5 supercell reaches 1.0M DOF at the finest level "
+                     "(DevLog-022 s.3.1), above the eval machine's memory rule; the defect mode index is not wired"}
+    if cid == "CP-06":
+        d["status"], d["untestable_reason"] = "unvalidated", None
+        d["activation"] = (
+            "resolved 2026-11-07 (DevLog-035 s.2.10, s.10, s.12): the PZT-4 constants (Boucher 1981 as listed) are text in "
+            "the public VM175 input listing, stored in materials/pzt-4.yaml; sims/pzt4-cube.yaml runs both studies "
+            "(logs/MX-run-all-20261107T094211.jsonl: short f1, f2 -2.19 %, +0.15 %; open f1, f2 -2.18 %, +0.19 %; 4/4 "
+            "within 3 %, default mesh, single level)")
+        d["materials"] = {"pzt4": {"rho": 7500.0, "source": "Ansys VM175 input listing (text): full [c], [e], [eps_r] "
+                                   "in materials/pzt-4.yaml (Boucher 1981 data set as listed in VM175)"}}
+        d["missing"] = []
+        d["spec"] = {"status": "pending", "reason": "no single model: short-circuit targets run study std_sc, "
+                     "open-circuit targets study std_oc of sims/pzt4-cube.yaml (target specs)"}
+        for k, st in (("f1_short", "std_sc"), ("f2_short", "std_sc"), ("f1_open", "std_oc"), ("f2_open", "std_oc")):
+            R[k]["spec"] = {"sim": "sims/pzt4-cube.yaml", "study": st}
+            R[k]["extract"] = {"kind": "result", "node": k}
+            R[k]["levels"] = CP06_LEVELS
+        note("Engine: sims/pzt4-cube.yaml (DevLog-035 s.2.10), breathing modes by the sim's evaluation items (mode "
+             "indices from VM175). Level 0 only (levels: [0], 36k DOF, peak RSS 1541 MB in the T2 run 2026-11-18): the "
+             "next default level exceeds the eval machine's 2 GB RSS rule; the targets are measured values with a 3 % "
+             "tolerance and no Richardson step.")
+    if cid == "CP-04":
+        d["untestable_reason"] = (
+            "inputs located 2026-11-07 (DevLog-035 s.2.7): the public VM223 input listing gives the outline from D1..D9 "
+            "and D11, k(T), alpha(T), film-coefficient tables h(T), emissivity and the 300 K ambient; still untestable "
+            "because the engine has no temperature-dependent k, alpha, h, no surface-to-surface radiation and no "
+            "geometric non-linearity (NLGEOM). sims/hot-arm-actuator.yaml runs with 300 K values only "
+            "(logs/MX-run-all-20261107T094211.jsonl: tip u_y -7.719 um vs 27 um, informative)")
+        d["activation"] = "engine: temperature-dependent k, alpha and h, surface-to-surface radiation, NLGEOM"
+        d["missing"] = []
+        d["spec"] = {"status": "pending", "ref": "sims/hot-arm-actuator.yaml",
+                     "reason": "untestable (see untestable_reason); the sim runs informative with 300 K properties only"}
+
 
 def apply_audit(d: dict) -> dict:
     cid = d["id"]
@@ -2967,6 +3085,9 @@ def apply_audit(d: dict) -> dict:
         r.clear()
         r.update(new)
         used.add(mid)
+    # T2 wiring (DevLog-039, 2026-11-18): engine models for the cases that pass on scratch runners (DevLog-022 s.3,
+    # DevLog-035 s.12) and the 2026-11-07 resolution edits of DevLog-035 s.13 item 6 (CP-04, CP-06), kept by this builder
+    t2_apply(cid, d)
     return d
 
 
@@ -2982,10 +3103,11 @@ def dump(d: dict) -> str:
 
 def main() -> int:
     force = "--force" in sys.argv
-    CASES.mkdir(parents=True, exist_ok=True)
+    out = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else CASES  # --out DIR: tests and diffs
+    out.mkdir(parents=True, exist_ok=True)
     ids = []
     for d in map(apply_audit, all_cases()):
-        p = CASES / f"{d['id']}.yaml"
+        p = out / f"{d['id']}.yaml"
         ids.append(d["id"])
         if p.exists() and not force:
             continue

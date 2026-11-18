@@ -63,7 +63,8 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/phc-point-defect.yaml}
+spec: {status: pending, ref: sims/phc-point-defect.yaml, reason: 'non-gated targets only; the 5x5 supercell reaches 1.0M DOF
+    at the finest level (DevLog-022 s.3.1), above the eval machine''s memory rule; the defect mode index is not wired'}
 missing: []
 assumptions: []
 source_case: {suite: MPB tutorial, file: doc/docs/Python_Tutorial.md, url: github.com/NanoComp/mpb tag v1.12.0, accessed: '2026-11-06',

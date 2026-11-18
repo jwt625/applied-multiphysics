@@ -1,6 +1,6 @@
 # Gallium arsenide (lane MX, DevLog-035 s.11, 2026-11-07; requested by lane MOM, DevLog-034 R-MX1). Optical dispersion
 # from Skauli et al. 2003; isotropic mechanics as used by Baker et al. 2014 (their model inputs). Photoelastic constants
-# are listed under `missing`: @amp/materials has no photoelastic property type yet.
+# (p_pe) added by lane T4 (DevLog-041) from Baker et al. 2014 Table 2.
 schema: amp-material/0
 id: gaas
 name: Gallium arsenide (GaAs)
@@ -9,7 +9,7 @@ description: >-
   Undoped GaAs. Refractive index from the Skauli 2003 dispersion relation (22 C). Density, Young's modulus and Poisson's
   ratio are the isotropic approximation Baker et al. 2014 used for disk resonators (paper model inputs, not a measurement
   read here); the cubic stiffness tensor is not authored.
-verified_on: 2026-11-07
+verified_on: 2026-11-18
 frame: "crystal axes: x = [100], y = [010], z = [001] (for tensor data; none stored yet)"
 sources:
   skauli2003:
@@ -17,14 +17,14 @@ sources:
     doi: 10.1063/1.1621740
     url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/GaAs/nk/Skauli.yml
     access: paywalled
-    read: "primary not read; refractiveindex.info entry (CC0) fetched 2026-11-07 by lane MX (sha256 4c7b62ff..., same file as lane MOM's): formula 1, coefficients 4.372514 5.466742 0.4431307 0.02429960 0.8746453 1.957522 36.9166, 0.97-17 um, 22 C"
+    read: "primary not read; refractiveindex.info entry (CC0) fetched 2026-11-07 (sha256 4c7b62ff...): formula 1, coefficients 4.372514 5.466742 0.4431307 0.02429960 0.8746453 1.957522 36.9166, 0.97-17 um, 22 C"
     licence: "refractiveindex.info database: CC0 1.0"
   baker2014:
     citation: "C. Baker, W. Hease, D.-T. Nguyen, A. Andronico, S. Ducci, G. Leo, I. Favero, Photoelastic coupling in gallium arsenide optomechanical disk resonators, Opt. Express 22(12), 14072-14086 (2014); arXiv:1403.4269v1"
     doi: 10.1364/OE.22.014072
     url: https://arxiv.org/abs/1403.4269
     access: open
-    read: "text layer of the arXiv v1 PDF (sha256 3c4930ba...), Table 2 and Table 4, read by lane MX 2026-11-07"
+    read: "text layer of the arXiv v1 PDF (sha256 3c4930ba...), Table 2 and Table 4, read 2026-11-07; Table 2 re-read 2026-11-18 (same sha256): GaAs 1.15 um p11 -0.165, p12 -0.140, p44 -0.072, ref [34] Lide and Bruno, CRC Handbook of Chemistry and Physics (CRC Press, 2012)"
 properties:
   n:
     fit:
@@ -75,11 +75,25 @@ properties:
     conditions: {text: "isotropic approximation (Baker et al.)"}
     valid: {T: {na: "not stated"}}
     alternatives: []
+  p_pe:
+    tensor:
+      symmetry: cubic
+      components: {p11: -0.165, p12: -0.140, p44: -0.072}
+    unit: "1"
+    basis: paper_model_input
+    source: baker2014
+    locator: "arXiv v1 Table 2 'Photoelastic material parameters for GaAs': 1.15 um, p11 -0.165, p12 -0.140, p44 -0.072, ref [34] CRC Handbook of Chemistry and Physics (2012); eq. (16) defines Delta(1/eps) = p S (contracted, m3m)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated; the handbook (secondary) and its primary were not read"}
+    conditions: {lambda: "1.15 um", text: "Table 2 caption: the coefficients vary little for photon energies well below the band gap (no number given)"}
+    valid: {lambda: {unit: um, range: [1.15, 1.15]}, T: {na: "temperature not stated"}}
+    note: "secondary source: values as used by a peer-reviewed paper (citing the CRC Handbook)"
+    alternatives: []
   C:
     value: N/A
     unit: GPa
-    missing: "cubic stiffness C11, C12, C44 of GaAs not read from a primary source in this lane"
+    missing: "cubic stiffness C11, C12, C44 of GaAs not read from a primary source for this library"
     alternatives: []
 missing:
-  - {what: "photoelastic constants p11 -0.165, p12 -0.140, p44 -0.072 at 1.15 um: Baker et al. 2014 arXiv v1 Table 2 citing the CRC Handbook of Chemistry and Physics (2012) (secondary, primary not read); not stored: @amp/materials has no photoelastic property type"}
+  - {property: p_pe, what: "primary photoelastic data of GaAs not read (Baker et al. 2014 cite the CRC Handbook 2012); wavelength dispersion of p not stored"}
   - {what: "temperature dependence of n (in Skauli 2003, not read)"}

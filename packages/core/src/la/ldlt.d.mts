@@ -44,6 +44,10 @@ export class SupernodalLDLT {
   factorKind: RealFactorKind | null;
   /** kernel of the last factor() */
   kernel: RealFactorKind;
+  /** L values (in WebAssembly memory when `ws` is set, DevLog-045) */
+  Lx: Float64Array;
+  /** WASM triangular-solve state, null when L is a plain Float64Array */
+  ws: unknown;
   D: Float64Array;
   nNeg: number;
   nPerturbed: number;

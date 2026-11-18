@@ -56,4 +56,4 @@ assumptions:
 missing:
   - {what: "fin geometry of the plate-and-fin hero: no sourced case defines it", needed_for: [geometry]}
   - {what: "transient variant (rho, cp, initial state, time window): not defined; NAFEMS T3 (R3 HT-02) is a separate 1D case", needed_for: [solution]}
-# eval: [HT-01]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)
+# eval: [HT-01]   (informative pairing: the HT-01 case spec runs on nafems-t4)

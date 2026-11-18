@@ -167,7 +167,13 @@ type Op = 'union' | 'intersection' | 'difference' | 'fragment' | 'final';
 type Key = [number, number, number];
 const keyLess = (a: Key, b: Key) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 
-export interface CombineResult { obj: Obj; arr: Arrangement; subKept: Uint8Array; subRec: Int32Array; faceDom: Int32Array }
+export interface CombineResult {
+  obj: Obj; arr: Arrangement; subKept: Uint8Array; subRec: Int32Array; faceDom: Int32Array;
+  /** per result domain: its origin domains as [input object index, domain index in that object] */
+  domOrigins: Array<Array<[number, number]>>;
+  /** per result edge record (obj.edges order): its source entities as [input object index, entity id] */
+  edgeSrc: Array<Array<[number, string]>>;
+}
 
 export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineResult {
   const who = op === 'final' ? 'final fragment of the remaining objects' : fid;
@@ -292,8 +298,10 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
   for (const [, c] of compList) baseCount.set(c.base, (baseCount.get(c.base) ?? 0) + 1);
   const baseSeen = new Map<string, number>();
   const domains: DomainRec[] = [];
+  const domOrigins: Array<Array<[number, number]>> = [];
   const faceDom = new Int32Array(nF).fill(-1);
   for (const [, c] of compList) {
+    domOrigins.push(c.origins.map((q): [number, number] => [keyObj[q]!, keyDom[q]!]));
     const cnt = baseCount.get(c.base)!;
     const k = (baseSeen.get(c.base) ?? 0) + 1;
     baseSeen.set(c.base, k);
@@ -399,8 +407,11 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
     if (e.anc) ancOfId.set(e.id, uniqNot([...(ancOfId.get(e.id) ?? []), ...e.anc], ''));
   }
   const edges: EdgeRec[] = [];
+  const edgeSrc: Array<Array<[number, string]>> = [];
   const subRec = new Int32Array(nS).fill(-1);
   chains.forEach((c, ord) => {
+    const src: Array<[number, string]> = [];
+    for (const q of A.subs[c.steps[0]!.s]!.srcs) if (!src.some(([o, i]) => o === recObj[q.rec] && i === recs[q.rec]!.id)) src.push([recObj[q.rec]!, recs[q.rec]!.id]);
     const cnt = cCount.get(c.base)!;
     const k = (cSeen.get(c.base) ?? 0) + 1;
     cSeen.set(c.base, k);
@@ -416,6 +427,7 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
       }
       const [l, r] = lr(st);
       subRec[st.s] = edges.length;
+      edgeSrc.push(src);
       const rec: EdgeRec = { curve, id, left: l, right: r, ord, pos, embedded: emb[st.s] === 1 };
       if (parent) rec.parent = parent;
       if (anc.length) rec.anc = anc;
@@ -483,7 +495,7 @@ export function combine(op: Op, fid: string, objs: Obj[], tol: number): CombineR
     }
   const obj: Obj = { feature: fid, domains: curveOnly ? [] : domains, edges, points, curveOnly };
   if (footprints.length) obj.footprints = footprints;
-  return { obj, arr: A, subKept, subRec, faceDom };
+  return { obj, arr: A, subKept, subRec, faceDom, domOrigins, edgeSrc };
 }
 
 // ---------------------------------------------------------------- build
@@ -565,7 +577,7 @@ export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number } 
   return G;
 }
 
-function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: string[]): Geometry2D {
+export function toGeometry(R: CombineResult, axisym: boolean, tol: number, features: string[]): Geometry2D {
   const { obj, arr, subKept, subRec } = R;
   const used = new Int32Array(arr.vx.length).fill(-1);
   let nv = 0;

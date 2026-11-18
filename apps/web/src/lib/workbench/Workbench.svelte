@@ -16,7 +16,7 @@
 	import { HEROES, SIM_IDS, loadSimText } from '../sims';
 	import { loadPhysics } from '../engine/physics';
 	import { appRegistry } from '../engine/registry';
-	import { Session } from './session.svelte';
+	import { Session, studiesOf } from './session.svelte';
 	import { SchemaWalker } from '../schema/form';
 	import { buildTree, findNode } from '../state/tree';
 	import { decodeShare } from '../state/diff';
@@ -27,29 +27,24 @@
 	import YamlTab from './YamlTab.svelte';
 	import Bottom, { type BottomTab } from './Bottom.svelte';
 	import Graphics, { type Mode } from '../gfx/Graphics.svelte';
-	import { captureGraphics } from '../gfx/capture';
 	import { HOOKS } from '../shell/hooks';
 	import Headlines from '../ui/Headlines.svelte';
 	import AgentPanel from '../agent/AgentPanel.svelte';
-	import { navTrail, resolvePointer, type CameraRequest, type NavigationHost, type NavResult, type ViewMode } from '../state/nav.svelte';
+	import { makeNavHost, resolvePointer, type CameraRequest, type NavResult, type SyncNavHost, type ViewMode } from '../state/nav.svelte';
 	import PaneSplitter from './PaneSplitter.svelte';
 	import { ProbeTable } from '../state/probes.svelte';
 	import { viewFor } from '../state/tree-view';
 	import { FOCUS, MIRROR } from '../play/heroes';
 	import Tip from '../ui/Tip.svelte';
 	import LibraryPicker from '../library/LibraryPicker.svelte';
-	import { CATALOG } from '../library/catalog';
+	import { LISTED_ENTRIES, listedIds } from '../library/catalog';
 	import Plot1D from '../gfx/Plot1D.svelte';
 	import { addMenu, addPatch, cascadeRemovePatch, duplicatePatch, movePatch, nodeAt, togglePatch, type MenuEntry } from '../results/plot-ops';
 	import type { TreeAction } from './Tree.svelte';
 	import type { TreeNode } from '../state/tree';
 
-	// Library: EM problems solved through the acoustics module show the field as pressure in Pa (wrong quantity and unit),
-	// so they stay out of the picker until an EM module runs them (coordinator, DevLog-021). Still openable by ?sim=.
-	// Other analogs (same module, exact maps) stay listed.
-	const ANALOG = new Set(CATALOG.filter((e) => e.analog && e.physics.includes('acoustics') && e.category !== 'acoustics').map((e) => e.id));
-	const LIB_ENTRIES = CATALOG.filter((e) => !ANALOG.has(e.id));
-	const LIB_IDS = SIM_IDS.filter((id) => !ANALOG.has(id));
+	// Library: the shared listing rule of library/catalog.ts (hidden acoustics analogs of EM problems; still openable by ?sim=)
+	const LIB_IDS = listedIds(SIM_IDS);
 
 	let { simId, share = '' }: { simId: string; share?: string } = $props();
 
@@ -121,32 +116,27 @@
 	let agentMounted = $state(false);
 	$effect(() => { if (agentOpen) agentMounted = true; });
 
-	// Navigation host for the agent (L9, @amp/agent NavigationHost): UI state only, every call in the navigation trail.
-	function navHost(actor: string): NavigationHost & { showPlot(id: string): NavResult } {
-		const rec = (tool: string, args: Record<string, unknown>, r: NavResult) => navTrail.record(actor, tool, args, r);
+	// Navigation host for the agent (L9, @amp/agent NavigationHost): UI state only, every call in the navigation trail
+	// (shared factory state/nav.svelte.ts, also used by the Play view)
+	function navHost(actor: string): SyncNavHost {
 		const sel = (pointer: string): NavResult => {
 			const p = s ? resolvePointer(s.model.data, pointer) : null;
 			if (p === null) return { ok: false, message: `no node at ${pointer}` };
 			jump(p);
 			return { ok: true };
 		};
-		return {
-			focusNode: (pointer) => rec('focus_node', { pointer }, (() => { const r = sel(pointer); if (r.ok) mobilePane = 'tree'; return r; })()),
-			openSettings: (pointer, field) => rec('open_settings', { pointer, ...(field ? { field } : {}) }, (() => {
+		return makeNavHost(actor, {
+			focusNode: (pointer) => { const r = sel(pointer); if (r.ok) mobilePane = 'tree'; return r; },
+			openSettings: (pointer, field) => {
 				const r = sel(pointer);
 				if (r.ok && field) queueMicrotask(() => (document.querySelector(`[data-key="${CSS.escape(field)}"] input, [data-key="${CSS.escape(field)}"] select`) as HTMLElement | null)?.focus());
 				return r;
-			})()),
-			highlightSelection: (ids) => rec('highlight_selection', { ids }, (() => { highlight = [...ids]; mode = 'geometry'; return { ok: true }; })()),
-			setCamera: (req: CameraRequest) => rec('set_camera', { ...req }, req.kind === 'fit' ? (fitKey++, { ok: true }) : { ok: false, message: `camera '${req.kind}' is not implemented in v0 (fit only)` }),
-				setViewMode: (m: ViewMode) => rec('set_view_mode', { mode: m }, ((mode = m), { ok: true })),
-				showPlot: (id: string) => rec('show_plot', { plot: id }, showPlot(id)),
-			screenshot: async (view) => {
-				const c = captureGraphics();
-				rec('screenshot', { view: view ?? 'graphics' }, c ? { ok: true } : { ok: false, message: 'graphics canvas not available' });
-				return c ? { mediaType: 'image/png', ...c } : null;
-			}
-		};
+			},
+			highlightSelection: (ids) => { highlight = [...ids]; mode = 'geometry'; return { ok: true }; },
+			setCamera: (req: CameraRequest) => (req.kind === 'fit' ? (fitKey++, { ok: true }) : { ok: false, message: `camera '${req.kind}' is not implemented in v0 (fit only)` }),
+			setViewMode: (m: ViewMode) => ((mode = m), { ok: true }),
+			showPlot
+		}, (tool) => `${tool} is not available`);
 	}
 	const KEY = 'amp-web-panes';
 
@@ -195,11 +185,19 @@
 	function save() { try { localStorage.setItem(KEY, JSON.stringify(sizes)); } catch { /* storage unavailable */ } }
 
 	const tree = $derived(s ? buildTree(s.model.data, s.model.parsed?.issues ?? []) : []);
-	/** physics types of the first study, in the study's order (header label of multiphysics models, C11) */
+	/** studies of the model (study picker, DevLog-040) and the one Compute solves */
+	const studies = $derived(s ? studiesOf(s.model.data) : []);
+	const runStudyId = $derived(s?.runStudy ?? null);
+	/** physics types of the study Compute solves, in the study's order (header label of multiphysics models, C11) */
 	const studyPhys = $derived.by(() => {
-		const d = s?.model.data as { physics?: Array<{ id?: string; type?: string }>; studies?: Array<{ physics?: string[] }> } | null | undefined;
-		return (d?.studies?.[0]?.physics ?? []).map((id) => d?.physics?.find((p) => p.id === id)?.type ?? id);
+		const d = s?.model.data as { physics?: Array<{ id?: string; type?: string }> } | null | undefined;
+		const st = studies.find((x) => x.id === runStudyId);
+		const ids = st?.type === 'parametric' ? (studies.find((x) => x.id === st.inner)?.physics ?? []) : (st?.physics ?? []);
+		return ids.map((id) => d?.physics?.find((p) => p.id === id)?.type ?? id);
 	});
+	function studyTip(x: { id: string; type: string; physics: string[]; inner?: string }): string {
+		return `${x.id}: ${x.type}${x.inner ? ` over ${x.inner}` : ''}${x.physics.length ? `, physics ${x.physics.join(' + ')}` : ''}`;
+	}
 	const node = $derived(findNode(tree, selected) ?? tree[1] ?? null);
 
 	// Compute delivered a full-resolution solution: show it (a later manual mode click is not undone)
@@ -300,7 +298,7 @@
 		if (!x || !hasSweep) return x;
 		return {
 			get solution() { return x.solution; }, get mesh() { return x.mesh; }, post: x.post,
-			get staleSolution() { return x.staleSolution; }, get solutionCoarse() { return x.solutionCoarse; },
+			get staleSolution() { return x.staleSolution; }, get solutionCoarse() { return x.solutionCoarse; }, get solvedStudy() { return x.solvedStudy; },
 			get caseFilled() { return x.caseFilled; }, get caseInfo() { return x.caseInfo; },
 			model: { get parsed() { return { params: x.activeParams }; }, get data() { return x.model.data; } }
 		} as unknown as Session;
@@ -330,10 +328,15 @@
 	<div class="wb" bind:clientHeight={wbH} style="--tw: {eff.tree}px; --sw: {eff.settings}px; --bh: {eff.bottom}px; --cw: {agentOpen ? eff.agent : 0}px; --cs: {agentOpen ? 3 : 0}px">
 		<div class="tb">
 			<a class="home" href={resolve('/')} data-tip="Example library (landing page)">amp</a>
-			<LibraryPicker current={simId} onpick={goModel} available={LIB_IDS} entries={LIB_ENTRIES} />
-			{#if studyPhys.length > 1}<span class="phys" data-tip="Physics solved by the first study (couplings set the solve order)">{studyPhys.join(' + ')}</span>{/if}
+			<LibraryPicker current={simId} onpick={goModel} available={LIB_IDS} entries={LISTED_ENTRIES} />
+			{#if studyPhys.length > 1}<span class="phys" data-tip="Physics solved by the chosen study (couplings set the solve order)">{studyPhys.join(' + ')}</span>{/if}
+			{#if s && studies.length > 1}
+				<select class="study" value={runStudyId ?? ''} onchange={(e) => { if (s) s.study = (e.currentTarget as HTMLSelectElement).value; }} data-tip={`Study that Compute solves (results of the other studies show as not evaluated):\n${studies.map((x) => `${x.id === runStudyId ? '> ' : '  '}${studyTip(x)}`).join('\n')}${s.solution ? `\nshown solution: ${s.solvedStudy ?? studies[0]?.id ?? 'N/A'}` : ''}`}>
+					{#each studies as x (x.id)}<option value={x.id}>{x.id}</option>{/each}
+				</select>
+			{/if}
 			<button disabled={!s || s.status === 'solving'} onclick={() => s?.buildMesh()} data-tip="Build the mesh (geometry and mesh edits re-mesh automatically)">Mesh</button>
-			<button disabled={!s || s.status === 'solving'} onclick={() => s?.requestCompute()} data-tip="Mesh and run the registered physics module of the first study">Compute</button>
+			<button disabled={!s || s.status === 'solving'} onclick={() => s?.requestCompute()} data-tip={`Mesh and run the physics of study ${runStudyId ?? 'N/A'}`}>Compute</button>
 			<button disabled={!s || (s.status !== 'solving' && s.status !== 'meshing')} onclick={() => s?.cancel()} data-tip="Cancel the run">Cancel</button>
 			{#if s?.caseInfo}
 				<label class="case" data-tip={`Fill properties that are N/A in the model with the sourced inputs of eval case ${s.caseInfo.id}:\n${s.caseInfo.materials}\n${s.caseFilled.length ? `last run used: ${s.caseFilled.join(', ')}` : 'last run used no case value (materials from the model)'}`}><input type="checkbox" bind:checked={s.useCase} /> N/A from {s.caseInfo.id}{s.caseFilled.length ? ` (${s.caseFilled.length} used)` : ''}</label>
@@ -411,6 +414,7 @@
 	.wb { height: 100%; display: grid; grid-template-rows: 30px minmax(0, 1fr) 3px var(--bh); background: var(--bg); }
 	.tb .home { color: var(--ink); text-decoration: none; font-weight: 600; padding: 0 4px; }
 	.tb .phys { color: var(--ink-2); white-space: nowrap; padding: 0 4px; }
+	.tb .study { height: 22px; max-width: 120px; font-size: 11px; }
 	.tb { display: flex; align-items: center; gap: 4px; padding: 0 6px; background: var(--surface); border-bottom: 1px solid var(--line); min-width: 0; overflow: hidden; }
 	.gap { width: 8px; flex: none; }
 	.case { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--ink-2); white-space: nowrap; }

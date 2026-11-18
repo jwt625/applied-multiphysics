@@ -20,17 +20,17 @@ sources:
     citation: "D. B. Leviton, B. J. Frey, Temperature-dependent absolute refractive index measurements of synthetic fused silica, Proc. SPIE 6273, 62732K (2006); arXiv:0805.0091"
     url: https://arxiv.org/abs/0805.0091
     access: open
-    read: "text layer of the arXiv PDF (p.3 air / vacuum convention, p.6 Table 3 and dn/dT method, p.7 Tables 4 and 6), read by L10 2026-11-06; cached under cache/materials/fused-silica/"
+    read: "text layer of the arXiv PDF (p.3 air / vacuum convention, p.6 Table 3 and dn/dT method, p.7 Tables 4 and 6), read 2026-11-06; cached under cache/materials/fused-silica/"
   corning_hpfs_2014:
     citation: "Corning Incorporated, HPFS 7979, 7980, 8655 Fused Silica, Product Information Sheet, February 2014 (hosted by Edmund Optics)"
     url: "https://www.edmundoptics.co.uk/ViewDocument/Corning%20Fused%20Silica%20Grades.pdf"
     access: vendor_open
-    read: "text layer p.3 (Mechanical and Thermal Properties blocks), read by L10 2026-11-06; corning.com returned HTTP 403 for its own copies"
+    read: "text layer p.3 (Mechanical and Thermal Properties blocks), read 2026-11-06; corning.com returned HTTP 403 for its own copies"
   korth_silica:
     citation: "Korth Kristalle GmbH, Silica glass (Infrasil, Suprasil; produced by Heraeus Quarzglas) material page, korth.de"
     url: https://www.korth.de/en/materials/detail/Silica%20Glass
     access: vendor_open
-    read: "not re-read by L10; APA lane read the web page on 2026-10-20"
+    read: "not re-read; the advanced-packaging-atlas project read the web page on 2026-10-20"
     via: "advanced-packaging-atlas engine/data/materials/glass_inorganic.yaml at 608b1dc (sio2_fused.properties.eps_r)"
 properties:
   n:
@@ -88,7 +88,7 @@ properties:
     locator: "arXiv p.6 Table 3 Sellmeier model (same coefficients as the n alternative leviton_frey_corning7980), differentiated in T"
     accessed: 2026-11-06
     derivation: "dn/dT = [n(T + h) - n(T - h)] / (2 h), h = 0.01 K, of the Table 3 model (formula leviton-frey-sellmeier-dndT; changing h to 0.1 K changes the result by < 1e-15 /K at 1.55 um, 295 K)"
-    uncertainty: {abs: 6.8e-7, unit: 1/K, note: "spread between the two routes of the source, computed by L10 at 295 K over the 16 Table 6 wavelengths: Table 6 (per-wavelength quadratic n(T) fits, dn/dT = 2aT + b, p.6) minus this Sellmeier derivative is +0.9e-7 .. +3.2e-7 /K for 0.4-2.0 um and down to -6.8e-7 /K at 2.6 um; the abstract's +-2e-8 /K is only the statistical variation within one route"}
+    uncertainty: {abs: 6.8e-7, unit: 1/K, note: "spread between the two routes of the source, computed at 295 K over the 16 Table 6 wavelengths: Table 6 (per-wavelength quadratic n(T) fits, dn/dT = 2aT + b, p.6) minus this Sellmeier derivative is +0.9e-7 .. +3.2e-7 /K for 0.4-2.0 um and down to -6.8e-7 /K at 2.6 um; the abstract's +-2e-8 /K is only the statistical variation within one route"}
     conditions: {text: "Corning 7980"}
     n_medium: vacuum
     n_medium_note: "absolute index (relative to vacuum, vacuum wavelength): CHARMS measures in vacuum and Leviton and Frey adjust Malitson's air-based law to vacuum for comparison (arXiv p.3)"
@@ -222,7 +222,7 @@ properties:
     unit: "1"
     basis: datasheet
     source: korth_silica
-    locator: "silica glass page: dielectric constant 3.75 at 100 MHz, 293 K (as recorded by the APA lane)"
+    locator: "silica glass page: dielectric constant 3.75 at 100 MHz, 293 K (as recorded in the advanced-packaging-atlas project)"
     accessed: 2026-10-20
     uncertainty: {na: "not stated"}
     conditions: {f: "100 MHz", T: "293 K", text: "Heraeus Infrasil / Suprasil class"}

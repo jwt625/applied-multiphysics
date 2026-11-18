@@ -12,12 +12,12 @@ sources:
     citation: "MIL-HDBK-5J, Department of Defense Handbook: Metallic Materials and Elements for Aerospace Vehicle Structures, 31 January 2003 (cancelled; superseded by MMPDS)"
     url: "https://everyspec.com/MIL-HDBK/MIL-HDBK-0001-0099/MIL_HDBK_5J_139/"
     access: open
-    read: "text layer of the everyspec PDF (1733 pages), p.3-264 Table 3.6.2.0(b1), read by L10 2026-11-06; cached under cache/materials/aluminum-6061-t6/"
+    read: "text layer of the everyspec PDF (1733 pages), p.3-264 Table 3.6.2.0(b1), read 2026-11-06; cached under cache/materials/aluminum-6061-t6/"
   nist_cryo_6061:
     citation: "NIST Cryogenic Technologies Group, Material properties: 6061-T6 Aluminum (UNS A96061), trc.nist.gov"
     url: "https://trc.nist.gov/cryogenics/materials/6061%20Aluminum/6061_T6Aluminum_rev.htm"
     access: open
-    read: "web page fetched and read by L10 2026-11-06 (thermal conductivity, specific heat, Young's modulus, linear expansion fits)"
+    read: "web page fetched and read 2026-11-06 (thermal conductivity, specific heat, Young's modulus, linear expansion fits)"
 properties:
   rho:
     value: 0.098
@@ -101,7 +101,7 @@ properties:
     accessed: 2026-11-06
     uncertainty: {rel: 0.05, note: "curve fit error relative to data: 5 %"}
     conditions: {text: "6061-T6"}
-    note: "JANAF pure Al (janaf.nist.gov Al-001.txt, fetched by L10 2026-11-06): Cp 21.338 J/(mol K) at 200 K, 24.209 at 298.15 K, 24.247 at 300 K. Per unit mass this is 5-6 % below this fit (fresh-context audit 2026-11-06: 790.8 vs 835 at 200 K, 898.7 vs 954 at 300 K), at or beyond the fit's 5 %; the alloy vs pure-Al difference is not quantified by a source read here"
+    note: "JANAF pure Al (janaf.nist.gov Al-001.txt, fetched 2026-11-06): Cp 21.338 J/(mol K) at 200 K, 24.209 at 298.15 K, 24.247 at 300 K. Per unit mass this is 5-6 % below this fit (2026-11-06 review: 790.8 vs 835 at 200 K, 898.7 vs 954 at 300 K), at or beyond the fit's 5 %; the alloy vs pure-Al difference is not quantified by a source read here"
     alternatives: []
   alpha:
     fit:

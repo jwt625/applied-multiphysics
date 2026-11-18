@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Engine runner Web Worker (C6, DevLog-011 s.1.6): spec text -> parse/validate (@amp/spec) -> geometry + mesh
-// (@amp/geom, @amp/mesh; @amp/physics prepareRun when exported) -> every physics of the first study through the
+// (@amp/geom, @amp/mesh; @amp/physics prepareRun when exported) -> every physics of the chosen study (RunOptions
+// studyId, default the first; DevLog-040 study picker) through the
 // @amp/physics study driver `runStudy` (C11: couplings, merged solution with physics tags; DevLog-031), or the single
 // module run when the driver is not exported. Without a registered module or coupling implementation the run ends
 // with `unavailable` and its reasons; nothing is computed in its place.
@@ -48,9 +49,10 @@ async function run(id: string, specText: string, opts: RunOptions) {
 		progress('parse', 1, `${source}, ${tParse.toFixed(1)} ms`);
 		if (ac.signal.aborted) return;
 
-		// readiness of every physics of the first study and of its couplings (C4, C11) before any mesh at solve order
-		const study = parsed.spec.studies?.[0];
+		// readiness of every physics of the chosen study (default: the first) and of its couplings (C4, C11) before any mesh
+		const study = opts.studyId !== undefined ? parsed.spec.studies?.find((x) => x.id === opts.studyId) : parsed.spec.studies?.[0];
 		const reasons: string[] = [];
+		if (opts.studyId !== undefined && !study) reasons.push(`no study '${opts.studyId}' in the spec`);
 		const ready: Array<{ mod: PhysicsModule; pid: string }> = [];
 		const drv = phys as (PhysicsExports & StudyDriver) | null;
 		const sr = study && drv?.studyReadiness ? drv.studyReadiness(parsed.spec, study.id) : null;
@@ -68,7 +70,7 @@ async function run(id: string, specText: string, opts: RunOptions) {
 				else ready.push({ mod, pid });
 			}
 		}
-		if (!study) reasons.push('no study in the spec');
+		if (!study && opts.studyId === undefined) reasons.push('no study in the spec');
 		if (!phys?.prepareRun && ready.length) reasons.push('@amp/physics prepareRun is not exported: no run context (materials, study) can be built');
 		const solve = !opts.meshOnly && !reasons.length && ready.length > 0 && !!phys?.prepareRun;
 

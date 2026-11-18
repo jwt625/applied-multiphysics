@@ -45,6 +45,13 @@ results:
       data: sol_std1
       items:
         - {id: syy_D, type: point, data: syy_D_pt, expr: solid.syy, unit: MPa}
+  plots:
+    - id: syy_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: syy_map_surf, type: surface, expr: solid.syy, unit: MPa}
+        - {id: syy_map_def, type: deformation, expr: solid.u, scale: auto}
 provenance:
   values:
     params.ai: {basis: benchmark, source: "eval/cases/a/SM-02.yaml geometry.spec.inner_ellipse_m (FeenoX nafems-le1.geo)", date: 2026-11-06}

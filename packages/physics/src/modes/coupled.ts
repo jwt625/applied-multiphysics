@@ -463,3 +463,6 @@ function uniaxialLabDiag(o: MatOptics): Mat3 {
   return mat3.mul(mat3.mul(o.A, mat3.diag(o.n[0] ** 2, o.n[1] ** 2, o.n[2] ** 2)), mat3.T(o.A));
 }
 
+
+// em-modes settings schema and added result names (DevLog-043), re-exported for the registration entry
+export { EM_MODES_SETTINGS, RESULT_NAMES_MODES2 } from './settings.ts';

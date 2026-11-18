@@ -11,6 +11,8 @@ export interface RunOptions {
 	meshOnly?: boolean;
 	/** eval case data passed to @amp/physics prepareRun (sourced material values for N/A properties) */
 	case?: Record<string, unknown>;
+	/** study to solve (amp-spec `studies[].id`); absent = the first study */
+	studyId?: string;
 }
 
 export type ToRunner = ToWorker;

@@ -79,7 +79,7 @@ rights:
   allowed: [cite_values, re_derive_setup, reference_by_hash]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/well-helmholtz-staircase.yaml}
+spec: {status: pending, reason: 'no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)', proposed: sims/well-helmholtz-staircase.yaml}
 missing: [staircase period d and step geometry in physical units are not in the README (mask field gives them)]
 assumptions: []
 source_case: {suite: The Well, file: helmholtz_staircase README.md + helmholtz_staircase.yaml, url: huggingface.co/datasets/polymathic-ai/helmholtz_staircase,

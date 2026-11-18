@@ -1,0 +1,38 @@
+# Tantalum pentoxide film (lane T4, DevLog-041): ion-assisted e-beam deposited film, n from Gao et al. 2012 (multiple-
+# incidence spectrophotometry, reverse engineering). Mechanics, thermal and RF data not read.
+schema: amp-material/0
+id: ta2o5-film
+name: Tantalum pentoxide film (Ta2O5, ion-assisted e-beam)
+class: dielectric_film
+description: >-
+  Amorphous-class Ta2O5 optical coating film (one named deposition). n(lambda) 0.40-1.80 um; the extinction column
+  of the source is zero above 0.610 um (last nonzero value 1e-6), so kappa is not stored.
+verified_on: 2026-11-18
+sources:
+  gao2012:
+    citation: "L. Gao, F. Lemarchand, M. Lequime, Exploitation of multiple incidences spectrometric measurements for thin film reverse engineering, Opt. Express 20(14), 15734-15751 (2012)"
+    doi: 10.1364/OE.20.015734
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/Ta2O5/nk/Gao.yml
+    access: open
+    read: "paper not read (Optics Express, open access); n, k table from the refractiveindex.info entry (CC0) Ta2O5/nk/Gao.yml fetched 2026-11-18 (sha256 269efa1797dc..., 726 rows 0.35-1.8 um, 'Numerical data kindly provided by F. Lemarchand', comment '400-nm monolayer deposited on 160-um BK7 substrate using the ion assistance electronic beam deposition technique'); rows at 0.05 um spacing from 0.40 to 1.80 um transcribed"
+    licence: "refractiveindex.info database: CC0 1.0"
+properties:
+  n:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [0.400, 0.450, 0.500, 0.550, 0.600, 0.650, 0.700, 0.750, 0.800, 0.850, 0.900, 0.950, 1.000, 1.050, 1.100, 1.150, 1.200, 1.250, 1.300, 1.350, 1.400, 1.450, 1.500, 1.550, 1.600, 1.650, 1.700, 1.750, 1.800]
+      ys: [2.246896, 2.204562, 2.176708, 2.157262, 2.143086, 2.132408, 2.124149, 2.117617, 2.112356, 2.108052, 2.104484, 2.101491, 2.098955, 2.096787, 2.094918, 2.093296, 2.091878, 2.090631, 2.089529, 2.088550, 2.087676, 2.086893, 2.086189, 2.085552, 2.084976, 2.084451, 2.083973, 2.083536, 2.083136]
+    unit: "1"
+    basis: measured
+    source: gao2012
+    locator: "refractiveindex.info Ta2O5/nk/Gao.yml, tabulated, column n, 29 rows 0.400-1.800 um"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "400 nm monolayer on a 160 um BK7 substrate, ion-assisted electron-beam deposition (database comment)"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; paper not read"
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+missing:
+  - {what: "Ta2O5 film dn/dT, k, alpha, E, nu, eps_r: not read for this library"}

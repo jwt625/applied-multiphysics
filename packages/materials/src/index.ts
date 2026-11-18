@@ -7,3 +7,4 @@ export * from './properties.ts';
 export * from './formulas.ts';
 export * from './validate.ts';
 export * from './library.ts';
+export * from './dispersion.ts';

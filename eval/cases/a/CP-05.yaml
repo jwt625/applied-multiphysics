@@ -79,7 +79,8 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/eo-slit.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal}
+spec: {status: pending, proposed: sims/eo-slit.yaml, reason: 'no sims/ model yet (path in ''proposed''); engine gap: Stokes
+    + electro-osmosis: no fluid module (DevLog-021 s.4.1)'}
 missing: []
 assumptions: ['Class a (closed form): R3''s table labels CP-05 ''c'', but its basis is D and the R3 count ''a 24'' requires
     it (contract request).', '|zeta| e/kT = 1.95 > 1: Debye-Hueckel is outside its validity for a real electrolyte; the

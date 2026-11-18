@@ -27,7 +27,11 @@ export interface CaseResult {
   informative_wall_cold_ms?: number;
 }
 
-export interface RunOptions extends ObserveOptions { dryRun?: boolean; exactField?: typeof evaluateExactField }
+export interface RunOptions extends ObserveOptions {
+  dryRun?: boolean; exactField?: typeof evaluateExactField;
+  /** case ids reported pending without running (--skip: e.g. over the run's memory budget); recorded in the reason */
+  skip?: string[];
+}
 
 export function caseStatus(targets: TargetResult[], loaderErrors: number): CaseStatus {
   if (targets.some((t) => t.status === 'timeout')) return 'timeout';
@@ -56,6 +60,10 @@ export async function runCase(lc: LoadedCase, source: Source, opts: RunOptions =
   const refs = c.references;
   if (c.status === 'untestable') {
     return { ...base, status: 'pending', reason: `untestable: ${c.untestable_reason}`, targets: refs.map((r) => pendingTarget(r, referenceValue(r, lc.expected), `untestable: ${c.untestable_reason}`)) };
+  }
+  if (opts.skip?.includes(c.id)) {
+    const why = 'skipped by --skip (not run in this invocation)';
+    return { ...base, status: 'pending', reason: why, targets: refs.map((r) => pendingTarget(r, referenceValue(r, lc.expected), why)) };
   }
   if (opts.dryRun) {
     const p = await source.plan(lc);

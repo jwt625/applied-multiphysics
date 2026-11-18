@@ -30,7 +30,9 @@ export interface Rule {
 }
 export interface ConstTerm { value: number; unit: string; source?: string }
 export interface Extract {
-  kind: 'scalar' | 'probe' | 'field' | 'eigen' | 'steps' | 'reduce' | 'expr' | 'result';
+  kind: 'scalar' | 'probe' | 'field' | 'eigen' | 'steps' | 'reduce' | 'expr' | 'result' | 'combine';
+  /** combine: name -> target id of this case; `expr` is evaluated per level on those targets' values (target units) */
+  targets?: Record<string, string>;
   /** result: evaluation item id in the spec's results (C10; DevLog-028) */
   node?: string;
   /** result: solution step (default: the item's steps, last of them) */
@@ -79,7 +81,22 @@ export interface Reference {
   gate?: boolean;
   note?: string;
 }
-export type SpecRef = string | { schema: 'amp-spec/0'; [k: string]: unknown } | { status: 'pending'; reason: string };
+/** sims file with overrides: params replaced before validation, study chosen explicitly (DevLog-039 H1) */
+export interface SimOverride { sim: string; params?: Record<string, number | string>; study?: string; note?: string }
+export type SpecRef = string | SimOverride | { schema: 'amp-spec/0'; [k: string]: unknown } | { status: 'pending'; reason: string; ref?: string; proposed?: string };
+
+/** sims paths a spec reference names: [path, role]; role 'run' must exist, 'ref' should exist, 'proposed' should not. */
+export function specPaths(s: SpecRef | undefined): Array<[string, 'run' | 'ref' | 'proposed']> {
+  if (typeof s === 'string') return [[s, 'run']];
+  if (!s || typeof s !== 'object') return [];
+  if ('sim' in s && typeof s.sim === 'string') return [[s.sim, 'run']];
+  const out: Array<[string, 'run' | 'ref' | 'proposed']> = [];
+  if ('status' in s) {
+    if (typeof s.ref === 'string') out.push([s.ref, 'ref']);
+    if (typeof s.proposed === 'string') out.push([s.proposed, 'proposed']);
+  }
+  return out;
+}
 export interface EvalCase {
   schema: 'amp-eval/0';
   id: string;
@@ -199,6 +216,8 @@ export interface ParseOptions {
   expectedFile?: string | null;
   /** ISO date used for the future-date check; default = today (local) */
   today?: string;
+  /** file check for sims paths named by spec references (repo-relative); omit to skip */
+  fileExists?: (rel: string) => boolean;
 }
 
 export function todayIso(d = new Date()): string {
@@ -262,6 +281,18 @@ function semanticChecks(
   }
   if (opts.dirClass !== undefined && (CLASSES as readonly string[]).includes(opts.dirClass) && c.class !== opts.dirClass) {
     at('/class', 'class-dir', `class '${String(c.class)}' differs from directory '${opts.dirClass}'`);
+  }
+  if (opts.fileExists) {
+    const checkSpec = (s: SpecRef | undefined, path: string) => {
+      for (const [p, role] of specPaths(s)) {
+        const ex = opts.fileExists!(p);
+        if (role === 'run' && !ex) at(path, 'spec-file', `spec file ${p} does not exist`);
+        else if (role === 'ref' && !ex) at(path, 'spec-ref', `pending ref ${p} does not exist; use 'proposed' for a sims path not written yet`, 'warning');
+        else if (role === 'proposed' && ex) at(path, 'spec-proposed', `proposed ${p} exists; point the case at it (spec) or name it as ref`, 'warning');
+      }
+    };
+    checkSpec(c.spec, '/spec');
+    (Array.isArray(c.references) ? c.references : []).forEach((r, i) => { if (r && typeof r === 'object' && r.spec !== undefined) checkSpec(r.spec, `/references/${i}/spec`); });
   }
   const today = opts.today ?? todayIso();
   const refs = Array.isArray(c.references) ? c.references : [];
@@ -338,6 +369,16 @@ function semanticChecks(
       }
     };
     checkTerms(r.extract, `${p}/extract`);
+    if (r.extract?.kind === 'combine') {
+      const ids = new Set(refs.map((x) => (x && typeof x === 'object' ? targetId(x) : '')));
+      if (!r.extract.expr || !r.extract.targets || !Object.keys(r.extract.targets).length) at(`${p}/extract`, 'extract-combine', `extract kind 'combine' needs expr and targets`);
+      else for (const [k, tid] of Object.entries(r.extract.targets)) {
+        const other = refs.find((x) => x && typeof x === 'object' && targetId(x) === tid);
+        if (!ids.has(tid)) at(`${p}/extract/targets/${k}`, 'extract-combine', `target '${tid}' is not a target of this case`);
+        else if (tid === targetId(r)) at(`${p}/extract/targets/${k}`, 'extract-combine', `a combine target cannot use itself`);
+        else if (other?.extract?.kind === 'combine') at(`${p}/extract/targets/${k}`, 'extract-combine', `target '${tid}' is itself a combine target (one level only)`);
+      }
+    }
     if (r.extract?.kind === 'result' && !r.extract.node) at(`${p}/extract`, 'extract-result', `extract kind 'result' needs node (an evaluation item id of the spec's results)`);
     if (r.extract?.kind === 'probe' && (!r.extract.point || !(r.extract.field ?? r.extract.name))) {
       at(`${p}/extract`, 'extract-probe', `extract kind 'probe' needs field and point`);

@@ -50,13 +50,13 @@
 	let tblBusy = $state(false);
 	let tok = 0;
 	$effect(() => {
-		const id = sub, data = s.model.data, sol = s.solution, mesh = s.mesh, params = s.activeParams, label = s.activeLabel;
+		const id = sub, data = s.model.data, sol = s.solution, mesh = s.mesh, params = s.activeParams, label = s.activeLabel, solvedStudy = s.solvedStudy;
 		if (tab !== 'table' || id === 'probes') return;
 		const my = ++tok;
 		tblBusy = true;
 		void (async () => {
 			try {
-				const run = await runOf({ solution: sol, mesh, activeParams: params, activeLabel: label, model: { data } });
+				const run = await runOf({ solution: sol, mesh, activeParams: params, activeLabel: label, model: { data }, solvedStudy });
 				if (!run) { if (my === tok) { tbl = null; tblErr = 'No solution on the shown mesh: Compute first.'; } return; }
 				const t = await resultsClient(s.post).table(data, id, [run]);
 				if (my === tok) { tbl = t; tblErr = ''; }
@@ -87,7 +87,7 @@
 	async function pin(rows: typeof prow) {
 		const data = s.model.data, sol = s.solution, mesh = s.mesh;
 		if (!rows.length || !mesh) return;
-		const studies = runStudies(data);
+		const studies = runStudies(data, s.solvedStudy);
 		const st = ((data as { studies?: Array<{ id?: string; physics?: string[] }> } | null)?.studies ?? []).find((x) => x.id === studies[0]);
 		const physicsId = st?.physics?.length === 1 ? st.physics[0] : undefined;
 		// merged multiphysics solution (C11 FieldData.physics): each row's field gets the physics id of its tag

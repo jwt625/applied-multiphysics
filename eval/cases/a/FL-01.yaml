@@ -117,8 +117,8 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/kovasznay-poiseuille.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/
-    id is a proposal}
+spec: {status: pending, proposed: sims/kovasznay-poiseuille.yaml, reason: 'no sims/ model yet (path in ''proposed''); engine
+    gap: Navier-Stokes / Stokes: no fluid module (DevLog-021 s.4.1)'}
 missing: []
 assumptions: ['Kovasznay domain [-0.5, 1.5]^2 as R3 states; the exact solution holds on any domain.']
 field_reference:

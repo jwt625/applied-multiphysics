@@ -52,7 +52,7 @@ export interface CatalogEntry {
 }
 
 export const CATEGORIES: ReadonlyArray<{ id: Category; label: string; tip: string }> = [
-	{ id: 'multiphysics', label: 'Multiphysics', tip: 'Coupled physics: one physics feeds another (couplings, DevLog-029)' },
+	{ id: 'multiphysics', label: 'Multiphysics', tip: 'Coupled physics: one physics feeds another (couplings)' },
 	{ id: 'heat', label: 'Heat transfer', tip: 'Conduction, convection, radiation; steady and transient' },
 	{ id: 'structural', label: 'Structural mechanics', tip: 'Linear elasticity, plane stress / strain, 3D' },
 	{ id: 'em-static', label: 'Electrostatics / magnetostatics', tip: 'Capacitance, inductance, static fields' },
@@ -79,7 +79,7 @@ export const CATALOG_A: CatalogEntry[] = [
 	{ id: 'semi-infinite-convection', title: 'Semi-infinite solid, sudden convection', category: 'heat', physics: ['heat'], dimension: '2D', evalCases: ['HT-04'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: '4/4 gated', via: 'harness', log: CLI_A }, tags: ['Carslaw-Jaeger', 'transient', 'convection', '1D on a strip'] },
 	// structural mechanics
-	{ id: 'kirsch-plate', title: 'Plate with a hole', category: 'structural', physics: ['elastic'], dimension: '2D', evalCases: ['SM-01', 'SM-02'], evalClass: ['a'], caseStatus: 'unvalidated', hero: true,
+	{ id: 'kirsch-plate', title: 'Plate with a hole', category: 'structural', physics: ['elastic'], dimension: '2D', evalCases: ['SM-01'], evalClass: ['a'], caseStatus: 'unvalidated', hero: true,
 		ref: { status: 'not-run', note: 'hero model; the SM-01 gate runs on kirsch-exact' }, tags: ['hero', 'stress concentration', 'plane stress'] },
 	{ id: 'kirsch-exact', title: 'Kirsch plate, exact traction', category: 'structural', physics: ['elastic'], dimension: '2D', evalCases: ['SM-01'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: '5/5 gated', via: 'harness', log: CLI_A }, tags: ['Kirsch', 'stress concentration', 'plane stress'] },
@@ -94,7 +94,7 @@ export const CATALOG_A: CatalogEntry[] = [
 		ref: { ...BASE, status: 'pass', targets: '3/3 gated', via: 'harness', log: CLI_C }, tags: ['Palace', 'capacitance matrix'] },
 	{ id: 'helmholtz-em04', title: 'Helmholtz coil (EM-04 gate model)', category: 'em-static', physics: ['magnetostatics'], dimension: 'axisym', evalCases: ['EM-04'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: '3/3 gated (2 pending)', via: 'harness', log: CLI_A }, tags: ['coil', 'B field'] },
-	{ id: 'helmholtz-coil', title: 'Helmholtz coil', category: 'em-static', physics: ['magnetostatics'], dimension: 'axisym', evalCases: ['EM-04', 'EM-03'], evalClass: ['a', 'c'], caseStatus: 'unvalidated', hero: true,
+	{ id: 'helmholtz-coil', title: 'Helmholtz coil', category: 'em-static', physics: ['magnetostatics'], dimension: 'axisym', evalCases: ['EM-04'], evalClass: ['a'], caseStatus: 'unvalidated', hero: true,
 		ref: { status: 'not-run', note: 'hero model; the EM-04 gate runs on helmholtz-em04' }, tags: ['hero', 'coil', 'B field'] },
 	{ id: 'coplanar-rings', title: 'Coplanar current rings', category: 'em-static', physics: ['magnetostatics'], dimension: 'axisym', evalCases: ['EM-03'], evalClass: ['c'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: '3/3 gated (+1 info)', via: 'harness', log: CLI_C }, tags: ['Palace', 'inductance matrix'] },
@@ -113,7 +113,7 @@ export const CATALOG_A: CatalogEntry[] = [
 		ref: { ...BASE, status: 'pass', targets: 'neff_TE0 gated', via: 'harness', log: CLI_A }, tags: ['slab', 'mode solver', 'SOI'] },
 	{ id: 'si-slab-tm0', title: 'Si slab waveguide TM0', category: 'optics', physics: ['em-modes'], dimension: '2D', evalCases: ['WO-01'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: 'neff_TM0 gated', via: 'harness', log: CLI_A }, tags: ['slab', 'mode solver', 'SOI'] },
-	{ id: 'si-rib-waveguide', title: 'Rib waveguide modes', category: 'optics', physics: ['em-modes'], dimension: '2D', evalCases: ['WO-02', 'WO-01'], evalClass: ['b', 'a'], caseStatus: 'unvalidated', hero: true,
+	{ id: 'si-rib-waveguide', title: 'Rib waveguide modes', category: 'optics', physics: ['em-modes'], dimension: '2D', evalCases: ['WO-02'], evalClass: ['b'], caseStatus: 'unvalidated', hero: true,
 		ref: { status: 'pending', note: 'WO-02 spec pending in the case (slab-thickness sweep targets not in the harness)' }, tags: ['hero', 'rib', 'mode solver', 'SOI'] },
 	{ id: 'bragg-edge-lower', title: 'Bragg stack, lower gap edge (scalar analog)', category: 'optics', physics: ['acoustics'], dimension: '2D', evalCases: ['WO-21'], evalClass: ['a'], caseStatus: 'unvalidated',
 		analog: 'normal-incidence scalar wave equation (c = c0 / n, uniform rho); zone-edge mode of the half cell',
@@ -131,6 +131,17 @@ export const CATALOG: CatalogEntry[] = (() => {
 	const seen = new Set<string>();
 	return [...CATALOG_A, ...CATALOG_BC, ...CATALOG_MP].filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
 })();
+
+/**
+ * Library listing rule (landing page and workbench picker, one rule; coordinator, DevLog-021): EM problems solved through
+ * the acoustics module show the field as pressure in Pa (wrong quantity and unit), so they stay out of the library until
+ * an EM module runs them. They remain openable by `?sim=`. Other analogs (same module, exact maps) stay listed.
+ */
+export const HIDDEN_ANALOGS: ReadonlySet<string> = new Set(CATALOG.filter((e) => e.analog && e.physics.includes('acoustics') && e.category !== 'acoustics').map((e) => e.id));
+/** Catalog entries the library lists. */
+export const LISTED_ENTRIES: readonly CatalogEntry[] = CATALOG.filter((e) => !HIDDEN_ANALOGS.has(e.id));
+/** Sims ids the library lists (from the existing files, e.g. sims.ts SIM_IDS). */
+export const listedIds = (ids: readonly string[]): string[] => ids.filter((id) => !HIDDEN_ANALOGS.has(id));
 
 export interface Filters {
 	categories?: readonly Category[];
@@ -168,7 +179,6 @@ export function entryTip(e: CatalogEntry): string {
 		`Reference: ${r.status}${r.targets ? `, ${r.targets}` : ''}${r.date ? `, ${r.date}` : ''}${r.via ? ` (${r.via})` : ''}`,
 	];
 	if (r.note) lines.push(r.note);
-	if (r.log) lines.push(`log: ${r.log}`);
 	lines.push(`Physics: ${e.physics.join(', ')}; ${e.dimension}`);
 	if (e.couplings?.length) lines.push(`Couplings: ${e.couplings.map((c) => `${c.type} (${c.from} -> ${c.to})`).join(', ')}`);
 	if (e.analog) lines.push(`Analog: ${e.analog}`);

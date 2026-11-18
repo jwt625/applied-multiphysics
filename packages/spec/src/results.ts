@@ -189,7 +189,7 @@ export function buildResultsSchema(l: ResultLeaves) {
     evaluations: z.array(evalGroup).optional(),
     tables: z.array(table).optional(),
     plots: z.array(plotGroup).optional(),
-  }).meta({ id: 'Results', description: 'Results (DevLog-023, CONTRACTS C10): datasets, evaluation groups, tables, plot groups. Exports are not supported yet (key reserved).' });
+  }).meta({ id: 'Results', description: 'Results: datasets, evaluation groups, tables, plot groups. Exports are not supported yet (key reserved).' });
 }
 
 // ---- static types (plain data; the zod schema is the authority) -------------------------------------------------

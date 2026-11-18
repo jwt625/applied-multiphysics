@@ -125,8 +125,8 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/half-wave-dipole.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id
-    is a proposal}
+spec: {status: pending, proposed: sims/half-wave-dipole.yaml, reason: 'no sims/ model yet (path in ''proposed''); engine
+    gap: driven antenna: no gap source or radiation BC (DevLog-021 s.4.1)'}
 missing: []
 assumptions: ['Gate on input conductance only: with a delta gap the susceptance grows like ln N (zero-width gap capacitance)
     and a finite gap adds its own capacitance, so X_in is not comparable between feed models; a shunt gap capacitance leaves

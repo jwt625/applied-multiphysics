@@ -33,13 +33,27 @@ studies:
 results:
   datasets:
     - {id: sol_tr, type: solution, data: tr}
+    - {id: probes_pt, type: cutpoint, data: sol_tr, points: [["0.0223 m", w/2], ["0.0859 m", w/2], ["0.1866 m", w/2], ["0.3462 m", w/2]]}
+    - {id: depth, type: cutline, data: sol_tr, from: ["0 m", w/2], to: [L, w/2], n: 400}
   evaluations:
     - id: ev_tr
       data: sol_tr
       items:
-        - {id: T_probes, type: global, expr: ht.T, unit: degC}
+        - {id: T_probes, type: point, data: probes_pt, expr: ht.T, unit: degC, label: "T at x = 0.0223, 0.0859, 0.1866, 0.3462 m (HT-04 depths)"}
   tables:
     - {id: tbl_tr, from: ev_tr}
+  plots:
+    - id: T_map
+      type: plot2d
+      data: sol_tr
+      steps: last
+      items:
+        - {id: T_map_surf, type: surface, expr: ht.T, unit: degC}
+    - id: T_line
+      type: plot1d
+      steps: last
+      items:
+        - {id: T_curve, type: linegraph, data: depth, x: arc, expr: ht.T, unit: degC}
 provenance:
   values:
     params.L: {basis: benchmark, source: "eval/cases/a/HT-04.yaml geometry.spec.domain_m (truncation chosen by L7a, effect below tolerance)", date: 2026-11-06}
@@ -56,3 +70,4 @@ provenance:
     mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice: resolves the thermal boundary layer sqrt(a t) = 0.11 m at 2000 s"}
 assumptions:
   - {text: "Uniform initial temperature; the convection switches on at t = 0 (step), as in the closed form", paths: [physics.ht.settings.T0]}
+# eval: [HT-04]

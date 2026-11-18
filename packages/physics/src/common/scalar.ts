@@ -6,7 +6,7 @@
 // included). Solves: supernodal Cholesky (@amp/core la/sparse), or AMG-preconditioned CG on request.
 
 import type { Mesh } from '@amp/spec/types';
-import { buildElementPattern, elementSlots, SparseCholesky } from '@amp/core/la/sparse';
+import { analyze, blockElementSlots, blockPattern, buildElementPattern, elementSlots, entryIndex, SparseCholesky } from '@amp/core/la/sparse';
 import { buildAMG } from '@amp/core/la/amg';
 import { NPC, nCells, nNodes } from './mesh.ts';
 import { defaultRule, facetJac, gatherX, physGrad, shapeTable, type ShapeTable } from './lagrange.ts';
@@ -47,7 +47,50 @@ export function cellPattern(m: Mesh): Csr {
   patCache.set(m.cells.conn, p);
   return p;
 }
-export function clearPatternCache(): void { patCache = new WeakMap(); }
+export function clearPatternCache(): void { patCache = new WeakMap(); blockCache = new WeakMap(); }
+
+let blockCache: WeakMap<Csr, Map<number, Csr>> = new WeakMap();
+
+/** Block pattern of the cell connectivity (DOF = node * bs + component; core blockPattern), cached per node pattern and bs. */
+export function cellBlockPattern(m: Mesh, bs: number): Csr {
+  const node = cellPattern(m);
+  let byBs = blockCache.get(node);
+  if (!byBs) { byBs = new Map(); blockCache.set(node, byBs); }
+  let p = byBs.get(bs);
+  if (!p) { p = blockPattern(node, bs) as Csr; byBs.set(bs, p); }
+  return p;
+}
+
+/**
+ * Element-to-CSR slot map of a block pattern with the core blockPattern layout over the cells (cellBlockPattern, or an
+ * equal pattern built elsewhere): nd^2 slots per cell, nd = k bs, local DOF bs a + c (row-major). Derived from the node
+ * slots without a search per entry (DevLog-033 O6, DevLog-045); cached on `pat`.
+ */
+export function cellBlockSlots(m: Mesh, pat: Csr, bs: number): Int32Array {
+  return blockElementSlots(cellPattern(m), pat, m.cells.conn, NPC[m.cells.type], bs) as Int32Array;
+}
+
+const facetSlotCache: WeakMap<readonly number[], { pat: Csr; conn: Int32Array; slots: Int32Array }> = new WeakMap();
+
+/**
+ * CSR slots (k^2 per listed facet, row-major) of the facets' nodes in `pat`, cached per facets array and pattern, so
+ * repeated facet assemblies (Newton, time steps) search once. Throws when an entry is not in the pattern.
+ */
+export function facetSlots(mesh: Mesh, pat: Csr, facets: readonly number[]): Int32Array {
+  const hit = facetSlotCache.get(facets);
+  if (hit && hit.pat === pat && hit.conn === mesh.facets.conn) return hit.slots;
+  const k = NPC[mesh.facets.type], conn = mesh.facets.conn;
+  const slots = new Int32Array(k * k * facets.length);
+  facets.forEach((f, i) => {
+    for (let a = 0; a < k; a++) for (let b = 0; b < k; b++) {
+      const z = entryIndex(pat, conn[k * f + a]!, conn[k * f + b]!) as number;
+      if (z < 0) throw new Error(`CSR entry (${conn[k * f + a]}, ${conn[k * f + b]}) not in pattern`);
+      slots[k * k * i + k * a + b] = z;
+    }
+  });
+  facetSlotCache.set(facets, { pat, conn, slots });
+  return slots;
+}
 
 /** Volume assembly of K (if k), M (if m), F (if f). */
 export function assembleCells(mesh: Mesh, c: CellCoef, rule?: ReturnType<typeof defaultRule>): Assembled {
@@ -118,7 +161,10 @@ export function assembleFacets(mesh: Mesh, pat: Csr, facets: readonly number[], 
   const X = new Float64Array(k * dim), P = new Float64Array(dim);
   const nodes = new Int32Array(k);
   const He = new Float64Array(k * k), Ge = new Float64Array(k);
+  const slots = o.Kval && o.h !== undefined ? facetSlots(mesh, pat, facets) : null;
+  let fi = -1;
   for (const f of facets) {
+    fi++;
     for (let a = 0; a < k; a++) nodes[a] = mesh.facets.conn[k * f + a]!;
     gatherX(mesh.nodes, dim, mesh.facets.conn, f, k, X);
     He.fill(0); Ge.fill(0);
@@ -136,7 +182,7 @@ export function assembleFacets(mesh: Mesh, pat: Csr, facets: readonly number[], 
       }
     }
     if (o.F) for (let a = 0; a < k; a++) o.F[nodes[a]!]! += Ge[a]!;
-    if (o.Kval && o.h !== undefined) for (let a = 0; a < k; a++) for (let b = 0; b < k; b++) o.Kval[entry(pat, nodes[a]!, nodes[b]!)]! += He[k * a + b]!;
+    if (slots) for (let a = 0; a < k; a++) for (let b = 0; b < k; b++) o.Kval![slots[k * k * fi + k * a + b]!]! += He[k * a + b]!;
   }
 }
 
@@ -188,6 +234,83 @@ export function restrict(p: Csr, val: Float64Array, free: Uint8Array): { pat: Cs
 
 export interface LinearStats { solver: string; dof: number; nnz: number; iterations?: number; residual?: number; factorMs?: number; solveMs?: number }
 
+// ---------------------------------------------------------------------------------- linear solver from the study (S4)
+
+/** Study-level linear solver setting (stationary study `settings.solver`, DevLog-045). */
+export type SolverSetting = 'direct' | 'amg-pcg' | 'auto';
+/** Physics types whose SpdSolver follows the study setting (scalar SPD problems; scalar AMG does not suit elasticity). */
+export const STUDY_SOLVER_TYPES: readonly string[] = ['heat', 'electrostatics', 'currents'];
+/**
+ * 'auto' rule (measured, DevLog-045 s.3.3): the direct factor's cost per DOF (symbolic flops / n, from the AMD analysis the
+ * direct path needs anyway) against AMG-PCG's roughly constant cost per DOF. Break-even measured near 3e5 flop/DOF
+ * (3D tet10 heat, 15.6k-node pattern: 2.7e5 flop/DOF, direct and AMG-PCG within 10 %; 35.9k: 7.6e5, AMG-PCG 2.2x faster
+ * in the solver stages; 2D tri6 646k: 4.0e4, direct 3.8x faster). AMG-PCG also when the factor would exceed
+ * AUTO_MAX_FACTOR_BYTES.
+ */
+export const AUTO_FLOPS_PER_DOF = 3e5;
+/** 'auto': AMG-PCG when the direct factor L would need more bytes than this (browser memory budget). */
+export const AUTO_MAX_FACTOR_BYTES = 2 ** 30;
+
+/** The 'auto' choice for a pattern with n rows and a symbolic analysis giving flops and nnzL. */
+export function autoSolverChoice(n: number, flops: number, nnzL: number): { kind: 'cholesky' | 'amg-pcg'; reason: string } {
+  const fpd = flops / Math.max(n, 1), bytes = 8 * nnzL;
+  if (bytes > AUTO_MAX_FACTOR_BYTES) return { kind: 'amg-pcg', reason: `direct factor ${(bytes / 2 ** 20).toFixed(0)} MiB > ${AUTO_MAX_FACTOR_BYTES / 2 ** 20} MiB` };
+  if (fpd >= AUTO_FLOPS_PER_DOF) return { kind: 'amg-pcg', reason: `direct factor ${fpd.toExponential(2)} flop/DOF >= ${AUTO_FLOPS_PER_DOF.toExponential(0)}` };
+  return { kind: 'cholesky', reason: `direct factor ${fpd.toExponential(2)} flop/DOF < ${AUTO_FLOPS_PER_DOF.toExponential(0)}` };
+}
+/** Default relative residual of the study-selected AMG-PCG (||b - A x|| / ||b||). */
+export const STUDY_AMG_RTOL = 1e-10;
+
+interface SolveRecord { kind: 'cholesky' | 'amg-pcg'; dof: number; rtol?: number; iterations?: number; residual?: number; reason?: string }
+interface Ambient { setting: SolverSetting; rtol: number; records: SolveRecord[] }
+let ambient: Ambient | null = null;
+
+/** The `solver` / `rtol` settings of a study node (undefined when absent; throws on a bad value). */
+export function studySolverSetting(study: { settings?: unknown } | null | undefined): { solver: SolverSetting; rtol: number } | undefined {
+  const s = (study?.settings ?? {}) as { solver?: unknown; rtol?: unknown };
+  if (s.solver === undefined) return undefined;
+  if (s.solver !== 'direct' && s.solver !== 'amg-pcg' && s.solver !== 'auto') throw new Error(`study solver '${String(s.solver)}': expected direct, amg-pcg or auto`);
+  const rtol = s.rtol === undefined ? STUDY_AMG_RTOL : Number(s.rtol);
+  if (!(rtol > 0 && rtol < 1)) throw new Error(`study rtol ${String(s.rtol)}: expected 0 < rtol < 1`);
+  return { solver: s.solver, rtol };
+}
+
+/**
+ * Run one physics module under the study's linear solver setting (driver hook, DevLog-045). For heat, electrostatics and
+ * currents with `settings.solver` on the study, every SpdSolver the module creates with its default kind ('cholesky')
+ * follows the setting: 'direct' (Cholesky), 'amg-pcg' (AMG-preconditioned CG to `settings.rtol`, default
+ * STUDY_AMG_RTOL), 'auto' (autoSolverChoice on the AMD symbolic analysis: AMG-PCG when the direct factor costs
+ * >= AUTO_FLOPS_PER_DOF flop per DOF or needs > AUTO_MAX_FACTOR_BYTES, else direct). The solution's stats.solver,
+ * stats.residual and a note report the solver, tolerance, iterations and achieved relative residual. Without the
+ * setting, or for other physics, the module runs unchanged. The setting is held in module state for the duration of
+ * run(): one run at a time per JS realm (true for the worker and the eval harness's worker per case).
+ */
+export async function withStudySolver<T>(study: { settings?: unknown } | null | undefined, physicsType: string | undefined, run: () => Promise<T>): Promise<T> {
+  const st = physicsType && STUDY_SOLVER_TYPES.includes(physicsType) ? studySolverSetting(study) : undefined;
+  if (!st) return run();
+  const prev = ambient;
+  const amb: Ambient = { setting: st.solver, rtol: st.rtol, records: [] };
+  ambient = amb;
+  let sol: T;
+  try { sol = await run(); } finally { ambient = prev; }
+  const amg = amb.records.filter((r) => r.kind === 'amg-pcg');
+  const o = sol as unknown as { stats?: { solver?: string; residual?: number }; notes?: string[] };
+  if (o && o.stats && amb.records.length) {
+    const maxDof = Math.max(...amb.records.map((r) => r.dof));
+    const why = [...new Set(amb.records.map((r) => r.reason).filter(Boolean))];
+    const head = `linear solver (study setting '${st.solver}'${why.length ? `; ${why.join('; ')}` : ''})`;
+    let note: string;
+    if (amg.length) {
+      const it = amg.map((r) => r.iterations ?? 0), res = Math.max(...amg.map((r) => r.residual ?? 0));
+      note = `${head}: amg-pcg, rtol ${st.rtol}, ${amg.length} solve(s), iterations ${Math.min(...it)}-${Math.max(...it)}, max relative residual ${res.toExponential(2)}, ${maxDof} DOF`;
+      o.stats.solver = `${String(o.stats.solver ?? '').replace(/^cholesky/, 'amg-pcg')} (rtol ${st.rtol})`;
+      o.stats.residual = Math.max(o.stats.residual ?? 0, res);
+    } else note = `${head}: direct (Cholesky), ${maxDof} DOF`;
+    o.notes = [...(o.notes ?? []), note];
+  }
+  return sol;
+}
+
 /** Reusable SPD solver on a fixed restricted pattern: Cholesky (default) or AMG-PCG. */
 export class SpdSolver {
   pat: Csr;
@@ -195,14 +318,31 @@ export class SpdSolver {
   private chol: SparseCholesky | null = null;
   private amg: ReturnType<typeof buildAMG> | null = null;
   private val: Float64Array | null = null;
+  private rec: SolveRecord | null = null;
   lastIterations = 0;
   lastResidual = 0;
   rtol: number;
-  constructor(pat: Csr, kind: 'cholesky' | 'amg-pcg' = 'cholesky', rtol = 1e-11) { this.pat = pat; this.kind = kind; this.rtol = rtol; }
+  constructor(pat: Csr, kind: 'cholesky' | 'amg-pcg' = 'cholesky', rtol = 1e-11) {
+    this.pat = pat; this.kind = kind; this.rtol = rtol;
+    // study setting (withStudySolver): applies when the module asked for its default
+    if (ambient && kind === 'cholesky') {
+      let useAmg = ambient.setting === 'amg-pcg', reason: string | undefined;
+      if (ambient.setting === 'auto') {
+        const sym = analyze(pat);
+        const c = autoSolverChoice(pat.n, Number(sym.flops), Number(sym.nnzL));
+        useAmg = c.kind === 'amg-pcg'; reason = `auto: ${c.reason}`;
+        if (!useAmg) this.sym = sym;   // reused by the direct factor (same AMD analysis SparseCholesky would compute)
+      }
+      if (useAmg) { this.kind = 'amg-pcg'; this.rtol = ambient.rtol; }
+      this.rec = { kind: this.kind, dof: pat.n, ...(useAmg ? { rtol: this.rtol } : {}), ...(reason ? { reason } : {}) };
+      ambient.records.push(this.rec);
+    }
+  }
+  private sym: ReturnType<typeof analyze> | null = null;
   factor(val: Float64Array): void {
     this.val = val;
     if (this.kind === 'cholesky') {
-      if (!this.chol) this.chol = new SparseCholesky(this.pat);
+      if (!this.chol) this.chol = this.sym ? new SparseCholesky(this.pat, null, { sym: this.sym }) : new SparseCholesky(this.pat);
       if (!this.chol.factor(val)) throw new Error('Cholesky: matrix not positive definite');
     } else {
       this.amg = buildAMG({ ...this.pat, val });
@@ -239,6 +379,7 @@ export class SpdSolver {
       for (let i = 0; i < n; i++) p[i] = z[i]! + be * p[i]!;
     }
     this.lastIterations = it; this.lastResidual = rn / bn;
+    if (this.rec) { this.rec.iterations = Math.max(this.rec.iterations ?? 0, it); this.rec.residual = Math.max(this.rec.residual ?? 0, rn / bn); }
     if (rn > this.rtol * bn * 10) throw new Error(`AMG-PCG did not converge: relres ${rn / bn} after ${it} iterations`);
     return x;
   }

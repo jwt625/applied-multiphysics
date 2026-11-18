@@ -5,12 +5,11 @@ id: CP-04
 class: c
 title: Si electrothermal (hot-arm) microactuator at 15 V (Mankame-Ananthasuresh 2001)
 status: untestable
-untestable_reason: 'inputs located 2026-11-07 (DevLog-035 s.2.7): the public VM223 input listing gives the outline from
-  D1..D9 and D11, k(T), alpha(T), film-coefficient tables h(T), emissivity and the 300 K ambient; still untestable because the
-  engine has no temperature-dependent k, alpha, h, no surface-to-surface radiation and no geometric non-linearity (NLGEOM).
-  sims/hot-arm-actuator.yaml runs with 300 K values only (logs/MX-run-all-20261107T094211.jsonl: tip u_y -7.719 um vs 27 um,
-  informative)'
-activation: source h, emissivity, T_ambient and the full geometry from Mankame-Ananthasuresh 2001
+untestable_reason: 'inputs located 2026-11-07 (DevLog-035 s.2.7): the public VM223 input listing gives the outline from D1..D9
+  and D11, k(T), alpha(T), film-coefficient tables h(T), emissivity and the 300 K ambient; still untestable because the engine
+  has no temperature-dependent k, alpha, h, no surface-to-surface radiation and no geometric non-linearity (NLGEOM). sims/hot-arm-actuator.yaml
+  runs with 300 K values only (logs/MX-run-all-20261107T094211.jsonl: tip u_y -7.719 um vs 27 um, informative)'
+activation: 'engine: temperature-dependent k, alpha and h, surface-to-surface radiation, NLGEOM'
 physics: [coupled-joule, coupled-thermoelastic]
 dimension: 3D
 units: SI
@@ -53,8 +52,9 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_with_attribution, copy_text, copy_figures, copy_input_files]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/hot-arm-actuator.yaml}
-missing: [convection h, emissivity, ambient temperature, d10, alpha and k units]
+spec: {status: pending, ref: sims/hot-arm-actuator.yaml, reason: untestable (see untestable_reason); the sim runs informative
+    with 300 K properties only}
+missing: []
 assumptions: []
 source_case: {suite: Ansys VM223 (pointer), file: Hlp_V_VM223.html, url: ansyshelp.ansys.com/public/Views/Secured/corp/v242/en/ans_vm/Hlp_V_VM223.html,
   accessed: '2026-11-06'}

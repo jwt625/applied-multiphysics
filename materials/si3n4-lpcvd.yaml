@@ -1,0 +1,102 @@
+# Stoichiometric silicon nitride film (LPCVD class) for photonic waveguides (lane T4, DevLog-041). Optical dispersion
+# from Luke et al. 2015 (film Sellmeier); index and thermo-optic coefficient of LPCVD stoichiometric Si3N4 at 1550 nm
+# from Arbabi and Goddard 2013. Film mechanics and thermal data: not read from a primary source (N/A below).
+schema: amp-material/0
+id: si3n4-lpcvd
+name: Silicon nitride, stoichiometric film (Si3N4, LPCVD class)
+class: dielectric_film
+description: >-
+  Stoichiometric Si3N4 thin film for waveguide cores. Default n(lambda) is the Luke et al. 2015 Sellmeier fit derived
+  from film measurements (UV to mid-IR); the Arbabi-Goddard 2013 microring value at 1550 nm for LPCVD stoichiometric
+  Si3N4 is an alternative (1.977 vs 1.996 from the fit: the spread between films). dn/dT from Arbabi-Goddard 2013.
+verified_on: 2026-11-18
+sources:
+  luke2015:
+    citation: "K. Luke, Y. Okawachi, M. R. E. Lamont, A. L. Gaeta, M. Lipson, Broadband mid-infrared frequency comb generation in a Si3N4 microresonator, Opt. Lett. 40(21), 4823-4826 (2015)"
+    doi: 10.1364/OL.40.004823
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/Si3N4/nk/Luke.yml
+    access: paywalled
+    read: "primary not read (paywalled). Abstract read via NCBI PubMed (PMID 26512459) 2026-11-18: 'a Sellmeier equation we derive from experimental measurements performed on Si3N4 films from the UV to the IR', deposition-anneal cycling. Coefficients from the refractiveindex.info entry (CC0) Si3N4/nk/Luke.yml fetched 2026-11-18 (sha256 36afc6d0536f...): formula 1, 0 3.0249 0.1353406 40314 1239.842, 0.310-5.504 um; comment '340 nm Si3N4 on 3.1 um of thermal SiO2 on silicon'"
+    licence: "refractiveindex.info database: CC0 1.0"
+  arbabi2013:
+    citation: "A. Arbabi, L. L. Goddard, Measurements of the refractive indices and thermo-optic coefficients of Si3N4 and SiOx using microring resonances, Opt. Lett. 38(19), 3878-3881 (2013)"
+    doi: 10.1364/OL.38.003878
+    url: https://experts.illinois.edu/en/publications/measurements-of-the-refractive-indices-and-thermo-optic-coefficie/
+    access: paywalled
+    read: "abstract only (University of Illinois research portal page, fetched 2026-11-18): 'At 1550 nm, we determine nSi3N4 = 1.977 +- 0.003 for stoichiometric silicon nitride deposited using low-pressure chemical vapor deposition (LPCVD) technique ... dnSi3N4/dT = (2.45 +- 0.09) x 10-5 (RIU/C)'; full text not read"
+properties:
+  n:
+    fit:
+      formula: sellmeier-c2
+      vars: [{name: lambda, unit: um, range: [0.31, 5.504]}]
+      coeffs: {A: 0, B: [3.0249, 40314], C: [0.1353406, 1239.842]}
+    unit: "1"
+    basis: measured
+    source: luke2015
+    locator: "refractiveindex.info Si3N4/nk/Luke.yml: formula 1 (n^2 = 1 + C1 + C2 l^2/(l^2 - C3^2) + C4 l^2/(l^2 - C5^2)), coefficients 0 3.0249 0.1353406 40314 1239.842 (Sellmeier of the paper)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "Si3N4 film (database comment: 340 nm on 3.1 um thermal SiO2 on Si); deposition method not stated in the abstract or the entry read; temperature not stated"}
+    n_medium: unstated
+    n_medium_note: "database entry and abstract do not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "temperature not stated (room temperature by context, not quantified)"}, note: "lambda range in the fit; n of SiN films depends on deposition and anneal"}
+    alternatives:
+      - id: arbabi2013_1550
+        use: "LPCVD stoichiometric Si3N4 measured at 1550 nm (sensitivity: film-to-film spread, -0.019 vs the default fit)"
+        value: 1.977
+        unit: "1"
+        basis: measured
+        source: arbabi2013
+        locator: "abstract: nSi3N4 = 1.977 +- 0.003 at 1550 nm, LPCVD stoichiometric"
+        accessed: 2026-11-18
+        uncertainty: {abs: 0.003}
+        conditions: {lambda: "1550 nm", text: "microring resonance fit (quasi-TE and quasi-TM modes, electromagnetic simulation + SVD)"}
+        n_medium: unstated
+        n_medium_note: "abstract does not state whether 1550 nm is the vacuum wavelength (laser wavelengths are normally vacuum values; not verified)"
+        valid: {lambda: {unit: nm, range: [1550, 1550]}, T: {na: "temperature not stated in the abstract"}}
+  dndT:
+    value: 2.45e-5
+    unit: 1/K
+    basis: measured
+    source: arbabi2013
+    locator: "abstract: dnSi3N4/dT = (2.45 +- 0.09) x 10-5 (RIU/C), stoichiometric LPCVD Si3N4, from temperature sensitivities of microring modes of different polarizations"
+    accessed: 2026-11-18
+    uncertainty: {abs: 0.09e-5, unit: 1/K}
+    conditions: {lambda: "1550 nm", text: "1/C and 1/K are the same interval unit"}
+    n_medium: unstated
+    n_medium_note: "abstract does not state the medium; dn/dT of the film"
+    valid: {lambda: {unit: nm, range: [1550, 1550]}, T: {na: "temperature range of the measurement not stated in the abstract"}}
+    alternatives: []
+  rho:
+    value: N/A
+    unit: kg/m^3
+    missing: "LPCVD stoichiometric Si3N4 film density not read from a primary source for this library"
+    alternatives: []
+  E:
+    value: N/A
+    unit: GPa
+    missing: "film Young's modulus not read from a primary source (deposition dependent; no open primary reached for this library)"
+    alternatives: []
+  nu:
+    value: N/A
+    unit: "1"
+    missing: "film Poisson ratio not read from a primary source"
+    alternatives: []
+  alpha:
+    value: N/A
+    unit: 1/K
+    missing: "film thermal expansion not read from a primary source"
+    alternatives: []
+  k:
+    value: N/A
+    unit: W/(m*K)
+    missing: "LPCVD Si3N4 thin-film thermal conductivity not read from a primary source (thickness and deposition dependent)"
+    alternatives: []
+  eps_r:
+    value: N/A
+    unit: "1"
+    missing: "RF permittivity of LPCVD Si3N4 not read from a primary source"
+    alternatives: []
+missing:
+  - {what: "film residual stress (process input; no value read, not stored)"}
+  - {property: n, what: "temperature dependence of the dispersion (only the 1550 nm dn/dT of Arbabi-Goddard)"}

@@ -40,6 +40,31 @@ export const FORMULAS: Record<string, Formula> = {
     description: 'n^2 = 1 + A + sum_i B_i lambda^2 / (lambda^2 - C_i) (refractiveindex.info "formula 2")',
     evaluate: (x, c) => sellmeier(x.lambda as number, c, false),
   },
+  'sellmeier-general': {
+    id: 'sellmeier-general', vars: ['lambda'], coeffs: { A: 'number', B: 'array', P: 'array', C: 'array', Q: 'array', D: 'array', R: 'array' },
+    description: 'n^2 = A + sum_i B_i lambda^P_i / (lambda^2 - C_i^Q_i) + sum_j D_j lambda^R_j (refractiveindex.info "formula 4"; terms with zero coefficients may be omitted)',
+    evaluate: (x, c) => {
+      const l = x.lambda as number, B = arr(c, 'B'), P = arr(c, 'P'), C = arr(c, 'C'), Q = arr(c, 'Q'), D = arr(c, 'D'), R = arr(c, 'R');
+      if (B.length !== P.length || B.length !== C.length || B.length !== Q.length || D.length !== R.length) throw new Error('sellmeier-general: B, P, C, Q and D, R must have equal lengths');
+      let n2 = num(c, 'A');
+      for (let i = 0; i < B.length; i++) n2 += (B[i] as number) * l ** (P[i] as number) / (l * l - (C[i] as number) ** (Q[i] as number));
+      for (let j = 0; j < D.length; j++) n2 += (D[j] as number) * l ** (R[j] as number);
+      if (!(n2 > 0)) throw new Error('sellmeier-general: n^2 <= 0');
+      return Math.sqrt(n2);
+    },
+  },
+  cauchy: {
+    id: 'cauchy', vars: ['lambda'], coeffs: { A: 'number', B: 'number', C: 'number' },
+    description: 'n = A + B / lambda^2 + C / lambda^4 (Cauchy), lambda in the fit variable unit (coefficients in matching units)',
+    evaluate: (x, c) => { const l2 = (x.lambda as number) ** 2; return num(c, 'A') + num(c, 'B') / l2 + num(c, 'C') / (l2 * l2); },
+  },
+  'li1980-eq22': {
+    id: 'li1980-eq22', vars: ['lambda', 'T'], coeffs: { eps: 'array', A: 'array' },
+    description: 'Li 1980 eq. (22) with L(T) = 1: n^2 = eps(T) + (A0 + A1 T + A2 T^2) / lambda^2, eps(T) = sum eps_i T^i; lambda in um, ' +
+      'T in K. L(T) = exp(-3 dL(T)/L293) equals 1 at 293 K by definition of L293; the printed dL/L293 polynomials are not used ' +
+      '(documented in the materials notes), so a YAML fit using this form states its T validity (293 K)',
+    evaluate: (x, c) => Math.sqrt(polyval(arr(c, 'eps'), x.T as number) + polyval(arr(c, 'A'), x.T as number) / (x.lambda as number) ** 2),
+  },
   'nist-cryo-log-poly': {
     id: 'nist-cryo-log-poly', vars: ['T'], coeffs: { a: 'array' },
     description: 'NIST cryogenic materials pages: log10 y = sum_i a_i (log10 T)^i, i = 0..8 (coefficients a..i)',

@@ -1,0 +1,98 @@
+# Benzocyclobutene, one named product series (lane T4, DevLog-041): Dow CYCLOTENE 3000 series (dry-etch grades),
+# processing guide revised February 2005, Table 1. Optical index not read.
+schema: amp-material/0
+id: bcb-cyclotene3000
+name: BCB, Dow CYCLOTENE 3000 series
+class: polymer
+description: >-
+  Benzocyclobutene dielectric (planarization, interlayer dielectric, wafer bonding). Permittivity and dissipation
+  factor at 1-20 GHz (ranges), thermal conductivity, CTE, tensile modulus, Poisson ratio. Tg is given only as > 350 C.
+verified_on: 2026-11-18
+sources:
+  dow_cyclotene3000:
+    citation: "The Dow Chemical Company, CYCLOTENE Advanced Electronic Resins, Processing procedures for CYCLOTENE 3000 series dry etch resins, revised February 2005"
+    url: https://wiki.nanofab.ucsb.edu/w/images/7/72/BCB-cyclotene-3000-revA.pdf
+    access: vendor_open
+    read: "text layer of the 8-page PDF (hosted by the UCSB nanofab wiki) fetched 2026-11-18 (sha256 fd75274f5d710e25...; PDF not kept): p.1 Table 1 'Thermal, electrical and mechanical properties of CYCLOTENE 3000 series resins'"
+properties:
+  E:
+    value: 2.9
+    unit: GPa
+    basis: datasheet
+    source: dow_cyclotene3000
+    locator: "p.1 Table 1: Tensile Modulus 2.9 +- 0.2 GPa"
+    accessed: 2026-11-18
+    uncertainty: {abs: 0.2, unit: GPa}
+    conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  nu:
+    value: 0.34
+    unit: "1"
+    basis: datasheet
+    source: dow_cyclotene3000
+    locator: "p.1 Table 1: Poisson's Ratio 0.34"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  alpha:
+    value: 42
+    unit: ppm/K
+    cte_kind: unstated
+    basis: datasheet
+    source: dow_cyclotene3000
+    locator: "p.1 Table 1: CTE 42 ppm/C at RT"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "at room temperature"}
+    valid: {T: {na: "room temperature, not quantified"}}
+    alternatives: []
+  k:
+    value: 0.29
+    unit: W/(m*K)
+    basis: datasheet
+    source: dow_cyclotene3000
+    locator: "p.1 Table 1: Thermal Conductivity 0.29 W/m K @24 C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "24 degC"}
+    valid: {T: {unit: degC, range: [24, 24]}}
+    alternatives: []
+  eps_r:
+    value: 2.575
+    unit: "1"
+    derivation: "midpoint of the printed range 2.65 - 2.50 (estimate; the frequency dependence inside the range is not given)"
+    basis: datasheet
+    source: dow_cyclotene3000
+    locator: "p.1 Table 1: Dielectric constant 2.65 - 2.50 at 1-20 GHz"
+    accessed: 2026-11-18
+    uncertainty: {range: [2.50, 2.65], note: "the source gives only the range over 1-20 GHz"}
+    conditions: {text: "1-20 GHz (range of the source)"}
+    valid: {f: {unit: GHz, range: [1, 20]}, T: {na: "temperature not stated"}}
+    alternatives: []
+  tan_delta:
+    value: 0.0014
+    unit: "1"
+    derivation: "midpoint of the printed range 0.0008 - 0.002 (estimate)"
+    basis: datasheet
+    source: dow_cyclotene3000
+    locator: "p.1 Table 1: Dissipation Factor 0.0008 - 0.002 at 1-20 GHz"
+    accessed: 2026-11-18
+    uncertainty: {range: [0.0008, 0.002], note: "the source gives only the range over 1-20 GHz"}
+    conditions: {text: "1-20 GHz (range of the source)"}
+    valid: {f: {unit: GHz, range: [1, 20]}, T: {na: "temperature not stated"}}
+    alternatives: []
+  n:
+    value: N/A
+    unit: "1"
+    missing: "optical refractive index not in the CYCLOTENE 3000 processing guide read"
+    alternatives: []
+  Tg:
+    value: N/A
+    unit: K
+    missing: "source gives only Tg > 350 C (a bound, not a value)"
+    alternatives: []
+missing:
+  - {what: "residual stress 28 +- 2 MPa at RT is in Table 1; no property type (process input)"}

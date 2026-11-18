@@ -12,12 +12,12 @@ sources:
     citation: "J. Baker-Jarvis, M. D. Janezic, B. F. Riddle, R. T. Johnk, P. Kabos, C. L. Holloway, R. G. Geyer, C. A. Grosvenor, Measuring the permittivity and permeability of lossy materials: solids, liquids, metals, building materials, and negative-index materials, NIST Technical Note 1536 (February 2005)"
     url: https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1536.pdf
     access: open
-    read: "report p.71 (pdf p.79) Sec. 7.5.6 text, read from a 130 dpi page render by L10 2026-11-06; cached under cache/materials/ptfe/"
+    read: "report p.71 (pdf p.79) Sec. 7.5.6 text, read from a 130 dpi page render 2026-11-06; cached under cache/materials/ptfe/"
   nist_cryo_teflon:
     citation: "NIST Cryogenic Technologies Group, Material properties: Teflon, trc.nist.gov"
     url: https://trc.nist.gov/cryogenics/materials/Teflon/Teflon_rev.htm
     access: open
-    read: "web page fetched and read by L10 2026-11-06 (thermal conductivity, specific heat, linear expansion fits; Young's modulus listed but no coefficients given)"
+    read: "web page fetched and read 2026-11-06 (thermal conductivity, specific heat, linear expansion fits; Young's modulus listed but no coefficients given)"
 properties:
   eps_r:
     value: 2.05
@@ -82,7 +82,7 @@ properties:
     derivation: "secant CTE about 293 K = [y(T) - y(293 K)] x 1e-5 / (T - 293 K) (formula nist-cryo-linexp-secant); the fit's own y(293 K) is -3.8 (x 1e-5) and cancels in this form"
     uncertainty: {rel: 0.02, note: "curve fit error relative to data: 2 % (on the expansion)"}
     conditions: {text: "Teflon, grade not stated"}
-    note: "smoothed 4th-order fit; within a few K of 293 K the value is the slope of the fit polynomial, not resolved data (the fresh-context audit notes PTFE has solid-solid transitions near room temperature, not verified from a source here)"
+    note: "smoothed 4th-order fit; within a few K of 293 K the value is the slope of the fit polynomial, not resolved data (a 2026-11-06 review notes PTFE has solid-solid transitions near room temperature, not verified from a source here)"
     alternatives: []
   rho:
     value: N/A

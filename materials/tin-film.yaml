@@ -1,0 +1,73 @@
+# Titanium nitride film (lane T4, DevLog-041), for plasmonics and heaters. Optical constants of one named deposition
+# (pulsed-DC sputtered 50 nm film, Beliaev et al. 2023). Electrical, thermal and mechanical film values: not read (N/A).
+schema: amp-material/0
+id: tin-film
+name: Titanium nitride film (sputtered)
+class: ceramic
+description: >-
+  TiN thin film. Complex refractive index of a 50 nm pulsed-DC sputtered film on Si (Beliaev et al. 2023, ellipsometry
+  and FTIR). TiN film properties depend strongly on deposition method, temperature and stoichiometry.
+verified_on: 2026-11-18
+sources:
+  beliaev2023:
+    citation: "L. Yu. Beliaev, E. Shkondin, A. V. Lavrinenko, O. Takayama, Optical properties of plasmonic titanium nitride thin films from ultraviolet to mid-infrared wavelengths deposited by pulsed-DC sputtering, thermal and plasma-enhanced atomic layer deposition, Opt. Mater. 143, 114237 (2023)"
+    doi: 10.1016/j.optmat.2023.114237
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/TiN/nk/Beliaev-sputtering.yml
+    access: paywalled
+    read: "abstract on DTU Orbit (orbit.dtu.dk publication page, fetched 2026-11-18): 50 nm films on Si, ellipsometry and FTIR 210 nm to the mid-IR, all measurements at room temperature, resistivity measured (values not in the abstract); full-text PDF request returned HTTP 403 (not retried). n, k table from the refractiveindex.info entry (CC0) TiN/nk/Beliaev-sputtering.yml (sha256 6829a7708416..., 1176 rows 0.2114-20 um, comment '50 nm thick film deposited by pulsed-DC sputtering'); rows at >= 0.05 um spacing from 0.40 to 2.58 um transcribed"
+    licence: "refractiveindex.info database: CC0 1.0"
+properties:
+  n:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [0.40011, 0.45097, 0.50185, 0.55272, 0.60357, 0.65438, 0.70513, 0.75581, 0.80639, 0.85686, 0.90719, 0.95738, 1.01061, 1.06159, 1.11267, 1.16385, 1.21514, 1.26652, 1.31801, 1.36959, 1.42128, 1.47306, 1.52494, 1.57693, 1.62901, 1.68120, 2.00000, 2.05018, 2.10295, 2.15412, 2.20785, 2.25951, 2.31365, 2.36517, 2.41903, 2.46965, 2.52242, 2.57751]
+      ys: [2.04562, 1.62673, 1.20392, 0.93267, 0.81889, 0.78958, 0.80420, 0.84419, 0.90026, 0.96726, 1.04209, 1.12200, 1.20994, 1.29653, 1.38510, 1.47526, 1.56666, 1.65900, 1.75203, 1.84551, 1.93922, 2.03297, 2.12659, 2.21992, 2.31282, 2.40517, 3.05703, 3.17854, 3.30729, 3.43304, 3.56590, 3.69437, 3.82965, 3.95893, 4.09459, 4.22248, 4.35616, 4.49600]
+    unit: "1"
+    basis: measured
+    source: beliaev2023
+    locator: "refractiveindex.info TiN/nk/Beliaev-sputtering.yml, tabulated, column n, 38 rows 0.40011-2.57751 um"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "50 nm TiN film on Si, pulsed-DC sputtering (database comment and abstract); deposition temperature of this entry not stated in the entry; room temperature measurement (abstract)"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "room temperature (abstract), not quantified"}}
+    alternatives: []
+  kappa:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [0.40011, 0.45097, 0.50185, 0.55272, 0.60357, 0.65438, 0.70513, 0.75581, 0.80639, 0.85686, 0.90719, 0.95738, 1.01061, 1.06159, 1.11267, 1.16385, 1.21514, 1.26652, 1.31801, 1.36959, 1.42128, 1.47306, 1.52494, 1.57693, 1.62901, 1.68120, 2.00000, 2.05018, 2.10295, 2.15412, 2.20785, 2.25951, 2.31365, 2.36517, 2.41903, 2.46965, 2.52242, 2.57751]
+      ys: [0.90038, 1.01591, 1.34506, 1.83530, 2.33326, 2.79087, 3.21030, 3.59922, 3.96373, 4.30812, 4.63526, 4.94666, 5.26381, 5.55697, 5.84161, 6.11864, 6.38876, 6.65252, 6.91040, 7.16281, 7.41011, 7.65260, 7.89059, 8.12433, 8.35407, 8.58003, 9.90258, 10.11440, 10.33355, 10.54268, 10.75870, 10.96300, 11.17364, 11.37085, 11.57375, 11.76139, 11.95400, 12.15179]
+    unit: "1"
+    basis: measured
+    source: beliaev2023
+    locator: "refractiveindex.info TiN/nk/Beliaev-sputtering.yml, tabulated, column k, 38 rows 0.40011-2.57751 um"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "50 nm TiN film on Si, pulsed-DC sputtering (database comment and abstract); deposition temperature of this entry not stated in the entry; room temperature measurement (abstract)"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "room temperature (abstract), not quantified"}}
+    alternatives: []
+  rho_e:
+    value: N/A
+    unit: ohm*m
+    missing: "film resistivity measured by Beliaev et al. 2023 but the full text was not reachable (HTTP 403); no other TiN film resistivity read for a named deposition"
+    alternatives: []
+  k:
+    value: N/A
+    unit: W/(m*K)
+    missing: "TiN film thermal conductivity not read from a primary source"
+    alternatives: []
+  alpha:
+    value: N/A
+    unit: 1/K
+    missing: "TiN film thermal expansion not read from a primary source"
+    alternatives: []
+  tcr:
+    value: N/A
+    unit: 1/K
+    missing: "TiN film TCR not read from a primary source"
+    alternatives: []

@@ -14,7 +14,7 @@ const RUN_FC = { ...RUN, log: 'logs/FC-run-20261107T101942.jsonl' } as const;
 export const CATALOG_MP: CatalogEntry[] = [
 	// thermal stress
 	{ id: 'nafems-t1-hotspot', title: 'NAFEMS T1 hot spot (heat -> stress)', category: 'multiphysics', physics: ['heat', 'elastic'], dimension: '2D',
-		evalCases: ['CP-21'], evalClass: ['a'], caseStatus: 'unvalidated', ref: { ...RUN, status: 'pass', targets: '1/1 gated (single level)', note: 'sigma_yy at D vs 50 MPa (CP-21)' },
+		evalCases: ['CP-21'], evalClass: ['a'], caseStatus: 'unvalidated', ref: { status: 'fail', date: '2026-11-18', targets: '0/1 gated on the harness: every level within 1.5 %, but levels oscillate (no convergence evidence)', via: 'harness', log: 'logs/eval-20261118T091440-summary.md', note: 'sigma_yy at D vs 50 MPa' },
 		couplings: [{ type: 'thermal-expansion', from: 'heat', to: 'elastic' }], tags: ['NAFEMS', 'thermal stress', 'plane stress', 'inclusion'] },
 	{ id: 'nafems-le11', title: 'NAFEMS LE11 thermal stress (axisym)', category: 'multiphysics', physics: ['heat', 'elastic'], dimension: 'axisym',
 		evalCases: ['CP-02'], evalClass: ['a'], caseStatus: 'unvalidated', ref: { ...RUN_FC, status: 'pass', targets: '1/1 gated (single level)', note: 'sigma_zz at A vs -105 MPa (CP-02)' },
@@ -50,6 +50,6 @@ export const CATALOG_MP: CatalogEntry[] = [
 		evalCases: [], evalClass: [], ref: { ...RUN, status: 'info', note: 'coupled vs in-vacuo fundamental; uncoupled checks in validation/mp' },
 		couplings: [{ type: 'acoustic-structure', from: 'elastic', to: 'acoustics' }], tags: ['acoustic-structure', 'membrane', 'metamaterial', 'axisymmetric', 'author model inputs'] },
 	{ id: 'gaas-microdisk-om', title: 'GaAs microdisk optomechanical coupling g0', category: 'multiphysics', physics: ['elastic', 'emw-axisym'], dimension: 'axisym',
-		evalCases: [], evalClass: [], ref: { ...RUN_FC, status: 'info', note: 'RBM1 frequency and |g0| x 2 pi vs Baker 2014 Table 3 (FEM, rad/s); engine gates in DevLog-034 s.4 (no eval case)' },
+		evalCases: [], evalClass: [], ref: { ...RUN_FC, status: 'info', note: 'RBM1 frequency and |g0| x 2 pi vs Baker 2014 Table 3 (FEM, rad/s); checked by engine tests (no eval case)' },
 		couplings: [{ type: 'optomechanical', from: 'elastic', to: 'emw-axisym' }], tags: ['optomechanics', 'g0', 'whispering gallery', 'radial breathing mode', 'photoelastic', 'moving boundary', 'GaAs', 'Baker 2014'] },
 ];

@@ -1,0 +1,50 @@
+# Aluminum nitride, wurtzite single crystal (lane T4, DevLog-041): ordinary and extraordinary Sellmeier dispersion of
+# Pastrnak-Roskovcova 1966. Sputtered AlN films (piezo MEMS, photonics) differ; mechanics and thermal data not read here.
+schema: amp-material/0
+id: aln
+name: Aluminum nitride (AlN), wurtzite crystal
+class: crystal
+description: >-
+  Wurtzite AlN, uniaxial (c axis = frame z): n_o, n_e from single-crystal measurements (Sellmeier fits, 0.22-5 um).
+  Film properties depend on deposition (sputtered c-axis-oriented films); stiffness, piezoelectric and thermal data not
+  authored.
+verified_on: 2026-11-18
+frame: "crystal axes: z = c axis (optic axis); x, y in the basal plane"
+sources:
+  pastrnak1966:
+    citation: "J. Pastrnak, L. Roskovcova, Refraction index measurements on AlN single crystals, Phys. Status Solidi 14, K5-K8 (1966)"
+    doi: 10.1002/pssb.19660140127
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/AlN/nk/Pastrnak-o.yml
+    access: paywalled
+    read: "primary not read; coefficients from the refractiveindex.info entries (CC0) AlN/nk/Pastrnak-o.yml (sha256 854600e9a0c7...) and Pastrnak-e.yml (sha256 4302c29ff5d3...), fetched 2026-11-18: formula 1, o: 2.1399 1.3786 0.1715 3.861 15.03; e: 2.0729 1.6173 0.1746 4.139 15.03; 0.22-5.0 um"
+    licence: "refractiveindex.info database: CC0 1.0"
+properties:
+  n:
+    tensor:
+      symmetry: uniaxial
+      components:
+        perp:
+          fit:
+            formula: sellmeier-c2
+            vars: [{name: lambda, unit: um, range: [0.22, 5.0]}]
+            coeffs: {A: 2.1399, B: [1.3786, 3.861], C: [0.1715, 15.03]}
+          locator: "Pastrnak-o.yml formula 1, coefficients 2.1399 1.3786 0.1715 3.861 15.03 (ordinary)"
+        par:
+          fit:
+            formula: sellmeier-c2
+            vars: [{name: lambda, unit: um, range: [0.22, 5.0]}]
+            coeffs: {A: 2.0729, B: [1.6173, 4.139], C: [0.1746, 15.03]}
+          locator: "Pastrnak-e.yml formula 1, coefficients 2.0729 1.6173 0.1746 4.139 15.03 (extraordinary)"
+    unit: "1"
+    basis: measured
+    source: pastrnak1966
+    locator: "refractiveindex.info AlN/nk/Pastrnak-o.yml and Pastrnak-e.yml (perp = n_o, par = n_e)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entries; primary not read"}
+    conditions: {text: "AlN single crystals; temperature not stated in the entries"}
+    n_medium: unstated
+    n_medium_note: "database entries do not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "temperature not stated"}, note: "lambda range in each fit"}
+    alternatives: []
+missing:
+  - {what: "AlN stiffness (6mm), piezoelectric e, permittivity, thermal conductivity (crystal and sputtered film), expansion: not read from a primary source for this library"}

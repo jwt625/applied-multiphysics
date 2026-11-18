@@ -39,7 +39,7 @@ export function previewOf(id: string): PreviewEntry | null {
 }
 
 export function previewUrl(file: string): string {
-	return asset(`/previews/${file}` as Parameters<typeof asset>[0]);
+	return asset(`previews/${file}` as Parameters<typeof asset>[0]);
 }
 
 /** default view of a card: the result, else the mesh, else the geometry; null without any image */

@@ -10,7 +10,8 @@ import { registerGeomFeatures } from '@amp/geom/spec';
 import { registerMaterialProperties } from '@amp/materials';
 import { COUPLING_REGISTRATIONS } from './couplings/index.ts';
 import { crystalsSchema } from './couplings/photonic.ts';
-import { RESULT_NAMES_COUPLED } from './modes/coupled.ts';
+import { RESULT_NAMES_COUPLED, EM_MODES_SETTINGS, RESULT_NAMES_MODES2 } from './modes/coupled.ts';
+import { WAVE2D_REGISTRATIONS, RESULT_NAMES_WAVE2D } from './wave2d/spec.ts';
 
 const own = { owner: '@amp/physics' } as const;
 
@@ -28,8 +29,8 @@ export const L4_REGISTRATIONS: Registration[] = [
     settings: z.strictObject({ crystals: crystalsSchema.optional() }) },
   { kind: 'physics', type: 'magnetostatics', ...own, dims: ['2d-axisym'], description: 'Axisymmetric magnetostatics, A_phi; optional inductance matrix of the coils',
     settings: z.strictObject({ inductance: z.boolean().optional() }) },
-  { kind: 'physics', type: 'em-modes', ...own, dims: ['2d'], description: 'Full-vector waveguide modes (Nedelec + Lagrange)',
-    settings: z.strictObject({ order: z.union([z.literal(1), z.literal(2)]).optional(), crystals: crystalsSchema.optional() }) },
+  { kind: 'physics', type: 'em-modes', ...own, dims: ['2d'], description: 'Full-vector waveguide modes (Nedelec + Lagrange); optional material loss, PML (leaky modes), bends, material dispersion in n_g',
+    settings: EM_MODES_SETTINGS },
   { kind: 'physics', type: 'emw', ...own, dims: ['3d'], description: 'Electromagnetic eigenmodes, Nedelec order 1-2',
     settings: z.strictObject({ order: z.union([z.literal(1), z.literal(2)]).optional() }) },
   { kind: 'physics', type: 'acoustics', ...own, dims: ['2d', '2d-axisym', '3d'], description: 'Pressure acoustics eigenfrequencies; order 2 (default) = P2 on tet10 / tri6, order 1 = P1 / Q1 hex',
@@ -58,6 +59,7 @@ export const L4_REGISTRATIONS: Registration[] = [
     } },
   { kind: 'bc', type: 'insulation', ...own, for: ['currents'], select: ['bnd'], description: 'Electric insulation, n . J = 0 (explicit)' },
   ...COUPLING_REGISTRATIONS,
+  ...WAVE2D_REGISTRATIONS,
 ];
 
 /** Field and scalar names of each module's Solution (C5), for results[].expr ('<physics id>.<name>'). */
@@ -66,10 +68,11 @@ export const RESULT_NAMES: Record<string, { fields: string[]; scalars: string[] 
   elastic: { fields: ['u', 'sxx', 'syy', 'sxy', 'szz', 'syz', 'sxz', 'srr', 'sphi', 'srz', 'mises', 's1', 's2', 's3'], scalars: ['mises_max', 'u_max', 'f_<k>'] },
   electrostatics: { fields: ['V'], scalars: ['C_<i>_<j>', 'C_per_m', 'L_per_m', 'Z0'] },
   magnetostatics: { fields: ['A_phi', 'Br', 'Bz', 'normB'], scalars: ['W_m', 'L_<i>_<j>'] },
-  'em-modes': { fields: ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'normE'], scalars: ['neff_<k>', 'teFraction_<k>', 'ng_<k>', 'powerW_<k>', 'lossDbPerM_<k>', ...RESULT_NAMES_COUPLED.thermo, ...RESULT_NAMES_COUPLED.eo] },
+  'em-modes': { fields: ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'normE'], scalars: ['neff_<k>', 'teFraction_<k>', 'ng_<k>', 'powerW_<k>', 'lossDbPerM_<k>', ...RESULT_NAMES_MODES2, ...RESULT_NAMES_COUPLED.thermo, ...RESULT_NAMES_COUPLED.eo] },
   emw: { fields: ['E', 'E_nodal'], scalars: ['f_<k>', 'Q_<k>'] },
   'emw-axisym': { fields: ['E_rphiz (meridional E_r, E_phi, E_z; 3D: reconstruct3D)'], scalars: ['f_<k>', 'm_<k>', 'ezFraction_<k>'] },
-  acoustics: { fields: ['p'], scalars: ['f_<k>'] },
+  acoustics: { fields: ['p', ...RESULT_NAMES_WAVE2D['acoustics-frequency']!.fields], scalars: ['f_<k>', ...RESULT_NAMES_WAVE2D['acoustics-frequency']!.scalars] },
+  'emw-2d': RESULT_NAMES_WAVE2D['emw-2d']!,
   // monolithic couplings (lane MT): fields keep their physics tags (u: elastic, V: electrostatics, p: acoustics)
   piezoelectric: { fields: ['u', 'V'], scalars: ['f_<k>'] },
   'acoustic-structure': { fields: ['u', 'p'], scalars: ['f_<k>'] },

@@ -168,7 +168,7 @@ function datasetTemplate(ctx: PlotCtx, type: string, id: string): Built {
 			return needSol() ?? { node: { id, type, data: sol, from: vec(box.lo, u), to: vec(box.hi, u) } };
 		}
 		case 'edge': {
-			if (gd === 3) return { disabled: '3D edges are not in the mesh entity table yet (DevLog-026 s.6)' };
+			if (gd === 3) return { disabled: '3D edges are not in the mesh entity table yet' };
 			const b = firstBoundary(ctx.mesh);
 			if (!b) return { disabled: 'mesh the model first (needs a boundary id)' };
 			return needSol() ?? { node: { id, type, data: sol, select: [b] } };

@@ -198,7 +198,7 @@ export function createLibrary(docs: readonly MaterialDoc[]): Library {
     const ctx: Ctx = { mat: d.id, prop, opts: o, extrapolated: false };
     checkValid(ctx, l.valid);
     const ref = parseUnit(def.unit);
-    const scale = prop === 'n' && airIndex !== undefined ? airIndex : 1;
+    const scale = (prop === 'n' || prop === 'kappa') && airIndex !== undefined ? airIndex : 1;
     const toRef = (si: number): number => fromSI(si, ref) * scale;
     let value: number | Record<string, number>;
     let matrix: number[][] | undefined;
@@ -261,7 +261,7 @@ export function createLibrary(docs: readonly MaterialDoc[]): Library {
       if (!leaf) {
         if (prop === 'sigma' && d.properties.rho_e && d.properties.rho_e.value !== 'N/A') {
           const r = lib.getProperty(id, 'rho_e', opts);
-          const derived = `sigma = 1 / rho_e (package rule, DevLog-013); rho_e from ${r.locator}`;
+          const derived = `sigma = 1 / rho_e (package rule); rho_e from ${r.locator}`;
           const out: PropertyValue = { ...r, property: 'sigma', unit: 'S/m', value: 1 / (r.value as number), basis: 'derived', derived: r.derived ? `${derived}; ${r.derived}` : derived };
           delete out.uncertainty;
           delete out.uncertaintySI;

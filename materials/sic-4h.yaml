@@ -1,0 +1,109 @@
+# 4H silicon carbide (lane T4, DevLog-041): ordinary / extraordinary dispersion of 4H-SiC (Wang et al. 2013). Mechanics and
+# thermal data specific to 4H were not read; polytype-unstated handbook values are kept only as alternatives.
+schema: amp-material/0
+id: sic-4h
+name: Silicon carbide, 4H polytype
+class: semiconductor
+description: >-
+  4H-SiC, hexagonal, uniaxial optics (c axis = frame z): n_o (0.4047-5 um) and n_e (0.4047-2.325 um) Sellmeier fits.
+  Stiffness tensor, k, alpha and density of 4H-SiC were not read from a primary source (N/A; handbook values without
+  polytype as alternatives).
+verified_on: 2026-11-18
+frame: "crystal axes: z = c axis (optic axis)"
+sources:
+  wang2013:
+    citation: "S. Wang, M. Zhan, G. Wang, H. Xuan, W. Zhang, C. Liu, C. Xu, Y. Liu, Z. Wei, X. Chen, 4H-SiC: a new nonlinear material for midinfrared lasers, Laser Photonics Rev. 7, 831-838 (2013)"
+    doi: 10.1002/lpor.201300068
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/SiC/nk/Wang-4H-o.yml
+    access: paywalled
+    read: "primary not read; coefficients from the refractiveindex.info entries (CC0) SiC/nk/Wang-4H-o.yml (sha256 1f91a6b29905..., formula 2: 0 0.20075 -12.07224 5.54861 0.02641 35.65066 1268.24708, 0.4047-5 um) and Wang-4H-e.yml (sha256 0867dd341bb0..., formula 4: 6.79485 0.15558 0 0.03535 1 0 0 0 1 -0.02296 2, 0.4047-2.325 um), fetched 2026-11-18"
+    licence: "refractiveindex.info database: CC0 1.0"
+  nist_solder_db_v4:
+    citation: "T. Siewert, S. Liu, D. R. Smith, J. C. Madeni, Database for solder properties with emphasis on new lead-free solders, release 4.0, NIST and Colorado School of Mines (2002-02-11)"
+    url: https://www.msed.nist.gov/solder/NIST_LeadfreeSolder_v4.pdf
+    access: open
+    read: "text layer of the local copy (cache/materials/gold/solderdb.txt), Table 2.2.6 row Silicon Carbide re-read 2026-11-18 (Winterbottom, JOM 1993, as cited; polytype not stated)"
+properties:
+  n:
+    tensor:
+      symmetry: uniaxial
+      components:
+        perp:
+          fit:
+            formula: sellmeier-c
+            vars: [{name: lambda, unit: um, range: [0.4047, 5]}]
+            coeffs: {A: 0, B: [0.20075, 5.54861, 35.65066], C: [-12.07224, 0.02641, 1268.24708]}
+          locator: "Wang-4H-o.yml formula 2 (n^2 = 1 + C1 + sum C_i l^2/(l^2 - C_i+1)), coefficients 0 0.20075 -12.07224 5.54861 0.02641 35.65066 1268.24708 (ordinary)"
+        par:
+          fit:
+            formula: sellmeier-general
+            vars: [{name: lambda, unit: um, range: [0.4047, 2.325]}]
+            coeffs: {A: 6.79485, B: [0.15558], P: [0], C: [0.03535], Q: [1], D: [-0.02296], R: [2]}
+          locator: "Wang-4H-e.yml formula 4 (n^2 = C1 + C2 l^C3/(l^2 - C4^C5) + C6 l^C7/(l^2 - C8^C9) + C10 l^C11), coefficients 6.79485 0.15558 0 0.03535 1 0 0 0 1 -0.02296 2 (extraordinary; the zero C6 term is omitted)"
+    unit: "1"
+    basis: measured
+    source: wang2013
+    locator: "refractiveindex.info SiC/nk/Wang-4H-o.yml and Wang-4H-e.yml (perp = n_o, par = n_e)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entries; primary not read"}
+    conditions: {text: "4H-SiC (database comment); temperature not stated"}
+    n_medium: unstated
+    n_medium_note: "database entries do not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "temperature not stated"}, note: "n_e fit ends at 2.325 um, n_o at 5 um"}
+    alternatives: []
+  E:
+    value: N/A
+    unit: GPa
+    missing: "no 4H-SiC elastic data read (hexagonal: needs the stiffness tensor C, not authored)"
+    alternatives:
+      - id: nist_db_unspecified
+        use: "reference only: handbook value, polytype not stated"
+        value: 412
+        unit: GPa
+        basis: handbook
+        source: nist_solder_db_v4
+        locator: "Table 2.2.6 row Silicon Carbide: elastic modulus 412 GPa (Winterbottom 1993, as cited)"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "polytype and direction not stated"}
+        valid: {T: {na: "temperature not stated"}}
+  alpha:
+    value: N/A
+    unit: ppm/K
+    missing: "no 4H-SiC thermal expansion read (anisotropic a / c axes)"
+    alternatives:
+      - id: nist_db_unspecified
+        use: "reference only: handbook value, polytype not stated"
+        value: 2.6
+        unit: ppm/K
+        cte_kind: unstated
+        basis: handbook
+        source: nist_solder_db_v4
+        locator: "Table 2.2.6 row Silicon Carbide: CTE 2.6 x 1e-6 /C"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "polytype, direction and range not stated"}
+        valid: {T: {na: "temperature not stated"}}
+  rho:
+    value: N/A
+    unit: g/cm^3
+    missing: "4H-SiC density not read from a primary source"
+    alternatives:
+      - id: nist_db_unspecified
+        use: "reference only: handbook value, polytype not stated"
+        value: 3.17
+        unit: g/cm^3
+        basis: handbook
+        source: nist_solder_db_v4
+        locator: "Table 2.2.6 row Silicon Carbide: density 3.17 g/cm3"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "polytype not stated"}
+        valid: {T: {na: "temperature not stated"}}
+  k:
+    value: N/A
+    unit: W/(m*K)
+    missing: "4H-SiC thermal conductivity not read from a primary source (doping and direction dependent)"
+    alternatives: []
+missing:
+  - {what: "4H-SiC stiffness tensor (hexagonal-6mm form), k(T), alpha(T), eps_r: not read"}

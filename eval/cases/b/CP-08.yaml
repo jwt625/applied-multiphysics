@@ -51,7 +51,7 @@ speed:
   reference_timings: []
   note: "budget set after the first timing run (R3 O3)"
 dataset: null
-spec: {status: pending, reason: "no 3D elastic eigen + vector optical eigen + overlap chain yet (C8)"}
+spec: {status: pending, reason: "untestable (see untestable_reason); no sims/ model. Engine gaps 2026-11-18: 3D vector optical eigen and the 3D optomechanical overlap (3D elastic eigen exists: packages/physics/src/elastic/modal.ts)"}
 rights:
   source_license: "APL (AIP) version paywalled; arXiv preprint open"
   allowed: [cite_values, re_derive_setup]

@@ -88,8 +88,9 @@ NOHERO = {"suitable": False, "why": "verification case, not a demo"}
 
 
 def spec_pending(sim_id: str) -> dict[str, Any]:
-    return {"status": "pending", "ref": f"sims/{sim_id}.yaml",
-            "reason": "amp-spec/0 models not yet published by lane L2; sims/ id is a proposal"}
+    # default for a case with no model; the case's `spec` is a preserved field, so an existing YAML keeps its own
+    return {"status": "pending", "proposed": f"sims/{sim_id}.yaml",
+            "reason": "no sims/ model yet (path in 'proposed'); capability gaps per case: DevLog-021 s.4.1 (2026-11-06)"}
 
 
 def case(cid: str, title: str, physics: list[str], dimension: str, geometry: dict, materials: dict, bcs: list,
@@ -782,9 +783,9 @@ def build() -> list[dict[str, Any]]:
         {"type": "stationary", "settings": {"plane": "stress"}},
         [dref("SM-21", k, k, d, u, {"rel": 1.0e-3, "after": "richardson"}, "Lame (Code_Aster REFERENCE='ANALYTIQUE')",
               GS + "::sm21")
-         for k, d, u in [("DX_A", "radial displacement at A", "length"), ("DX_B", "radial displacement at B", "length"),
-                         ("DX_D", "u_x at D", "length"), ("DY_D", "u_y at D", "length"),
-                         ("DX_F", "u_x at F", "length"), ("SIXX_A", "sigma_rr at A", "MPa"),
+         for k, d, u in [("DX_A", "radial displacement at A", "m"), ("DX_B", "radial displacement at B", "m"),
+                         ("DX_D", "u_x at D", "m"), ("DY_D", "u_y at D", "m"),
+                         ("DX_F", "u_x at F", "m"), ("SIXX_A", "sigma_rr at A", "MPa"),
                          ("SIYY_A", "sigma_tt at A", "MPa")]],
         speed(2.0, "by analogy with R3 SM-02 < 2 s"),
         {"source_license": "Code_Aster astest files GPL-3.0-or-later (EDF); V-docs GNU FDL not used",
@@ -795,7 +796,9 @@ def build() -> list[dict[str, Any]]:
         missing=["Mesh geometry (radii, sector angle) is in the MED mesh, not in the .comm; thickness N/A."],
         assumptions=["Radii a = 0.1, b = 0.2 inferred from the test's own ANALYTIQUE values (unique: b/a = 2 from "
                      "u(a)/u(b) = 5.9/4.0, then a from u(b) = 4.0e-5); sector 45 deg inferred from points E, F at "
-                     "45 deg and D at 22.5 deg (DX = DY at E and F)."],
+                     "45 deg and D at 22.5 deg (DX = DY at E and F).",
+                     "Length unit of the Code_Aster mesh taken as m (displacement unit = length unit, E and p in MPa); "
+                     "displacement targets are written in m, values unchanged (T2, DevLog-039)."],
         extra={"source_case": {"suite": "Code_Aster astest", "file": "astest/sslv04a.comm",
                                "url": "gitlab.com/codeaster/src/-/raw/main/astest/sslv04a.comm", "accessed": ACC}}))
 
@@ -895,6 +898,13 @@ def merge_preserved(new: dict[str, Any], old: dict[str, Any]) -> list[str]:
     return kept
 
 
+def header(c: dict[str, Any]) -> str:
+    """Comment header; names eval/expected/<ID>.json only when a target links it (basis D)."""
+    src = (f"from eval/expected/{c['id']}.json where basis is D" if any(r.get("expected") for r in c["references"])
+           else "from cited values (no basis-D target, no expected JSON)")
+    return f"# {c['id']}: {c['title']}\n# Built by validation/a/build_cases.py {src}. Schema amp-eval/0 ({R3} s.2).\n"
+
+
 class _NoAliasDumper(yaml.SafeDumper):
     def ignore_aliases(self, data: Any) -> bool:
         return True
@@ -915,8 +925,7 @@ def main() -> int:
         src = (Path(a.preserve_from) if a.preserve_from else CASES_DIR) / f"{c['id']}.yaml"
         kept = merge_preserved(c, yaml.safe_load(src.read_text())) if src.exists() else []
         n_kept += len(kept)
-        head = (f"# {c['id']}: {c['title']}\n# Built by validation/a/build_cases.py from eval/expected/{c['id']}.json "
-                f"where basis is D. Schema amp-eval/0 ({R3} s.2).\n")
+        head = header(c)
         text = head + yaml.dump(c, Dumper=_NoAliasDumper, sort_keys=False, width=118, allow_unicode=False,
                                 default_flow_style=None)
         if path.exists():

@@ -1,0 +1,177 @@
+# Tungsten, bulk handbook values and optical constants (lane T4, DevLog-041), for heaters and vias. Thin-film W
+# (sputtered / CVD) resistivity and stress differ from bulk and are not stored.
+schema: amp-material/0
+id: tungsten
+name: Tungsten, bulk
+class: metal
+description: >-
+  Bulk tungsten: handbook density, heat capacity, expansion, resistivity, TCR, thermal conductivity and elastic moduli
+  (NIST solder database compilation), optical constants from Ordal et al. 1988. Thin-film values are not stored.
+verified_on: 2026-11-18
+sources:
+  nist_solder_db_v4:
+    citation: "T. Siewert, S. Liu, D. R. Smith, J. C. Madeni, Database for solder properties with emphasis on new lead-free solders, release 4.0, NIST and Colorado School of Mines (2002-02-11)"
+    url: https://www.msed.nist.gov/solder/NIST_LeadfreeSolder_v4.pdf
+    access: open
+    read: "text layer of the local copy (cache/materials/gold/solderdb.txt, fetched 2026-11-06), Tables 1.10, 2.2.5, 2.2.7, 2.2.8 re-read 2026-11-18; a compilation: each table names its source (Lange 1956, AIP Handbook 1957, Smithells 1983, ASM Handbook Vol. 6 1993)"
+  ordal1988:
+    citation: "M. A. Ordal, R. J. Bell, R. W. Alexander, L. A. Newquist, M. R. Querry, Optical properties of Al, Fe, Ti, Ta, W, and Mo at submillimeter wavelengths, Appl. Opt. 27(6), 1203-1209 (1988)"
+    doi: 10.1364/AO.27.001203
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/W/nk/Ordal.yml
+    access: paywalled
+    read: "primary not read; n, k table from the refractiveindex.info entry (CC0) W/nk/Ordal.yml fetched 2026-11-18 (sha256 9c69e415a8b0...), 51 rows 0.667-200 um; all 22 rows 0.667-2.86 um transcribed. The entry gives no sample or temperature comment"
+    licence: "refractiveindex.info database: CC0 1.0"
+properties:
+  rho:
+    value: 19.3
+    unit: g/cm^3
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Tungsten: density (20 C) 19.3 g/cm3 (Lange 1956, as cited); Table 2.2.7: 19.3"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "20 degC"}
+    valid: {T: {unit: degC, range: [20, 20]}}
+    alternatives: []
+  E:
+    value: 340
+    unit: GPa
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 1.10 row Tungsten: E 340 GPa, G 135 GPa (Gray, AIP Handbook 1957, as cited; condition column empty)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "condition not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: 
+      - id: asm1993
+        use: "sensitivity (other compiled source in the same database)"
+        value: 411
+        unit: GPa
+        basis: handbook
+        source: nist_solder_db_v4
+        locator: "Table 2.2.7 row W: Young's modulus 411 GPa (Brandi et al., ASM Handbook Vol. 6, 1993, as cited)"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "condition not stated"}
+        valid: {T: {na: "temperature not stated"}}
+  G:
+    value: 135
+    unit: GPa
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 1.10 row Tungsten: G 135 GPa"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "condition not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  nu:
+    value: 0.259
+    unit: "1"
+    derivation: "nu = E / (2 G) - 1 = 340 / 270 - 1 = 0.2593 (isotropic relation, computed)"
+    basis: derived
+    source: nist_solder_db_v4
+    locator: "Table 1.10 row Tungsten: E 340 GPa, G 135 GPa"
+    accessed: 2026-11-18
+    uncertainty: {na: "propagated from unstated E and G uncertainties"}
+    conditions: {text: "condition not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  k:
+    value: 169
+    unit: W/(m*K)
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Tungsten: thermal conductivity '169.; 174 S' (169 Lange 1956; 174 Smithells 1983 p.14-1, 0-100 C)"
+    accessed: 2026-11-18
+    uncertainty: {range: [169, 174], unit: W/(m*K), note: "the two compiled values printed in the same cell"}
+    conditions: {text: "temperature of the Lange value not stated in the table header for this column; Smithells value is for 0-100 C"}
+    valid: {T: {na: "temperature not stated for the default value"}}
+    alternatives:
+      - id: smithells1983
+        use: "sensitivity, stated 0-100 C"
+        value: 174
+        unit: W/(m*K)
+        basis: handbook
+        source: nist_solder_db_v4
+        locator: "Table 2.2.5 row Tungsten: 174 (marked S: Smithells Metals Reference Book 6th ed., p.14-1, th. cond. 0-100 C)"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {text: "0-100 C"}
+        valid: {T: {unit: degC, range: [0, 100]}}
+  cp:
+    value: 135.9
+    unit: J/(kg*K)
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Tungsten: heat capacity (25 C) 5.97 g-cal/(g-at K), 135.9 J/(kg K) (Lange 1956, as cited)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "25 degC"}
+    valid: {T: {unit: degC, range: [25, 25]}}
+    alternatives: []
+  alpha:
+    value: 4.0
+    unit: ppm/K
+    cte_kind: unstated
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Tungsten: thermal expansion coefficient (20 C) 4. x 1e-6 /K (Lange 1956, as cited); Table 2.2.7: 4.5 (ASM Handbook Vol. 6)"
+    accessed: 2026-11-18
+    uncertainty: {range: [4.0, 4.5], unit: ppm/K, note: "two tables of the same database (different compiled sources)"}
+    conditions: {T: "20 degC"}
+    valid: {T: {unit: degC, range: [20, 20]}}
+    alternatives: []
+  rho_e:
+    value: 5.48
+    unit: uohm*cm
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.5 row Tungsten: electrical resistivity (20 C) '5.48; 5.51#' (1e-6 ohm cm; 5.48 Lange 1956, 5.51 AIP Handbook 1957)"
+    accessed: 2026-11-18
+    uncertainty: {range: [5.48, 5.51], unit: uohm*cm, note: "two compiled values in the same cell"}
+    conditions: {T: "20 degC", text: "bulk; CVD / sputtered W films have higher resistivity (not stored)"}
+    valid: {T: {unit: degC, range: [20, 20]}, note: "use tcr for small excursions"}
+    alternatives: []
+  tcr:
+    value: 0.0048
+    unit: 1/K
+    note: "Table 2.2.8 prints the resistivity unit as ohm.cm; the values are micro-ohm cm (inference); only the TCR is used here"
+    basis: handbook
+    source: nist_solder_db_v4
+    locator: "Table 2.2.8 row Tungsten: 300 K, resistivity 5.3, TCR 4.8 (1e-3 /K) (Smithells 1983 p.16-2, as cited)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {T: "300 K"}
+    valid: {T: {unit: K, range: [300, 300]}}
+    alternatives: []
+  n:
+    table: {x: lambda, x_unit: um, xs: [0.667, 0.714, 0.769, 0.833, 0.909, 1.00, 1.05, 1.11, 1.18, 1.25, 1.33, 1.43, 1.54, 1.67, 1.82, 2.00, 2.11, 2.22, 2.35, 2.50, 2.67, 2.86], ys: [3.8312601, 3.9313491, 3.7783360, 3.5190631, 3.2814572, 3.0826871, 3.0570934, 3.0821649, 3.1599449, 3.1960757, 3.1990778, 3.0278249, 2.2587782, 1.8828191, 1.5455798, 1.2992808, 1.1946455, 1.2212030, 1.2886548, 1.4507921, 1.6746349, 1.8748013]}
+    unit: "1"
+    basis: measured
+    source: ordal1988
+    locator: "refractiveindex.info W/nk/Ordal.yml, tabulated nk, column n"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "sample and temperature not stated in the entry; coarse grid (1.43, 1.54, 1.67 um around 1.55 um)"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  kappa:
+    table: {x: lambda, x_unit: um, xs: [0.667, 0.714, 0.769, 0.833, 0.909, 1.00, 1.05, 1.11, 1.18, 1.25, 1.33, 1.43, 1.54, 1.67, 1.82, 2.00, 2.11, 2.22, 2.35, 2.50, 2.67, 2.86], ys: [2.9042727, 2.7924078, 2.6322954, 2.7670600, 3.0100921, 3.4208368, 3.7224010, 3.9693342, 4.1791582, 4.3367596, 4.4460869, 4.3901355, 4.7741297, 5.4881071, 6.4453363, 7.5659499, 8.2613235, 9.0476312, 9.8569158, 10.710594, 11.554665, 12.375593]}
+    unit: "1"
+    basis: measured
+    source: ordal1988
+    locator: "refractiveindex.info W/nk/Ordal.yml, tabulated nk, column k"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; primary not read"}
+    conditions: {text: "as n"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; primary not read"
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+missing:
+  - {what: "thin-film W resistivity and stress (deposition dependent; not stored)"}
+  - {what: "Werner et al. 2009 (JPCRD 38, 1013; REELS-derived) W optical constants differ from Ordal 1988 by about 1 in n near 1.24 um (refractiveindex.info W/nk/Werner.yml, read 2026-11-18); not stored, W optical data spread is large"}

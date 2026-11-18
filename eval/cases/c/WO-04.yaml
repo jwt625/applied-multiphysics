@@ -33,6 +33,14 @@ references:
   expected: {file: eval/expected/WO-04.json, metric_id: gap_lower}
   provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson; agrees with the independent PWE limit (this lane)',
     locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/c/gen_pwe.py}
+  spec: sims/phc-square-rods-lower.yaml
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_0}
+      a: {value: 1, unit: m, source: 'sims/phc-square-rods-lower.yaml params.a (lattice constant, unit by choice)'}
+      c: {value: 1, unit: m/s, source: 'sims/phc-square-rods-lower.yaml params.c_vac (wave speed in air, unit by choice)'}
 - quantity: gap upper edge (converged)
   metric_id: gap_upper
   value: 0.4171623956235006
@@ -46,6 +54,14 @@ references:
   expected: {file: eval/expected/WO-04.json, metric_id: gap_upper}
   provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson; agrees with the independent PWE limit (this lane)',
     locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/c/gen_pwe.py}
+  spec: sims/phc-square-rods-upper.yaml
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_0}
+      a: {value: 1, unit: m, source: 'sims/phc-square-rods-upper.yaml params.a (lattice constant, unit by choice)'}
+      c: {value: 1, unit: m/s, source: 'sims/phc-square-rods-upper.yaml params.c_vac (wave speed in air, unit by choice)'}
 - quantity: PWE gap lower edge
   metric_id: pwe_gap_lower
   value: 0.28066257049446014
@@ -58,6 +74,14 @@ references:
   expected: {file: eval/expected/WO-04.json, metric_id: pwe_gap_lower}
   provenance: {citation: plane-wave expansion (this lane), locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py,
     accessed: null, generator: validation/c/gen_pwe.py}
+  spec: sims/phc-square-rods-lower.yaml
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_0}
+      a: {value: 1, unit: m, source: 'sims/phc-square-rods-lower.yaml params.a (lattice constant, unit by choice)'}
+      c: {value: 1, unit: m/s, source: 'sims/phc-square-rods-lower.yaml params.c_vac (wave speed in air, unit by choice)'}
 - quantity: PWE gap upper edge
   metric_id: pwe_gap_upper
   value: 0.41716547014388133
@@ -70,6 +94,14 @@ references:
   expected: {file: eval/expected/WO-04.json, metric_id: pwe_gap_upper}
   provenance: {citation: plane-wave expansion (this lane), locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py,
     accessed: null, generator: validation/c/gen_pwe.py}
+  spec: sims/phc-square-rods-upper.yaml
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_0}
+      a: {value: 1, unit: m, source: 'sims/phc-square-rods-upper.yaml params.a (lattice constant, unit by choice)'}
+      c: {value: 1, unit: m/s, source: 'sims/phc-square-rods-upper.yaml params.c_vac (wave speed in air, unit by choice)'}
 - quantity: MPB 1.34.0 resolution 32 lower edge
   metric_id: mpb32_gap_lower
   value: 0.2809479558404588
@@ -82,6 +114,14 @@ references:
   expected: {file: eval/expected/WO-04.json, metric_id: mpb32_gap_lower}
   provenance: {citation: MPB at tutorial settings, locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null,
     generator: validation/c/gen_pwe.py}
+  spec: sims/phc-square-rods-lower.yaml
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_0}
+      a: {value: 1, unit: m, source: 'sims/phc-square-rods-lower.yaml params.a (lattice constant, unit by choice)'}
+      c: {value: 1, unit: m/s, source: 'sims/phc-square-rods-lower.yaml params.c_vac (wave speed in air, unit by choice)'}
 - quantity: MPB 1.34.0 resolution 32 upper edge
   metric_id: mpb32_gap_upper
   value: 0.41711424941157066
@@ -94,6 +134,14 @@ references:
   expected: {file: eval/expected/WO-04.json, metric_id: mpb32_gap_upper}
   provenance: {citation: MPB at tutorial settings, locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null,
     generator: validation/c/gen_pwe.py}
+  spec: sims/phc-square-rods-upper.yaml
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: f_0}
+      a: {value: 1, unit: m, source: 'sims/phc-square-rods-upper.yaml params.a (lattice constant, unit by choice)'}
+      c: {value: 1, unit: m/s, source: 'sims/phc-square-rods-upper.yaml params.c_vac (wave speed in air, unit by choice)'}
 - quantity: gap lower edge (band 1 max)
   metric_id: gap_lower_edge_band_1_max
   value: 0.282623311147724
@@ -139,10 +187,13 @@ hero:
   suitable: true
   why: photonic band diagram (H7)
   visual: [band_diagram, Ez_mode]
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/phc-square-rods.yaml}
+spec: {status: pending, reason: 'no single model: gap_lower runs on sims/phc-square-rods-lower.yaml, gap_upper on sims/phc-square-rods-upper.yaml
+    (target specs)'}
 missing: []
 assumptions: []
 source_case: {suite: MPB tutorial, file: doc/docs/Python_Tutorial.md, url: github.com/NanoComp/mpb tag v1.12.0, accessed: '2026-11-06',
   note: cache/eval-c/sources/mpb/Python_Tutorial.md sha256 beebeb55eabd0e1b7297045377fb505ed56d688c7f246c8fce3363c4b6886001}
 lane: L7c
 created: '2026-11-06'
+notes: ['Engine: lowest eigenfrequency of the quarter cell at M (even, even) = band 1 maximum, and at X (odd, even) = band
+    2 minimum (DevLog-022 s.3.3 symmetry-class scan); PWE / MPB-32 targets reuse the same extracts (info).']

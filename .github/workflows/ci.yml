@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CI (DevLog-038, lane T1): type checks, unit tests of every package and the web app, and a fast class-a eval subset
+# through the harness CLI. The e2e smoke (apps/web/scripts/e2e-smoke.ts) runs in a separate, non-blocking job with the
+# Playwright headless shell installed on the runner only and software GL (SwiftShader flags are in the launch).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: Run the e2e smoke job
+        type: boolean
+        default: true
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # engines: node >= 23.6 (type stripping on by default); 24 is the current LTS line
+  NODE_VERSION: '24'
+  AMP_RT_ALLOW_NO_GPU: '1'
+
+jobs:
+  check-test-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm version from package.json "packageManager"
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: check (tsc per package, svelte-check in apps/web)
+        run: pnpm check
+      - name: test (every package and apps/web)
+        run: pnpm test
+      - name: eval, class-a subset (harness CLI, engine adapter)
+        # cases that run in seconds each on a laptop (logs/W3-eval-class-a-20261106T205440.log); exit 2 = a gated target missed
+        run: |
+          set -e
+          for c in EM-01 EM-04 HT-01 HT-02 HT-03 SM-01 SM-02 WO-01 RF-21 AC-02; do
+            node --max-old-space-size=1536 packages/eval/src/cli.ts --case "$c"
+          done
+      - name: upload eval logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-logs
+          path: logs/eval-*
+          if-no-files-found: ignore
+          retention-days: 14
+
+  e2e:
+    if: github.event_name != 'workflow_dispatch' || inputs.e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: install the Playwright headless shell (runner only) and its system libraries
+        working-directory: apps/web
+        run: pnpm exec playwright-core install --with-deps chromium-headless-shell
+      - name: e2e smoke (landing, Play views, every 2D and axisymmetric sims file)
+        working-directory: apps/web
+        run: pnpm e2e --skip-3d --timeout-scale 3 --tag ci
+      - name: upload e2e logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: logs/ci-e2e-*
+          if-no-files-found: ignore
+          retention-days: 14

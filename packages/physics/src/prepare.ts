@@ -5,31 +5,51 @@
 // Mesh levels (Follow-up 2): hFactor = 2^-k gives a NESTED sequence: the hFactor = 1 mesh refined k times by
 // @amp/mesh refineUniform (new boundary nodes on the exact curves / cylinder), so Richardson sees a fixed refinement
 // ratio 2. Other hFactors re-mesh with hmax, hmin, refine.h and grading scaled by hFactor (non-nested; noted).
+// 3D layer stacks (extrude, mixed boxes / z cylinders; DevLog-044) mesh as tet4 / tet10 with nested levels too.
 // Materials: override values; `ref: materials/<id>` through an injected library (`library`, the @amp/materials Library
 // shape; in Node the default library is loaded lazily when none is given); N/A values are filled from the eval
 // case's `materials` block when it names the property, and written into the returned spec (notes say so). No property
 // is defaulted. The context carries `timing` (validate, geometry_mesh, materials, ms) and `notes`.
+// Optical binding (DevLog-046): em-modes `loss` reads library kappa and `dispersion` library dn/dlambda (with
+// provenance notes) at the mode wavelength; emw-2d reads its properties at lambda = c0 / f of a single-frequency study.
 
 import type { Mesh, RunContext, Spec, StudyNode } from '@amp/spec/types';
 import { validateSpec, resolveParams, resolveQuantity } from '@amp/spec';
 import { meshFromSpec } from '@amp/mesh/spec';
-import { refineUniform, meshCylinder, cylinderSideProjector } from '@amp/mesh';
-import { makeResolver, geometryFromSpec } from '@amp/geom/spec';
+import { refineUniform, meshCylinder, cylinderSideProjector, stackProjector, stackQuality } from '@amp/mesh';
+import { makeResolver, geometryFromSpec, isStack3D } from '@amp/geom/spec';
 import { physicsRegistry } from './registrations.ts';
 import { boxMesh } from './common/mesh.ts';
 import { hexToTet10 } from './elastic/hex2tet.ts';
 import { COUPLING_NEEDS } from './couplings/index.ts';
+import { selectEntities } from './common/mesh.ts';
+import { dispersion, type Library } from '@amp/materials';
 
 const NEEDS: Record<string, string[]> = {
   heat: ['k', 'rho', 'cp'], elastic: ['E', 'nu', 'alpha'], electrostatics: ['eps_r'], magnetostatics: ['mu_r'],
   'em-modes': ['n', 'eps_r'], emw: ['eps_r', 'tan_delta', 'mu_r'], 'emw-axisym': ['eps_r', 'mu_r'], acoustics: ['c', 'rho'],
   currents: ['sigma'],
+  // emw-2d (DevLog-042 R2): every property optional; the module needs eps_r or n per domain (eps_r wins when both)
+  'emw-2d': ['eps_r', 'tan_delta', 'mu_r', 'n', 'kappa'],
 };
+/** Properties of a physics type that may be absent without a note (the module checks what it needs). */
+const OPTIONAL: Record<string, string[]> = { 'emw-2d': ['eps_r', 'tan_delta', 'mu_r', 'n', 'kappa'] };
+/** Vacuum speed of light, m/s (exact, SI 2019). */
+const C0 = 299792458;
 /** Case-file property names per spec property (the eval cases use 'c' for the specific heat in heat cases). */
 const CASE_ALIAS: Record<string, Record<string, string[]>> = { heat: { cp: ['cp', 'c'] } };
 
-/** The part of the @amp/materials Library that prepareRun uses (inject it in the browser). */
-export interface MaterialLibrary { getProperty(id: string, prop: string, o?: { T?: number; lambda?: number }): { value: number | Record<string, number> } }
+/** Library evaluation options prepareRun passes (a subset of @amp/materials EvalOptions). */
+export interface MaterialEvalOptions { T?: number; lambda?: number; component?: string; alternative?: string; extrapolate?: boolean }
+/**
+ * The part of the @amp/materials Library that prepareRun uses (inject it in the browser). `get` is needed only for
+ * library dispersion (em-modes settings.dispersion: @amp/materials dispersion() reads the leaf form); a library
+ * without it resolves every other property as before and notes that dn/dlambda is unavailable.
+ */
+export interface MaterialLibrary {
+  getProperty(id: string, prop: string, o?: MaterialEvalOptions): { value: number | Record<string, number> };
+  get?(id: string): unknown;
+}
 
 export interface CaseCtx {
   case?: Record<string, unknown>; physicsId?: string; level?: number; hFactor?: number; signal?: AbortSignal;
@@ -88,6 +108,8 @@ export async function prepareRun(a: PrepareArgs | Record<string, unknown>, b?: C
   }
   const t0 = performance.now();
   const mctx = couplingMaterialContext(spec, study, scopeOf(spec));
+  const solvedNodes = [ph, ...((study as { physics?: string[] }).physics ?? []).map((pid) => phys.find((p) => p.id === pid)).filter((p): p is NonNullable<typeof p> => !!p && p !== ph)];
+  opticalMaterialContext(spec, study, solvedNodes, mesh, mctx);
   // elastic mass density only where a mass matrix is assembled (eigen study, acoustic-structure group; DevLog-031 MT R4b):
   // a stationary single-physics elastic run resolves exactly as before
   const fsi = ((spec as { couplings?: Array<{ type: string; to: string }> }).couplings ?? []).some((c) => c.type === 'acoustic-structure' && ((study as { physics?: string[] }).physics ?? []).includes(c.to));
@@ -149,6 +171,14 @@ function baseMesh(raw: Record<string, unknown>, spec: Spec, type: string, notes:
     const m = meshCylinder(c, { mesh2d: { hmax }, dz: hmax, cell: 'tet4', order });
     return { m, refine: (x) => refineUniform(x, { project: cylinderSideProjector(x, c) }) };
   }
+  if (G.dim === 3 && G.stack) {
+    // layer stack (extrude feature or mixed boxes / z cylinders; DevLog-044): tet4 / tet10, nested levels by uniform
+    // refinement with new wall nodes on the exact 2D curves
+    const m = meshFromSpec(raw, { order });
+    const project = stackProjector(m);
+    notes.push(`mesh: layer stack '${G.stack.id}' (${G.stack.layers.filter((l) => !l.gap).length} layers), ${m.cells.type} from prisms split by the minimum-index rule${order === 2 ? ' (P2 lift of the 2D tri6 mesh)' : ''}`);
+    return { m, refine: (x) => refineUniform(x, project ? { project, quality: stackQuality } : { quality: stackQuality }) };
+  }
   const m0 = meshFromSpec(raw, { order });
   // elasticity on box-union grids: hex8 split into conforming tet10 (trilinear hexes lock in bending; lane MT R7, DevLog-033)
   const toTets = G.dim === 3 && m0.cells.type === 'hex8' && elastic;
@@ -164,7 +194,8 @@ function levelMesh(raw: Record<string, unknown>, spec: Spec, type: string, f: nu
   const nested = k >= 0 && Math.abs(2 ** -k - f) <= 1e-12 * f;
   const feats = (spec.geometry as { features: Array<{ type: string }> }).features;
   const ord = ((spec.physics ?? []).find((p) => p.type === type) as { settings?: { order?: number } } | undefined)?.settings?.order ?? 2;
-  const simplexOk = (spec.geometry as { dim: number }).dim === 2 || (feats.length === 1 && (feats[0]!.type === 'cylinder' || (feats[0]!.type === 'box' && ord === 2)));
+  const simplexOk = (spec.geometry as { dim: number }).dim === 2 || (feats.length === 1 && (feats[0]!.type === 'cylinder' || (feats[0]!.type === 'box' && ord === 2)))
+    || isStack3D(spec.geometry as { dim: number; features: Array<{ type: string }> });
   if (nested && simplexOk) {
     const key = JSON.stringify({ g: raw.geometry, m: raw.mesh, p: raw.params, type, elastic });
     let entry = chains.get(key);
@@ -198,7 +229,61 @@ const scopeOf = (spec: Spec) => resolveParams(spec.params ?? {}).scope;
  * PHOTONIC_NEEDS), optional ones (r_eo with an electro-optic coupling: absent = not electro-optic, no note), the mode
  * study wavelength (library n and dndT are wavelength tables / fits) and the thermo-optic Tref (library dndT at T).
  */
-interface MatContext { props: string[]; optional: string[]; lambda?: number; Tref?: number }
+interface MatContext {
+  props: string[]; optional: string[]; lambda?: number; Tref?: number;
+  /** how lambda was obtained ('mode' study wavelength, or c0 / f of a single-frequency study) */
+  lambdaFrom?: 'mode' | 'frequency';
+  /** emw-2d frequency study with several frequencies: number of frequencies (materials resolved once, DevLog-042 O4) */
+  multiFreq?: number;
+  /** em-modes physics with settings.dispersion: library dn/dlambda for the materials in their selection (DevLog-043 R2) */
+  dispersion?: Array<{ physics: string; domains: Set<number>; overrides: Set<string>; library: Record<string, { alternative?: string; extrapolate?: boolean }> }>;
+  /** domain indices of a material selection on the prepared mesh */
+  domainsOf?: (select: readonly string[]) => number[];
+}
+
+/**
+ * Optical additions to the material context (lane I1, DevLog-046): em-modes `settings.loss` asks for library kappa
+ * (optional: absent = lossless), em-modes `settings.dispersion` for library dn/dlambda; emw-2d resolves eps_r,
+ * tan_delta, mu_r, n, kappa as optional properties and, for a frequency study with one frequency, reads them at
+ * lambda = c0 / f (several frequencies: one evaluation without a wavelength, noted).
+ */
+function opticalMaterialContext(spec: Spec, study: StudyNode, nodes: Array<{ id: string; type: string; select?: unknown; settings?: unknown }>, mesh: Mesh, mc: MatContext): void {
+  const opt = (p: string) => { if (!mc.optional.includes(p)) mc.optional.push(p); };
+  if (mc.lambda !== undefined) mc.lambdaFrom = 'mode';
+  mc.domainsOf = (sel) => { try { return selectEntities(mesh.entities, 'domains', sel); } catch { return []; } };
+  for (const n of nodes) {
+    if (n.type === 'em-modes') {
+      const s = (n.settings ?? {}) as { loss?: boolean; dispersion?: boolean | { dndlambda?: Record<string, unknown>; library?: Record<string, { alternative?: string; extrapolate?: boolean }> } };
+      if (s.loss === true) opt('kappa');
+      if (s.dispersion !== undefined && s.dispersion !== false) {
+        const d = typeof s.dispersion === 'object' ? s.dispersion : {};
+        (mc.dispersion ??= []).push({
+          physics: n.id, domains: new Set(mc.domainsOf((n.select ?? []) as string[])),
+          overrides: new Set(Object.keys(d.dndlambda ?? {})), library: d.library ?? {},
+        });
+      }
+    }
+    if (n.type === 'emw-2d') {
+      for (const p of OPTIONAL['emw-2d']!) opt(p);
+      if (study.type === 'frequency' && mc.lambda === undefined) {
+        let fs: number[] = [];
+        try { fs = studyFrequenciesOf(spec, study); } catch { fs = []; }
+        if (fs.length === 1 && fs[0]! > 0) { mc.lambda = C0 / fs[0]!; mc.lambdaFrom = 'frequency'; }
+        else if (fs.length > 1) mc.multiFreq = fs.length;
+      }
+    }
+  }
+}
+
+/** Frequencies (Hz) of a frequency study: settings.values (Hz) or settings.wavelengths (vacuum, m), as wave2d reads them. */
+function studyFrequenciesOf(spec: Spec, study: StudyNode): number[] {
+  const scope = scopeOf(spec);
+  const s = (study.settings ?? {}) as { values?: unknown[]; wavelengths?: unknown[] };
+  const si = (v: unknown) => { const r = resolveQuantity(v, scope); if (r.na) throw new Error('N/A'); return r.si; };
+  if (s.values && !s.wavelengths) return s.values.map(si);
+  if (s.wavelengths && !s.values) return s.wavelengths.map((v) => C0 / si(v));
+  return [];
+}
 function couplingMaterialContext(spec: Spec, study: StudyNode, scope: ReturnType<typeof scopeOf>): MatContext {
   const inStudy = new Set((study as { physics?: string[] }).physics ?? []);
   const nodes = ((spec as { couplings?: Array<{ type: string; from: string; to: string; settings?: Record<string, unknown> }> }).couplings ?? []).filter((c) => inStudy.has(c.to));
@@ -228,7 +313,7 @@ function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknow
   /** library options per property: n and dndT at the mode wavelength, dndT at the thermo-optic Tref */
   const libOpts = (p: string): { T?: number; lambda?: number } => {
     const o: { T?: number; lambda?: number } = T !== undefined ? { T } : {};
-    if ((p === 'n' || p === 'dndT') && mc.lambda !== undefined) o.lambda = mc.lambda;
+    if ((p === 'n' || p === 'dndT' || p === 'kappa') && mc.lambda !== undefined) o.lambda = mc.lambda;
     if (p === 'dndT' && mc.Tref !== undefined) o.T = mc.Tref;
     return o;
   };
@@ -269,19 +354,74 @@ function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknow
     if (ref) {
       const id = ref.replace(/^materials\//, '');
       if (!lib) notes.push(`materials.${m.id}: no material library available for ${ref} (inject one with prepareRun({library}))`);
+      // emw-2d alone: an override n (or kappa) without an override eps_r states the optical index; a library eps_r
+      // (e.g. a low-frequency permittivity) would take precedence over it in the module, so it is not fetched
+      const emwOnly = types.length === 1 && types[0] === 'emw-2d';
+      const nGiven = emwOnly && (has(rec, 'n') || has(rec, 'kappa')) && !has(rec, 'eps_r');
+      const fromLib: string[] = [], skipped: string[] = [];
       for (const p of need) {
         if (has(rec, p) || !lib) continue;
+        if (nGiven && (p === 'eps_r' || p === 'tan_delta')) {
+          try { lib.getProperty(id, p, libOpts(p)); skipped.push(p); } catch { /* not in the library: nothing skipped */ }
+          continue;
+        }
         try {
           const pv = lib.getProperty(id, p, libOpts(p));
           if (typeof pv.value === 'number') rec[p] = pv.value;
           else for (const [c, v] of Object.entries(pv.value)) if (typeof v === 'number') rec[`${p}.${c}`] = v;   // tensor: '<prop>.<component>'
+          fromLib.push(p);
         } catch (e) { if (!optional.has(p)) notes.push(`materials.${m.id} (${ref}).${p}: ${(e as Error).message.slice(0, 160)}`); }
       }
+      if (skipped.length) notes.push(`materials.${m.id} (${ref}): emw-2d uses the override n${has(rec, 'kappa') ? ' / kappa' : ''}; library ${skipped.join(', ')} not used (eps_r would take precedence over n)`);
+      if (types.includes('emw-2d') && fromLib.includes('eps_r') && has(rec, 'n')) {
+        notes.push(`materials.${m.id} (${ref}): emw-2d uses eps_r (${rec.eps_r ?? 'tensor'}, library) over n (${rec.n ?? 'tensor'}${fromLib.includes('n') ? ', library' : ''}); override n (or eps_r) to choose the optical value`);
+      }
+      if (lib && mc.dispersion && mc.domainsOf) libraryDispersion(m, id, ref, rec, lib, mc, T, has, notes);
     }
     for (const p of need) if (!(p in rec)) { const c = fromCase(m.id, p); if (c !== undefined) fill(p, c, 'not in the spec'); }
     out[m.id] = rec;
   }
+  const refs = (spec.materials ?? []).filter((m) => (m as { ref?: string }).ref).map((m) => m.id);
+  if (types.includes('emw-2d') && refs.length && lib) {
+    if (mc.lambdaFrom === 'frequency') notes.push(`materials: library n / kappa of ${refs.join(', ')} at lambda = c0 / f = ${mc.lambda} m (single-frequency study)`);
+    else if (mc.multiFreq) notes.push(`materials: frequency study with ${mc.multiFreq} frequencies: library values of ${refs.join(', ')} are resolved once, without a wavelength (per-frequency material dispersion not implemented); wavelength-dependent n / kappa need overrides`);
+  }
   return out;
+}
+
+/**
+ * Library dn/dlambda for one `ref:` material (DevLog-043 R2): for every em-modes physics with settings.dispersion
+ * whose selection meets the material, unless settings.dispersion.dndlambda.<material> (em-modes reads it first) or a
+ * material override dn_dlambda gives it. Scalar n -> dn_dlambda; uniaxial n -> dn_dlambda.perp / .par. Each value gets
+ * a provenance note; piecewise-linear (table) slopes and extrapolation are spelled out.
+ */
+function libraryDispersion(m: { id: string; select: readonly string[] }, id: string, ref: string, rec: Record<string, number>, lib: MaterialLibrary, mc: MatContext,
+  T: number | undefined, has: (rec: Record<string, number>, p: string) => boolean, notes: string[]): void {
+  const doms = mc.domainsOf!(m.select);
+  const entry = mc.dispersion!.find((d) => !d.overrides.has(m.id) && doms.some((x) => d.domains.has(x)));
+  if (!entry || has(rec, 'dn_dlambda')) return;
+  const comps: Array<'perp' | 'par' | undefined> = rec.n !== undefined ? [undefined] : rec['n.perp'] !== undefined && rec['n.par'] !== undefined ? ['perp', 'par'] : [];
+  if (!comps.length) return;   // no n (eps_r only): em-modes reports it
+  const lam = mc.lambda;
+  if (lam === undefined) { notes.push(`materials.${m.id} (${ref}).dn_dlambda: no mode wavelength in the study: library dispersion not evaluated`); return; }
+  if (typeof lib.get !== 'function') { notes.push(`materials.${m.id} (${ref}).dn_dlambda: the injected material library has no get(): library dispersion not available`); return; }
+  const lo = entry.library[m.id] ?? {};
+  for (const c of comps) {
+    const key = c ? `dn_dlambda.${c}` : 'dn_dlambda';
+    try {
+      const r = dispersion(lib as unknown as Library, id, lam, {
+        ...(T !== undefined ? { T } : {}), ...(c ? { component: c } : {}), ...(lo.alternative ? { alternative: lo.alternative } : {}), ...(lo.extrapolate ? { extrapolate: true } : {}),
+      });
+      rec[key] = r.dn_dlambda;
+      const flags = [
+        r.derivative === 'piecewise-linear' ? 'piecewise-linear: slope of the table segment(s) around lambda, only as good as the node spacing' : r.derivative,
+        ...(r.extrapolated ? ['extrapolated beyond the stored validity range'] : []),
+      ];
+      notes.push(`materials.${m.id}.${key}: ${r.dn_dlambda} 1/m from ${ref} n${c ? ` (${c})` : ''}${lo.alternative ? ` alternative ${lo.alternative}` : ''} at lambda = ${lam} m, central difference h = ${r.h} m (${flags.join('; ')}); source: ${r.nValue.source.slice(0, 160)}`);
+      const nUsed = c ? rec[`n.${c}`]! : rec.n!;
+      if (Math.abs(nUsed - r.n) > 1e-12 * Math.abs(r.n)) notes.push(`materials.${m.id}: n${c ? `.${c}` : ''} ${nUsed} (override) differs from the library n ${r.n} whose slope gives ${key}`);
+    } catch (e) { notes.push(`materials.${m.id} (${ref}).${key}: ${(e as Error).message.slice(0, 160)}`); }
+  }
 }
 
 /** SI reference unit of a property from the registry (for the values written into the prepared spec). */

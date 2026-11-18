@@ -13,12 +13,12 @@
 	let hTok = 0;
 	$effect(() => {
 		// the displayed dataset (a sweep point has its own params and label); the full spec so the item's root study is honoured
-		const sol = s.solution, mesh = s.mesh, params = s.activeParams, data = s.model.data, label = s.activeLabel;
+		const sol = s.solution, mesh = s.mesh, params = s.activeParams, data = s.model.data, label = s.activeLabel, study = s.solvedStudy;
 		const results = (data as { results?: unknown } | null)?.results;
 		if (!sol || !mesh || !params || sol.meshHash !== mesh.hash) { list = []; return; }
 		// latest request wins (requests resolve out of order in the worker, audit 8)
 		const my = ++hTok;
-		void headlines(results, sol, mesh, params, s.post, { spec: data, label }).then((h) => { if (my === hTok && s.solution === sol) list = h; }).catch(() => { if (my === hTok && s.solution === sol) list = []; });
+		void headlines(results, sol, mesh, params, s.post, { spec: data, label, study }).then((h) => { if (my === hTok && s.solution === sol) list = h; }).catch(() => { if (my === hTok && s.solution === sol) list = []; });
 	});
 	const mark = $derived(s.staleSolution ? 'stale' : s.solutionCoarse ? 'coarse' : '');
 	const caseNote = $derived(s.caseFilled.length && s.caseInfo ? `uses eval case ${s.caseInfo.id} inputs: ${s.caseFilled.join(', ')}` : '');

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Code a page will dynamic-import, named in the prerendered HTML as modulepreload links so the download starts while
-// the HTML parses (eo-modulator-atlas DevLog-046 pattern). From the client build manifest; none in dev.
+// the HTML parses (eo-modulator-atlas DevLog-046 pattern). From the client build manifest; none in dev (a stale build
+// manifest would otherwise name production chunks that vite dev does not serve).
 import { existsSync, readFileSync } from 'node:fs';
 import { asset } from '$app/paths';
 
 export function preloadFor(entry: string): string[] {
 	const file = '.svelte-kit/output/client/.vite/manifest.json';
-	if (!existsSync(file)) return [];
+	if (import.meta.env.DEV || !existsSync(file)) return [];
 	const manifest = JSON.parse(readFileSync(file, 'utf8')) as Record<string, { file: string; imports?: string[]; dynamicImports?: string[] }>;
 	const seen = new Set<string>();
 	const walk = (k: string) => {

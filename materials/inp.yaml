@@ -1,0 +1,38 @@
+# Indium phosphide (lane T4, DevLog-041): room-temperature Sellmeier dispersion (Handbook of Optics fit of the Pettit-Turner
+# 1965 and Pikhtin-Yas'kov 1978 data). Other InP properties: not read in this lane (N/A).
+schema: amp-material/0
+id: inp
+name: Indium phosphide (InP)
+class: semiconductor
+description: >-
+  Undoped InP, refractive index in the transparent range 0.95-10 um at room temperature (Sellmeier). Thermal,
+  mechanical and electrical data not authored.
+verified_on: 2026-11-18
+sources:
+  pettit1965:
+    citation: "G. D. Pettit, W. J. Turner, Refractive index of InP, J. Appl. Phys. 36, 2081 (1965); Sellmeier from Handbook of Optics, 2nd ed., Vol. 2 (McGraw-Hill, 1994), based on Pettit-Turner 1965 and A. N. Pikhtin, A. D. Yas'kov, Sov. Phys. Semicond. 12, 622-626 (1978)"
+    doi: 10.1063/1.1714410
+    url: https://github.com/polyanskiy/refractiveindex.info-database/blob/main/database/data/main/InP/nk/Pettit.yml
+    access: paywalled
+    read: "primaries and the handbook not read; coefficients from the refractiveindex.info entry (CC0) InP/nk/Pettit.yml fetched 2026-11-18 (sha256 257c1ee45938...): formula 1, 6.255 2.316 0.6263 2.765 32.935, 0.95-10 um, comment 'Room temperature'; the entry states the handbook provides the Sellmeier equation based on refs 1 and 2"
+    licence: "refractiveindex.info database: CC0 1.0"
+properties:
+  n:
+    fit:
+      formula: sellmeier-c2
+      vars: [{name: lambda, unit: um, range: [0.95, 10]}]
+      coeffs: {A: 6.255, B: [2.316, 2.765], C: [0.6263, 32.935]}
+    unit: "1"
+    basis: measured
+    source: pettit1965
+    locator: "refractiveindex.info InP/nk/Pettit.yml: formula 1 (n^2 = 1 + C1 + C2 l^2/(l^2 - C3^2) + C4 l^2/(l^2 - C5^2)), coefficients 6.255 2.316 0.6263 2.765 32.935 (Handbook of Optics fit)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated in the database entry; handbook not read"}
+    conditions: {text: "room temperature (database comment)"}
+    n_medium: unstated
+    n_medium_note: "database entry does not state air or vacuum wavelength; handbook and primaries not read"
+    valid: {T: {na: "room temperature, not quantified"}}
+    alternatives: []
+missing:
+  - {what: "InP dn/dT, thermal conductivity, expansion, stiffness tensor, density: not read from a primary source for this library"}
+  - {what: "InGaAsP quaternary indices (composition dependent): not authored"}

@@ -57,7 +57,7 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/meep-holey-cavity.yaml}
+spec: {status: pending, reason: 'no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)', proposed: sims/meep-holey-cavity.yaml}
 missing: []
 assumptions: []
 source_case: {suite: Meep tests, file: python/tests/test_holey_wvg_cavity.py, url: github.com/NanoComp/meep tag v1.35.1, accessed: '2026-11-06',

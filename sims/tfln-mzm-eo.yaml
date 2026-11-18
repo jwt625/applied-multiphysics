@@ -8,6 +8,7 @@
 # atlas engine 4.204 V cm (DevLog-032). Materials from this repo's library (not the atlas placeholders): LN n_o / n_e
 # (Zelmon 1997 fits at 1.957 um), eps^S (Weis-Gaylord 1985 Table 1, Warner 1967 row), r^S (Weis-Gaylord Table 4, 633 nm
 # clamped: no 1957 nm value exists in the source); SiO2 eps 3.9 (Zhu 2021) and n (Malitson); Si eps (Krupka 2006); air n (Mathar 2007).
+# n_g with material dispersion: dn/dlambda of LN, SiO2 and air from the library refs at 1.957 um (prepareRun, DevLog-046).
 schema: amp-spec/0
 id: tfln-mzm-eo
 title: TFLN modulator VpiL (electrostatics -> optics)
@@ -42,14 +43,15 @@ geometry:
     - {id: opt, type: fragment, settings: {inputs: [win, boxl, slab, rib_r, air]}}
 materials:
   - id: LN
+    ref: materials/linbo3-congruent
     override:
       n: {symmetry: uniaxial, components: {perp: 2.198050883114261, par: 2.1264792141206845}}
       eps_r: {symmetry: uniaxial, components: {perp: 44.3, par: 27.9}}
       r_eo: {symmetry: trigonal-3m, unit: pm/V, components: {r13: 8.6, r22: 3.4, r33: 30.8, r51: 28}}
     select: ["dom:slab", "dom:rib_r", "dom:rib_l"]
-  - {id: SiO2, override: {n: 1.4391079374709876, eps_r: 3.9}, select: ["dom:boxl"]}
+  - {id: SiO2, ref: materials/sio2-thermal-oxide, override: {n: 1.4391079374709876, eps_r: 3.9}, select: ["dom:boxl"]}
   - {id: Si, override: {eps_r: 11.656094999999999}, select: ["dom:sub"]}
-  - {id: Air, override: {n: 1.00027306050746, eps_r: 1}, select: ["dom:air"]}
+  - {id: Air, ref: materials/air, override: {n: 1.00027306050746, eps_r: 1}, select: ["dom:air"]}
 physics:
   - id: es
     type: electrostatics
@@ -61,7 +63,7 @@ physics:
   - id: ewg
     type: em-modes
     select: ["dom:win&boxl", "dom:win&slab", "dom:win&rib_r", "dom:win&air"]
-    settings: {order: 2}
+    settings: {order: 2, dispersion: {library: {Air: {alternative: mathar2007_ir}}}}
     bcs:
       - {id: walls, type: pec, select: ["bnd:win.left", "bnd:win.right", "bnd:win.top", "bnd:win.bottom"]}
 couplings:
@@ -130,6 +132,7 @@ provenance:
     materials.Si.override.eps_r: {basis: measured, source: "materials/silicon.yaml eps_r (Krupka 2006 Fig. 2, digitized) at 293.15 K", date: 2026-11-07}
     materials.Air.override.n: {basis: derived, source: "materials/air.yaml n alternative mathar2007_ir (Mathar 2007 via refractiveindex.info, dry air 15 C, 101.325 kPa), linear interpolation between 1.95 and 2.00 um at 1.957 um", date: 2026-11-07}
     materials.Air.override.eps_r: {basis: user, date: 2026-11-07, note: "assumption: air as vacuum (materials/air.yaml eps_r is N/A)"}
+    physics.ewg.settings.dispersion: {basis: derived, source: "dn/dlambda from the material refs (materials/linbo3-congruent.yaml n, Zelmon 1997, o / e; materials/sio2-thermal-oxide.yaml n, Malitson 1965, flagged extrapolated by the air-to-vacuum conversion; materials/air.yaml n alternative mathar2007_ir, table: piecewise-linear slope) at 1.957 um, central difference", date: 2026-11-18}
     mesh.size.hmax: {basis: inference, source: "atlas geometry.mesh max_edge_um 2.0", date: 2026-11-07}
     mesh.refine.0.h: {basis: user, date: 2026-11-07, note: "modelling choice for the optical window"}
     mesh.refine.1.h: {basis: inference, source: "atlas geometry.mesh electrode_edge_um 0.05", date: 2026-11-07}

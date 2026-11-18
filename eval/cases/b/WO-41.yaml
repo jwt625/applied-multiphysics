@@ -31,26 +31,63 @@ bcs:
 initial: null
 study: {type: eigen, n: 1, wavelength: 1.5}
 references:
-  - quantity: n_eff
-    metric_id: n_eff
-    definition: "effective index of the fundamental mode, per variant"
-    at: {variant: [A, B, C, D]}
-    value: [1.27627404, 2.65679692, 1.387926425, 2.761465320]
+  - quantity: n_eff (variant A)
+    metric_id: n_eff_A
+    definition: "effective index of the fundamental mode, variant A (eps_core 2.25, eps_clad 1)"
+    value: 1.27627404
     unit: "1"
     tolerance: {abs: 1.0e-7, after: richardson, note: "femwell text: Hadley error below +-1e-8; 1e-7 proposed (assumption)"}
     basis: S
     form: paper_sim
     extraction: tabulated
     provenance: {citation: "Hadley 2002 via femwell re-tabulation", locator: "Hadley 2002 table N/A (paper not opened); femwell mode_solver_rectangle.py neff_values_paper", accessed: 2026-11-06}
+    spec: sims/hadley-square-core.yaml
+    extract: {kind: scalar, name: neff_0}
+  - quantity: n_eff (variant B)
+    metric_id: n_eff_B
+    definition: "effective index of the fundamental mode, variant B (eps_core 8, eps_clad 1)"
+    value: 2.65679692
+    unit: "1"
+    tolerance: {abs: 1.0e-7, after: richardson, note: "femwell text: Hadley error below +-1e-8; 1e-7 proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Hadley 2002 via femwell re-tabulation", locator: "Hadley 2002 table N/A (paper not opened); femwell mode_solver_rectangle.py neff_values_paper", accessed: 2026-11-06}
+    spec: {sim: sims/hadley-square-core.yaml, params: {eps_core: 8}}
+    extract: {kind: scalar, name: neff_0}
+  - quantity: n_eff (variant C)
+    metric_id: n_eff_C
+    definition: "effective index of the fundamental mode, variant C (eps_core 1, eps_clad 2.25)"
+    value: 1.387926425
+    unit: "1"
+    tolerance: {abs: 1.0e-7, after: richardson, note: "femwell text: Hadley error below +-1e-8; 1e-7 proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Hadley 2002 via femwell re-tabulation", locator: "Hadley 2002 table N/A (paper not opened); femwell mode_solver_rectangle.py neff_values_paper", accessed: 2026-11-06}
+    spec: sims/hadley-square-hole.yaml
+    extract: {kind: scalar, name: neff_0}
+  - quantity: n_eff (variant D)
+    metric_id: n_eff_D
+    definition: "effective index of the fundamental mode, variant D (eps_core 1, eps_clad 8)"
+    value: 2.76146532
+    unit: "1"
+    tolerance: {abs: 1.0e-7, after: richardson, note: "femwell text: Hadley error below +-1e-8; 1e-7 proposed (assumption)"}
+    basis: S
+    form: paper_sim
+    extraction: tabulated
+    provenance: {citation: "Hadley 2002 via femwell re-tabulation", locator: "Hadley 2002 table N/A (paper not opened); femwell mode_solver_rectangle.py neff_values_paper", accessed: 2026-11-06}
+    spec: {sim: sims/hadley-square-hole.yaml, params: {eps_clad: 8}}
+    extract: {kind: scalar, name: neff_0}
 reference_results: []
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25, h_factors: [1, 0.5, 0.25], note: "levels of the DevLog-022 runs (nested, ratio 2), set 2026-11-18 (T2, DevLog-039)"}
 speed:
   budget_s: {browser: null, native: null}
   report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
   reference_timings: []
   note: "budget set after the first timing run (R3 O3)"
 dataset: null
-spec: {status: pending, reason: "no vector mode solver ported yet (C8)"}
+spec: {status: pending, reason: "no single model: each variant target names its own spec (sims/hadley-square-core.yaml A, B; sims/hadley-square-hole.yaml C, D; B and D through a params override)"}
 rights:
   source_license: "JLT paywalled; values via GPL-3.0 femwell"
   allowed: [cite_values, re_derive_setup]
@@ -60,3 +97,4 @@ missing:
   - {input: "boundary condition type on the non-metallic edges and the mode symmetry class", assumption: "PMC (natural boundary of femwell's formulation); verify against the paper"}
 assumptions:
   - "Variants C and D (low-index core) were not in R3; they come from the same femwell file."
+  - "2026-11-18 (T2, DevLog-039): the four-variant array target split into one target per variant (n_eff_A..n_eff_D); values, tolerance and provenance unchanged."

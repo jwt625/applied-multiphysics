@@ -1,5 +1,5 @@
 # SM-05: NAFEMS FV52: simply supported thick square plate, free vibration
-# Built by validation/a/build_cases.py from eval/expected/SM-05.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+# Built by validation/a/build_cases.py from cited values (no basis-D target, no expected JSON). Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
 schema: amp-eval/0
 id: SM-05
 class: a
@@ -127,7 +127,8 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/nafems-fv52.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
-    a proposal}
+spec: {status: pending, proposed: sims/nafems-fv52.yaml, reason: 'no sims/ model yet (path in ''proposed''); engine gap:
+    none recorded as of 2026-11-18 for the solver (3D solid modal exists: packages/physics/src/elastic/modal.ts); the model
+    is not written (DevLog-021 s.4.1 listed hex8 box meshes vs tet-only elastic on 2026-11-06)'}
 missing: ['Constraints on ux, uy are not stated on the Ansys page beyond ''UZ = 0 along the 4 edges at Z = 0''.']
 assumptions: []

@@ -1,0 +1,108 @@
+# Low-CTE polyimide, one named product series (lane T4, DevLog-041): HD MicroSystems PI-2600 series (BPDA-PPD), technical
+# information 2018-02-06, Table 2 cured film properties (cure 350 C / 30 min nominal).
+schema: amp-material/0
+id: polyimide-pi2600
+name: Polyimide, HD MicroSystems PI-2600 series (low stress, BPDA-PPD)
+class: polymer
+description: >-
+  Rigid-rod BPDA-PPD polyimide for RDL / passivation dielectric layers. Cured film modulus, CTE, Tg, density,
+  thermal conductivity, permittivity and dissipation factor at 1 kHz. Poisson ratio and specific heat are not given.
+verified_on: 2026-11-18
+sources:
+  hdm_pi2600:
+    citation: "HD MicroSystems (Hitachi Chemical DuPont MicroSystems), PI-2600 series Low Stress Polyimide, Technical Information, 06 February 2018, v1.0.18"
+    url: https://www.epfl.ch/research/facilities/cmi/wp-content/uploads/2026/06/tds_PI2600_series.pdf
+    access: vendor_open
+    read: "text layer of the 4-page PDF (hosted by EPFL CMI) fetched 2026-11-18 (sha256 3fa83a7f7f81359e...; PDF not kept): Table 2 cured film properties, cure guidance (350 C, 30 min nominal)"
+properties:
+  E:
+    value: 8.5
+    unit: GPa
+    basis: datasheet
+    source: hdm_pi2600
+    locator: "Table 2: Modulus 8.5 GPa"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "cured film; test method and temperature not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  alpha:
+    value: 3
+    unit: ppm/K
+    cte_kind: unstated
+    basis: datasheet
+    source: hdm_pi2600
+    locator: "Table 2: CTE 3 ppm/C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "cured film; direction (in-plane by context of a spin-coated film) and range not stated"}
+    valid: {T: {na: "temperature range not stated"}}
+    alternatives: []
+  Tg:
+    value: 360
+    unit: degC
+    basis: datasheet
+    source: hdm_pi2600
+    locator: "Table 2: Glass Transition Temperature (Tg) 360 C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "method not stated"}
+    valid: {T: {na: "a transition temperature"}}
+    alternatives: []
+  rho:
+    value: 1.4
+    unit: g/cm^3
+    basis: datasheet
+    source: hdm_pi2600
+    locator: "Table 2: Density 1.40 g/cm (unit printed without the exponent)"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "cured film"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  k:
+    value: 0.1046
+    unit: W/(m*K)
+    derivation: "25e-5 cal/(cm s C) x 4.184 J/cal x 100 cm/m = 0.1046 W/(m K) (thermochemical calorie; the sheet does not state the calorie definition: the IT calorie 4.1868 J gives 0.1047)"
+    basis: datasheet
+    source: hdm_pi2600
+    locator: "Table 2: Coefficient of Thermal Conductivity 25 x 10-5 cal/cm sec C"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {text: "cured film; direction not stated"}
+    valid: {T: {na: "temperature not stated"}}
+    alternatives: []
+  eps_r:
+    value: 2.9
+    unit: "1"
+    basis: datasheet
+    source: hdm_pi2600
+    locator: "Table 2: Dielectric Constant (@1kHz, 50% RH) 2.9"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {f: "1 kHz", text: "50 % RH"}
+    valid: {f: {unit: kHz, range: [1, 1]}, T: {na: "temperature not stated"}}
+    alternatives: []
+  tan_delta:
+    value: 0.002
+    unit: "1"
+    basis: datasheet
+    source: hdm_pi2600
+    locator: "Table 2: Dissipation Factor (@1kHz) 0.002"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated"}
+    conditions: {f: "1 kHz"}
+    valid: {f: {unit: kHz, range: [1, 1]}, T: {na: "temperature not stated"}}
+    alternatives: []
+  nu:
+    value: N/A
+    unit: "1"
+    missing: "Poisson ratio not given in the PI-2600 technical information"
+    alternatives: []
+  cp:
+    value: N/A
+    unit: J/(kg*K)
+    missing: "specific heat row present in Table 2 but empty"
+    alternatives: []
+missing:
+  - {what: "residual stress 2 MPa (10 um film) is on the sheet; no property type (process input)"}

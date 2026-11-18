@@ -52,3 +52,4 @@ provenance:
     mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice; the harness refines it by convergence.ratio_min per level"}
 assumptions:
   - {text: "2D conduction per unit depth; no internal heat source", paths: [physics.ht]}
+# eval: [HT-01]

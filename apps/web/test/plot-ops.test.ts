@@ -3,7 +3,7 @@
 // valid spec through the op log; undo restores the text byte for byte and redo reproduces it; the same patch through
 // the agent's apply_ops gives the same text; duplicate / disable / move / delete round trip; a cut-line end drag
 // coalesces into one op. Runs the real mesher and FE module in Node (kirsch-exact, helmholtz-coil, box-acoustics).
-// Run: node --max-old-space-size=1536 --test apps/web/src/lib/results/plot-ops.test.ts
+// Run: node --max-old-space-size=1536 --test apps/web/test/plot-ops.test.ts (moved from src/lib/results/ by lane T1, DevLog-038)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -11,9 +11,9 @@ import { createOpLog, parseSpecText, type OpLog, type Registry } from '@amp/spec
 import type { Mesh, Solution } from '@amp/spec/types';
 import { physicsRegistry, prepareRun, registry as modules, RESULT_NAMES } from '@amp/physics';
 import { AgentSession, MemoryStore, memoryBackend, RecordingNavHost } from '@amp/agent';
-import { addMenu, addPatch, cascadeRemovePatch, cutLineEndPatch, cutLinePatch, cutPointPatch, duplicatePatch, movePatch, quickViewPatch, removePatch, togglePatch, type PlotCtx } from './plot-ops.ts';
+import { addMenu, addPatch, cascadeRemovePatch, cutLineEndPatch, cutLinePatch, cutPointPatch, duplicatePatch, movePatch, quickViewPatch, removePatch, togglePatch, type PlotCtx } from '../src/lib/results/plot-ops.ts';
 
-const simText = (id: string) => readFileSync(new URL(`../../../../../sims/${id}.yaml`, import.meta.url), 'utf8');
+const simText = (id: string) => readFileSync(new URL(`../../../sims/${id}.yaml`, import.meta.url), 'utf8');
 const reg: Registry = physicsRegistry();
 
 async function solved(id: string, solve = true): Promise<{ text: string; mesh: Mesh; sol: Solution | null }> {

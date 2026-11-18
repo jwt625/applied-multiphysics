@@ -1,5 +1,5 @@
 # CP-02: NAFEMS LE11: cylinder / taper / sphere under a temperature field
-# Built by validation/a/build_cases.py from eval/expected/CP-02.json where basis is D. Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
+# Built by validation/a/build_cases.py from cited values (no basis-D target, no expected JSON). Schema amp-eval/0 (DevLog/research/2026-11-06-R3-eval-set-sources.md s.2).
 schema: amp-eval/0
 id: CP-02
 class: a
@@ -51,6 +51,7 @@ references:
   gate: true
   provenance: {citation: NAFEMS LE11 via Altair OS-V 0070, locator: help.altair.com/2023/hwsolvers/os/topics/solvers/os/nafems_test_problem_le11_r.htm
       (R3), accessed: '2026-11-06'}
+  extract: {kind: result, node: szz_A}
 reference_results:
 - {solver: FeenoX, value_MPa: -105.04}
 - {solver: advanced-packaging-atlas L5 scikit-fem Q2s finest, value_MPa: -105.54}
@@ -67,8 +68,7 @@ rights:
   allowed: [cite_values, re_derive_setup]
   forbidden: [copy_text, copy_figures, copy_input_files, copy_booklet_content]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, ref: sims/nafems-le11.yaml, reason: amp-spec/0 models not yet published by lane L2; sims/ id is
-    a proposal}
+spec: sims/nafems-le11.yaml
 missing: [Reference temperature not stated on the public pages (0 C assumed).]
 assumptions: ['Temperature field sqrt(x^2 + y^2) + z (FeenoX, Altair 2023, CAST3M); the Abaqus-page rendering (x^2 + y^2)
     + z is taken as a lost exponent (R3 s.8).']

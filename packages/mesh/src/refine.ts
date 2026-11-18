@@ -86,6 +86,8 @@ export interface RefineOptions {
   geometry?: Geometry2D;
   /** boundary projection hook for new nodes on facets (any dimension); applied after the exact-curve rule */
   project?: Projector;
+  /** quality summary of the refined mesh (default curvedQuality: 125-point quadrature per tet, slow on large meshes) */
+  quality?: (m: Mesh) => Record<string, number>;
 }
 
 /** One level of nested uniform refinement (each cell -> 4 (2D) or 8 (3D) children). */
@@ -238,7 +240,7 @@ export function refineUniform(m: Mesh, o: RefineOptions = {}): Mesh {
   if (m.pointNode) out.pointNode = m.pointNode;
   if (fnv === 2 && m.facetCurve) { out.facetCurve = Int32Array.from(fCurve); out.facetParam = Float64Array.from(fParam); }
   out.tagHash = tagHash(domain, fc, fb, [...m.entities.domains, ...m.entities.boundaries, ...(m.entities.points ?? [])].map((x) => x.id));
-  out.quality = curvedQuality(out);
+  out.quality = o.quality ? o.quality(out) : curvedQuality(out);
   out.stats = { nodes: nodes.length / D, cells: domain.length, facets: fb.length, refine_ms: performance.now() - t0 };
   return out;
 }

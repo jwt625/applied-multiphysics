@@ -613,11 +613,48 @@
       "additionalProperties": true
     },
     "specRef": {
-      "description": "C8: embedded amp-spec/0 model, a reference to sims/<id>.yaml, or pending with a reason",
+      "description": "C8: embedded amp-spec/0 model, a reference to sims/<id>.yaml (plain path, or {sim, params, study} with overrides), or pending with a reason",
       "oneOf": [
         {
           "type": "string",
           "pattern": "^sims/[A-Za-z0-9._/-]+\\.ya?ml$"
+        },
+        {
+          "type": "object",
+          "required": [
+            "sim"
+          ],
+          "properties": {
+            "sim": {
+              "type": "string",
+              "pattern": "^sims/[A-Za-z0-9._/-]+\\.ya?ml$",
+              "description": "sims/ file"
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                ]
+              },
+              "description": "overrides of the file's params: a number replaces the value (unit kept), a string replaces the value expression"
+            },
+            "study": {
+              "type": "string",
+              "minLength": 1,
+              "description": "study id to run (default: the case's study type, else the first non-parametric study)"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
         },
         {
           "type": "object",
@@ -648,7 +685,12 @@
             "ref": {
               "type": "string",
               "pattern": "^sims/[A-Za-z0-9._/-]+\\.ya?ml$",
-              "description": "proposed sims/ path"
+              "description": "existing sims/ file that models this case although the case cannot gate on it yet (partial, informative or not converged); the loader warns when the file does not exist"
+            },
+            "proposed": {
+              "type": "string",
+              "pattern": "^sims/[A-Za-z0-9._/-]+\\.ya?ml$",
+              "description": "proposed sims/ path for a model not written yet; the loader warns when the file exists (point the case at it)"
             }
           },
           "additionalProperties": false
@@ -1030,7 +1072,8 @@
             "steps",
             "reduce",
             "expr",
-            "result"
+            "result",
+            "combine"
           ]
         },
         "node": {
@@ -1141,7 +1184,7 @@
         "expr": {
           "type": "string",
           "minLength": 1,
-          "description": "expr: expression over the named terms (@amp/core/expr, dimension-checked; result converted to the target unit)"
+          "description": "expr: expression over the named terms (@amp/core/expr, dimension-checked; result converted to the target unit); combine: expression over the named targets"
         },
         "terms": {
           "type": "object",
@@ -1183,6 +1226,14 @@
             "minLength": 1
           },
           "description": "field: evaluator field names in the same order (default = fields)"
+        },
+        "targets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "combine: name -> target id of this case; expr is evaluated per mesh level on those targets' values (in their target units), so a target can span several specs"
         }
       },
       "additionalProperties": false

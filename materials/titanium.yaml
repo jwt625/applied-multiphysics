@@ -14,7 +14,7 @@ sources:
     doi: 10.1063/1.3253100
     url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
     access: open
-    read: "page render (200 dpi) of reprint pdf p.130 'Thermal conductivity of titanium', recommended values table and remarks, read by MX 2026-11-07 (scratch copy, not cached in the repo)"
+    read: "page render (200 dpi) of reprint pdf p.130 'Thermal conductivity of titanium', recommended values table and remarks, read 2026-11-07 (scratch copy, not cached in the repo)"
 properties:
   k:
     table:

@@ -53,7 +53,7 @@ rights:
   allowed: [cite_values, re_derive_setup, reference_by_hash, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/pdearena-maxwell3d.yaml}
+spec: {status: pending, reason: 'no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)', proposed: sims/pdearena-maxwell3d.yaml}
 missing: [python 'fdtd' package version used for the dataset (not pinned in the repo files read)]
 assumptions: []
 source_case: {suite: PDEArena, file: pdedatagen/maxwell.py, url: github.com/pdearena/pdearena main 78a8b03d50115d8bb24ce9f04efa5b920fcd4369,

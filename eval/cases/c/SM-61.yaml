@@ -122,7 +122,7 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: [copy_v_doc_text]
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/timoshenko-beam-ss.yaml}
+spec: {status: pending, reason: 'no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)', proposed: sims/timoshenko-beam-ss.yaml}
 missing: []
 assumptions: ['The VALE_REFE bending values differ from the continuum Timoshenko closed form by 7.6e-4, 1.4e-3, 4.8e-5, 3.8e-3
     (modes 1, 3, 4, 6); code_aster''s own FE values sit within 3e-4 of the closed form for modes 1-3. Gate on the closed form;

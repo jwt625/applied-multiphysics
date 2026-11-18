@@ -7,14 +7,12 @@
 	import { resolve } from '$app/paths';
 	import Tip from '../ui/Tip.svelte';
 	import Card from './Card.svelte';
-	import { CATALOG, CATEGORIES, libraryFor, matches, type Category } from '../library/catalog';
+	import { CATEGORIES, LISTED_ENTRIES, libraryFor, listedIds, matches, type Category } from '../library/catalog';
 	import { DEFAULT_SIM, HEROES, SIM_IDS } from '../sims';
 	import { previewOf } from './previews';
 
-	// Same rule as the workbench picker (Workbench.svelte, coordinator DevLog-021): EM problems solved through the
-	// acoustics module show the field as pressure in Pa, so they stay out of the library until an EM module runs them.
-	const ANALOG = new Set(CATALOG.filter((e) => e.analog && e.physics.includes('acoustics') && e.category !== 'acoustics').map((e) => e.id));
-	const lib = libraryFor(SIM_IDS.filter((id) => !ANALOG.has(id)), CATALOG.filter((e) => !ANALOG.has(e.id)));
+	// Same listing rule as the workbench picker (library/catalog.ts HIDDEN_ANALOGS)
+	const lib = libraryFor(listedIds(SIM_IDS), LISTED_ENTRIES);
 	const total = lib.entries.length + lib.uncatalogued.length;
 
 	let query = $state('');

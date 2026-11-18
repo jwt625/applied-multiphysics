@@ -16,6 +16,7 @@ import { emwModule as emw0 } from './em3d/index.ts';
 import { acousticsModule as ac0 } from './acoustics/index.ts';
 import { emwAxisymModule as emax0 } from './em-axisym/index.ts';
 import { currentsModule as cur0 } from './currents/index.ts';
+import { emw2dModule as emw2d0, WAVE2D_NORMALIZATION } from './wave2d/index.ts';
 import { useModules } from './driver.ts';
 import { specReadiness, type ReadinessNeeds } from './common/ctx.ts';
 
@@ -31,12 +32,14 @@ const NEEDS: Record<string, ReadinessNeeds> = {
   'emw-axisym': { props: ['eps_r', 'mu_r'], eigen: true },
   acoustics: { props: ['c'], propsIfMulti: ['rho'], eigen: true },
   currents: { props: ['sigma'] },
+  'emw-2d': { props: [] },               // eps_r or n: checked by the module (DevLog-042)
 };
 
 export const NORMALIZATION: Record<string, string> = {
   'emw-axisym': 'E_rphiz per mode is M-orthonormal over the meridional section: int eps_r (|E_t|^2 + E_phi^2) r dr dz = 1 V^2 m (the azimuthal factor pi or 2 pi omitted; arbitrary sign)',
   emw: 'E (NED coefficients and E_nodal) per mode is M-orthonormal: int eps_r E . E dV = 1 V^2 m (arbitrary amplitude and sign)',
-  acoustics: 'p per mode is M-orthonormal: int p^2 / (rho c^2) dV = 1 (rho = 1 kg/m^3 when a single fluid has no density); arbitrary sign',
+  acoustics: 'p per mode is M-orthonormal: int p^2 / (rho c^2) dV = 1 (rho = 1 kg/m^3 when a single fluid has no density); arbitrary sign (frequency runs: the driven-solver statement)',
+  'emw-2d': WAVE2D_NORMALIZATION,
   'em-modes': 'fields per mode scaled to max |E| = 1 V/m over the triangle centroids (EO convention: E_t, H_t real, E_z = j ez, H_z = j hz)',
 };
 
@@ -60,7 +63,8 @@ function wrap(m: PhysicsModule): PhysicsModule {
       if (c.timing) sol.timing = { ...c.timing, ...sol.timing };
       const notes = [...(c.notes ?? []), ...((ctx.mesh as { warnings?: string[] }).warnings ?? []).map((w) => `mesh warning: ${w}`)];
       if (notes.length) sol.notes = [...new Set([...(sol.notes ?? []), ...notes])];
-      if (NORMALIZATION[m.type]) sol.normalization = NORMALIZATION[m.type];
+      // a module's own statement wins (acoustics frequency runs go through the driven solver, DevLog-042)
+      if (NORMALIZATION[m.type] && !sol.normalization) sol.normalization = NORMALIZATION[m.type];
       return sol;
     },
   };
@@ -75,8 +79,9 @@ export const emwModule = wrap(emw0);
 export const acousticsModule = wrap(ac0);
 export const emwAxisymModule = wrap(emax0);
 export const currentsModule = wrap(cur0);
+export const emw2dModule = wrap(emw2d0);
 
-export const modules: PhysicsModule[] = [heatModule, elasticModule, electrostaticsModule, magnetostaticsModule, emModes, emwModule, acousticsModule, emwAxisymModule, currentsModule];
+export const modules: PhysicsModule[] = [heatModule, elasticModule, electrostaticsModule, magnetostaticsModule, emModes, emwModule, acousticsModule, emwAxisymModule, currentsModule, emw2dModule];
 export const registry: Record<string, PhysicsModule> = Object.fromEntries(modules.map((x) => [x.type, x]));
 useModules(registry);
 
@@ -97,5 +102,6 @@ export { solveElasticAxisym } from './elastic/axisym.ts';
 export { solvePiezo, PIEZO_NORMALIZATION } from './coupled/piezo.ts';
 export { solveAcousticStructure, FSI_NORMALIZATION } from './coupled/fsi.ts';
 export { solveCurrents, type CurrentsProblem, type CurrentsTerminal } from './currents/index.ts';
+export { solveWave2D, studyFrequencies, WAVE2D_REGISTRATIONS, RESULT_NAMES_WAVE2D, C0, WAVE2D_NORMALIZATION } from './wave2d/index.ts';
 export { runStudy, studyReadiness, planStudy, type StudyPlan, type StudyGroup, type StudyOptions, type RunStudyOptions } from './driver.ts';
 export { COUPLINGS, COUPLING_REGISTRATIONS, couplingImpl, type CouplingImpl } from './couplings/index.ts';

@@ -20,7 +20,7 @@ export interface SymbolicAnalysis {
 }
 export interface AnalyzeOptions { perm?: Int32Array; ordering?: 'amd' | 'nd'; x?: Float64Array; y?: Float64Array; relax?: boolean }
 /** Numeric supernodal Cholesky factor (sparse.factorNumeric). */
-export interface NumericFactor { sym: SymbolicAnalysis; Lx: Float64Array; ok: boolean; work: unknown; /** front kernel used ('blocked' | 'wasm', DevLog-016) */ kernel?: 'blocked' | 'wasm' }
+export interface NumericFactor { sym: SymbolicAnalysis; Lx: Float64Array; ok: boolean; work: unknown; /** front kernel used ('blocked' | 'wasm', DevLog-016) */ kernel?: 'blocked' | 'wasm'; /** WASM solve state when Lx lives in WebAssembly memory (DevLog-045), else null */ ws?: unknown }
 
 /** Result of an LDL^T factorization: inertia and static pivot perturbations (nNeg absent for complex factors). */
 export interface LdltFactorResult { ok: boolean; nNeg?: number; nPerturbed: number; ms: number }

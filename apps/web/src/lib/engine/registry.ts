@@ -6,7 +6,7 @@ import type { Registry } from '@amp/spec';
 import type { PhysicsExports } from './physics';
 
 export function appRegistry(p: PhysicsExports | null): { reg: Registry; source: string } {
-	if (p?.physicsRegistry) return { reg: p.physicsRegistry(), source: '@amp/physics registry (wave-1 seed superseded by L4)' };
+	if (p?.physicsRegistry) return { reg: p.physicsRegistry(), source: '@amp/physics registry' };
 	const reg = wave1Registry();
 	const fn = p?.register ?? p?.registerAll;
 	if (fn) {

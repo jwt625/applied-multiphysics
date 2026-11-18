@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: GPL-3.0-or-later
 // amp-eval CLI. Exit codes: 0 pass (pending allowed), 1 error (loader, run, usage), 2 a gated target missed.
-//   node packages/eval/src/cli.ts [--class a|b|c] [--case ID] [--tag physics] [--dry-run] [--speed] [--json]
+//   node packages/eval/src/cli.ts [--class a|b|c] [--case ID] [--tag physics] [--skip ID,ID] [--dry-run] [--speed] [--json]
 //                                 [--adapter engine|expected|python] [--fields python|ts] [--bench bp1|bp3 [--sizes 8,16,32]]
 //                                 [--root DIR] [--out DIR] [--no-log]
 
@@ -22,7 +22,7 @@ import { importWorkspace } from './workspace.ts';
 
 const HARNESS_VERSION = '0.0.0';
 
-const USAGE = `usage: node packages/eval/src/cli.ts [--class a|b|c] [--case ID] [--tag physics] [--dry-run] [--speed] [--json]
+const USAGE = `usage: node packages/eval/src/cli.ts [--class a|b|c] [--case ID] [--tag physics] [--skip ID,ID] [--dry-run] [--speed] [--json]
        [--adapter engine|expected|python] [--fields python|ts] [--bench bp1|bp3 [--sizes 8,16,32]] [--root DIR] [--out DIR] [--no-log]
 exit: 0 pass (pending allowed unless --strict), 1 error / timeout / engine load failure, 2 target missed`;
 
@@ -35,7 +35,7 @@ export async function main(argv: string[], io: CliIO = STDIO): Promise<number> {
     a = parseArgs({
       args: argv, allowPositionals: false, strict: true,
       options: {
-        class: { type: 'string' }, case: { type: 'string' }, tag: { type: 'string' },
+        class: { type: 'string' }, case: { type: 'string' }, tag: { type: 'string' }, skip: { type: 'string' },
         'dry-run': { type: 'boolean' }, speed: { type: 'boolean' }, json: { type: 'boolean' },
         adapter: { type: 'string' }, fields: { type: 'string' }, timeout: { type: 'string' }, 'timeout-cap': { type: 'string' }, 'max-mem': { type: 'string' }, strict: { type: 'boolean' }, bench: { type: 'string' }, sizes: { type: 'string' },
         root: { type: 'string' }, out: { type: 'string' }, 'no-log': { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
@@ -59,7 +59,8 @@ export async function main(argv: string[], io: CliIO = STDIO): Promise<number> {
   }
 
   const started = new Date();
-  const filter = { ...(a.class ? { class: a.class } : {}), ...(a.case ? { caseId: a.case } : {}), ...(a.tag ? { tag: a.tag } : {}) };
+  const skip = (a.skip ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const filter = { ...(a.class ? { class: a.class } : {}), ...(a.case ? { caseId: a.case } : {}), ...(a.tag ? { tag: a.tag } : {}), ...(skip.length ? { skip } : {}) };
   let cases;
   try { cases = loadCases(filter, root); } catch (e) { io.err(`load failed: ${(e as Error).message}\n`); return 1; }
   if (a.case && cases.length === 0) { io.err(`no case '${a.case}' under ${relative(process.cwd(), join(root, 'eval/cases')) || '.'}\n`); return 1; }
@@ -81,7 +82,7 @@ export async function main(argv: string[], io: CliIO = STDIO): Promise<number> {
 
   if (a.fields !== undefined && a.fields !== 'python' && a.fields !== 'ts') { io.err('--fields must be python or ts\n'); return 1; }
   const exactField = a.fields === 'ts' ? (await import('./fields/index.ts')).evaluateExactFieldTs : undefined;
-  const results = await runCases(cases, source, { dryRun: !!a['dry-run'], speed: !!a.speed, log, ...(exactField ? { exactField } : {}) });
+  const results = await runCases(cases, source, { dryRun: !!a['dry-run'], speed: !!a.speed, log, ...(exactField ? { exactField } : {}), ...(skip.length ? { skip } : {}) });
   // C5 platform probe from @amp/spec (run-record.ts) when loadable; Node details added here
   const sp = await importWorkspace<{ probePlatform?: () => Record<string, unknown> }>('@amp/spec', root);
   const specPlatform = sp.mod?.probePlatform?.() ?? {};

@@ -37,6 +37,12 @@ references:
   expected: {file: eval/expected/EM-61.json, metric_id: L_geom}
   provenance: {citation: coax geometric inductance, locator: 'palace docs/src/examples/coaxial.md L166-170, L180', accessed: null,
     generator: validation/c/gen_palace.py, source_accessed: '2026-11-06'}
+  extract:
+    kind: expr
+    expr: Lp * l
+    terms:
+      Lp: {kind: scalar, name: L_per_m}
+      l: {value: 4.0e-05, unit: m, source: eval/cases/c/EM-61.yaml geometry.spec.length_m}
 - quantity: L_total (lambda 0.4 um, d 0.1 um)
   metric_id: L_total_london
   value: 3.0366972281914867e-11
@@ -76,11 +82,13 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: amp-spec/0 models not yet published by lane L2; sims/ id is a proposal, ref: sims/micro-coax-london.yaml}
+spec: sims/micro-coax-lgeom.yaml
 missing: []
 assumptions: []
 source_case: {suite: Palace examples, file: docs/src/examples/coaxial.md, url: github.com/awslabs/palace tag v0.19.0 (ca9a6a2d1e64a410229c3d7538507e5eae975cc6),
   accessed: '2026-11-06', note: cache/eval-c/sources/palace/coaxial.md sha256 0dd42c76bf5a3ad6d67e0c5a7962ee83acae22f6b08ff40c68aaf9c7d380ffc2}
-notes: [The expected JSON also holds the lambda sweep 0.025-1.6 um of coaxial.md L223-231 (all agree).]
+notes: [The expected JSON also holds the lambda sweep 0.025-1.6 um of coaxial.md L223-231 (all agree)., 'L_total_london and
+    L_kin stay pending: no London-film (kinetic inductance) model in the engine (DevLog-022 s.3.5); the case passes only when
+    they run.']
 lane: L7c
 created: '2026-11-06'

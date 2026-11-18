@@ -95,7 +95,11 @@ const finiteVal = (v: ObservedValue): boolean =>
  */
 function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], why: string): { fine: ScalarCheck; shrinking: boolean; monotone: boolean; pass: boolean; reason: string } {
   const fine = checkScalar(vals[vals.length - 1]!, ref, tol);
-  const d = vals.slice(1).map((v, i) => Math.abs(v - vals[i]!));
+  // a change at the noise floor counts as zero: levels that agree to round-off (an exact discretization) carry no
+  // shrinking signal. Floor: ROUNDOFF_REL x |f|, or NEGLIGIBLE_OF_LIMIT x the tolerance limit for derived targets whose
+  // round-off is amplified by cancellation (DevLog-039 H5)
+  const floorOf = (a: number, b: number) => Math.max(ROUNDOFF_REL * Math.max(Math.abs(a), Math.abs(b)), Number.isFinite(fine.limit) ? NEGLIGIBLE_OF_LIMIT * fine.limit : 0);
+  const d = vals.slice(1).map((v, i) => { const x = Math.abs(v - vals[i]!); return x <= floorOf(v, vals[i]!) ? 0 : x; });
   let shrinking = vals.length >= 3;
   for (let k = 1; k < d.length; k++) if (!(d[k]! < d[k - 1]! || (d[k] === 0 && d[k - 1] === 0))) shrinking = false;
   const e = vals.map((v) => Math.abs(v - ref));
@@ -106,6 +110,11 @@ function fallbackGate(vals: number[], ref: number, tol: Reference['tolerance'], 
   const reason = `richardson unavailable (${why}); fallback: finest value ${fine.pass ? 'within' : 'outside'} the budget, level-to-level changes ${vals.length < 3 ? 'not checkable (fewer than 3 levels)' : shrinking ? 'shrinking' : 'not shrinking'} (${changes})${monotone ? '' : '; note: |error| vs the reference is non-monotone'}`;
   return { fine, shrinking, monotone, pass, reason };
 }
+
+/** Relative round-off floor of a level-to-level change in the fallback rule: 1000 machine epsilons (2.2e-13). */
+export const ROUNDOFF_REL = 1000 * Number.EPSILON;
+/** A level-to-level change below this fraction of the tolerance limit counts as zero in the fallback rule. */
+export const NEGLIGIBLE_OF_LIMIT = 1e-6;
 
 /** One sequence through the shared rule: extrapolated value, verdict parts and reason. */
 function richardsonVerdict(vals: number[], hs: number[], ref: number, tol: Reference['tolerance'], opts: EvaluateOptions): { ri: RichardsonRuleResult; value: number; check: ScalarCheck; pass: boolean; fallback: boolean; reason?: string } {

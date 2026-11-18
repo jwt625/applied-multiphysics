@@ -7,46 +7,46 @@ class: semiconductor
 description: >-
   Undoped or lightly doped single-crystal Si. Mechanics as the cubic stiffness tensor (no isotropic E or nu stored);
   optics from the Li 1980 evaluated table at 293 K; RF permittivity of float-zone high-resistivity Si.
-verified_on: 2026-11-06
+verified_on: 2026-11-18
 frame: "crystal axes: x = [100], y = [010], z = [001]"
 sources:
   hall1967:
     citation: "J. J. Hall, Electronic effects in the elastic constants of n-type silicon, Phys. Rev. 161(3), 756-761 (1967)"
     doi: 10.1103/PhysRev.161.756
     access: local_cache
-    read: "text layer of the local copy (advanced-packaging-atlas references/physrev.161.756/source.pdf, sha256 8b8fc2b9...), journal p.757 Sec. II (density), p.758 Table III and p.760 Table VI (moduli); read by L10 2026-11-06"
+    read: "text layer of the local copy (advanced-packaging-atlas references/physrev.161.756/source.pdf, sha256 8b8fc2b9...), journal p.757 Sec. II (density), p.758 Table III and p.760 Table VI (moduli); read 2026-11-06"
   hpl1972:
     citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
     doi: 10.1063/1.3253100
     url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
     access: open
-    read: "not re-read by L10; values transcribed from the APA data file, whose lane read the p.394 recommended-value table on 2026-10-20"
+    read: "not re-read; values transcribed from the advanced-packaging-atlas data file, which read the p.394 recommended-value table on 2026-10-20"
     via: "advanced-packaging-atlas engine/data/materials/silicon.yaml at 608b1dc (si_crystal.properties.k)"
   janaf1998:
     citation: "M. W. Chase Jr., NIST-JANAF Thermochemical Tables, 4th ed., J. Phys. Chem. Ref. Data Monograph 9 (1998), p.1881, Silicon (Si) reference-state table"
     url: https://janaf.nist.gov/tables/Si-001.html
     access: open
-    read: "not re-read by L10; APA lane read the web table and the scanned monograph page on 2026-10-21"
+    read: "not re-read; the advanced-packaging-atlas project read the web table and the scanned monograph page on 2026-10-21"
     via: "advanced-packaging-atlas engine/data/materials/silicon.yaml at 608b1dc (si_crystal.properties.cp)"
   swenson1983:
     citation: "C. A. Swenson, Recommended values for the thermal expansivity of silicon from 0 to 1000 K, J. Phys. Chem. Ref. Data 12, 179-182 (1983)"
     doi: 10.1063/1.555681
     url: https://srd.nist.gov/jpcrdreprint/1.555681.pdf
     access: open
-    read: "not re-read by L10; APA lane read p.180-181 (Tables 1, 2) on 2026-10-20"
+    read: "not re-read; the advanced-packaging-atlas project read p.180-181 (Tables 1, 2) on 2026-10-20"
     via: "advanced-packaging-atlas engine/data/materials/silicon.yaml at 608b1dc (si_crystal.properties.cte)"
   krupka2006:
     citation: "J. Krupka et al., Measurements of permittivity, dielectric loss tangent, and resistivity of float-zone silicon at microwave frequencies, IEEE Trans. Microw. Theory Tech. 54(11), 3995-4001 (2006)"
     doi: 10.1109/TMTT.2006.883655
     access: local_cache
-    read: "not re-read by L10; APA lane digitized Fig. 2 (p.3) on 2026-10-20"
+    read: "not re-read; the advanced-packaging-atlas project digitized Fig. 2 (p.3) on 2026-10-20"
     via: "advanced-packaging-atlas engine/data/materials/silicon.yaml at 608b1dc (si_crystal.properties.eps_r)"
   li1980:
     citation: "H. H. Li, Refractive index of silicon and germanium and its wavelength and temperature derivatives, J. Phys. Chem. Ref. Data 9(3), 561-658 (1980)"
     doi: 10.1063/1.555624
     url: https://srd.nist.gov/jpcrdreprint/1.555624.pdf
     access: open
-    read: "page renders (300 dpi) of journal p.576 Table 1 and p.578 Table 2 (pdf pages 17, 19), 293 K columns; text layer p.567-568 and p.583; read by L10 2026-11-06; cached under cache/materials/silicon/"
+    read: "page renders (300 dpi) of journal p.576 Table 1 and p.578 Table 2 (pdf pages 17, 19), 293 K columns; text layer p.567-568 and p.583; read 2026-11-06; cached under cache/materials/silicon/"
   salzberg1957:
     citation: "C. D. Salzberg, J. J. Villa, Infrared refractive indexes of silicon, germanium and modified selenium glass, J. Opt. Soc. Am. 47, 244-246 (1957); Sellmeier fit by B. Tatian, Appl. Opt. 23, 4477-4485 (1984)"
     doi: 10.1364/JOSA.47.000244
@@ -54,6 +54,18 @@ sources:
     access: paywalled
     read: "primary not read; coefficients from the refractiveindex.info entry (CC0) Si/nk/Salzberg.yml, fetched 2026-11-06 (also used by eo-modulator-atlas engine/data/materials.json)"
     licence: "refractiveindex.info database: CC0 1.0"
+  chan2012:
+    citation: "J. Chan, A. H. Safavi-Naeini, J. Hill, S. Meenehan, O. Painter, Optimized optomechanical crystal cavity with acoustic radiation shield, Appl. Phys. Lett. 101, 081115 (2012); arXiv:1206.2099v1"
+    doi: 10.1063/1.4747726
+    url: https://arxiv.org/abs/1206.2099
+    access: open
+    read: "text layer of the arXiv v1 PDF (cache/eval-b/chan-2012, sha256 5050c568...), p.2 below eq. (3): '(p11, p12, p44) = (-0.094, 0.017, -0.051) [12, 13]', axes x = [100], y = [010]; refs [12] D. K. Biegelsen, Phys. Rev. Lett. 32, 1196 (1974) and [13] Yariv-Yeh, Optical Waves in Crystals (1983); read 2026-11-18. Biegelsen 1974 (primary) not read (paywalled)"
+  baker2014:
+    citation: "C. Baker, W. Hease, D.-T. Nguyen, A. Andronico, S. Ducci, G. Leo, I. Favero, Photoelastic coupling in gallium arsenide optomechanical disk resonators, Opt. Express 22(12), 14072-14086 (2014); arXiv:1403.4269v1"
+    doi: 10.1364/OE.22.014072
+    url: https://arxiv.org/abs/1403.4269
+    access: open
+    read: "text layer of the arXiv v1 PDF (sha256 3c4930bad1f5e6d7...), Table 2 row Si (3.39 um: p11 -0.09, p12 +0.017, p44 -0.051, ref [35] Biegelsen, Phys. Rev. Lett. 32, 1196-1199 (1974)); fetched and read 2026-11-18 (PDF not kept)"
 properties:
   rho:
     value: 2.3290
@@ -129,7 +141,7 @@ properties:
     source: janaf1998
     locator: "Monograph 9 p.1881, Si reference-state table, column Cp (J/K mol): 7.268, 15.636, 20.000, 20.050, 22.142, 23.330, 24.154, 24.803 at the listed T; A_r = 28.0855"
     accessed: 2026-10-21
-    derivation: "c_p = Cp / (A_r x 1e-3 kg/mol), computed by the APA lane"
+    derivation: "c_p = Cp / (A_r x 1e-3 kg/mol), computed in the advanced-packaging-atlas project"
     uncertainty: {na: "not transcribed"}
     conditions: {p: "0.1 MPa", text: "crystal"}
     alternatives: []
@@ -145,7 +157,7 @@ properties:
     source: swenson1983
     locator: "journal p.181 Table 2, alpha' = (L20)^-1 (dL/dT); > 300 K from Eq. (1) with Table 1, <= 300 K from Lyon et al."
     accessed: 2026-10-20
-    uncertainty: {rel: 0.001, note: "Swenson 1983 p.181 (as read by the fresh-context audit 2026-11-06, not re-read by L10): +-0.1 % or +-1e-9 /K, whichever is greater, below 300 K; up to +-1e-8 /K to 850 K"}
+    uncertainty: {rel: 0.001, note: "Swenson 1983 p.181 (as read in a 2026-11-06 review, not re-read): +-0.1 % or +-1e-9 /K, whichever is greater, below 300 K; up to +-1e-8 /K to 850 K"}
     conditions: {text: "evaluated recommended values"}
     alternatives: []
   eps_r:
@@ -157,9 +169,9 @@ properties:
     unit: "1"
     basis: measured
     source: krupka2006
-    locator: "p.3 (journal p.3997) Fig. 2, dashed curve, digitized 2026-10-20 by the APA lane"
+    locator: "p.3 (journal p.3997) Fig. 2, dashed curve, digitized 2026-10-20 in the advanced-packaging-atlas project"
     accessed: 2026-10-20
-    uncertainty: {abs: 0.005, rel: 0.001, note: "abs: digitization reading uncertainty (APA); rel: Krupka 2006 p.3 'experimental errors in the range of 0.1 %' (as read by the fresh-context audit 2026-11-06 from the APA local copy, not re-read by L10)"}
+    uncertainty: {abs: 0.005, rel: 0.001, note: "abs: digitization reading uncertainty (advanced-packaging-atlas); rel: Krupka 2006 p.3 'experimental errors in the range of 0.1 %' (as read in a 2026-11-06 review from the advanced-packaging-atlas local copy, not re-read)"}
     conditions: {f: "6.62 GHz", text: "float-zone high-resistivity p-type Si, 6.62-11.5 GHz; source: permittivity independent of frequency in that band"}
     alternatives:
       - id: li1980_eq22
@@ -207,6 +219,23 @@ properties:
         n_medium: air
         n_medium_note: "inferred, not stated for silicon: Li 1980 (journal p.583, pdf p.24) compares germanium data of Rank et al. only after 'correcting from vacuum values to air values' against Salzberg and Villa, so the compilation works in air values"
         valid: {T: {unit: degC, range: [26, 26]}}
+      - id: li1980_eq22
+        use: "smooth dispersion for group index: the Li 1980 eq. (22) that generated Table 1, at 293 K"
+        fit:
+          formula: li1980-eq22
+          vars: [{name: lambda, unit: um, range: [1.2, 14]}, {name: T, unit: K, range: [100, 750]}]
+          coeffs: {eps: [11.4445, 2.7739e-4, 1.7050e-6, -8.1347e-10], A: [0.8948, 4.3977e-4, 7.3835e-8]}
+        unit: "1"
+        basis: measured
+        source: li1980
+        locator: "journal p.567 eq. (22) and coefficients (300 dpi page render, read 2026-11-18): n^2 = eps(T) + L(T)/lambda^2 (A0 + A1 T + A2 T^2), eps(T) = 11.4445 + 2.7739e-4 T + 1.7050e-6 T^2 - 8.1347e-10 T^3, A0 0.8948, A1 4.3977e-4, A2 7.3835e-8; 1.2-14 um, 100-750 K"
+        accessed: 2026-11-18
+        derivation: "L(T) = exp(-3 dL(T)/L293) set to 1 (exact at 293 K by the definition of L293). The p.568 dL/L293 polynomials as read give -0.0703 (293-1600 K form) and -0.0208 (20-293 K form) at 293 K instead of 0, and their slopes match neither fraction nor percent units consistently, so they are not used and the fit is restricted to 293 K. Check against Table 1 (293 K): |eq. 22 - table| <= 3.5e-5 at 1.2, 1.3, 1.4, 1.55, 2, 3, 5, 10, 14 um"
+        uncertainty: {abs: 0.002, note: "p.567-568: recommended values from eq. (22) with uncertainties of +-2e-3"}
+        conditions: {T: "293 K", text: "evaluated recommended dispersion equation"}
+        n_medium: air
+        n_medium_note: "same data basis as Table 1 (inferred air values, see the default leaf)"
+        valid: {T: {unit: K, range: [293, 293]}, lambda: {unit: um, range: [1.2, 14]}, note: "eq. (22) is stated for 100-750 K; restricted here to 293 K because L(T) is not applied; use dndT for other T"}
   dndT:
     table:
       x: lambda
@@ -226,6 +255,33 @@ properties:
     valid: {T: {unit: K, range: [293, 293]}}
     note: "row 1.36 um not transcribed (crossed by a pen line in the scan)"
     alternatives: []
+  p_pe:
+    tensor:
+      symmetry: cubic
+      components: {p11: -0.094, p12: 0.017, p44: -0.051}
+    unit: "1"
+    basis: paper_model_input
+    source: chan2012
+    locator: "arXiv v1 p.2 below eq. (3): (p11, p12, p44) = (-0.094, 0.017, -0.051), citing Biegelsen 1974 [12] and Yariv-Yeh [13]; x = [100], y = [010]"
+    accessed: 2026-11-18
+    uncertainty: {na: "not stated by Chan et al.; the primary (Biegelsen 1974) was not read"}
+    conditions: {text: "contracted constants of the m3m photoelastic tensor, Delta(eps^-1)_I = p_IJ S_J; wavelength not stated by Chan et al. (Baker et al. 2014 Table 2 lists the same Biegelsen values at 3.39 um)"}
+    valid: {lambda: {na: "Chan et al. state no wavelength; Baker et al. give 3.39 um for the same primary and state that p varies little well below the band gap (no number)"}, T: {na: "temperature not stated"}}
+    note: "secondary source: values as used by a peer-reviewed paper; replace with Biegelsen 1974 (Phys. Rev. Lett. 32, 1196) when read"
+    alternatives:
+      - id: baker2014
+        use: "sensitivity (same primary, two significant digits for p11, wavelength stated)"
+        tensor:
+          symmetry: cubic
+          components: {p11: -0.09, p12: 0.017, p44: -0.051}
+        unit: "1"
+        basis: paper_model_input
+        source: baker2014
+        locator: "arXiv v1 Table 2 row Si: 3.39 um, p11 -0.09, p12 +0.017, p44 -0.051, ref [35] Biegelsen 1974"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated"}
+        conditions: {lambda: "3.39 um"}
+        valid: {lambda: {unit: um, range: [3.39, 3.39]}, T: {na: "temperature not stated"}}
   sigma:
     value: N/A
     unit: S/m
@@ -234,8 +290,8 @@ properties:
   tan_delta:
     value: N/A
     unit: "1"
-    missing: "Krupka 2006 (p.1 Eqs. 1-2): losses of HR-Si are conductivity-dominated, so tan delta depends on the wafer resistivity; lattice term not given as a number above 25 K (APA reading). A measured room-temperature point exists (Krupka 2006 Table I, TE011 6.685 GHz, sample #1: 1.866e-3, sample resistivity not stated; APA si_hr via) but describes that sample only"
+    missing: "Krupka 2006 (p.1 Eqs. 1-2): losses of HR-Si are conductivity-dominated, so tan delta depends on the wafer resistivity; lattice term not given as a number above 25 K (advanced-packaging-atlas reading). A measured room-temperature point exists (Krupka 2006 Table I, TE011 6.685 GHz, sample #1: 1.866e-3, sample resistivity not stated; advanced-packaging-atlas si_hr via) but describes that sample only"
     alternatives: []
 missing:
-  - {what: "photoelastic tensor (lane MX 2026-11-07, for lane MOM): Chan et al., Appl. Phys. Lett. 101, 081115 (2012), arXiv 1206.2099v1 p.2 (cache/eval-b/chan-2012): '(p11, p12, p44) = (-0.094, 0.017, -0.051) [12, 13]' with the axes aligned to [100] and [010], wavelength not stated there; Baker et al. 2014 arXiv v1 Table 2 lists Si p11 -0.09, p12 +0.017, p44 -0.051 at 3.39 um citing Biegelsen, Phys. Rev. Lett. 32, 1196 (1974). Both secondary (Biegelsen 1974 not read); not stored: @amp/materials has no photoelastic property type"}
-  - {property: C, what: "temperature dependence of Cij (Hall 1967 Figs. 1-3 cover 4.2-310 K; APA digitized them, not carried over)"}
+  - {property: p_pe, what: "primary photoelastic data (Biegelsen, Phys. Rev. Lett. 32, 1196 (1974)) not read; p_pe stores the values as used by Chan et al. 2012 (paper_model_input); dispersion of p with wavelength not stored"}
+  - {property: C, what: "temperature dependence of Cij (Hall 1967 Figs. 1-3 cover 4.2-310 K; the advanced-packaging-atlas project digitized them, not carried over)"}

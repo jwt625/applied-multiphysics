@@ -14,12 +14,12 @@ sources:
   boucher1981:
     citation: "D. Boucher, M. Lagier, C. Maerfeld, Computation of the vibrational modes for piezoelectric array transducers using a mixed finite element-perturbation method, IEEE Trans. Sonics Ultrason. SU-28(5), 318-330 (1981)"
     access: paywalled
-    read: "not read (IEEE, paywalled; DOI not verified in this lane); the eval case CP-06 cites its Table 1 via Ansys VM175, where the matrices are images"
+    read: "not read (IEEE, paywalled; DOI not verified for this library); the eval case CP-06 cites its Table 1 via Ansys VM175, where the matrices are images"
   vm175:
     citation: "Ansys Mechanical APDL Verification Manual, Release 2025 R1, VM175 Input Listing 'Natural frequency of a piezoelectric transducer' (cites Boucher, Lagier, Maerfeld, IEEE Trans. Sonics Ultrason. SU-28(5), 318-330 (1981))"
     url: https://ansyshelp.ansys.com/public/Views/Secured/corp/v251/en/ans_vm/Hlp_V_VM175TXT.html
     access: vendor_open
-    read: "text of the listing read by lane MX 2026-11-07 (scratch copy, not cached in the repo); page marked proprietary to ANSYS, Inc.: numeric values cited only"
+    read: "text of the listing read 2026-11-07 (scratch copy, not cached in the repo); page marked proprietary to ANSYS, Inc.: numeric values cited only"
 properties:
   rho:
     value: 7500
@@ -31,7 +31,7 @@ properties:
     uncertainty: {na: "not stated"}
     conditions: {text: "PZT-4 as used in the Boucher 1981 model via VM175; temperature not stated"}
     valid: {T: {na: "temperature not stated"}}
-    note: "added 2026-11-07 by lane MX (DevLog-035 s.9), was N/A; vendor listing of a paywalled primary (Boucher 1981 not read)"
+    note: "added 2026-11-07, was N/A; vendor listing of a paywalled primary (Boucher 1981 not read)"
     alternatives: []
   eps_r:
     tensor:
@@ -45,7 +45,7 @@ properties:
     uncertainty: {na: "not stated"}
     conditions: {text: "clamped (constant strain) eps^S / eps0 assumed: the VM175 listing does not state it; Ansys VM231 labels its PERX 'PERMITTIVITY AT CONSTANT STRAIN'"}
     valid: {T: {na: "temperature not stated"}, f: {na: "not stated; clamped = above the mechanical resonances"}}
-    note: "added 2026-11-07 by lane MX, was N/A"
+    note: "added 2026-11-07, was N/A"
     alternatives: []
   C:
     tensor:
@@ -60,7 +60,7 @@ properties:
     uncertainty: {na: "not stated"}
     conditions: {text: "constant electric field c^E assumed (the listing does not state it); poling axis z"}
     valid: {T: {na: "temperature not stated"}}
-    note: "added 2026-11-07 by lane MX, was N/A. PZT-4 is 6mm; tetragonal-4mm (independent C66) reproduces the listed C66 = 3.0e10 exactly, the 6mm form would give (C11 - C12)/2 = 3.05e10"
+    note: "added 2026-11-07, was N/A. PZT-4 is 6mm; tetragonal-4mm (independent C66) reproduces the listed C66 = 3.0e10 exactly, the 6mm form would give (C11 - C12)/2 = 3.05e10"
     alternatives: []
   e_piezo:
     tensor:
