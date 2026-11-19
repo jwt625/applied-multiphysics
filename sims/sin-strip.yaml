@@ -1,0 +1,74 @@
+# WO-89 (eval/cases/c/WO-89.yaml): silicon nitride strip waveguide, 1.0 um x 300 nm LPCVD Si3N4 on 2.5 um thermal oxide
+# with 2.0 um oxide above, TE0 at 1555 nm; group index with library dispersion. Platform of P. Munoz et al., Sensors 17,
+# 2088 (2017), doi 10.3390/s17092088 (s.3.1: 2.5 um thermal SiO2, 300 nm LPCVD Si3N4, 2.0 um PECVD SiO2; width 1.0 um),
+# measured TE group index 1.892 (OFDR, 80 nm span centred at 1555 nm) and 1.90-1.92 (MZI) (s.3.4). The paper does not
+# state whether the measured guides were the fully etched (strip) or the 150 nm rib version; this model is the strip.
+# Informative: measured value, fabricated dimensions and film indices are not known to the model's precision.
+schema: amp-spec/0
+id: sin-strip
+title: Silicon nitride strip waveguide group index
+description: 1.0 um x 300 nm Si3N4 strip in oxide at 1555 nm; TE0 effective and group index with library dispersion, compared with a measured group index.
+params:
+  w_core: {value: 1.0, unit: um, description: core width}
+  t_core: {value: 300, unit: nm, description: core thickness}
+  t_below: {value: 2.5, unit: um, description: thermal oxide below the core}
+  t_above: {value: 2.0, unit: um, description: oxide above the core}
+  W: {value: 8, unit: um, description: window width (PEC walls)}
+  lambda0: {value: 1.555, unit: um, description: vacuum wavelength}
+geometry:
+  dim: 2
+  features:
+    - {id: win, type: rect, settings: {size: ["W", "t_below + t_core + t_above"], center: ["0 um", "(t_core + t_above - t_below)/2"]}}
+    - {id: core, type: rect, settings: {size: ["w_core", "t_core"], center: ["0 um", "t_core/2"]}}
+    - {id: clad, type: difference, settings: {base: win, tools: [core], keepTools: true}}
+materials:
+  - {id: SiN, ref: materials/si3n4-lpcvd, select: ["dom:core"]}
+  - {id: SiO2, ref: materials/sio2-thermal-oxide, select: ["dom:clad"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:core", "dom:clad"]
+    settings: {order: 2, dispersion: {}}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:win.left", "bnd:win.right", "bnd:win.top", "bnd:win.bottom"]}
+mesh:
+  size: {hmax: "0.4 um", grading: 0.3}
+  refine:
+    - {select: ["dom:core"], h: "t_core/4"}
+    - {select: ["bnd:core.left", "bnd:core.right", "bnd:core.top", "bnd:core.bottom"], h: "t_core/12"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  datasets:
+    - {id: sol_modes, type: solution, data: modes}
+  evaluations:
+    - id: ev_modes
+      data: sol_modes
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: ng, type: global, expr: ewg.ng_0, unit: "1"}
+        - {id: te_fraction, type: global, expr: ewg.teFraction_0, unit: "1"}
+  tables:
+    - {id: tbl_modes, from: ev_modes}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.w_core: {basis: paper_exact, source: "P. Munoz et al., Silicon nitride photonic integration platforms for visible, near-infrared and mid-infrared applications, Sensors 17(9), 2088 (2017), doi 10.3390/s17092088", locator: "s.3.3 (spiral waveguides, width 1.0 um); s.3.4 (straight waveguides of the same width, 1.0 um)", date: 2026-11-18}
+    params.t_core: {basis: paper_exact, source: "Munoz et al. 2017", locator: "s.3.1 (Si3N4 LPCVD, thickness 300 nm)", date: 2026-11-18}
+    params.t_below: {basis: paper_exact, source: "Munoz et al. 2017", locator: "s.3.1 (SiO2 buffer 2.5 um, thermal oxidation)", date: 2026-11-18}
+    params.t_above: {basis: paper_exact, source: "Munoz et al. 2017", locator: "s.3.1 (2.0 um PECVD SiO2; Table 1 lists 1.50 um for the same platform)", date: 2026-11-18}
+    params.W: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.lambda0: {basis: paper_exact, source: "Munoz et al. 2017", locator: "s.3.4 (OFDR scan 80 nm span centred at 1555 nm)", date: 2026-11-18}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "Fully etched strip (the paper offers a strip and a 150 nm rib and does not say which one was measured)", paths: [geometry]}
+  - {text: "Library indices (Si3N4 Luke et al. 2015 film Sellmeier; SiO2 Malitson) for both oxides; the paper quotes n 1.464 (thermal) and 1.45 (PECVD) and 2.01 (Si3N4)", paths: [materials]}
+  - {text: "PEC walls 2.5 um below and 2.0 um above the core (substrate and air beyond them not modelled)", paths: [physics.ewg]}
+# eval: [WO-89]

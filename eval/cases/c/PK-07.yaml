@@ -1,0 +1,165 @@
+# PK-07: RDL microstrip with a 2 um thick strip: L' vs boundary elements, C' and Z0 vs Hammerstad-Jensen with thickness
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: PK-07
+class: c
+title: 'RDL microstrip with a 2 um thick strip: L'' vs boundary elements, C'' and Z0 vs Hammerstad-Jensen with thickness'
+status: unvalidated
+untestable_reason: null
+physics: [electrostatics]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {W_m: 1.0e-05, h_m: 1.0e-05, metal_t_m: 2.0e-06, box_half_width_m: 0.002, air_height_m: 0.002}
+materials:
+  dielectric: {ref: materials/polyimide-pi2600, eps_r: 2.9, source: HD MicroSystems PI-2600 technical information Table 2
+      (1 kHz) via materials/polyimide-pi2600.yaml}
+  air: {eps_r: 1, source: 'vacuum, as assumed by the references'}
+bcs:
+- {selection: strip walls, type: terminal}
+- {selection: ground plane, type: ground}
+- {selection: box sides and top, type: n . D = 0}
+initial: null
+study: {type: stationary}
+references:
+- quantity: mu0 eps0 / C'_0 (boundary elements, thick strip, vacuum)
+  metric_id: L_per_m
+  value: 3.797679774286957e-07
+  unit: H/m
+  tolerance: {rel: 0.0005, after: richardson}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  expected: {file: eval/expected/PK-07.json, metric_id: L_per_m}
+  provenance: {citation: 'Boundary-element solution of a rectangular strip over an infinite ground plane in vacuum (image
+      method, piecewise-constant charge on corner-graded panels, exact panel integrals; own code, independent of the finite
+      elements; validation/pkg2/strip_bem.py)', locator: 'validation/pkg2/strip_bem.py bem_c0(), converge(): Richardson of
+      320 / 640 panels per side, change between them about 4e-7; agrees with Hammerstad-Jensen zero thickness to 9e-7 at t
+      = 1e-4 h', accessed: null, generator: validation/pkg2/strip_bem.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: L_per_m}
+  note: reference converged to about 3e-7; box truncation about 5e-5 (zero-thickness case)
+- id: L_per_m_hj
+  quantity: L' vs Hammerstad-Jensen with thickness
+  metric_id: L_per_m_hj
+  value: 3.7943578805275754e-07
+  unit: H/m
+  tolerance: {rel: 0.003, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  expected: {file: eval/expected/PK-07.json, metric_id: L_per_m_hj}
+  provenance: {citation: 'Hammerstad and Jensen, Accurate models for microstrip computer-aided design, IEEE MTT-S Digest 1980,
+      pp. 407-409 (primary not read), with the strip-thickness correction; formulas from the Qucs technical documentation
+      s.11.1.3 and scikit-rf skrf/media/mline.py', locator: 'qucs.sourceforge.net/tech/node75.html eqs. (11.22)-(11.25) with
+      (11.4)-(11.6), (11.15)-(11.18); width normalised by h in the coth argument (scikit-rf hammerstadjensen branch); no accuracy
+      stated for the thickness term', accessed: null, generator: validation/pkg2/strip_bem.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: L_per_m}
+  note: 'informative: no accuracy stated for the thickness term; it differs from the boundary-element value by -8.7e-4 here'
+- quantity: eps_eff / (c0 Z_L1(u1)) (Hammerstad-Jensen with thickness)
+  metric_id: C_per_m
+  value: 6.229108951576161e-11
+  unit: F/m
+  tolerance: {rel: 0.003, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  expected: {file: eval/expected/PK-07.json, metric_id: C_per_m}
+  provenance: {citation: 'Hammerstad and Jensen, Accurate models for microstrip computer-aided design, IEEE MTT-S Digest 1980,
+      pp. 407-409 (primary not read), with the strip-thickness correction; formulas from the Qucs technical documentation
+      s.11.1.3 and scikit-rf skrf/media/mline.py', locator: 'qucs.sourceforge.net/tech/node75.html eqs. (11.22)-(11.25) with
+      (11.4)-(11.6), (11.15)-(11.18); width normalised by h in the coth argument (scikit-rf hammerstadjensen branch); no accuracy
+      stated for the thickness term', accessed: null, generator: validation/pkg2/strip_bem.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: C_per_m}
+  note: 'informative: no accuracy stated for the thickness term'
+- quantity: Z_L1(u_r) / sqrt(eps_eff(u_r)) (Hammerstad-Jensen with thickness)
+  metric_id: Z0
+  value: 78.04699419634427
+  unit: Ohm
+  tolerance: {rel: 0.003, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  expected: {file: eval/expected/PK-07.json, metric_id: Z0}
+  provenance: {citation: 'Hammerstad and Jensen, Accurate models for microstrip computer-aided design, IEEE MTT-S Digest 1980,
+      pp. 407-409 (primary not read), with the strip-thickness correction; formulas from the Qucs technical documentation
+      s.11.1.3 and scikit-rf skrf/media/mline.py', locator: 'qucs.sourceforge.net/tech/node75.html eqs. (11.22)-(11.25) with
+      (11.4)-(11.6), (11.15)-(11.18); width normalised by h in the coth argument (scikit-rf hammerstadjensen branch); no accuracy
+      stated for the thickness term', accessed: null, generator: validation/pkg2/strip_bem.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: Z0}
+  note: 'informative: no accuracy stated for the thickness term'
+- id: L_per_m_zero_t
+  quantity: L' of the zero-thickness line (same W, h; sims/microstrip-rdl.yaml)
+  metric_id: L_per_m_zero_t
+  value: 4.217046220822712e-07
+  unit: H/m
+  tolerance: {rel: 0.0005, after: richardson}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Hammerstad and Jensen, Accurate models for microstrip computer-aided design, IEEE MTT-S Digest 1980,
+      pp. 407-409 (primary not read), with the strip-thickness correction; formulas from the Qucs technical documentation
+      s.11.1.3 and scikit-rf skrf/media/mline.py', locator: 'Qucs s.11.1 eqs. (11.4)-(11.6): Z_L1 0.01 % for W/h <= 1', accessed: null,
+    generator: validation/pkg2/strip_bem.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: L_per_m}
+  spec: sims/microstrip-rdl.yaml
+  note: informative here (gated in the zero-thickness case); feeds the ratio below
+- id: C0_ratio
+  quantity: vacuum capacitance ratio C'_0(t) / C'_0(0) = L'(0) / L'(t)
+  metric_id: C0_ratio
+  value: 1.1104270163522396
+  unit: '1'
+  tolerance: {rel: 0.001, note: finest-level ratio; both lines converge at order 1 with errors of the same sign (about -4e-4
+      in L' at the finest level of the zero-thickness case)}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  expected: {file: eval/expected/PK-07.json, metric_id: C0_ratio}
+  provenance: {citation: 'Boundary-element solution of a rectangular strip over an infinite ground plane in vacuum (image
+      method, piecewise-constant charge on corner-graded panels, exact panel integrals; own code, independent of the finite
+      elements; validation/pkg2/strip_bem.py); zero thickness: Hammerstad and Jensen, Accurate models for microstrip computer-aided
+      design, IEEE MTT-S Digest 1980, pp. 407-409 (primary not read), with the strip-thickness correction; formulas from the
+      Qucs technical documentation s.11.1.3 and scikit-rf skrf/media/mline.py', locator: 'validation/pkg2/strip_bem.py bem_c0(),
+      converge(): Richardson of 320 / 640 panels per side, change between them about 4e-7; agrees with Hammerstad-Jensen zero
+      thickness to 9e-7 at t = 1e-4 h; Qucs s.11.1 eqs. (11.4)-(11.6)', accessed: null, generator: validation/pkg2/strip_bem.py,
+    source_accessed: '2026-11-18'}
+  extract:
+    kind: combine
+    expr: l0 / lt
+    targets: {l0: L_per_m_zero_t, lt: L_per_m}
+reference_results: []
+convergence:
+  levels_min: 3
+  ratio_min: 2
+  method: richardson_gci
+  safety_factor: 1.25
+  h_factors: [1, 0.5, 0.25]
+  expected_order: 1.333
+  note: 'right-angle conductor corners (exterior angle 3 pi / 2): field ~ r^(-1/3), so the energy (C'') error converges at
+    order 4/3 under uniform refinement'
+speed:
+  budget_s: {browser: 6.0, native: null}
+  budget_basis: est. from the lane's own runs on 2026-11-18 (DevLog-063), not a browser measurement
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own derivation, own reference code and closed forms from cited literature (formulas only); GPL-3.0-or-later
+    code
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: sims/microstrip-thick.yaml
+missing: []
+assumptions: ['Perfectly conducting rectangular strip, lossless quasi-static TEM; polyimide eps_r from a 1 kHz data-sheet
+    value.']
+notes: ['Hammerstad-Jensen thickness correction vs the boundary-element air line: -8.7e-4 in L'' at t/h = 0.2, +7.8e-6 at
+    t/h = 1e-3, -8.7e-7 at t/h = 1e-4 (validation/pkg2/strip_bem.py).']
+lane: G6
+created: '2026-11-18'

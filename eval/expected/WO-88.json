@@ -1,0 +1,32 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-88",
+  "class": "c",
+  "generator": "validation/photonics2/slot_slab.py",
+  "command": "cd validation && uv run python photonics2/slot_slab.py",
+  "method": "exact transfer-matrix dispersion relation of the five-layer slab, TM (H_x, E_y, E_z), even mode, PEC walls at y = +-L (L = 2.770 um, the sim window); rails 220 nm, slot 100 nm, n 3.48 / 1.44 / 1.44, lambda 1.55 um",
+  "generated_at": "2026-11-18T18:48:54-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "neff_0",
+      "value": 2.32899031346649,
+      "unit": "1",
+      "precision": {
+        "method": "mpmath findroot 40 digits vs scipy brentq",
+        "open_cladding_value": 2.32899031346649,
+        "walled_minus_open": 0.0
+      }
+    }
+  ]
+}

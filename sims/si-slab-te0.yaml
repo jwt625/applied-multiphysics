@@ -1,5 +1,5 @@
 # WO-01 (eval/cases/a/WO-01.yaml) TE0: symmetric Si slab (220 nm) in SiO2 at 1550 nm, reduced to the 2D vector mode
-# solver as in the L4 gate packages/physics/gates/modes-wo01.ts: a narrow window in x (slab invariant in x), PEC at y = +-L.
+# solver as in the verification gate packages/physics/gates/modes-wo01.ts: a narrow window in x (slab invariant in x), PEC at y = +-L.
 # PEC on the x walls holds exactly for the x-invariant TE0 (E = E_x(y) x^: tangential E_y = E_z = 0). Window width W << lambda/2 pushes every x-varying mode far below, so the top mode is the x-invariant one.
 schema: amp-spec/0
 id: si-slab-te0

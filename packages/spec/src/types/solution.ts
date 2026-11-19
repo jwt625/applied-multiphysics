@@ -7,6 +7,14 @@ export interface FieldData {
   name: string; unit: string; space: FieldSpace; components: 1 | 2 | 3; data: Float64Array; step?: number;
   /** physics id of the field; set by the study driver on merged multiphysics solutions (C11) */
   physics?: string;
+  /** derived H1 fields whose `data` is a nodal average of element values (stresses): the element values at the cell
+   * nodes before averaging, index (cell * k + a) * components + j (k nodes per cell, VTK order), NaN for cells
+   * outside the physics. Read by @amp/post for per-domain recovery and element-value integrals (DevLog-059). */
+  elementNodal?: Float64Array;
+  /** derived fields with `elementNodal`: constitutive group per cell (cells with equal values have the same material
+   * constants, so the field is continuous between them; -1 outside the physics). @amp/post recovers per group at
+   * interface nodes, and per geometric domain (cells.domain) when absent (DevLog-066). */
+  cellGroup?: Int32Array;
 }
 
 export interface Platform { runtime: 'node' | 'browser'; ua?: string; cores?: number; gpu?: string; crossOriginIsolated?: boolean }

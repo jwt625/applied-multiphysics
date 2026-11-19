@@ -279,7 +279,7 @@ export async function solveWave2D(ctx: RunContext, kind: Kind, opts: { factor?: 
         const angles = new Float64Array(nAng + 2);
         for (let i = 0; i < nAng; i++) angles[i] = (2 * Math.PI * i) / nAng;
         angles[nAng] = pwDir; angles[nAng + 1] = pwDir + Math.PI;
-        const inner = pml ? pml.inner : cellBox(mesh, (c) => !!md.mask[c])!;
+        const inner = pml ? pml.inner : cellBox(mesh, md.mask)!;
         const scat: number[] = [];
         const kk = NPC[mesh.cells.type];
         const differs = (c: number) => C.aRe[c] !== planeWave.aB[0] || C.aIm[c] !== planeWave.aB[1] || C.mRe[c] !== planeWave.mB[0] || C.mIm[c] !== planeWave.mB[1];

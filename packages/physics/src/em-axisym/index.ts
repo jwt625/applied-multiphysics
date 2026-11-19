@@ -18,7 +18,7 @@ import { ndBasis, h1Basis } from '@amp/core/fem/hcurl';
 import { NPC, nCells, facetsOn } from '../common/mesh.ts';
 import { triRule } from '../common/quad.ts';
 import { restrict, type Csr } from '../common/scalar.ts';
-import { shiftInvertEigen, csrMatVec } from '../common/eigen.ts';
+import { shiftInvertEigen, csrMatVec, eigenCheckNote } from '../common/eigen.ts';
 import { StageTimer, makeSolution, attachMesh, checkAbort } from '../common/solution.ts';
 import { cellProps, optionalCellProp, bcSelections, bcTypes, eigenStudy, physicsNode } from '../common/ctx.ts';
 
@@ -229,7 +229,9 @@ export async function solveAxisymModes(p: AxisymProblem): Promise<Solution & { d
   };
   const sigma = (2 * Math.PI * p.shiftHz / C0) ** 2;
   timer.start('solve');
-  const eig = shiftInvertEigen({ pat: R.pat, K: R.val, M: Mr, sigma, nWant: p.nModes, project, tol: 1e-11, ...(p.signal ? { signal: p.signal } : {}) });
+  // nullDim: the projector removes range(G), of dimension nH (G has full column rank: G^T M G was factored above), which
+  // is the kernel of K for m >= 1 and its gradient part for m = 0 (DevLog-066 s.4)
+  const eig = shiftInvertEigen({ pat: R.pat, K: R.val, M: Mr, sigma, nWant: p.nModes, project, nullDim: nH, tol: 1e-11, ...(p.signal ? { signal: p.signal } : {}) });
   timer.stop('solve');
   timer.add('factor', eig.stats.factorMs);
   timer.timing.solve = (timer.timing.solve ?? 0) - eig.stats.factorMs;
@@ -263,6 +265,8 @@ export async function solveAxisymModes(p: AxisymProblem): Promise<Solution & { d
     timer,
   });
   attachMesh(sol, mesh);
+  const chkNote = eigenCheckNote(eig.stats.check);
+  if (chkNote) (sol as Solution & { notes?: string[] }).notes = [...((sol as Solution & { notes?: string[] }).notes ?? []), chkNote];
   return Object.assign(sol, { detail: { m, ezFraction, eigResidual: Float64Array.from(keep, (i) => eig.residual[i]!), nNull: nH, stats: { ...eig.stats } }, x: xs, space: sp });
 }
 

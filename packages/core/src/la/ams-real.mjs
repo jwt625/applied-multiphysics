@@ -16,6 +16,22 @@
 // License: GPL-3.0-or-later.
 
 import { buildAMG, csrTranspose, csrMatMat } from './amg.mjs';
+import { makeCsrKernels } from './wasm/csr.mjs';
+
+// WASM CSR kernels (bitwise identical to the JS loops, DevLog-060) per value array; null = JS loops
+const kernelCache = new WeakMap();
+function kernelsOf(pat, val) {
+  if (kernelCache.has(val)) {
+    const k = kernelCache.get(val);
+    if (!k || k.pat === pat) return k ? k.k : null;
+  }
+  const k = makeCsrKernels(pat, val, diagSlotsOrNull(pat));
+  kernelCache.set(val, k ? { pat, k } : null);
+  return k;
+}
+function diagSlotsOrNull(pat) {
+  try { return diagSlots(pat); } catch { return null; }
+}
 
 const fail = (m) => {
   throw new Error(`ams-real: ${m}`);
@@ -36,6 +52,17 @@ export function diagSlots(pat) {
 
 /** y = A x (CSR). */
 export function spmvCsr(pat, val, x, y) {
+  return spmvJs(pat, val, x, y);
+}
+
+/** y = A x for a square A, through the WASM kernel when available (bitwise identical). */
+function spmvSq(pat, val, x, y) {
+  const k = kernelsOf(pat, val);
+  if (k) return k.spmv(x, y);
+  return spmvJs(pat, val, x, y);
+}
+
+function spmvJs(pat, val, x, y) {
   const { rowptr, colidx } = pat;
   for (let i = 0; i < pat.n; i++) {
     let s = 0;
@@ -47,6 +74,8 @@ export function spmvCsr(pat, val, x, y) {
 
 /** One Gauss-Seidel sweep on A x = b in place; dir +1 forward, -1 backward. */
 function gs(pat, val, diag, b, x, dir) {
+  const k = kernelsOf(pat, val);
+  if (k) return k.gs(b, x, dir);
   const { rowptr, colidx } = pat;
   const n = pat.n;
   for (let k = 0; k < n; k++) {
@@ -105,7 +134,7 @@ export function buildAMSReal({ pat, val, G, Pis, amg = {} }) {
   });
   const r = new Float64Array(n);
   const residual = (b, x) => {
-    spmvCsr(pat, val, x, r);
+    spmvSq(pat, val, x, r);
     for (let i = 0; i < n; i++) r[i] = b[i] - r[i];
   };
   const auxStep = (a, x) => {
@@ -150,7 +179,7 @@ export function buildPMGReal({ pat, val, nc, Gf, coarse }) {
   const r = new Float64Array(n), rg = new Float64Array(AG.n), xg = new Float64Array(AG.n);
   const rc = new Float64Array(nc), ec = new Float64Array(nc);
   const residual = (b, x) => {
-    spmvCsr(pat, val, x, r);
+    spmvSq(pat, val, x, r);
     for (let i = 0; i < n; i++) r[i] = b[i] - r[i];
   };
   const auxCorrect = (b, x, dir) => {
@@ -198,12 +227,14 @@ export function leadingBlock(pat, val, nc) {
 
 /**
  * Preconditioned CG on a CSR operator: solves A x = b to ||b - A x|| <= rtol ||b|| (x: initial guess, overwritten).
- * precond(r, z) must be symmetric positive definite. Returns {iterations, relres, converged}.
+ * precond(r, z) must be symmetric positive definite. Returns {iterations, relres, converged}. The products use the WASM
+ * CSR kernels (la/wasm/csr.mjs, bitwise identical), which copy `val` on first use per value array: values must not be
+ * changed in place afterwards (the same holds for the matrices given to buildAMSReal / buildPMGReal).
  */
 export function pcgCsr(pat, val, precond, b, x, { rtol = 1e-10, maxIter = 1000 } = {}) {
   const n = pat.n;
   const r = new Float64Array(n), z = new Float64Array(n), p = new Float64Array(n), q = new Float64Array(n);
-  spmvCsr(pat, val, x, q);
+  spmvSq(pat, val, x, q);
   let bn = 0;
   for (let i = 0; i < n; i++) {
     r[i] = b[i] - q[i];
@@ -224,7 +255,7 @@ export function pcgCsr(pat, val, precond, b, x, { rtol = 1e-10, maxIter = 1000 }
   for (let i = 0; i < n; i++) rz += r[i] * z[i];
   let it = 0;
   for (it = 1; it <= maxIter; it++) {
-    spmvCsr(pat, val, p, q);
+    spmvSq(pat, val, p, q);
     let pq = 0;
     for (let i = 0; i < n; i++) pq += p[i] * q[i];
     if (!(pq > 0)) fail(`pcg: p^T A p = ${pq} at iteration ${it} (operator or preconditioner not SPD)`);

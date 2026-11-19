@@ -1,8 +1,8 @@
 # RF-62 (eval/cases/c/RF-62.yaml): EO-atlas K6a, coplanar waveguide with a zero-thickness signal strip S 20 um and slots
 # W 5 um on an eps_r 11.7 half-space, semi-infinite grounds; quasi-static C', n_RF, Z0 (conformal map, eval/expected/RF-62.json:
 # C' 213.727 pF/m, n_RF 2.51992, Z0 39.3285 Ohm). The strip and grounds are zero-thickness edges on y = 0 (the bottoms of the
-# air columns); the half-space and the semi-infinite grounds are truncated at the box half-size R (modelling choice, see
-# the truncation study in DevLog-022). Rights: own work (eo-modulator-atlas) + textbook conformal map.
+# air columns); the half-space and the semi-infinite grounds are truncated at the box half-size R (modelling choice,
+# checked by a truncation study). Rights: own work (eo-modulator-atlas) + textbook conformal map.
 schema: amp-spec/0
 id: cpw-halfspace
 title: CPW on a half-space

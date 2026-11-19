@@ -124,6 +124,7 @@ const optomechanical: CouplingImpl & { readiness(spec: Spec, node: CouplingNode)
     for (const m of os.azimuthal) {
       const r = await solveAxisymModes({ mesh: mesh3, m, order, epsR, muR: mu, mask: oMask, pec, nModes: oOpt.nModes, shiftHz: oOpt.shiftHz, signal: cO.signal });
       oDof += r.stats.dof;
+      for (const n of (r as { notes?: string[] }).notes ?? []) if (n.startsWith('eigen:') && !notes.includes(`optical m = ${m}: ${n}`)) notes.push(`optical m = ${m}: ${n}`);
       r.steps!.values.forEach((f, k) => optical.push({ mesh: mesh3, space: r.space, order, x: r.x[k]!, omega: 2 * Math.PI * f, m, f, ez: r.detail.ezFraction[k]! }));
     }
     optical.sort((p, q) => p.f - q.f);
@@ -154,6 +155,7 @@ const optomechanical: CouplingImpl & { readiness(spec: Spec, node: CouplingNode)
     const mOpt = modeOpts(spec, { nModes: eigenStudy(cM).nModes, shiftHz: null }, set.mechanical);
     const sm = solidModesAxisym({ mesh, mask: sMask, D, rho: sVals.rho!, bcs: solidBcsOf(spec, node.from, mesh), nModes: mOpt.nModes, shiftHz: mOpt.shiftHz, signal: cM.signal });
     notes.push(...stiffNote);
+    if (sm.checkNote) notes.push(`mechanical: ${sm.checkNote}`);
     timer.stop('mechanical');
     checkAbort(cM.signal);
 

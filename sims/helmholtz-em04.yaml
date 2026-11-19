@@ -1,5 +1,5 @@
 # EM-04 (eval/cases/a/EM-04.yaml): Helmholtz coil, centre field and off-axis probes, axisymmetric A_phi.
-# Model as in the L4 gate packages/physics/gates/em.ts (EM-04), expressed as a spec: square coil sections s = R/100,
+# Model as in the verification gate packages/physics/gates/em.ts (EM-04), expressed as a spec: square coil sections s = R/100,
 # a refinement-only core region around the centre, and a truncation box of half-size 100 R with n x A = 0.
 schema: amp-spec/0
 id: helmholtz-em04

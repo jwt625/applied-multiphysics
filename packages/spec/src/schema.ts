@@ -311,7 +311,7 @@ export const NONNEG: Bounds = Object.freeze({ ge: 0 });
 
 export const meshSchema = z.strictObject({
   mesher: typeName.optional(),
-  size: z.strictObject({ hmax: quantity('m', POS), hmin: quantity('m', POS).optional(), grading: quantity('1', POS).optional().meta({ description: 'Maximum size growth per unit distance, |dh/dx| (dimensionless; L3 mapping, contract changelog 2026-11-06)' }) }),
+  size: z.strictObject({ hmax: quantity('m', POS), hmin: quantity('m', POS).optional(), grading: quantity('1', POS).optional().meta({ description: 'Maximum size growth per unit distance, |dh/dx| (dimensionless; L3 mapping, contract changelog 2026-11-06)' }), maxLayerAspect: quantity('1', POS).optional().meta({ description: 'Layer stacks: in-plane cell size at most this times a layer z cell height (thin layers refined in plane; off when absent; the 2D mesh is shared by all layers)' }) }),
   refine: z.array(z.strictObject({ select: selection(), h: quantity('m', POS) })).optional(),
   budget: z.strictObject({ maxNodes: z.number().int().positive().optional(), maxDof: z.number().int().positive().optional() }).optional(),
 });
@@ -359,6 +359,7 @@ function specFromParts<P extends Parts>(p: P) {
       label,
       ref: z.string().regex(MATERIAL_REF, { message: 'materials/<id>' }).optional(),
       override: (p.override as P['override']).optional(),
+      T: quantity('K', POS).optional().meta({ description: 'Material temperature: library tables / fits of this material are evaluated at this T (else at the run temperature, when the caller passes one); overrides are not affected' }),
       select: selection(['dom']),
     }).superRefine((m, ctx) => {
       if (m.ref === undefined && m.override === undefined) ctx.addIssue({ code: 'custom', message: 'a material needs ref or override' });

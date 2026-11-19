@@ -21,6 +21,8 @@ export interface LevelObservation {
   stages?: Record<string, number>;
   iterations?: number;
   meshHash?: string;
+  /** per-level diagnostics of the extract (e.g. the resonance search: solves, fit residual), copied to the record */
+  diag?: Record<string, number>;
 }
 
 export interface TargetObservation {
@@ -56,7 +58,7 @@ export interface TargetResult {
   eigen?: EigenMatch;
   field?: FieldError & { metric: string; measured: number; limit: number; pass: boolean };
   rule?: RuleResult;
-  levels?: Array<{ dof?: number; h?: number; value: number | number[] | null; err?: number; wall_ms?: number; meshHash?: string }>;
+  levels?: Array<{ dof?: number; h?: number; value: number | number[] | null; err?: number; wall_ms?: number; meshHash?: string; diag?: Record<string, number> }>;
   time_ms: number | null;
   dof: number | null;
 }
@@ -165,7 +167,7 @@ export function evaluateTarget(r: Reference, ref: number | number[] | undefined,
   });
   const tol = r.tolerance;
   const hs = lv.map((l) => l.h ?? (l.dof !== undefined && opts.dim ? hFromDof(l.dof, opts.dim) : NaN));
-  const levelRows = (vals: Array<number | number[] | null>, errs?: number[]) => lv.map((l, i) => ({ dof: l.dof, h: hs[i], value: vals[i] ?? null, ...(errs ? { err: errs[i] } : {}), wall_ms: l.wall_ms, ...(l.meshHash ? { meshHash: l.meshHash } : {}) }));
+  const levelRows = (vals: Array<number | number[] | null>, errs?: number[]) => lv.map((l, i) => ({ dof: l.dof, h: hs[i], value: vals[i] ?? null, ...(errs ? { err: errs[i] } : {}), wall_ms: l.wall_ms, ...(l.meshHash ? { meshHash: l.meshHash } : {}), ...(l.diag ? { diag: l.diag } : {}) }));
 
   // Field targets: error at sample points
   if (isSamples(lv[lv.length - 1]!.value) || r.extract?.kind === 'field') {
@@ -291,7 +293,7 @@ export function evaluateTarget(r: Reference, ref: number | number[] | undefined,
     });
   }
   const c = checkScalar(vals[vals.length - 1]!, ref, tol);
-  return verdict(c.pass, { value: c.value, ref, diff: c.diff, err_abs: c.abs_err, err_rel: c.rel_err, limit: c.limit, limit_basis: c.limit_basis, ...(lv.length > 1 ? { levels } : {}), ...(rate ? { rate } : {}) });
+  return verdict(c.pass, { value: c.value, ref, diff: c.diff, err_abs: c.abs_err, err_rel: c.rel_err, limit: c.limit, limit_basis: c.limit_basis, ...(lv.length > 1 || lv.some((l) => l.diag) ? { levels } : {}), ...(rate ? { rate } : {}) });
 }
 
 /**

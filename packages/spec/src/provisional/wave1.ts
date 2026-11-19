@@ -78,7 +78,7 @@ export const WAVE1: Registration[] = [
     settings: z.strictObject({ T_ref: quantity('K', NONNEG) }) },
 
   // ---- studies -----------------------------------------------------------------------------------------------
-  { kind: 'study', type: 'stationary', ...phys, description: 'Stationary solve; solver: linear solver of heat / electrostatics / currents (direct = Cholesky, default; amg-pcg; auto = AMG-PCG on large problems), rtol: AMG-PCG relative residual',
+  { kind: 'study', type: 'stationary', ...phys, description: 'Stationary solve; solver: linear solver of heat / electrostatics / currents / elastic (direct = Cholesky, default; amg-pcg = AMG-preconditioned CG, elasticity with the rigid-body modes; auto = AMG-PCG on large problems), rtol: AMG-PCG relative residual',
     settings: z.strictObject({ solver: z.enum(['direct', 'amg-pcg', 'auto']).optional(), rtol: z.number().gt(0).lt(1).optional() }) },
   { kind: 'study', type: 'eigen', ...phys, description: 'Eigenfrequencies: nModes closest to shift (lowest when no shift); solver: linear solver of the 3D electromagnetic eigen solve (direct, default; ams = AMS-preconditioned CG for meshes above the direct solver memory, lowest modes only; auto = AMS when the direct factor would exceed 300 MiB), rtol: AMS inner relative residual',
     settings: z.strictObject({ nModes: int(), shift: quantity('Hz').optional(), solver: z.enum(['direct', 'ams', 'auto']).optional(), rtol: z.number().gt(0).lt(1).optional() }) },

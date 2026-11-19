@@ -57,8 +57,9 @@ test("'auto' rule: flop per DOF and factor size thresholds", () => {
 test('stationary settings.solver: invalid values are rejected by the spec; non-scalar physics are untouched', async () => {
   await assert.rejects(prepareRun({ spec: withSettings({ solver: 'gmres' }) }), /spec invalid/);
   await assert.rejects(prepareRun({ spec: withSettings({ solver: 'amg-pcg', rtol: 2 }) }), /spec invalid/);
-  assert.deepEqual([...STUDY_SOLVER_TYPES].sort(), ['currents', 'electrostatics', 'heat']);
-  const out = await withStudySolver({ settings: { solver: 'amg-pcg' } }, 'elastic', async () => ({ stats: { solver: 'cholesky' } }));
+  // elastic joined the list in DevLog-060 (smoothed aggregation with rigid-body modes); other physics stay untouched
+  assert.deepEqual([...STUDY_SOLVER_TYPES].sort(), ['currents', 'elastic', 'electrostatics', 'heat']);
+  const out = await withStudySolver({ settings: { solver: 'amg-pcg' } }, 'acoustics', async () => ({ stats: { solver: 'cholesky' } }));
   assert.deepEqual(out, { stats: { solver: 'cholesky' } });
 });
 

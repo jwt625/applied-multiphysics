@@ -1,4 +1,4 @@
-# H6 Room acoustics, box modes (DevLog-001 s.8). Eval gate AC-02 (R3): rigid box 1.0 x 0.8 x 0.6 m, c 343 m/s;
+# Room acoustics, box modes. Eval gate AC-02: rigid box 1.0 x 0.8 x 0.6 m, c 343 m/s;
 # lowest modes 171.500, 214.375, 274.534, 285.833 Hz from f = (c/2) sqrt((l/Lx)^2 + (m/Ly)^2 + (n/Lz)^2).
 # The driven-room variant is not defined yet (see missing).
 schema: amp-spec/0
@@ -66,4 +66,4 @@ assumptions:
   - {text: "Box corner at the origin; position does not affect the eigenfrequencies", paths: [geometry.features.room]}
 missing:
   - {what: "driven-room variant (source position, strength, frequency range): not defined", needed_for: [solution]}
-# eval: [AC-02]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)
+# eval: [AC-02]   (paired eval cases; amp-spec/0 has no field for this yet)

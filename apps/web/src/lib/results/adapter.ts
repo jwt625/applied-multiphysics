@@ -260,7 +260,7 @@ export function evalItemAt(ctx: ItemCtx, it: EvalItem, g: EvalGroup, step: numbe
 			}
 			case 'global': {
 				if (!expr) return [{ error: 'global item without expr' }];
-				const r = evalGlobal(sol, expr, { params, ...(s.physicsId ? { physicsId: s.physicsId } : {}) });
+				const r = evalGlobal(sol, expr, { params, step, ...(s.physicsId ? { physicsId: s.physicsId } : {}) });
 				return [{ si: r.value, siUnit: r.unit, dim: r.dim, meta: { method: 'global' } }];
 			}
 			case 'measure': {
@@ -334,7 +334,10 @@ export function evalTable(spec: unknown, id: string, runs: AdapterRun[], memo?: 
 	const withDataset = runs.length > 1 || runs.some((r) => r.label);
 	if (withDataset) cols.push({ key: 'dataset', name: 'dataset', unit: '', kind: 'dataset', tip: 'dataset (sweep point) the row is evaluated on' });
 	const steps = first?.solution.steps;
-	const withStep = !!steps && !onlyGlobal;
+	// a group of global items: one row (last step), except on a multi-frequency solution, whose per-frequency scalars
+	// `<name>_<step>` give one row per step (DevLog-061 R2)
+	const multiFreq = steps?.kind === 'freq' && steps.values.length > 1;
+	const withStep = !!steps && (!onlyGlobal || multiFreq);
 	if (withStep) cols.push({ key: 'step', name: STEP_NAME[steps.kind] ?? 'step', unit: steps.unit === '1' ? '' : steps.unit, kind: 'step', tip: `${steps.kind} step value (solution step index in the row tooltip)` });
 	// eigenmode fields carry the solver's normalization (arbitrary scale): stated on every field-reading column
 	const eigenNote = (it: EvalItem) => (first?.solution.steps?.kind === 'eigen' && it.type !== 'global' && it.type !== 'measure' ? '; eigenmode: field values in the solver normalization (arbitrary scale)' : '');
@@ -361,9 +364,9 @@ export function evalTable(spec: unknown, id: string, runs: AdapterRun[], memo?: 
 	const siUnitSeen = new Map<TableColumn, string>();
 	for (const run of runs) {
 		const ctx: ItemCtx = run === first && ctx0 ? ctx0 : { ix, run, ...(memo ? { memo: memo(run) } : {}) };
-		// rows: the union of the items' effective step selections (a group of global items: one row, the last step)
+		// rows: the union of the items' effective step selections (a group of global items: one row, the last step; per step on a multi-frequency solution)
 		const own = new Map<EvalItem, number[] | string>();
-		for (const it of items) { try { own.set(it, onlyGlobal ? stepIndices(run.solution, 'last') : stepIndices(run.solution, itemSteps(ix, it, g))); } catch (e) { own.set(it, msg(e)); } }
+		for (const it of items) { try { own.set(it, onlyGlobal && !multiFreq ? stepIndices(run.solution, 'last') : stepIndices(run.solution, itemSteps(ix, it, g))); } catch (e) { own.set(it, msg(e)); } }
 		const rowSteps = [...new Set([...own.values()].flatMap((v) => (typeof v === 'string' ? [] : v)))].sort((a, b) => a - b);
 		if (!rowSteps.length) { errors.push(`${run.label || 'run'}: ${[...new Set([...own.values()].filter((v): v is string => typeof v === 'string'))].join('; ') || 'no steps'}`); continue; }
 		for (const step of rowSteps) {

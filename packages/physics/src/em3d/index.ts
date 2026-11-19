@@ -21,7 +21,7 @@ import { NPC, nCells, facetsOn } from '../common/mesh.ts';
 import { tetRule } from '../common/quad.ts';
 import { shapeTable } from '../common/lagrange.ts';
 import { restrict, type Csr } from '../common/scalar.ts';
-import { shiftInvertEigen, csrMatVec, dotVec } from '../common/eigen.ts';
+import { eigenCheckNote, shiftInvertEigen, csrMatVec, dotVec } from '../common/eigen.ts';
 import { StageTimer, makeSolution, checkAbort, attachMesh } from '../common/solution.ts';
 import { cellProps, optionalCellProp, bcSelections, bcTypes, eigenStudy, physicsNode } from './ctx.ts';
 
@@ -562,7 +562,7 @@ export async function solveCavity(p: CavityProblem): Promise<Solution & { detail
   timer.start('solve');
   const eig = shiftInvertEigen({
     pat: R.pat, K: R.val, M: Mr, sigma, nWant: p.nModes, kPsd: true,
-    ...(doProject ? { project } : {}), tol: p.eigTol ?? 1e-9, blockSize: p.blockSize ?? 4, ...(p.signal ? { signal: p.signal } : {}),
+    ...(doProject ? { project, nullDim: nH } : {}), tol: p.eigTol ?? 1e-9, blockSize: p.blockSize ?? 4, ...(p.signal ? { signal: p.signal } : {}),
     ...(sym ? { sym } : {}), ...(linearSolver ? { linearSolver } : {}),
   });
   timer.stop('solve');
@@ -616,13 +616,18 @@ export async function solveCavity(p: CavityProblem): Promise<Solution & { detail
     stats: { dof: nf, nnz: R.pat.nnz, iterations: eig.stats.opApplications, residual: Math.max(0, ...keep.map((i) => eig.residual[i]!)), solver: `shift-invert block Arnoldi, ${useAms ? amsLine : `${eig.stats.factor} (supernodal)`}, gradient projection ${doProject ? 'on' : 'off'}` },
     timer,
   });
+  const chkNote = eigenCheckNote(eig.stats.check);
+  if (chkNote) (sol as Solution & { notes?: string[] }).notes = [...((sol as Solution & { notes?: string[] }).notes ?? []), chkNote];
+  // machine-readable linear solver of the run (C5 RunRecord.solver, DevLog-060)
+  sol.run.solver = useAms ? { kind: 'ams-pcg', rtol: amsRtol, iterations: amsStats.itMax, residual: amsStats.relresMax } : { kind: 'direct', rtol: null, iterations: null, residual: null };
   if (useAms || solverReason) (sol as Solution & { notes?: string[] }).notes = [...((sol as Solution & { notes?: string[] }).notes ?? []), `linear solver${solverReason ? ` (${solverReason})` : ''}: ${useAms ? `${amsLine}; setup ${amsStats.setupMs.toFixed(0)} ms, ${amsStats.itSum} PCG iterations in total; eigenvalues found below the negative shift (lowest modes), no inertia count` : 'direct'}`];
   attachMesh(sol, mesh);
+  const { check: eigCheck, ...eigStats } = eig.stats;
   return Object.assign(sol, {
     detail: {
       divResidual: Float64Array.from(divRes), eigResidual: Float64Array.from(keep, (i) => eig.residual[i]!), nNull: nH,
       nBelowShift: nBelow === null ? null : nBelow - (doProject ? nH : 0), ezFraction, azimuthalOrder,
-      stats: { ...eig.stats, nCurved, nTets: nT, nDofTotal: nDof, sigma, nNegativeRaw: eig.stats.nNegative, ...(useAms ? { amsSetupMs: amsStats.setupMs, amsSolves: amsStats.solves, amsIterations: amsStats.itSum, amsIterMax: amsStats.itMax, amsRelresMax: amsStats.relresMax, amsRtol, amsCoarse: amsStats.nCoarse, amsAux: amsStats.nAux } : {}) },
+      stats: { ...eigStats, eigenCheck: eigCheck ? `${eigCheck.status}${eigCheck.reason ? `: ${eigCheck.reason}` : ''}` : 'none', nCurved, nTets: nT, nDofTotal: nDof, sigma, nNegativeRaw: eig.stats.nNegative, ...(useAms ? { amsSetupMs: amsStats.setupMs, amsSolves: amsStats.solves, amsIterations: amsStats.itSum, amsIterMax: amsStats.itMax, amsRelresMax: amsStats.relresMax, amsRtol, amsCoarse: amsStats.nCoarse, amsAux: amsStats.nAux } : {}) },
     },
   });
 }

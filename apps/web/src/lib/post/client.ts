@@ -27,6 +27,8 @@ export class PostClient {
 
 	setMesh(mesh: Mesh) { this.displays.clear(); this.send({ type: 'mesh', mesh }); }
 	setField(field: (Field2D & { comp: number }) | null) { this.send({ type: 'field', field }); }
+	/** Keep the Re / Im pair of the shown complex field in the worker (once per pair / step; hover reads it by `key`). */
+	setPair(key: number, pair: { re: Field2D; im: Field2D } | null) { this.send({ type: 'pair', key, pair }); }
 
 	probe(x: number, y: number, cb: (h: ProbeHit) => void) {
 		if (this.probeBusy) { this.probeNext = { x, y, cb }; return; }

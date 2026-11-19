@@ -1,13 +1,12 @@
 # CP-06 (eval/cases/c/CP-06.yaml): PZT-4 cube 20 mm, poled along z, short- and open-circuit breathing modes; elastic <->
-# electrostatics (piezoelectric, monolithic eigen), 3D quarter model (lane MX, DevLog-035). Inputs from the public Ansys
+# electrostatics (piezoelectric, monolithic eigen), 3D quarter model. Inputs from the public Ansys
 # VM175 input listing (Hlp_V_VM175TXT.html, 2025R1), which cites D. Boucher, M. Lagier, C. Maerfeld, IEEE Trans. Sonics
 # Ultrason. SU-28(5), 318-330 (1981) (paywalled, not read): quarter model L = W = 10 mm, H = 20 mm with symmetry planes
 # x = 0 and y = 0; rho 7500; eps 804.6 (x, y) / 659.7 (z); e31 -4.1, e33 14.1, e15 10.5 C/m^2; c11 13.2, c12 7.1,
 # c13 7.3, c33 11.5, c44 2.6, c66 3.0 (1e10 N/m^2); stored in materials/pzt-4.yaml (ref). Electrodes on z = 0 (ground) and z = H: short circuit = both
 # grounded; open circuit = top electrode floating (VM175 'CP,1,VOLT,ALL'). Targets (measured, Boucher 1981 Table 1 via
 # VM175): f1 / f2 short 66560 / 88010 Hz, open 81590 / 93410 Hz (CP-06; the VM page labels the column kHz, Hz is
-# consistent). Rights: Ansys VM listing cite_values + re_derive_setup; the page is marked proprietary (rights note in
-# DevLog-035 s.6).
+# consistent). Rights: Ansys VM listing cite_values + re_derive_setup; the page is marked proprietary.
 schema: amp-spec/0
 id: pzt4-cube
 title: PZT-4 cube breathing modes (piezo)

@@ -11,4 +11,4 @@ export {
 } from './model.ts';
 export { extrudeLayered, revolve, boundarySides, type Layer, type Extruded, type Revolved } from './extrude.ts';
 export * as polygon from './polygon.mjs';
-export { buildStack, stackFromSolids, capKey, id3, MIXED_STACK_ID, type Stack, type StackInput, type StackLayerInput, type StackLayer, type DomInfo, type BndInfo, type PrimitiveSolid } from './stack.ts';
+export { buildStack, stackFromSolids, capKey, id3, MIXED_STACK_ID, type Stack, type StackInput, type BuildStackOptions, type StackLayerInput, type StackLayer, type DomInfo, type BndInfo, type PrimitiveSolid } from './stack.ts';

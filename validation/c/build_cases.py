@@ -2580,18 +2580,29 @@ def t2_apply(cid: str, d: dict) -> None:
         for k in ("Z0_isotropic_9p3", "Z0_printed_by_Palace_docs"):
             R[k]["spec"] = dict(iso)
             R[k]["extract"] = {"kind": "scalar", "name": "Z0"}
-    if cid == "WO-04":
-        d["spec"] = {"status": "pending", "reason": "no single model: gap_lower runs on sims/phc-square-rods-lower.yaml, "
-                     "gap_upper on sims/phc-square-rods-upper.yaml (target specs)"}
-        for k, s in (("gap_lower", "lower"), ("gap_upper", "upper"), ("pwe_gap_lower", "lower"), ("pwe_gap_upper", "upper"),
-                     ("mpb32_gap_lower", "lower"), ("mpb32_gap_upper", "upper")):
-            R[k]["spec"] = f"sims/phc-square-rods-{s}.yaml"
-            R[k]["extract"] = {"kind": "expr", "expr": "f * a / c", "terms": {
-                "f": {"kind": "scalar", "name": "f_0"},
-                "a": _const(1, "m", f"sims/phc-square-rods-{s}.yaml params.a (lattice constant, unit by choice)"),
-                "c": _const(1, "m/s", f"sims/phc-square-rods-{s}.yaml params.c_vac (wave speed in air, unit by choice)")}}
-        note("Engine: lowest eigenfrequency of the quarter cell at M (even, even) = band 1 maximum, and at X (odd, even) = "
-             "band 2 minimum (DevLog-022 s.3.3 symmetry-class scan); PWE / MPB-32 targets reuse the same extracts (info).")
+    if cid in ("WO-04", "WO-61"):  # DevLog-061 s.1.5 (2026-11-18): the emw-2d Bloch band sims model both lattices
+        sim = {"WO-04": "sims/phc-square-rods-bands.yaml", "WO-61": "sims/phc-triangular-rods-bands.yaml"}[cid]
+        d["spec"] = sim
+        for r in d["references"]:
+            r.pop("spec", None)
+            lower = "lower" in r["metric_id"]
+            r["extract"] = {"kind": "expr", "expr": "f * a / c", "terms": {
+                "f": {"kind": "scalar", "name": "fmax_0" if lower else "fmin_1"},
+                "a": _const(1, "um", f"{sim} params.a (lattice constant, scale choice)"), "c": C0_SI}}
+            r["tolerance"] = dict(r["tolerance"], after="finest")
+        d["convergence"] = {"levels_min": 2, "ratio_min": 2.0, "method": "none", "h_factors": [1, 0.5],
+                            "note": "two nested levels (one uniform refinement), as the band-sim cases WO-90 / WO-93; the finest level "
+                            "is compared (a third level for Richardson is over the time budget)"}
+        meas = {"WO-04": (40.0, "measured 2026-11-18 on the same sim (case WO-90; Node, M4 Pro, nice 10): 9.2 s at level 0 "
+                          "(3,048 DOF), 34 s at level 1 (12,192 DOF), 16 k points"),
+                "WO-61": (60.0, "measured 2026-11-18 on the same sim (case WO-93; Node, M4 Pro, nice 10): 16 s at level 0 "
+                          "(4,240 DOF), 48 s at level 1 (16,960 DOF)")}[cid]
+        d["speed"]["budget_s"] = {"browser": None, "native": meas[0]}
+        d["speed"]["budget_basis"] = meas[1]
+        note(f"Engine: {sim} (emw-2d TM Bloch eigenproblem on the full unit cell): band 1 maximum (fmax_0) and band 2 minimum "
+             "(fmin_1) along the k path, times a / c; every target reads the same two scalars (PWE, MPB resolution 32 and tutorial "
+             "targets informative). " + ("The scalar acoustics analogs on quarter cells (sims/phc-square-rods-lower.yaml, "
+             "-upper.yaml) stay in sims/ as hidden library models; this case no longer runs them." if cid == "WO-04" else ""))
     if cid == "WO-65":
         d["spec"] = "sims/si-strip-te0.yaml"
         R["n_eff_TE0"]["extract"] = {"kind": "scalar", "name": "neff_0"}

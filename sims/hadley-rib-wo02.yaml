@@ -1,7 +1,7 @@
 # WO-02 (eval/cases/b/WO-02.yaml): Hadley 2002 rib waveguide (JLT 20(7) 1219, paywalled; values via the femwell
 # re-tabulation docs/benchmarks/mode_solver.py, GPL-3.0), fundamental vector mode n_eff vs slab thickness at 1.15 um;
-# reference 3.412126 (t 0.1 um) ... 3.414100 (t 0.7 um), tolerance 5e-6. Eval model of the hero sims/si-rib-waveguide.yaml
-# with the case's window (femwell: 18 um wide, 10 um substrate, 3 um cover) instead of the hero's 10 / 3 / 3 um.
+# reference 3.412126 (t 0.1 um) ... 3.414100 (t 0.7 um), tolerance 5e-6. Eval model of the example sims/si-rib-waveguide.yaml
+# with the case's window (femwell: 18 um wide, 10 um substrate, 3 um cover) instead of the example's 10 / 3 / 3 um.
 # The t = 0 point needs a geometry without the slab feature (not in this file). Rights: cite_values + re_derive_setup.
 schema: amp-spec/0
 id: hadley-rib-wo02
@@ -79,8 +79,8 @@ provenance:
     materials.core.override.n: {basis: benchmark, source: "eval/cases/b/WO-02.yaml materials.core.n (femwell mode_solver.py)", date: 2026-11-06}
     materials.substrate.override.n: {basis: benchmark, source: "eval/cases/b/WO-02.yaml materials.substrate.n", date: 2026-11-06}
     materials.cover.override.n: {basis: benchmark, source: "eval/cases/b/WO-02.yaml materials.cover.n", date: 2026-11-06}
-    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (as the hero)"}
-    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (as the hero)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-06, note: "modelling choice (as sims/si-rib-waveguide.yaml)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-06, note: "modelling choice (as sims/si-rib-waveguide.yaml)"}
 assumptions:
   - {text: "PEC on the window boundary (case: pec_or_far, domain large enough that the result is insensitive)", paths: [physics.ewg.bcs.walls]}
   - {text: "The gated mode is the highest-n_eff vector mode (case definition); quasi-TE here (TE fraction >= 0.9998)", paths: [studies.modes]}

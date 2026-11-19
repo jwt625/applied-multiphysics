@@ -1,6 +1,6 @@
 # Dielectric film (eps 4, thickness 0.3 lambda0) in vacuum under a TM (E_z) plane wave at 30 deg from the normal,
 # solved on one period of a strip with Floquet-periodic side walls (the Bloch phase follows the incident wave) and PML
-# above and below (DevLog-050). Above the film the scattered field is the reflected wave (|E_z,sc| = |r|), below it the
+# above and below. Above the film the scattered field is the reflected wave (|E_z,sc| = |r|), below it the
 # total field is the transmitted wave (|E_z| = |tau|); reference: Airy film formula (Born and Wolf, Principles of
 # Optics, 7th ed., sec. 1.6.4), validation/bloch/bloch_refs.py (case WO-92).
 schema: amp-spec/0

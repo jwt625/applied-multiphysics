@@ -1,6 +1,6 @@
 # MPB Python tutorial triangular lattice of dielectric rods (r 0.2 a, eps 12, air), TM (E_z) band structure on the
 # Gamma-M-K-Gamma path, solved as a Bloch eigenproblem of emw-2d on one rhombic unit cell (lattice vectors
-# a1 = (a, 0), a2 = (a/2, sqrt(3) a/2); two periodic conditions with a tangential offset) (DevLog-050). Band 1 maximum
+# a1 = (a, 0), a2 = (a/2, sqrt(3) a/2); two periodic conditions with a tangential offset). Band 1 maximum
 # and band 2 minimum bound the first TM gap; references: MPB 1.34.0 resolution study (Richardson) and an independent
 # plane-wave expansion (eval/expected/WO-61.json; case WO-93). M = b2 / 2 and K = (b1 + 2 b2) / 3 on this cell's
 # reciprocal vectors are the points MPB writes as (0, 0.5) and (-1/3, 1/3) on its own basis (same symmetry points).

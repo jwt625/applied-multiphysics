@@ -1,0 +1,95 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "PK-08",
+  "class": "c",
+  "generator": "validation/pkg2/bump_bounds.py",
+  "command": "cd validation && uv run python pkg2/bump_bounds.py",
+  "method": "variational two-sided bounds with exact (uniform flux) and Galerkin (isothermal disc) plate spreading resistances (own derivation)",
+  "generated_at": "2026-11-18T18:24:50-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "R_lower",
+      "value": 234.13629468046014,
+      "unit": "K/W",
+      "definition": "R_col + R_iso(die) + R_iso(interposer) (Dirichlet principle)",
+      "precision": {
+        "galerkin_rel_change_M4_M6": 6.430768078540477e-10,
+        "series_terms": [
+          40000,
+          80000
+        ],
+        "iso_rel_change_N_2N": [
+          1.905459746742521e-06,
+          2.959900900129168e-06
+        ]
+      },
+      "locator": "validation/pkg2/bump_bounds.py r_uf(), r_iso(), main()"
+    },
+    {
+      "metric_id": "R_upper",
+      "value": 239.04662330889593,
+      "unit": "K/W",
+      "definition": "R_col + R_uf(die) + R_uf(interposer) (complementary energy)",
+      "precision": {
+        "series_terms": 40000,
+        "rel_change_half_terms": -2.6510738049267957e-10
+      },
+      "locator": "validation/pkg2/bump_bounds.py r_uf(), r_iso(), main()"
+    },
+    {
+      "metric_id": "R_1D",
+      "value": 206.8685821474723,
+      "unit": "K/W",
+      "definition": "parallel-column 1D resistance (no spreading), looser lower bound",
+      "locator": "validation/pkg2/bump_bounds.py r_uf(), r_iso(), main()"
+    }
+  ],
+  "inputs": {
+    "a_m": 5e-05,
+    "pitch_m": 0.0002,
+    "b_m": 0.00011283791670955128,
+    "h_b_m": 7.5e-05,
+    "t_die_m": 0.0002,
+    "t_interposer_m": 0.0001,
+    "k_si": 149.038,
+    "k_sac305": 61.0
+  },
+  "parts_K_per_W": {
+    "R_col": 156.54584566415934,
+    "R_uf_die": 49.62167079852934,
+    "R_uf_interposer": 32.879106846207236,
+    "R_iso_die": 47.170477179448845,
+    "R_iso_interposer": 30.419971836851936
+  },
+  "galerkin_convergence": {
+    "2": [
+      47.17047754980533,
+      30.419972436910175
+    ],
+    "4": [
+      47.17047715992089,
+      30.419971817289557
+    ],
+    "6": [
+      47.170477179448845,
+      30.419971836851936
+    ]
+  },
+  "half_space_check": {
+    "iso_times_k_a": 0.24646105665676182,
+    "uf_times_k_a": 0.2666666913139473,
+    "uf_exact_half_space": 0.27018982304623407,
+    "iso_exact_half_space": 0.25
+  }
+}

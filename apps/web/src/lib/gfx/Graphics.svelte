@@ -45,16 +45,16 @@
 	import { enabledItems, fieldRef, overlay2d, plotGroup, type Overlay2D } from '../results/plot-data';
 	import { componentExpr, cutLineEndPatch, cutLinePatch, cutPointPatch, nodeAt, quickViewPatch, type PlotCtx } from '../results/plot-ops';
 	import { colormapLut, CYCLIC } from './colormaps';
-	import { COMPLEX_PARTS, PART_LABEL, PART_TIP, complexPart, groupComplex, latticeStats, partLabel, peakAbs, wrapPhase, type ComplexPart } from './complex';
+	import { COMPLEX_PARTS, PART_LABEL, PART_TIP, complexPart, complexVectorValue, groupComplex, instNorm, latticeStats, partLabel, peakAbs, peakAbsVector, wrapPhase, type ComplexPart } from './complex';
 	import { notesOf, wave2dOf } from '../engine/protocol';
 	import DrivenInset from './DrivenInset.svelte';
-	import ComplexControls from './ComplexControls.svelte';
+	import GfxToolbar from './GfxToolbar.svelte';
 	import Tools3D from './Tools3D.svelte';
 	import GfxStatus from './GfxStatus.svelte';
 	import GfxNotes from './GfxNotes.svelte';
 	import GfxFoot from './GfxFoot.svelte';
 	import { facetSegments } from './outline2d';
-	import { CAMERA_PRESETS, PRESET_TIP, applyCamera, cameraPose, setCameraPreset, type CameraPreset } from './camera';
+	import { applyCamera, cameraPose, currentPreset, type CameraPreset } from './camera';
 	import { boundComponent, componentProblem, decodeView, registerViewState, viewCodeOf, type AxesMode, type ViewState } from './view-link';
 	import { fmtEng } from './ticks';
 	import { registerViewHooks, type QuickViewInfo, type QuickViewPatch } from '../state/nav.svelte';
@@ -133,7 +133,8 @@
 	let axes = $state<AxesMode>(untrack(() => (compact ? 'scale' : 'axes')));
 	/** driven-solve inset: S-parameters or far field */
 	let inset = $state<'none' | 'sparams' | 'farfield' | 'bands'>('none');
-	let camPick = $state<CameraPreset | ''>('');
+	/** preset the 3D camera looks along (null after a free orbit), read from the pose on every rendered frame */
+	let camNow = $state<CameraPreset | null>('iso');
 	/** height of the (wrapping) toolbar: the inset opens below it */
 	let topH = $state(28);
 	let level = $state(3);
@@ -165,7 +166,7 @@
 	let cuts = $state.raw<Drawable[]>([]);
 	let d1 = $state.raw<RefinedDisplay | null>(null);
 	/** `cx`: the Re and Im lattices of a complex field (phase animation) and the largest |u| over them */
-	let lat = $state.raw<{ key: string; d: RefinedDisplay; out: LatticeOut; cx?: { re: Float32Array; im: Float32Array; peak: number } } | null>(null);
+	let lat = $state.raw<{ key: string; d: RefinedDisplay; out: LatticeOut; cx?: { re: Float32Array; im: Float32Array; peak: number }; cxv?: { re: Float32Array[]; im: Float32Array[]; peak: number } } | null>(null);
 	let psi = $state.raw<{ key: string; d: RefinedDisplay; out: LatticeOut } | null>(null);
 
 	// ---------------------------------------------------------------- plot group (DevLog-027)
@@ -234,9 +235,10 @@
 			]
 		};
 	});
-	/** the phase and the instantaneous field of a complex vector are drawn per component (no magnitude of those) */
+	/** the phase of a complex vector is drawn per component (a phase of a vector is not defined: magnitude shows
+	 *  component 0); |u| and Re(u e^(j phi)) of a vector at magnitude are the norms over the components */
 	const comp = $derived.by(() => {
-		const c = gv ? gv.comp : pair && pair.re.components > 1 && compUser < 0 && (part === 'arg' || part === 'inst') ? 0 : compUser;
+		const c = gv ? gv.comp : pair && pair.re.components > 1 && compUser < 0 && part === 'arg' ? 0 : compUser;
 		// bounded by the drawn field's components: an out-of-range index (old link, agent, previous field) never reads
 		// the next node's data; it shows the default view instead
 		return field ? boundComponent(c, field.components) : c;
@@ -346,7 +348,9 @@
 		if (!P) return null;
 		if (part === 're') return P.re;
 		if (part === 'im') return P.im;
-		return { ...P.re, name: P.base, unit: part === 'arg' ? 'rad' : P.re.unit, data: complexPart(P.re.data, P.im.data, part, part === 'inst' ? phaseStatic : 0) };
+		// a combination of Re and Im: Re's element values (elementNodal) do not describe it, so they are left out
+		const { elementNodal: _el, ...re } = P.re;
+		return { ...re, name: P.base, unit: part === 'arg' ? 'rad' : P.re.unit, data: complexPart(P.re.data, P.im.data, part, part === 'inst' ? phaseStatic : 0) };
 	});
 	const field = $derived.by((): FieldData | null => {
 		if (!fieldList.length) return null;
@@ -443,6 +447,10 @@
 	}
 
 	// ---------------------------------------------------------------- 2D (displays and lattices from the post worker)
+	/** a field as the post worker takes it; the producer's element values at the element nodes (FieldData.elementNodal,
+	 *  lane G2 DevLog-059 R3) ride along, so the worker shows per-domain values at material interfaces (field2d.ts
+	 *  withPerDomain); a field without them is sent exactly as before */
+	const postField = (g: FieldData, components = g.components) => ({ space: g.space as Space, data: g.data, components, ...(g.elementNodal ? { elementNodal: g.elementNodal } : {}), ...(g.cellGroup ? { cellGroup: g.cellGroup } : {}) });
 	$effect(() => {
 		const m = m2;
 		if (!m) { d1 = null; return; }
@@ -465,8 +473,19 @@
 			// |u|, arg u, Re(u e^(j phi)): the exact Re and Im values at the lattice points, interpolated linearly and combined
 			// per fragment by the renderer (Layer2D.complex); the phase is a uniform, so the animation uploads nothing.
 			// Colour range and peak from the combination at the lattice points (inst: +-max |u|, phase independent)
-			if (lat?.key === key && lat.cx) return;
-			const one = (g: FieldData) => s.post.call<'lattice'>({ type: 'lattice', field: { space: g.space as Space, data: g.data, components: g.components }, comp: c, r: lv, a: pt === 'arg' ? 1 : a, b: 0, psi: false, rule: 'full', focus: null, smooth: false });
+			if (lat?.key === key && (lat.cx || lat.cxv)) return;
+			const one = (g: FieldData, k = c) => s.post.call<'lattice'>({ type: 'lattice', field: postField(g), comp: k, r: lv, a: pt === 'arg' ? 1 : a, b: 0, psi: false, rule: 'full', focus: null, smooth: false });
+			if (pt === 'inst' && c < 0 && P.re.components > 1) {
+				// Re(u e^(j phi)) of a vector at magnitude: per-component Re and Im lattices, the norm combined per frame
+				const ks = Array.from({ length: P.re.components }, (_, k) => k);
+				void Promise.all([s.post.display(lv), Promise.all(ks.map((k) => one(P.re, k))), Promise.all(ks.map((k) => one(P.im, k)))]).then(([d, A, B]) => {
+					if (s.m2 !== m || fkey !== key) return;
+					const re = A.map((x) => x.values), im = B.map((x) => x.values), pk = peakAbsVector(re, im);
+					const vals = instNorm(re, im, phase), st = latticeStats(vals, d.pos, d.c0, fc, rl);
+					lat = { key, d, out: { values: vals, lo: 0, hi: pk, dataLo: st.dataLo, dataHi: st.dataHi, peak: null, ms: A.reduce((t, x) => t + x.ms, 0) + B.reduce((t, x) => t + x.ms, 0), coef: null }, cxv: { re, im, peak: pk } };
+				});
+				return;
+			}
 			void Promise.all([s.post.display(lv), one(P.re), one(P.im)]).then(([d, A, B]) => {
 				if (s.m2 !== m || fkey !== key) return;
 				const pk = peakAbs(A.values, B.values);
@@ -476,7 +495,7 @@
 			});
 			return;
 		}
-		void Promise.all([s.post.display(r), s.post.call<'lattice'>({ type: 'lattice', field: { space: f.space as Space, data: f.data, components: f.components }, comp: c, r, a, b, psi: false, rule: rl, focus: fc, smooth: !rawField })])
+		void Promise.all([s.post.display(r), s.post.call<'lattice'>({ type: 'lattice', field: postField(f), comp: c, r, a, b, psi: false, rule: rl, focus: fc, smooth: !rawField })])
 			.then(([d, out]) => { if (s.m2 === m && fkey === key) lat = { key, d, out }; });
 	});
 	// deformation attribute (plot2d group): the displacement field (a vector field reference) at the lattice points and
@@ -525,7 +544,7 @@
 		const f = aphi, m = m2;
 		if (!f || !m || !fieldLines || mode !== 'results') { psi = null; return; }
 		const r = lv, key = `${sol?.run.startedAt}:${r}`;
-		void Promise.all([s.post.display(r), s.post.call<'lattice'>({ type: 'lattice', field: { space: f.space as Space, data: f.data, components: 1 }, comp: 0, r, a: 1, b: 0, psi: true, rule: 'full', focus: null })])
+		void Promise.all([s.post.display(r), s.post.call<'lattice'>({ type: 'lattice', field: postField(f, 1), comp: 0, r, a: 1, b: 0, psi: true, rule: 'full', focus: null })])
 			.then(([d, out]) => { if (s.m2 === m) psi = { key, d, out }; });
 	});
 
@@ -587,9 +606,11 @@
 		const inst = !!L.cx && part === 'inst';
 		// complex parts: Re and Im lattices combined per fragment (renderer2d), the phase as a uniform
 		const cxl = L.cx && (part === 'abs' || part === 'arg' || part === 'inst') ? { values: L.cx.re, values2: L.cx.im, complex: { mode: part, phase }, coef: null } : null;
-		const vals = L.out.values;
+		// a complex vector at magnitude, Re(u e^(j phi)): norm over the components combined on the CPU per frame, range 0..max |u|
+		const vecInst = !!L.cxv && part === 'inst';
+		const vals = vecInst ? instNorm(L.cxv!.re, L.cxv!.im, phase) : L.out.values;
 		// odd fields mirrored with both signs: the range covers the reflected values too
-		let lo = inst ? -L.cx!.peak : L.out.lo, hi = inst ? L.cx!.peak : L.out.hi;
+		let lo = inst ? -L.cx!.peak : vecInst ? 0 : L.out.lo, hi = inst ? L.cx!.peak : vecInst ? L.cxv!.peak : L.out.hi;
 		const cp = copies(parity);
 		if (cp?.some((c) => c.sign < 0)) { const m = Math.max(Math.abs(lo), Math.abs(hi)); lo = -m; hi = m; }
 		const mp0 = mapping(lo, hi);
@@ -609,7 +630,8 @@
 			layers.push({ kind: 'contour', disp: psi.d, values: P.values, coef: P.coef, range: { min: P.dataLo, max: P.dataHi }, colormap: mp.cm, levels: pl, uniform: '#f2f1ec', opacity: 0.8, mirror: copies([1, 1]) });
 		}
 		const label = g2 && gBase ? `${gBase.label ?? gBase.expr}` : pair ? fieldLabel : field!.name + (field!.components > 1 ? (comp < 0 ? ' magnitude' : ` component ${comp}`) : '');
-		const cxNote = L.cx ? `${PART_TIP[part]}; Re and Im are the exact values at the refined lattice points, interpolated linearly and combined per pixel${inst ? `; colour range ±max |${pair?.base ?? ''}| over the mesh (fixed while the phase moves)` : ''}` : '';
+		const cxNote = L.cx ? `${PART_TIP[part]}; Re and Im are the exact values at the refined lattice points, interpolated linearly and combined per pixel${inst ? `; colour range ±max |${pair?.base ?? ''}| over the mesh (fixed while the phase moves)` : ''}`
+			: vecInst ? `${PART_TIP[part]}; magnitude = norm over the components of Re(u_k e^(jφ)), from the exact Re and Im of each component at the refined lattice points (interpolated linearly between them); colour range 0 to max |${pair?.base ?? ''}| over the mesh (fixed while the phase moves)` : '';
 		return { layers, map: mp, peak: L.out.peak, peakCell: !!L.out.peakCell, cb: { ...mp.range, label, unit: disp.unit, cm: mp.cm, scale: mp.scale, note: [disp.note, cxNote, L.out.peakCell && L.out.coef ? `drawn smoothed: ${L.out.coef.note}; colorbar ends and peak marker are the exact per-cell values (Raw draws the cells)` : ''].filter(Boolean).join('. '), levels } };
 	});
 	// the spec's probe results mark their own points (e.g. T_E at E, B_center at the centre); otherwise the peak
@@ -1020,10 +1042,36 @@
 			if (mirror.planes.x && x < 0) { x = -x; sg *= pr[0]; }
 			if (mirror.planes.y && y < 0) { y = -y; sg *= pr[1]; }
 		}
+		const P = cxLat ? pair : null, pt = part, ph = phase, c = field && field.components > 1 ? comp : 0, pk = pairKey;
 		s.post.probe(x, y, (h) => {
-			probe = h.hit ? { x: p.x, y: p.y, v: h.hit.value === null ? null : sg * (a * h.hit.value) + b, dom: domains[h.hit.domain]?.id ?? String(h.hit.domain) } : null;
+			if (!h.hit || !P) { hoverTok++; probe = h.hit ? { x: p.x, y: p.y, v: h.hit.value === null ? null : sg * (a * h.hit.value) + b, dom: domains[h.hit.domain]?.id ?? String(h.hit.domain) } : null; return; }
+			// |u|, phase, Re(u e^(j phi)): exact Re and Im of every component at the point from the pair resident in the
+			// post worker (set once per pair and step), combined as the renderer does
+			const dom = domains[h.hit.domain]?.id ?? String(h.hit.domain), t = ++hoverTok;
+			if (h.hit.cx && h.hit.cx.key === pk) { probe = { x: p.x, y: p.y, v: complexVectorValue(h.hit.cx.re, h.hit.cx.im, c, pt, ph, sg, a, b), dom }; return; }
+			// the worker's pair is not the shown one yet (step just changed): the exact path, once
+			void complexAt(P, c, x, y).then(([re, im]) => {
+				if (t === hoverTok) probe = { x: p.x, y: p.y, v: complexVectorValue(re, im, c, pt, ph, sg, a, b), dom };
+			});
 		});
 	}
+	let hoverTok = 0;
+	/** Re and Im per component at a 2D point (post worker `evalAt`, posts the fields): component c, or all for c < 0 */
+	async function complexAt(P: { re: FieldData; im: FieldData }, c: number, x: number, y: number): Promise<[Array<number | null>, Array<number | null>]> {
+		const nc = P.re.components, ks = c >= 0 ? [c] : Array.from({ length: nc }, (_, k) => k);
+		const re: Array<number | null> = Array.from({ length: nc }, () => null), im = re.slice();
+		const v = await Promise.all(ks.flatMap((k) => [probe2d(s.post, P.re, k, x, y), probe2d(s.post, P.im, k, x, y)]));
+		ks.forEach((k, j) => { re[k] = v[2 * j]!; im[k] = v[2 * j + 1]!; });
+		return [re, im];
+	}
+	/** identity of the complex pair last sent to the post worker (the hover uses the worker's values only for this one) */
+	let pairKey = 0;
+	$effect(() => {
+		if (!m2) return;
+		const P = mode === 'results' && drawable && cxLat ? pair : null;
+		const k = ++pairKey;
+		s.post.setPair(k, P ? { re: postField(P.re), im: postField(P.im) } : null);
+	});
 	/** click in Results: one probe-table row at the point (exact FE value, display unit) */
 	async function pick2d(p: { x: number; y: number }) {
 		const f = field, so = sol;
@@ -1037,9 +1085,12 @@
 		const a = disp.a, b = disp.b, label = fieldLabel, unit = valueUnit, L = { unit: lu.unit, f: lu.f }, ds = s.activeLabel, pt = s.active, key = s.datasetKey;
 		// probing a dataset pins it: a running sweep no longer switches the display (audit m8)
 		s.pinView();
-		const v = await probe2d(s.post, f, f.components > 1 ? comp : 0, x, y);
+		const P = cxLat ? pair : null, c = f.components > 1 ? comp : 0, pt0 = part, ph0 = phase;
+		// complex |u|, phase, Re(u e^(j phi)): exact Re and Im at the point, combined
+		const value = P ? complexVectorValue(...(await complexAt(P, c, x, y)), c, pt0, ph0, sg, a, b)
+			: await probe2d(s.post, f, c, x, y).then((v) => (v === null ? null : sg * (a * v) + b));
 		if (s.solution !== so) return;
-		onprobe?.(probes.add({ dim: 2, p: [p.x, p.y, 0], lu: L, field: label, value: v === null ? null : sg * (a * v) + b, unit, dataset: ds, point: pt, run: so.run.startedAt, key }));
+		onprobe?.(probes.add({ dim: 2, p: [p.x, p.y, 0], lu: L, field: label, value, unit, dataset: ds, point: pt, run: so.run.startedAt, key }));
 	}
 	async function pick3d(o: [number, number, number], dir: [number, number, number]) {
 		const v3 = shown3d, f = field, so = sol, me = mesh;
@@ -1059,7 +1110,7 @@
 	}
 	$effect(() => {
 		if (!m2) return;
-		if (mode === 'results' && field && drawable) s.post.setField({ space: field.space as Space, data: field.data, components: field.components, comp: field.components > 1 ? comp : 0 });
+		if (mode === 'results' && field && drawable) s.post.setField({ ...postField(field), comp: field.components > 1 ? comp : 0 });
 		else s.post.setField(null);
 	});
 
@@ -1067,7 +1118,6 @@
 	const longRun = $derived(running && s.runStart > 0 && now - s.runStart > 1000);
 	const cb = $derived(m2 && !rev ? view2d.cb : (shown3d?.cb ?? null));
 	const map = $derived(m2 && !rev ? view2d.map : (shown3d?.map ?? null));
-	const modeTip: Record<Mode, string> = { geometry: 'Geometry: domains by colour (G)', mesh: 'Mesh: element quality and wireframe (M)', results: 'Results: solution fields (R)' };
 	const meshChanged = $derived(!!s.solution && !!mesh && s.solution.meshHash !== mesh.hash);
 	/** plot-group chips: items not evaluated, not drawn, and group info */
 	const groupChips = $derived.by(() => {
@@ -1093,7 +1143,7 @@
 				axes={mode === 'mesh' && axes === 'axes' ? 'scale' : axes} axesBox={fullBox} axisNames={mesh?.axisym ? ['r', 'z'] : ['x', 'y']} {lu} boxes={pmlBoxes} />
 	{:else if is3d && Canvas3D && shown3d}
 		<Canvas3D surface={shown3d.surface} regionColors={shown3d.region ? regionColors : null} edges={shown3d.edges} edgeDisp={shown3d.ed} colormap={shown3d.map?.cm ?? 'viridis'} reverse={cmRev} origin={revSurf ? revSurf.c0 : (ext?.c0 ?? [0, 0, 0])} range={shown3d.range} logScale={shown3d.map?.scale === 'log'} wire={true}
-			showSurface={!(sliceOn || isoOn) || clipOn || mode !== 'results'} {deform} clip={clip3} {cuts} phase={eigen && playing && canAnimate ? phase : null} smooth={!rawField} animValue={eigen && (signedField || animAbs)} {animAbs} {half} fitKey={fitKey + fit} onframe={(ms) => (frameMs = ms)} onpick={probes ? pick3d : undefined} marks={probeMarks3} />
+			showSurface={!(sliceOn || isoOn) || clipOn || mode !== 'results'} {deform} clip={clip3} {cuts} phase={eigen && playing && canAnimate ? phase : null} smooth={!rawField} animValue={eigen && (signedField || animAbs)} {animAbs} {half} fitKey={fitKey + fit} onframe={(ms) => { frameMs = ms; camNow = currentPreset(); }} onpick={probes ? pick3d : undefined} marks={probeMarks3} />
 	{:else}
 		<div class="empty dim">{s.status === 'meshing' ? 'Meshing...' : s.status === 'error' ? 'No mesh: see Messages' : 'No mesh yet'}</div>
 	{/if}
@@ -1101,113 +1151,11 @@
 	{#if longRun}<div class="prog" data-tip={`${s.progress?.stage ?? 'run'} ${s.progress?.msg ?? ''}`}><span style="width: {Math.round(100 * (s.progress?.frac ?? 0))}%" class:ind={!s.progress || s.progress.frac <= 0 || s.progress.frac >= 1}></span></div>{/if}
 
 	<div class="top" bind:clientHeight={topH}>
-		<div class="modes" role="tablist">
-			{#each ['geometry', 'mesh', 'results'] as const as k}
-				<button role="tab" aria-selected={mode === k} class:on={mode === k} data-tip={modeTip[k]} onclick={() => (mode = k)}>{k[0]!.toUpperCase() + k.slice(1)}</button>
-			{/each}
-		</div>
-		{#if s.sweep}
-			{@const sw = s.sweep}
-			<select class="ds" value={s.active} onchange={(e) => s.selectPoint(Number((e.currentTarget as HTMLSelectElement).value))}
-				data-tip={`Dataset: point of parametric study ${sw.studyId} (inner study ${sw.innerId}), ${sw.points.length} points over ${sw.axes.map((a) => a.param).join(', ')}; ${sw.done}/${sw.points.length} done. The plot, colorbar, probes and headline numbers show this point`}>
-				{#if s.active < 0 || s.status !== 'solving'}<option value={-1}>{sw.done ? 'base model (spec values)' : 'no dataset yet'}</option>{/if}
-				{#each sw.points as p}<option value={p.index} disabled={!p.held && p.status !== 'solved'}>{p.label} ({p.index + 1}/{sw.points.length}){p.status === 'solved' ? (p.held ? '' : ' (re-solve)') : ` ${p.status}`}</option>{/each}
-			</select>
-		{/if}
-		{#if m2 && !rev && focus && fullBox && (focus[2] - focus[0] < 0.9 * (fullBox[2] - fullBox[0]) || focus[3] - focus[1] < 0.9 * (fullBox[3] - fullBox[1]))}
-			<div class="modes">
-				<button class:on={!frameAll} data-tip="Frame the region of interest (the colour range is taken over it)" onclick={() => (frameAll = false)}>ROI</button>
-				<button class:on={frameAll} data-tip="Frame the whole model (the colour range is taken over all of it)" onclick={() => (frameAll = true)}>All</button>
-			</div>
-		{/if}
-		{#if m2 && !rev && mirror && mode !== 'mesh'}
-			<button class:on={mirrored} data-tip={`${mirror.tip}.${mirrored || !mirrorOn ? '' : ` Not mirrored: ${field?.name ?? 'this field'} has no stated parity.`} Display only; the solve uses the reduced model.`} onclick={() => (mirrorOn = !mirrorOn)}>Mirror</button>
-		{/if}
-		{#if !compact}
-			<button class:on={wire} data-tip="Wireframe (W)" onclick={() => (wireUser = !wireUser)} disabled={mode === 'mesh'}>Wire</button>
-			<button data-tip="Zoom extents (F)" onclick={() => fit++}>Fit</button>
-				{#if cb && !g2}
-					<select value={cmUser} data-tip="Colormap. auto: viridis, or the diverging balance map (symmetric about zero) when both signs carry at least 5 % of the range"onchange={(e) => (cmPick = (e.currentTarget as HTMLSelectElement).value as 'auto' | ColormapName)}>
-					<option value="auto">auto ({map?.cm ?? 'viridis'})</option>
-					{#each COLORMAPS as c}<option value={c}>{c}{CYCLIC.has(c) ? ' (cyclic)' : ''}</option>{/each}
-				</select>
-				<button class:on={cmRev} data-tip="Reverse the colormap" onclick={() => (cmRev = !cmRev)}>rev</button>
-			{/if}
-			{#if m2 && !rev}
-				<select bind:value={axes} data-tip="Axes: ticks along the model box in the length unit; scale bar; none">
-					<option value="axes">axes</option>
-					<option value="scale">scale bar</option>
-					<option value="none">no axes</option>
-				</select>
-			{/if}
-			{#if is3d && !rev && Canvas3D}
-				<select value={camPick} onchange={(e) => { const p = (e.currentTarget as HTMLSelectElement).value as CameraPreset; camPick = ''; setCameraPreset(p); }} data-tip="Camera preset (z up); the view keeps the model centre">
-					<option value="">view</option>
-					{#each CAMERA_PRESETS as p}<option value={p} title={PRESET_TIP[p]}>{p}</option>{/each}
-				</select>
-			{/if}
-		{/if}
-			{#if tools && m2 && !rev && (mode === 'results' || mode === 'geometry')}
-				<div class="modes">
-					<button class:on={tool === 'line'} data-tip="Cut line: press, drag and release on the canvas. Creates a Cut Line dataset{shownExpr ? ` and a 1D plot group with a line graph of ${shownExpr}` : ''} (one operation)" onclick={() => (tool = tool === 'line' ? 'none' : 'line')}>Cut line</button>
-					<button class:on={tool === 'point'} data-tip="Cut point: click on the canvas. Creates a Cut Point dataset (one operation)" onclick={() => (tool = tool === 'point' ? 'none' : 'point')}>Cut point</button>
-				</div>
-			{/if}
-			{#if tools && grp}
-				<span class="pg" data-tip={`Drawing plot group ${grp.id} (${grp.type}); its items set field, range, colormap and levels. Quick view returns to the toolbar state`}>{grp.id}</span>
-				<button data-tip="Back to the quick view (the toolbar state, not in the spec)" onclick={() => onplot?.(null)}>Quick view</button>
-			{:else if tools && mode === 'results' && sol && field && drawable}
-				<button disabled={!exprName} data-tip={exprName ? 'Save the quick view (field, component, step, range rule, colormap, log, contours, wireframe) as a 2D plot group in the spec (one operation)' : `${fieldLabel} is not a solution field: a plot group can show Re, Im or |.| of a complex field`} onclick={saveQuick}>Save as plot group</button>
-			{/if}
-			{#if mode === 'results' && sol && names.length && !g2}
-				{#if cx.entries.length > 1}<select value={entryKey} onchange={(e) => (fieldKey = (e.currentTarget as HTMLSelectElement).value)} data-tip={cx.groups.size ? 'Field. A complex field (driven solve) is one entry; its part is chosen next to it' : 'Field'}>{#each cx.entries as n}<option value={n}>{n}{cx.groups.has(n) ? ' (complex)' : ''}</option>{/each}</select>{/if}
-				{#if pair}<ComplexControls bind:part bind:phase bind:playing onpart={() => (partUser = true)} />{/if}
-			{#if drawable}
-				{#if field && field.components > 1}
-						<select bind:value={compUser} data-tip="Component">
-						<option value={-1}>magnitude</option>
-						{#each Array.from({ length: field.components }, (_, i) => i) as i}<option value={i}>{field.name === 'E_rphiz' ? ['r', 'phi', 'z'][i] : i}</option>{/each}
-					</select>
-				{/if}
-				{#if nSteps > 1}
-					<select bind:value={step} data-tip={sol.steps ? `${sol.steps.kind} step` : 'step'}>
-						{#each Array.from({ length: nSteps }, (_, i) => i) as i}<option value={i}>{stepLabel(i)}</option>{/each}
-					</select>
-				{/if}
-				<select bind:value={ruleUser} data-tip="Colour range rule: full = min to max; robust = area-weighted 1st-99th percentile (values outside saturate). Over the view box when the view has one, else the whole mesh">
-					<option value="full">range: full</option>
-					<option value="robust">range: p1-99</option>
-				</select>
-				{#if map?.logOk}<button class:on={scaleUser === 'log'} data-tip="Logarithmic colour scale (the data span more than two decades)"onclick={() => (scalePick = scalePick === 'log' ? 'linear' : 'log')}>log</button>{/if}
-				{#if canAnimate}<button class:on={playing} data-tip={eigen ? 'Animate the mode: Re(u e^(i phase)) (Space)' : pair ? 'Animate the phase: Re(u e^(jφ)), φ from 0 to 360° (Space)' : 'Play the steps (Space)'} onclick={() => { if (pair && part !== 'inst') part = 'inst'; playing = !playing; }}>{playing ? 'Pause' : 'Animate'}</button>{/if}
-				{#if m2 && !rev}
-					{#if field?.space !== 'DG0' || !rawField}<button class:on={contours} data-tip="Contour lines at the colorbar ticks" onclick={() => (contoursUser = !contoursUser)}>Contours</button>{/if}
-					<button class:on={rawField} data-tip={`Raw element field: per-cell values flat, nodal values linear between the lattice points. Off: the element basis is evaluated per pixel${field?.space === 'DG0' ? '; per-cell values recovered to the element corners (area-weighted mean within each domain)' : ''}. The probe always shows the exact FE value`} onclick={() => (rawField = !rawField)}>Raw</button>
-					{#if band && field?.name === band.field && probePts.some((q) => q.id === band.probe)}<button class="amb" class:on={bandOn} data-tip={band.tip} onclick={() => (bandOn = !bandOn)}>±{band.rel * 100} %</button>{/if}
-					{#if fluxField}<button class:on={fieldLines} data-tip={`Heat flux lines: tangent to q = -k grad T, traced from the boundary where heat enters, seeded at equal inflow so each line carries the same heat (line density follows |q|); arrows point downstream${flux ? `. ${flux.n} lines` : ''}`} onclick={() => (fieldLines = !fieldLines)}>Flux lines</button>{/if}
-					{#if aphi}<button class:on={fieldLines} data-tip="Magnetic field lines: contours of the flux function r A_phi at equal flux steps (line density follows |B|)" onclick={() => (fieldLines = !fieldLines)}>Field lines</button>{/if}
-					{#if !compact}
-						<select bind:value={level} data-tip="Smoothing: refined lattice level r (r^2 sub-triangles per element, exact FE values at the lattice points)">
-							{#each [1, 2, 3, 4, 6] as l}<option value={l}>r {l}</option>{/each}
-						</select>
-					{/if}
-				{/if}
-			{/if}
-		{/if}
-			{#if mode === 'results' && wave && sol}
-				<div class="modes">
-					{#if hasS}<button class:on={inset === 'sparams'} data-tip="S-parameters of the ports vs frequency (|S| in dB, phase)" onclick={() => (inset = inset === 'sparams' ? 'none' : 'sparams')}>S-params</button>{/if}
-					{#if hasBands}<button class:on={inset === 'bands'} data-tip="Band diagram: eigenfrequencies along the wave-vector path" onclick={() => (inset = inset === 'bands' ? 'none' : 'bands')}>Bands</button>{/if}
-					{#if hasFF}<button class:on={inset === 'farfield'} data-tip="Far field: 2D scattering width σ2D(φ) at the shown frequency (polar)" onclick={() => (inset = inset === 'farfield' ? 'none' : 'farfield')}>Far field</button>{/if}
-				</div>
-			{/if}
-			{#if g2 && mode === 'results' && sol && drawable && m2 && !rev}
-				<button class:on={rawField} data-tip="Raw element field (off: the element basis evaluated per pixel). The probe always shows the exact value" onclick={() => (rawField = !rawField)}>Raw</button>
-				{#if !compact}<select bind:value={level} data-tip="Smoothing: refined lattice level r">{#each [1, 2, 3, 4, 6] as l}<option value={l}>r {l}</option>{/each}</select>{/if}
-			{/if}
-			{#if is3d && !rev && mode === 'results' && sol && drawable && mesh?.cells.type === 'tet10'}
-			<button class:on={rawField} data-tip="Raw: values linear between the 6 nodes of each exterior tet10 face (4 sub-triangles). Off: the face's P2 basis evaluated per pixel. The colour range is taken over the nodal values" onclick={() => (rawField = !rawField)}>Raw</button>
-		{/if}
+		<GfxToolbar {s} {m2} {rev} {focus} {fullBox} {mirror} {mirrored} {field} {compact} {wire} {cb} {g2} {cmUser} {map} {is3d} has3d={!!Canvas3D} {camNow} {tools} {shownExpr}
+			grp={grp ? { id: grp.id, type: grp.type } : null} {onplot} {sol} {drawable} {exprName} {fieldLabel} {saveQuick} {names} {cx} {entryKey} {pair} onpart={() => (partUser = true)}
+			{nSteps} {stepLabel} {scaleUser} {canAnimate} {eigen} {contours} {band} {probePts} {fluxField} {flux} {aphi} {wave} {hasS} {hasBands} {hasFF} {mesh}
+			bind:mode bind:frameAll bind:mirrorOn bind:wireUser bind:fit bind:cmPick bind:cmRev bind:axes bind:tool bind:fieldKey bind:part bind:phase bind:playing
+			bind:compUser bind:step bind:ruleUser bind:scalePick bind:contoursUser bind:rawField bind:bandOn bind:fieldLines bind:level bind:inset />
 		{#if is3d && (!compact || rev)}
 			<Tools3D {rev} results={mode === 'results'} nodal={!!nodal3} hasDisp={!!dispField} {deform} {autoScale} bind:cutaway bind:clipOn bind:clipAxis bind:clipFrac bind:sliceOn bind:sliceAxis bind:sliceFrac bind:isoOn bind:isoN bind:deformOn bind:deformUser />
 		{/if}
@@ -1237,11 +1185,6 @@
 	.top { position: absolute; left: 6px; top: 6px; right: 90px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; pointer-events: none; }
 	/* children of child components (complex part, 3D tools) too: scoped `*` would miss them */
 	.top > :global(*) { pointer-events: auto; }
-	.modes { display: flex; }
-	.modes button + button { border-left: 0; }
-	.ds { max-width: 260px; border-color: #e0a526; }
-	.pg { font: 11px var(--mono); color: var(--ink); background: rgba(57, 135, 229, 0.25); border: 1px solid var(--accent); padding: 0 5px; height: 22px; display: inline-flex; align-items: center; }
-	.amb.on { background: #6b4e12; border-color: #e0a526; color: #fff; }
 	.prog { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: rgba(57, 135, 229, 0.15); }
 	.prog span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); transition: width 0.2s; }
 	.prog span.ind { width: 30% !important; animation: slide 1.2s linear infinite; }

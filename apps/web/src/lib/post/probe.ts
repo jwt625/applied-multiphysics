@@ -30,9 +30,12 @@ export interface ProbeRow {
 	key: string;
 }
 
-/** Field value at a 2D point (m): exact FE evaluation in the post worker; component -1 = magnitude. */
+/** Field value at a 2D point (m): exact FE evaluation in the post worker; component -1 = magnitude. A derived field with
+ *  element values (stresses) gives the value of the material domain of the clicked cell (per-domain recovery, as drawn;
+ *  field2d.ts `withPerDomain`). 3D (`probe3d`): `sample` applies the same recovery. */
 export async function probe2d(post: PostClient, f: FieldData, comp: number, x: number, y: number): Promise<number | null> {
-	const r = await post.call<'evalAt'>({ type: 'evalAt', field: { space: f.space as Space, data: f.data, components: f.components }, comp, points: [x, y] });
+	const field = { space: f.space as Space, data: f.data, components: f.components, ...(f.elementNodal ? { elementNodal: f.elementNodal } : {}), ...(f.cellGroup ? { cellGroup: f.cellGroup } : {}) };
+	const r = await post.call<'evalAt'>({ type: 'evalAt', field, comp, points: [x, y] });
 	const v = r.values[0];
 	return v === null || v === undefined || !Number.isFinite(v) ? null : v;
 }

@@ -1,0 +1,85 @@
+# WO-88: Silicon slot waveguide in 1D: 220 nm Si rails around a 100 nm oxide slot at 1550 nm, slot-mode effective index vs the exact dispersion relation
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-88
+class: c
+title: 'Silicon slot waveguide in 1D: 220 nm Si rails around a 100 nm oxide slot at 1550 nm, slot-mode effective index vs
+  the exact dispersion relation'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {rails_m: 2.2e-07, slot_m: 1.0e-07, cladding_m: 2.5e-06, window_x_m: 1.0e-07}
+materials:
+  si: {n: 3.48, source: 'US 7,519,257 B2 (nH = 3.48 around 1.55 um)'}
+  sio2: {n: 1.44, source: 'US 7,519,257 B2 (nC = 1.44)'}
+bcs:
+- {selection: y = +-L, type: pec}
+- {selection: x walls, type: natural (exact for the x-invariant mode)}
+initial: null
+study: {type: eigen, solver: mode, wavelength_m: 1.55e-06, n: 1}
+references:
+- id: neff_0.L0
+  quantity: n_eff of the slot mode (E normal to the layers) (mesh level 0)
+  metric_id: neff_0
+  value: 2.32899031346649
+  unit: '1'
+  tolerance: {abs: 2.0e-06, after: finest, note: 'set from the measured level errors (-9.6e-7, -6.2e-8; a third level -3.9e-9,
+      order 4) with a margin of about 2 (DevLog-062 s.4)'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-88.json, metric_id: neff_0}
+  provenance: {citation: exact five-layer slab dispersion relation (transfer matrix on H_x and (1/eps) dH_x/dy; mpmath vs
+      scipy), locator: 'validation/photonics2/slot_slab.py; geometry and indices: US patent 7,519,257 B2 (2009-04-14), FIG.
+      1 embodiment', accessed: '2026-11-18', generator: validation/photonics2/slot_slab.py}
+  extract: {kind: scalar, name: neff_0}
+- id: neff_0.L1
+  quantity: n_eff of the slot mode (E normal to the layers) (mesh level 1)
+  metric_id: neff_0
+  value: 2.32899031346649
+  unit: '1'
+  tolerance: {abs: 1.5e-07, after: finest, note: 'set from the measured level errors (-9.6e-7, -6.2e-8; a third level -3.9e-9,
+      order 4) with a margin of about 2 (DevLog-062 s.4)'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-88.json, metric_id: neff_0}
+  provenance: {citation: exact five-layer slab dispersion relation (transfer matrix on H_x and (1/eps) dH_x/dy; mpmath vs
+      scipy), locator: 'validation/photonics2/slot_slab.py; geometry and indices: US patent 7,519,257 B2 (2009-04-14), FIG.
+      1 embodiment', accessed: '2026-11-18', generator: validation/photonics2/slot_slab.py}
+  extract: {kind: scalar, name: neff_0}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels, the finer one with an equal or
+    tighter tolerance
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (51k DOF) 0.4 s in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited published values
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: verification of a library example}
+spec: {sim: sims/si-slot-slab.yaml, study: modes}
+missing: []
+assumptions: []
+notes: ['The slot dimensions and indices come from the patent''s 2D slot waveguide; the case uses the 1D (slab) form, for
+    which the dispersion relation is exact.', No published slot effective index from a non-COMSOL solver was found (DevLog-062
+    s.1.1); the analytic slab is the reference.]
+lane: G5
+created: '2026-11-18'

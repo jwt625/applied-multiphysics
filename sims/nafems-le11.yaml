@@ -1,5 +1,5 @@
 # CP-02 (eval/cases/a/CP-02.yaml): NAFEMS LE11, solid cylinder / taper / sphere under a temperature field, as an
-# axisymmetric heat -> elastic chain (lane MX, DevLog-035). Meridian points from FeenoX examples/nafems-le11.geo via
+# axisymmetric heat -> elastic chain. Meridian points from FeenoX examples/nafems-le11.geo via
 # advanced-packaging-atlas validation/cases/B/nafems-LE11.yaml (at fe39985). E 210 GPa, nu 0.3, alpha 2.3e-4 /C; temperature
 # T = r + z (C, r and z in m), stress-free at 0 C (assumed in CP-02). Uz = 0 on z = 0 and on the top face.
 # The heat physics reproduces T = r + z exactly: T = r + z on every boundary and the volume source Q = -k lap(T) = -k / r

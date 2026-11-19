@@ -9,7 +9,7 @@
 import type { Mesh, PhysicsModule, RunContext, Solution, Spec } from '@amp/spec/types';
 import { NPC, facetNodes, facetsOn, nCells, nNodes } from '../common/mesh.ts';
 import { cellPattern, cellBlockSlots, restrict, SpdSolver, facetTable, cellOrder, type Csr } from '../common/scalar.ts';
-import { defaultRule, gatherX, physGrad, shapeTable, facetJac, shape, REF_DIM } from '../common/lagrange.ts';
+import { defaultRule, gatherX, physGrad, shapeTable, facetJac, shape, REF_DIM, isAffineTet10, tetQuadrature } from '../common/lagrange.ts';
 import { makeSolution, StageTimer, scalar } from '../common/solution.ts';
 import { attachMesh } from '../common/solution.ts';
 import { bcsOf, cellProps, physicsNode, optionalCellProp } from '../common/ctx.ts';
@@ -17,7 +17,10 @@ import { compileField, spaceOf, evalField } from '../common/field.ts';
 import { eigenStudy, q } from '../common/ctx.ts';
 import { solveElasticModes } from './modal.ts';
 import { solveElasticAxisym } from './axisym.ts';
+import { constitutiveGroups } from './groups.ts';
+export { constitutiveGroups } from './groups.ts';
 import { bcNodes, solidKernel, solidKernelWork } from '../coupled/assemble.ts';
+import { buildAMGSA, buildTwoLevel, rigidBodyModes } from '@amp/core/la/amg-sa';
 
 export type Model = 'plane-stress' | 'plane-strain' | '3d' | 'axisym';   // axisym: elastic/axisym.ts (lane MT)
 export type VecFn = (x: Float64Array, n: Float64Array) => number[];
@@ -133,6 +136,11 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
   timer.time('assemble', () => {
     const r = defaultRule(m.cells.type, 2 * cellOrder(m));
     const t = shapeTable(m.cells.type, r);
+    // degree-matched tet quadrature option (lagrange.ts setTetQuadrature, DevLog-060): per-term rules on affine cells
+    const ordE = cellOrder(m);
+    const matched = dim === 3 && tetQuadrature() === 'matched' && (m.cells.type === 'tet4' || m.cells.type === 'tet10');
+    const tK = matched ? shapeTable(m.cells.type, defaultRule(m.cells.type, 2 * (ordE - 1))) : null;
+    const tF = matched ? shapeTable(m.cells.type, defaultRule(m.cells.type, 2 * ordE - 1)) : null;
     const X = new Float64Array(nd), G = new Float64Array(nd), B = new Float64Array(nv * nd);
     const kw = solidKernelWork(nv, nd), DB = kw.DB;
     const Ke = new Float64Array(nd * nd), Fe = new Float64Array(nd);
@@ -143,19 +151,36 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
       const D = dMatrix(p.model, p.E[e]!, p.nu[e]!);
       gatherX(m.nodes, dim, m.cells.conn, e, k, X);
       Ke.fill(0); Fe.fill(0);
-      for (let q = 0; q < r.n; q++) {
-        const w = physGrad(t, q, X, dim, G) * r.wts[q]!;
-        bMatrix(G, k, dim, B);
-        solidKernel(D, B, nv, nd, w, Ke, kw);   // DB = D B, Ke += w B^T DB (zero entries of B skipped; bitwise as the dense sums)
-        if (p.body) for (let a = 0; a < k; a++) for (let d = 0; d < dim; d++) Fe[dim * a + d]! += p.body[dim * e + d]! * t.N[q * k + a]! * w;
+      // body force and thermal load at point q of table tt (DB = D B at that point)
+      const loads = (tt: typeof t, q: number, w: number) => {
+        if (p.body) for (let a = 0; a < k; a++) for (let d = 0; d < dim; d++) Fe[dim * a + d]! += p.body[dim * e + d]! * tt.N[q * k + a]! * w;
         if (p.thermal) {
-          let T = 0; for (let a = 0; a < k; a++) T += t.N[q * k + a]! * p.thermal.T[m.cells.conn[k * e + a]!]!;
+          let T = 0; for (let a = 0; a < k; a++) T += tt.N[q * k + a]! * p.thermal.T[m.cells.conn[k * e + a]!]!;
           const al = p.thermal.alpha[e]!, nu = p.nu[e]!;
           const eth = al * (T - p.thermal.Tref) * (p.model === 'plane-strain' ? 1 + nu : 1);
           const ev = dim === 2 ? [eth, eth, 0] : [eth, eth, eth, 0, 0, 0];
           // F += B^T D eps_th
           for (let a = 0; a < nd; a++) { let s = 0; for (let l = 0; l < nv; l++) s += DB[l * nd + a]! * ev[l]!; Fe[a]! += s * w; }
         }
+      };
+      if (tK && tF && (k === 4 || isAffineTet10(X))) {
+        // degree-matched option on an affine tet: stiffness with degree 2 (p - 1), loads with degree (p - 1) + p
+        for (let q = 0; q < tK.rule.n; q++) {
+          const w = physGrad(tK, q, X, dim, G) * tK.rule.wts[q]!;
+          bMatrix(G, k, dim, B);
+          solidKernel(D, B, nv, nd, w, Ke, kw);
+        }
+        if (p.body || p.thermal) for (let q = 0; q < tF.rule.n; q++) {
+          const w = physGrad(tF, q, X, dim, G) * tF.rule.wts[q]!;
+          bMatrix(G, k, dim, B);
+          for (let l = 0; l < nv; l++) for (let a = 0; a < nd; a++) { let s2 = 0; for (let j = 0; j < nv; j++) s2 += D[l * nv + j]! * B[j * nd + a]!; DB[l * nd + a] = s2; }
+          loads(tF, q, w);
+        }
+      } else for (let q = 0; q < r.n; q++) {
+        const w = physGrad(t, q, X, dim, G) * r.wts[q]!;
+        bMatrix(G, k, dim, B);
+        solidKernel(D, B, nv, nd, w, Ke, kw);   // DB = D B, Ke += w B^T DB (zero entries of B skipped; bitwise as the dense sums)
+        loads(t, q, w);
       }
       for (let a = 0; a < k; a++) { const v = m.cells.conn[k * e + a]!; active[v] = 1; for (let d = 0; d < dim; d++) dofs[dim * a + d] = dim * v + d; }
       // scatter through the precomputed element slots (DevLog-045 R1, DevLog-054): same entries in the same order as the
@@ -222,40 +247,35 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
     for (let z = pat.rowptr[i]!; z < pat.rowptr[i + 1]!; z++) { const c = pat.colidx[z]!; if (fixed[c]) s -= K[z]! * uc[c]!; }
     b[R.map[i]!] = s;
   }
-  const S = new SpdSolver(R.pat, p.solver ?? 'cholesky');
+  // AMG-PCG (explicit, or by the study solver setting; DevLog-060): elasticPreconditioner; unused by the direct path
+  const S = new SpdSolver(R.pat, p.solver ?? 'cholesky', undefined, { amg: (A) => elasticPreconditioner(m, R.inv, R.map, mask, A) });
   timer.time('factor', () => S.factor(R.val));
   const uf = timer.time('solve', () => S.solve(b));
   const u = new Float64Array(N);
   for (let i = 0; i < N; i++) u[i] = free[i] ? uf[R.map[i]!]! : uc[i]!;
   // stresses: nodal averages of element stresses evaluated at the element nodes
   const t0 = performance.now();
-  const sig = nodalStress(p, u, mask);
+  const { nodal: sig, element: sigE } = nodalStress(p, u, mask);
   const nsc = dim === 2 ? 4 : 6;  // 2D: sxx syy sxy szz
   const mises = new Float64Array(nn), s1 = new Float64Array(nn), s2 = new Float64Array(nn), s3 = dim === 3 ? new Float64Array(nn) : null;
-  for (let v = 0; v < nn; v++) {
-    const s = sig.subarray(nsc * v, nsc * v + nsc);
-    if (dim === 2) {
-      const [xx, yy, xy, zz] = s as unknown as [number, number, number, number];
-      mises[v] = Math.sqrt(0.5 * ((xx - yy) ** 2 + (yy - zz) ** 2 + (zz - xx) ** 2) + 3 * xy * xy);
-      const c = 0.5 * (xx + yy), r = Math.hypot(0.5 * (xx - yy), xy);
-      s1[v] = c + r; s2[v] = c - r;
-    } else {
-      const [xx, yy, zz, yz, xz, xy] = s as unknown as number[];
-      mises[v] = Math.sqrt(0.5 * ((xx! - yy!) ** 2 + (yy! - zz!) ** 2 + (zz! - xx!) ** 2) + 3 * (yz! ** 2 + xz! ** 2 + xy! ** 2));
-      const ev = symEig3(xx!, yy!, zz!, yz!, xz!, xy!);
-      s1[v] = ev[0]!; s2[v] = ev[1]!; s3![v] = ev[2]!;
-    }
-  }
+  for (let v = 0; v < nn; v++) stressInvariants(sig, nsc, dim, v, mises, s1, s2, s3);
+  // element values at the cell nodes before averaging (FieldData.elementNodal: per-domain recovery and element-value
+  // integrals in @amp/post, DevLog-059); NaN for cells outside the physics
+  const nE = sigE.length / nsc;
+  const eMises = new Float64Array(nE), eS1 = new Float64Array(nE), eS2 = new Float64Array(nE), eS3 = dim === 3 ? new Float64Array(nE) : null;
+  for (let i = 0; i < nE; i++) stressInvariants(sigE, nsc, dim, i, eMises, eS1, eS2, eS3);
+  const eComp = (j: number) => Float64Array.from({ length: nE }, (_, i) => sigE[nsc * i + j]!);
   const space: 'H1P1' | 'H1P2' = cellOrder(m) === 2 ? 'H1P2' : 'H1P1';
   const comp = (j: number) => Float64Array.from({ length: nn }, (_, v) => sig[nsc * v + j]!);
   const names = dim === 2 ? ['sxx', 'syy', 'sxy', 'szz'] : ['sxx', 'syy', 'szz', 'syz', 'sxz', 'sxy'];
+  const cellGroup = constitutiveGroups(mask, p.E, p.nu, p.thermal?.alpha);
   const fields: Solution['fields'] = [
     { name: 'u', unit: 'm', space, components: dim as 2 | 3, data: u },
-    ...names.map((nm, j) => ({ name: nm, unit: 'Pa', space, components: 1 as const, data: comp(j) })),
-    { name: 'mises', unit: 'Pa', space, components: 1, data: mises },
-    { name: 's1', unit: 'Pa', space, components: 1, data: s1 },
-    { name: 's2', unit: 'Pa', space, components: 1, data: s2 },
-    ...(s3 ? [{ name: 's3', unit: 'Pa', space, components: 1 as const, data: s3 }] : []),
+    ...names.map((nm, j) => ({ name: nm, unit: 'Pa', space, components: 1 as const, data: comp(j), elementNodal: eComp(j), cellGroup })),
+    { name: 'mises', unit: 'Pa', space, components: 1, data: mises, elementNodal: eMises, cellGroup },
+    { name: 's1', unit: 'Pa', space, components: 1, data: s1, elementNodal: eS1, cellGroup },
+    { name: 's2', unit: 'Pa', space, components: 1, data: s2, elementNodal: eS2, cellGroup },
+    ...(s3 ? [{ name: 's3', unit: 'Pa', space, components: 1 as const, data: s3, elementNodal: eS3!, cellGroup }] : []),
   ];
   let mmax = 0, umax = 0;
   for (let v = 0; v < nn; v++) if (active[v]) { mmax = Math.max(mmax, mises[v]!); let s = 0; for (let d = 0; d < dim; d++) s += u[dim * v + d]! ** 2; umax = Math.max(umax, Math.sqrt(s)); }
@@ -268,6 +288,58 @@ export async function solveElastic(p: ElasticProblem): Promise<Solution & { deta
   });
   attachMesh(sol, m);
   return Object.assign(sol, { detail: { dof: R.pat.n }, u });
+}
+
+/** Local edges (vertex pairs) of the midside nodes of tri6 (nodes 3-5) and tet10 (nodes 4-9), in node order. */
+const MIDSIDE_EDGES: Record<string, ReadonlyArray<readonly [number, number]>> = {
+  tri6: [[0, 1], [1, 2], [0, 2]],
+  tet10: [[0, 1], [1, 2], [0, 2], [0, 3], [1, 3], [2, 3]],
+};
+
+/**
+ * AMG preconditioner of the restricted elasticity matrix A (free unknowns; inv: free -> node * dim + component, map:
+ * the inverse; DevLog-060). P1 cells: smoothed aggregation (la/amg-sa.mjs) with the rigid-body modes of the free
+ * unknowns as the near-nullspace (Vanek, Mandel, Brezina 1996). P2 cells (tri6 / tet10): two-level p-multigrid, the P1
+ * Lagrange interpolation onto the vertex unknowns (vertex: 1; midside node: 1/2 from each edge end; Dirichlet-fixed
+ * vertex components drop out) with Gauss-Seidel smoothing on the P2 system, and the smoothed aggregation above on the
+ * Galerkin P1 operator. The P1 level keeps the aggregation stencils small (a tet10 node couples to about 30-60 nodes, a
+ * vertex of the P1 operator to about 15), which bounds the memory of the smoothed prolongator.
+ */
+export function elasticPreconditioner(m: Mesh, inv: Int32Array, map: Int32Array, mask: Uint8Array, A: Csr & { val: Float64Array }) {
+  const dim = m.dim, type = m.cells.type, edges = MIDSIDE_EDGES[type];
+  if (!edges) return buildAMGSA(A, rigidBodyModes(inv, m.nodes, dim));
+  const k = NPC[type], nv = dim + 1, nn = nNodes(m), nc = nCells(m), conn = m.cells.conn;
+  const isVertex = new Uint8Array(nn);
+  const parA = new Int32Array(nn).fill(-1), parB = new Int32Array(nn).fill(-1);
+  for (let e = 0; e < nc; e++) {
+    if (!mask[e]) continue;
+    for (let a = 0; a < nv; a++) isVertex[conn[k * e + a]!] = 1;
+    for (let j = 0; j < edges.length; j++) {
+      const v = conn[k * e + nv + j]!;
+      if (parA[v]! < 0) { parA[v] = conn[k * e + edges[j]![0]]!; parB[v] = conn[k * e + edges[j]![1]]!; }
+    }
+  }
+  // coarse unknowns: free vertex components
+  const cidx = new Int32Array(nn * dim).fill(-1);
+  const cinv: number[] = [];
+  for (let v = 0; v < nn; v++) if (isVertex[v]) for (let c = 0; c < dim; c++) if (map[dim * v + c]! >= 0) { cidx[dim * v + c] = cinv.length; cinv.push(dim * v + c); }
+  const n = inv.length;
+  const rowptr = new Int32Array(n + 1), cols = new Int32Array(2 * n), vals = new Float64Array(2 * n);
+  let z = 0;
+  for (let i = 0; i < n; i++) {
+    const g = inv[i]!, v = Math.floor(g / dim), c = g - dim * v;
+    if (isVertex[v]) { const j = cidx[g]!; if (j >= 0) { cols[z] = j; vals[z++] = 1; } }
+    else if (parA[v]! >= 0) {
+      const ja = cidx[dim * parA[v]! + c]!, jb = cidx[dim * parB[v]! + c]!;
+      const lo = Math.min(ja, jb), hi = Math.max(ja, jb);
+      if (lo >= 0) { cols[z] = lo; vals[z++] = 0.5; }
+      if (hi >= 0 && hi !== lo) { cols[z] = hi; vals[z++] = 0.5; }
+    }
+    rowptr[i + 1] = z;
+  }
+  const P = { n, m: cinv.length, rowptr, colidx: cols.slice(0, z), val: vals.slice(0, z) };
+  const ns = rigidBodyModes(Int32Array.from(cinv), m.nodes, dim);
+  return buildTwoLevel(A, P, (Ac) => buildAMGSA(Ac, ns));
 }
 
 /** Reference coordinates of the nodes of a cell type (node order of common/mesh.ts). */
@@ -304,22 +376,40 @@ export function cellStress(p: ElasticProblem, u: Float64Array, e: number, ref: A
   if (dim === 2) out[3] = p.model === 'plane-strain' ? nu * (out[0]! + out[1]!) - E * al * dT : 0;
 }
 
-function nodalStress(p: ElasticProblem, u: Float64Array, mask: Uint8Array): Float64Array {
+/** Nodal averages of the element stresses at the element nodes, and the element values themselves
+ *  ((cell * k + a) * nsc + j; NaN for masked cells). */
+function nodalStress(p: ElasticProblem, u: Float64Array, mask: Uint8Array): { nodal: Float64Array; element: Float64Array } {
   const m = p.mesh, dim = m.dim, k = NPC[m.cells.type], nn = nNodes(m), nc = nCells(m);
   const nsc = dim === 2 ? 4 : 6;
-  const acc = new Float64Array(nn * nsc), cnt = new Float64Array(nn);
+  const acc = new Float64Array(nn * nsc), cnt = new Float64Array(nn), el = new Float64Array(nc * k * nsc).fill(NaN);
   const rn = refNodes(m.cells.type), s = new Float64Array(nsc);
   for (let e = 0; e < nc; e++) {
     if (!mask[e]) continue;
     for (let a = 0; a < k; a++) {
       cellStress(p, u, e, rn[a]!, s);
       const v = m.cells.conn[k * e + a]!;
-      for (let j = 0; j < nsc; j++) acc[nsc * v + j]! += s[j]!;
+      for (let j = 0; j < nsc; j++) { acc[nsc * v + j]! += s[j]!; el[(k * e + a) * nsc + j] = s[j]!; }
       cnt[v]!++;
     }
   }
   for (let v = 0; v < nn; v++) if (cnt[v]) for (let j = 0; j < nsc; j++) acc[nsc * v + j]! /= cnt[v]!;
-  return acc;
+  return { nodal: acc, element: el };
+}
+
+/** von Mises and principal stresses of entry i of a Voigt stress array (2D: xx yy xy zz; 3D: xx yy zz yz xz xy). */
+function stressInvariants(sig: Float64Array, nsc: number, dim: number, i: number, mises: Float64Array, s1: Float64Array, s2: Float64Array, s3: Float64Array | null): void {
+  const s = sig.subarray(nsc * i, nsc * i + nsc);
+  if (dim === 2) {
+    const [xx, yy, xy, zz] = s as unknown as [number, number, number, number];
+    mises[i] = Math.sqrt(0.5 * ((xx - yy) ** 2 + (yy - zz) ** 2 + (zz - xx) ** 2) + 3 * xy * xy);
+    const c = 0.5 * (xx + yy), r = Math.hypot(0.5 * (xx - yy), xy);
+    s1[i] = c + r; s2[i] = c - r;
+  } else {
+    const [xx, yy, zz, yz, xz, xy] = s as unknown as number[];
+    mises[i] = Math.sqrt(0.5 * ((xx! - yy!) ** 2 + (yy! - zz!) ** 2 + (zz! - xx!) ** 2) + 3 * (yz! ** 2 + xz! ** 2 + xy! ** 2));
+    const ev = symEig3(xx!, yy!, zz!, yz!, xz!, xy!);
+    s1[i] = ev[0]!; s2[i] = ev[1]!; s3![i] = ev[2]!;
+  }
 }
 
 /** Eigenvalues (descending) of a symmetric 3x3 tensor (closed form, trigonometric). */

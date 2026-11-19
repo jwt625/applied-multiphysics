@@ -18,7 +18,7 @@ import { SupernodalLDLT } from '@amp/core/la/ldlt';
 import { NPC, facetNodes, facetsOn, nCells, nNodes } from '../common/mesh.ts';
 import { cellOrder, restrict } from '../common/scalar.ts';
 import { defaultRule, gatherX, physGrad, shapeTable } from '../common/lagrange.ts';
-import { shiftInvertEigen } from '../common/eigen.ts';
+import { eigenCheckNote, shiftInvertEigen } from '../common/eigen.ts';
 import { StageTimer, makeSolution, attachMesh, scalar } from '../common/solution.ts';
 import { dofPattern, scatterPair, solidConstraints, solidLoads, strainB, csrMv, jacobiScale, scaleSym, type SolidBc } from './assemble.ts';
 import type { Mat } from './tensors.ts';
@@ -223,6 +223,7 @@ export async function solvePiezo(p: PiezoProblem): Promise<Solution & { detail: 
   const detail: Record<string, unknown> = { n, nFree: R.pat.n };
   let stats: Solution['stats'];
   let steps: Solution['steps'] | undefined;
+  let chkNote: string | null = null;
   if (eigen) {
     const st = p.study as { nModes: number; shiftHz?: number | null };
     const Mr = scaleSym(R.pat, restrict(pat, M, free).val, dsc);
@@ -234,6 +235,7 @@ export async function solvePiezo(p: PiezoProblem): Promise<Solution & { detail: 
     const sigma = st.shiftHz && st.shiftHz > 0 ? (2 * Math.PI * st.shiftHz) ** 2 : -0.01 * lamScale;
     timer.start('solve');
     const eig = shiftInvertEigen({ pat: R.pat, K: Ks, M: Mr, sigma, nWant: st.nModes, factor: 'ldlt', tol: 1e-10, ...(p.signal ? { signal: p.signal } : {}) });
+    chkNote = eigenCheckNote(eig.stats.check);
     timer.stop('solve');
     timer.add('factor', eig.stats.factorMs);
     timer.timing.solve = (timer.timing.solve ?? 0) - eig.stats.factorMs;
@@ -283,5 +285,6 @@ export async function solvePiezo(p: PiezoProblem): Promise<Solution & { detail: 
   });
   attachMesh(solOut, m);
   if (eigen) (solOut as Solution & { normalization?: string }).normalization = PIEZO_NORMALIZATION;
+  if (chkNote) (solOut as Solution & { notes?: string[] }).notes = [...((solOut as Solution & { notes?: string[] }).notes ?? []), chkNote];
   return Object.assign(solOut, { detail });
 }

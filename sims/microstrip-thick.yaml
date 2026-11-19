@@ -1,0 +1,89 @@
+# PK-07 (eval/cases/c/PK-07.yaml): redistribution-layer (RDL) microstrip with a Cu strip of finite thickness t on a
+# polyimide layer of height h over a ground plane; quasi-static TEM line parameters from 2D electrostatics: C' (with the
+# dielectric), L' = mu0 eps0 / C'_0 (vacuum solve) and Z0 = sqrt(L' / C'). The strip is a perfect conductor: its domain
+# is left out of the electrostatics and its four walls are the terminal.
+# References (validation/pkg2/strip_bem.py): L' against an independent boundary-element solution of the same strip over
+# an infinite ground plane in vacuum (own code, image method, converged to about 3e-7); C' and Z0 against the
+# Hammerstad-Jensen 1980 closed forms with their strip-thickness correction (Qucs technical documentation s.11.1.3 eqs.
+# (11.22)-(11.25); the source states no accuracy for the thickness term, so these are informative). The ratio of the
+# vacuum capacitance to the zero-thickness line (sims/microstrip-rdl.yaml, same W, h) is gated against the
+# boundary-element value over the zero-thickness closed form (0.01 % for W/h <= 1).
+# Modelling inputs NOT from a paper (illustrative): W, h, t_m, X, Y. Substrate permittivity from the library
+# (materials/polyimide-pi2600, data-sheet value at 1 kHz, used as the quasi-static value). Vacuum around, as in the
+# closed form. Ground plane and substrate truncated at x = +-X, air at y = h + Y; truncation sides carry n . D = 0.
+schema: amp-spec/0
+id: microstrip-thick
+title: RDL microstrip with a thick strip, C', L' and Z0
+description: Cu strip of finite thickness on a polyimide layer over ground; line capacitance, inductance and impedance from electrostatics against boundary elements and Hammerstad-Jensen.
+params:
+  W: {value: 10, unit: um, description: strip width}
+  h: {value: 10, unit: um, description: dielectric height}
+  t_m: {value: 2, unit: um, description: strip (metal) thickness}
+  X: {value: 2, unit: mm, description: "half-width of the truncation box (modelling choice)"}
+  Y: {value: 2, unit: mm, description: "air height above the dielectric (modelling choice)"}
+geometry:
+  dim: 2
+  features:
+    - {id: sub, type: rect, settings: {size: ["2*X", "h"], center: ["0 um", "h/2"]}}
+    - {id: airbox, type: rect, settings: {size: ["2*X", "Y"], center: ["0 um", "h + Y/2"]}}
+    - {id: strip, type: rect, settings: {size: ["W", "t_m"], center: ["0 um", "h + t_m/2"]}}
+    - {id: air, type: difference, settings: {base: airbox, tools: [strip], keepTools: true}}
+materials:
+  - {id: vacuum, override: {eps_r: 1}, select: ["dom:air"]}
+  - {id: dielectric, ref: materials/polyimide-pi2600, select: ["dom:sub"]}
+  - {id: metal, ref: materials/copper, select: ["dom:strip"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:sub", "dom:air"]
+    bcs:
+      - {id: line, type: terminal, select: ["bnd:strip.left", "bnd:strip.right", "bnd:strip.top", "bnd:strip.bottom"]}
+      - {id: ground, type: ground, select: ["bnd:sub.bottom"]}
+mesh:
+  size: {hmax: "0.25 mm", grading: 0.3}
+  refine:
+    - {select: ["bnd:strip.left", "bnd:strip.right", "bnd:strip.top", "bnd:strip.bottom"], h: "W/40"}
+studies:
+  - {id: std1, type: stationary, physics: [es]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: vline, type: cutline, data: sol_std1, from: ["0 um", "0 um"], to: ["0 um", "6*h"], n: 200}
+    - {id: hline, type: cutline, data: sol_std1, from: ["-3*W", "h + t_m/2"], to: ["3*W", "h + t_m/2"], n: 300}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: C_per_m, type: global, expr: es.C_per_m, unit: pF/m}
+        - {id: L_per_m, type: global, expr: es.L_per_m, unit: nH/m}
+        - {id: Z0, type: global, expr: es.Z0, unit: ohm}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_surf, type: surface, expr: es.V, unit: V}
+    - id: V_line
+      type: plot1d
+      items:
+        - {id: V_vert, type: linegraph, data: vline, x: arc, expr: es.V, unit: V}
+        - {id: V_horiz, type: linegraph, data: hline, x: arc, expr: es.V, unit: V}
+provenance:
+  values:
+    params.W: {basis: user, date: 2026-11-18, note: "illustrative modelling input (W/h = 1), not from a paper"}
+    params.h: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.t_m: {basis: user, date: 2026-11-18, note: "illustrative modelling input (t/h = 0.2, t < W/2), not from a paper"}
+    params.X: {basis: user, date: 2026-11-18, note: "modelling choice: truncation (200 h)"}
+    params.Y: {basis: user, date: 2026-11-18, note: "modelling choice: truncation (200 h)"}
+    materials.vacuum.override.eps_r: {basis: user, date: 2026-11-18, note: "vacuum, as assumed by the closed form and the boundary-element reference"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: field singularity at the strip corners"}
+assumptions:
+  - {text: "Perfectly conducting strip (its interior carries no field), lossless, quasi-static TEM: L' = mu0 eps0 / C'_0, Z0 = sqrt(L' / C')", paths: [physics.es]}
+  - {text: "Polyimide eps_r from a 1 kHz data-sheet value (materials/polyimide-pi2600); its GHz value is not on the data sheet", paths: [materials.dielectric]}
+  - {text: "Finite ground plane and box (+-X, Y): the references assume an infinite ground plane and open space", paths: [geometry]}
+  - {text: "The copper material only labels the strip domain; no copper property enters the electrostatic solve", paths: [materials.metal]}
+# eval: [PK-07]

@@ -8,6 +8,9 @@
 //              `bnd:<D>.<layer>.bottom` where nothing is below; a face with several pieces is numbered over all
 //              pieces, exterior first, then partner domain order (`#1`, `#2`, ...; CONTRACTS-v0 G2 rule); exterior
 //              caps on the first / last plane also list bnd:<stack>.bottom / bnd:<stack>.top.
+//   points     `pnt:<P>.<layer>.bottom|top` for every named 2D point P of the layer's sketch (lower layer owns a shared
+//              plane location; parent = the upper `.bottom` name and the plain `pnt:<P>`; DevLog-065 D2); none for
+//              mixed boxes / cylinders. No `edg:` entities.
 // A split suffix of a 2D id moves to the end of the 3D id (`si#2` in layer sub -> `dom:si.sub#2`), as the C2 grammar
 // requires. Layer ids are sub-entities (default `L<k>`, the DevLog-004 grammar); `top` and `bottom` are reserved.
 
@@ -27,6 +30,10 @@ export interface StackLayerInput {
   dz?: number;
 }
 export interface StackInput { id: string; z0?: number; layers: StackLayerInput[] }
+export interface BuildStackOptions {
+  /** point entities at the layer planes from the sketches' named points (default true; DevLog-065 D2) */
+  points?: boolean;
+}
 
 export interface StackLayer { id: string; z: [number, number]; nz?: number; dz?: number; sketch: Geometry2D | null; gap: boolean }
 export interface DomInfo { layer: number; d2: number }
@@ -50,6 +57,8 @@ export interface Stack {
   sideOff: Int32Array;
   /** (plane j, below 3D domain, above 3D domain) -> 3D cap boundary index (key capKey) */
   capIndex: Map<string, number>;
+  /** per entities.points[k]: stack plane (0 = bottom of the first layer, j = top of layer j - 1) and overlay vertex */
+  pointAt: Array<{ plane: number; v: number }>;
   entities: EntityTable;
   domInfo: DomInfo[];
   bndInfo: BndInfo[];
@@ -65,13 +74,13 @@ const strip = (id: string) => id.replace(/^(dom|bnd|pnt|edg):/, '');
 /** a is x or a split piece of x (the resolver's piece rule) */
 const isPiece = (a: string, x: string) => a === x || a.startsWith(`${x}#`);
 /** 2D id + sub-entity suffix -> 3D id with the split suffix moved to the end. */
-export function id3(kind: 'dom' | 'bnd', id2: string, suffix: string): string {
+export function id3(kind: 'dom' | 'bnd' | 'pnt', id2: string, suffix: string): string {
   const s = strip(id2);
   const m = /((?:#\d+)*)$/.exec(s)!;
   return `${kind}:${s.slice(0, s.length - m[1]!.length)}${suffix}${m[1]}`;
 }
 
-export function buildStack(inp: StackInput): Stack {
+export function buildStack(inp: StackInput, opts: BuildStackOptions = {}): Stack {
   if (!ID_RE.test(inp.id)) fail(`extrude id '${inp.id}' invalid`);
   if (!inp.layers.length) fail(`${inp.id}: extrude needs at least one layer`);
   const S = inp.id;
@@ -217,10 +226,74 @@ export function buildStack(inp: StackInput): Stack {
   }
   const warnings = [...overlay.warnings];
   for (const g of sketches) if (g) warnings.push(...g.warnings);
+  const entities: EntityTable = { domains, boundaries };
+  const pointAt: Array<{ plane: number; v: number }> = [];
+  if (opts.points !== false) entities.points = stackPoints(layers, overlay, 1e-9 * xy, pointAt);
   return {
-    kind: 'stack', id: S, layers, overlay, dom3, bndSrc, sideIndex, sideOff, capIndex,
-    entities: { domains, boundaries }, domInfo, bndInfo, warnings: [...new Set(warnings)],
+    kind: 'stack', id: S, layers, overlay, dom3, bndSrc, sideIndex, sideOff, capIndex, pointAt,
+    entities, domInfo, bndInfo, warnings: [...new Set(warnings)],
   };
+}
+
+/**
+ * Point entities of a stack (DevLog-065 D2): every named 2D point P of layer l's sketch at the layer's bottom and top
+ * planes, `pnt:<P>.<l>.bottom` / `pnt:<P>.<l>.top` (split suffix at the end). Where two layers share a plane and a point
+ * location, the lower layer's `.top` owns the id and the upper layer's `.bottom` name is a parent (cap rule). Parents
+ * also list the plain 2D id `pnt:<P>` (that corner at every plane); ancestors add `pnt:<P>.<l>` (both planes of layer l),
+ * the 2D ancestors, and the per-plane / per-layer forms of the point's 2D aliases (coincident points of other features). Order: plane by plane, lower layer's points first (sketch order), then upper-only points.
+ */
+function stackPoints(layers: StackLayer[], overlay: Geometry2D, tol: number, pointAt: Array<{ plane: number; v: number }>): EntityRef[] {
+  const OV = overlay.vertices, nOV = OV.length / 2;
+  /** overlay vertex of each named point of each layer sketch (-1: not an overlay vertex) */
+  const at = layers.map((L) => {
+    const g = L.sketch;
+    if (!g) return [];
+    return (g.entities.points ?? []).map((_, i) => {
+      const v = g.pointVertex[i]!, x = g.vertices[2 * v]!, y = g.vertices[2 * v + 1]!;
+      let best = -1, bd = tol;
+      for (let w = 0; w < nOV; w++) {
+        const d = hyp2(OV[2 * w]! - x, OV[2 * w + 1]! - y);
+        if (d <= bd) { bd = d; best = w; }
+      }
+      return best;
+    });
+  });
+  const out: EntityRef[] = [];
+  const nL = layers.length;
+  for (let j = 0; j <= nL; j++) {
+    const lo = j > 0 ? layers[j - 1]! : null, hi = j < nL ? layers[j]! : null;
+    // overlay vertex -> [layer index, point index] of the upper layer's points on this plane
+    const upper = new Map<number, number>();
+    if (hi?.sketch) at[j]!.forEach((v, i) => { if (v >= 0 && !upper.has(v)) upper.set(v, i); });
+    const names = (L: StackLayer, i: number, side: 'top' | 'bottom') => {
+      const P = L.sketch!.entities.points![i]!;
+      // 2D aliases of the point (coincident points of other features: parent / ancestors) also select it per plane and layer
+      const alias = [...new Set([...(P.parent ?? []), ...(P.ancestors ?? [])])].filter((x) => x.startsWith('pnt:') && x !== P.id);
+      const anc = [...(P.ancestors ?? []), ...alias.flatMap((x) => [id3('pnt', x, `.${L.id}.${side}`), id3('pnt', x, `.${L.id}`)])];
+      return { own: id3('pnt', P.id, `.${L.id}.${side}`), layer: id3('pnt', P.id, `.${L.id}`), plain: P.id, anc };
+    };
+    const put = (l: string[], x: string) => { if (!l.includes(x)) l.push(x); };
+    const done = new Set<number>();
+    const emit = (v: number, a: ReturnType<typeof names>, b: ReturnType<typeof names> | null, label: string) => {
+      const parent: string[] = [a.plain], anc: string[] = [a.plain, a.layer, ...a.anc];
+      if (b) { put(parent, b.own); put(parent, b.plain); for (const x of [b.own, b.plain, b.layer, ...b.anc]) put(anc, x); }
+      out.push({ id: a.own, label, parent, ancestors: anc.filter((x) => x !== a.own) });
+      pointAt.push({ plane: j, v });
+      done.add(v);
+    };
+    if (lo?.sketch) at[j - 1]!.forEach((v, i) => {
+      if (v < 0 || done.has(v)) return;
+      const a = names(lo, i, 'top'), ui = upper.get(v);
+      const b = ui !== undefined ? names(hi!, ui, 'bottom') : null;
+      emit(v, a, b, `${strip(a.plain)} at the top of layer ${lo.id}${b ? ` / bottom of layer ${hi!.id}` : ''}`);
+    });
+    if (hi?.sketch) at[j]!.forEach((v, i) => {
+      if (v < 0 || done.has(v)) return;
+      const a = names(hi, i, 'bottom');
+      emit(v, a, null, `${strip(a.plain)} at the bottom of layer ${hi.id}`);
+    });
+  }
+  return out;
 }
 
 // ----------------------------------------------------------------------------------------- mixed 3D primitives
@@ -263,7 +336,8 @@ export function stackFromSolids(solids: PrimitiveSolid[], id = MIXED_STACK_ID): 
     layers.push({ id: `z${i}`, thickness: zs[i + 1]! - zs[i]!, features: act.map(feat) });
   }
   let st: Stack;
-  try { st = buildStack({ id, z0: zs[0]!, layers }); }
+  // no point entities: 2D rect corner names would read as box names, and box corner names are not defined (DevLog-065 O)
+  try { st = buildStack({ id, z0: zs[0]!, layers }, { points: false }); }
   catch (e) {
     const msg = (e as Error).message;
     const m = /layer z(\d+) sketch: overlapping domains ([^ ]+(?:, [^ ]+)*) without a boolean/.exec(msg);

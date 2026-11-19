@@ -1,5 +1,5 @@
-# EM-02 (eval/cases/c/EM-02.yaml, L7c): Palace spheres, Maxwell capacitance matrix of two conducting spheres in vacuum
-# (Lekner series). Axisymmetric about the centre line, as in the L4 gate packages/physics/gates/em.ts (EM-02): sphere
+# EM-02 (eval/cases/c/EM-02.yaml): Palace spheres, Maxwell capacitance matrix of two conducting spheres in vacuum
+# (Lekner series). Axisymmetric about the centre line, as in the verification gate packages/physics/gates/em.ts (EM-02): sphere
 # centres on the axis, grounded outer sphere of radius R_out = 1000 m (single-sphere shift a / R_out = 1e-5).
 schema: amp-spec/0
 id: two-spheres

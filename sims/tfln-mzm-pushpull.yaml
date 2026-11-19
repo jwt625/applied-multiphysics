@@ -1,0 +1,149 @@
+# WO-86 (eval/cases/c/WO-86.yaml): push-pull thin-film LN modulator cross-section, electrostatics -> em-modes
+# (electro-optic, Pockels), 2D. Benchmark geometry from the sibling repository eo-modulator-atlas (read only, own work of
+# the same author; HEAD 0546007 read 2026-11-18), canonical push-pull case validation/cases/K4.yaml: two x-cut LN ribs
+# (600 nm film, 300 nm etch, 1.0 um top, 60 deg walls), one in each gap of a GSG line; Au electrodes 0.8 um thick on the
+# slab top (signal 20 um centred at x = 0, gap 5 um, grounds 100 um); SiO2 BOX 4.7 um, Si substrate 500 um, air above
+# to y = 500 um, x in [-500, 500] um; zero-charge outer boundaries (no backside metal). Single-ended drive (signal 1 V,
+# grounds 0 V); arm B (x < 0) is the mirror image of arm A about x = 0. Optical window of arm A: 10 x 6 um centred on the
+# rib (PEC walls), electrodes replaced by air in the optical problem (atlas metal_in_window: absent). Reference:
+# atlas validation/reference/K4-es-eo.json (scikit-fem P2 electrostatics, vector FEM N2/P2 arm modes, first-order
+# Pockels, 3 levels): VpiL 2.27860 V cm (validation/photonics2/k4_reference.py). Frame: x lateral (crystal z), y film
+# normal (crystal x), z propagation (crystal y).
+schema: amp-spec/0
+id: tfln-mzm-pushpull
+title: Thin-film LN push-pull modulator VpiL
+description: Two x-cut LN ribs in the gaps of a gold GSG line on oxide over silicon; the static field of the signal changes the TE0 index of the two arms with opposite signs; push-pull VpiL at 1550 nm.
+params:
+  t_film: {value: 600, unit: nm, description: LN film thickness}
+  t_slab: {value: 300, unit: nm, description: slab thickness left after the etch}
+  t_box: {value: 4.7, unit: um, description: buried oxide}
+  t_el: {value: 0.8, unit: um, description: electrode thickness}
+  ws: {value: 20, unit: um, description: signal width}
+  g: {value: 5, unit: um, description: electrode gap (edge to edge)}
+  wg: {value: 100, unit: um, description: ground width}
+  xa: {value: 12.5, unit: um, description: centre of the arm A rib (centre of the right gap)}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+geometry:
+  dim: 2
+  features:
+    - {id: sub, type: rect, settings: {size: ["1000 um", "500 um"], center: ["0 um", "-t_box - 250[um]"]}}
+    - {id: boxl, type: rect, settings: {size: ["1000 um", "t_box"], center: ["0 um", "-t_box/2"]}}
+    - {id: slab, type: rect, settings: {size: ["1000 um", "t_slab"], center: ["0 um", "t_slab/2"]}}
+    - id: rib_a
+      type: polygon
+      settings: {points: [["xa - 0.5[um] - (t_film - t_slab)/sqrt(3)", t_slab], ["xa + 0.5[um] + (t_film - t_slab)/sqrt(3)", t_slab], ["xa + 0.5[um]", t_film], ["xa - 0.5[um]", t_film]]}
+    - id: rib_b
+      type: polygon
+      settings: {points: [["-xa - 0.5[um] - (t_film - t_slab)/sqrt(3)", t_slab], ["-xa + 0.5[um] + (t_film - t_slab)/sqrt(3)", t_slab], ["-xa + 0.5[um]", t_film], ["-xa - 0.5[um]", t_film]]}
+    - {id: sig, type: rect, settings: {size: ["ws", "t_el"], center: ["0 um", "t_slab + t_el/2"]}}
+    - {id: gnd_r, type: rect, settings: {size: ["wg", "t_el"], center: ["ws/2 + g + wg/2", "t_slab + t_el/2"]}}
+    - {id: gnd_l, type: rect, settings: {size: ["wg", "t_el"], center: ["-(ws/2 + g + wg/2)", "t_slab + t_el/2"]}}
+    - {id: airr, type: rect, settings: {size: ["1000 um", "500[um] - t_slab"], center: ["0 um", "(500[um] + t_slab)/2"]}}
+    - {id: air, type: difference, settings: {base: airr, tools: [rib_a, rib_b, sig, gnd_r, gnd_l], keepTools: true}}
+    - {id: win, type: rect, settings: {size: ["10 um", "6 um"], center: ["xa", "0 um"]}}
+    - {id: winb, type: rect, settings: {size: ["10 um", "6 um"], center: ["-xa", "0 um"]}}
+    - {id: opt, type: fragment, settings: {inputs: [win, winb, boxl, slab, rib_a, rib_b, air, sig, gnd_r, gnd_l]}}
+materials:
+  - id: LN
+    ref: materials/linbo3-congruent
+    override:
+      n: {symmetry: uniaxial, components: {perp: 2.211111009, par: 2.13755965}}
+      eps_r: {symmetry: uniaxial, components: {perp: 44, par: 28}}
+      r_eo: {symmetry: trigonal-3m, unit: pm/V, components: {r13: 9.6, r22: 6.8, r33: 30.9, r51: 32.6}}
+    select: ["dom:slab", "dom:rib_a", "dom:rib_b"]
+  - {id: SiO2, ref: materials/sio2-thermal-oxide, override: {n: 1.444023622, eps_r: 3.9}, select: ["dom:boxl"]}
+  - {id: Si, override: {eps_r: 11.7}, select: ["dom:sub"]}
+  - {id: Air, override: {n: 1, eps_r: 1}, select: ["dom:air", "dom:sig", "dom:gnd_r", "dom:gnd_l"]}
+physics:
+  - id: es
+    type: electrostatics
+    select: ["dom:sub", "dom:boxl", "dom:slab", "dom:rib_a", "dom:rib_b", "dom:air"]
+    bcs:
+      - {id: sig_t, type: terminal, select: ["bnd:sig.left", "bnd:sig.right", "bnd:sig.top", "bnd:sig.bottom"]}
+      - {id: gnds, type: ground, select: ["bnd:gnd_r.left", "bnd:gnd_r.right", "bnd:gnd_r.top", "bnd:gnd_r.bottom", "bnd:gnd_l.left", "bnd:gnd_l.right", "bnd:gnd_l.top", "bnd:gnd_l.bottom"]}
+      - {id: outer, type: zero-charge, select: ["bnd:sub.left", "bnd:sub.right", "bnd:sub.bottom", "bnd:boxl.left", "bnd:boxl.right", "bnd:slab.left", "bnd:slab.right", "bnd:airr.left", "bnd:airr.right", "bnd:airr.top"]}
+  - id: ewg
+    type: em-modes
+    select: ["dom:win&boxl", "dom:win&slab", "dom:win&rib_a", "dom:win&air", "dom:win&sig", "dom:win&gnd_r"]
+    settings: {order: 2}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:win.left", "bnd:win.right", "bnd:win.top", "bnd:win.bottom"]}
+couplings:
+  - id: eo
+    type: electro-optic
+    from: es
+    to: ewg
+    settings: {armB: mirror, mirrorX: "0 um", terminal: sig_t, crystals: [{material: LN, cut: x, propagation: y}]}
+mesh:
+  size: {hmax: "20 um", grading: 0.3}
+  refine:
+    - {select: ["dom:win&slab", "dom:win&rib_a", "dom:winb&slab", "dom:winb&rib_b"], h: "0.08 um"}
+    - {select: ["bnd:rib_a.e1", "bnd:rib_a.e2", "bnd:rib_a.e3", "bnd:rib_b.e1", "bnd:rib_b.e2", "bnd:rib_b.e3"], h: "0.02 um"}
+    - {select: ["dom:win&boxl", "dom:win&air", "dom:win&sig", "dom:win&gnd_r", "dom:winb&boxl", "dom:winb&air"], h: "0.5 um"}
+    - {select: ["bnd:sig.right", "bnd:gnd_r.left", "bnd:sig.left", "bnd:gnd_l.right"], h: "0.1 um"}
+studies:
+  - {id: std1, type: mode, physics: [es, ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: gap_line, type: cutline, data: sol_std1, from: ["ws/2", "0.45 um"], to: ["ws/2 + g", "0.45 um"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: VpiL, type: global, expr: ewg.VpiL_0, unit: V*cm}
+        - {id: dneffdV, type: global, expr: ewg.dneffdV_0, unit: 1/V}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: V_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: V_surf, type: surface, expr: es.V, unit: V}
+    - id: E_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: E_surf, type: surface, expr: ewg.normE, unit: V/m}
+    - id: V_line
+      type: plot1d
+      items:
+        - {id: V_curve, type: linegraph, data: gap_line, x: arc, expr: es.V, unit: V}
+provenance:
+  values:
+    params.t_film: {basis: benchmark, source: "eo-modulator-atlas canonical push-pull case validation/cases/K4.yaml (two ribs of the air-clad rib case, film 600 nm)", date: 2026-11-18}
+    params.t_slab: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (ln_slab y 0..0.3 um)", date: 2026-11-18}
+    params.t_box: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (box y -4.7..0 um)", date: 2026-11-18}
+    params.t_el: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (electrodes y 0.3..1.1 um)", date: 2026-11-18}
+    params.ws: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (signal x -10..10 um)", date: 2026-11-18}
+    params.g: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (grounds from |x| = 15 um)", date: 2026-11-18}
+    params.wg: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (grounds 100 um wide)", date: 2026-11-18}
+    params.xa: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (rib A centred at x = +12.5 um, rib B at -12.5 um)", date: 2026-11-18}
+    params.lambda0: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (optics.wavelength_nm 1550)", date: 2026-11-18}
+    geometry.features.0.settings.size: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (domain x -500..500 um, substrate bottom y = -504.7 um)", date: 2026-11-18}
+    geometry.features.10.settings.size: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml optics.eo.arm_windows A (x 7.5..17.5 um, y -3..3 um)", date: 2026-11-18}
+    geometry.features.11.settings.size: {basis: user, date: 2026-11-18, note: "modelling choice: mesh-only window around rib B so the mirrored arm samples an equally fine electrostatic field"}
+    materials.LN.override.n: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml n_o 2.211111009, n_e 2.13755965 (Zelmon 1997 at 1550 nm)", date: 2026-11-18}
+    materials.LN.override.eps_r: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml eps_r perp 44, par 28 (case inputs)", date: 2026-11-18}
+    materials.LN.override.r_eo: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml r13 9.6, r22 6.8, r33 30.9, r51 32.6 pm/V (case inputs)", date: 2026-11-18}
+    materials.SiO2.override.n: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (Malitson 1965 at 1550 nm)", date: 2026-11-18}
+    materials.SiO2.override.eps_r: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (3.9)", date: 2026-11-18}
+    materials.Si.override.eps_r: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (11.7, lossless dielectric)", date: 2026-11-18}
+    materials.Air.override.n: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (air n 1; electrodes replaced by air in the optical problem)", date: 2026-11-18}
+    materials.Air.override.eps_r: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (air eps_r 1)", date: 2026-11-18}
+    couplings.eo.settings.mirrorX: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (signal centre x = 0; ribs at +-12.5 um)", date: 2026-11-18}
+    couplings.eo.settings.crystals: {basis: benchmark, source: "eo-modulator-atlas validation/cases/K4.yaml (x-cut, propagation along crystal y)", date: 2026-11-18}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice (atlas max_edge_um 20)"}
+    mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice (as the air-clad rib example)"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice: rib edges (corner singularities)"}
+    mesh.refine.2.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.3.h: {basis: user, date: 2026-11-18, note: "modelling choice: electrode edges facing the ribs"}
+assumptions:
+  - {text: "Electrodes are ideal conductors (boundaries; their domains are not solved by the electrostatics); terminal 1 V on the signal, grounds 0 V; zero-charge outer boundaries, no backside metal", paths: [physics.es]}
+  - {text: "Electrodes are replaced by air in the optical problem of arm A (the benchmark's metal_in_window: absent); the TE0 mode then equals the air-clad rib mode", paths: [physics.ewg, materials.Air]}
+  - {text: "Arm B is the mirror image of arm A about x = 0; VpiL = lambda / (2 |dn_A - dn_B|) with dn per volt of the full terminal voltage (push-pull by geometry, single-ended drive)", paths: [couplings.eo]}
+  - {text: "Static permittivities and Pockels coefficients are the benchmark case inputs, not library values", paths: [materials.LN]}
+# eval: [WO-86]

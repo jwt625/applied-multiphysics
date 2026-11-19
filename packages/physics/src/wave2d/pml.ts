@@ -20,12 +20,17 @@ export interface PmlModel {
   order: Float64Array;
 }
 
-/** Bounding box of the nodes of cells with flag(c) true. */
-export function cellBox(mesh: Mesh, flag: (c: number) => boolean): Box | null {
+/**
+ * Bounding box of the nodes of the cells with include[c] set and, when given, exclude[c] not set. Typed-array masks,
+ * not a per-cell callback: with two closures over this loop, Chrome 151 (V8 optimized on-stack-replacement code)
+ * intermittently returned the box of all physics cells for the non-PML box (correct inputs; not reproduced in Node 23,
+ * gone with --no-use-osr or --no-concurrent-recompilation; DevLog-054, integration fix "pool worker state").
+ */
+export function cellBox(mesh: Mesh, include: Uint8Array, exclude?: Uint8Array): Box | null {
   const k = NPC[mesh.cells.type], nc = nCells(mesh);
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (let c = 0; c < nc; c++) {
-    if (!flag(c)) continue;
+    if (!include[c] || (exclude !== undefined && exclude[c])) continue;
     for (let a = 0; a < k; a++) {
       const n = mesh.cells.conn[k * c + a]!;
       const x = mesh.nodes[2 * n]!, y = mesh.nodes[2 * n + 1]!;
@@ -37,8 +42,8 @@ export function cellBox(mesh: Mesh, flag: (c: number) => boolean): Box | null {
 
 /** Build the PML model; throws when a PML cell lies inside the inner box (non box-like layout). */
 export function buildPml(mesh: Mesh, active: Uint8Array, pmlCell: Uint8Array, R0: Float64Array, order: Float64Array): PmlModel {
-  const inner = cellBox(mesh, (c) => !!active[c] && !pmlCell[c]);
-  const outer = cellBox(mesh, (c) => !!active[c]);
+  const inner = cellBox(mesh, active, pmlCell);
+  const outer = cellBox(mesh, active);
   if (!inner || !outer) throw new Error('pml: no non-PML cells in the physics selection (the PML must surround an interior region)');
   const k = NPC[mesh.cells.type], nc = nCells(mesh);
   const span = Math.max(outer.x1 - outer.x0, outer.y1 - outer.y0);

@@ -5,8 +5,7 @@
 # displayed stress is averaged at nodes, which mixes both materials next to the interface); the 3D run also
 # cross-checks the axisymmetric model.
 # Modelling inputs NOT from a paper (illustrative): a, R, H, T_ref, T_use (as in the axisymmetric sim). Materials: library
-# E, nu; alpha and k as overrides equal to the library values at 298.15 K (no temperature for library tables yet,
-# DevLog-049 R1).
+# E, nu; alpha and k from the library at the material temperature 298.15 K.
 schema: amp-spec/0
 id: tsv-stress-3d
 title: TSV thermal stress, Cu via in Si (3D quarter cell)
@@ -21,21 +20,19 @@ geometry:
   dim: 3
   features:
     - {id: tsv, type: circle, settings: {center: {value: [0, 0], unit: um}, radius: "a"}}
-    - {id: hole, type: circle, settings: {center: {value: [0, 0], unit: um}, radius: "a"}}
     - {id: outer, type: circle, settings: {center: {value: [0, 0], unit: um}, radius: "R"}}
     - {id: quad, type: rect, settings: {size: ["R", "R"], center: ["R/2", "R/2"]}}
-    - {id: quad2, type: rect, settings: {size: ["R", "R"], center: ["R/2", "R/2"]}}
-    - {id: ring, type: difference, settings: {base: outer, tools: [hole]}}
+    - {id: ring, type: difference, settings: {base: outer, tools: [tsv]}}
     - {id: via, type: intersection, settings: {inputs: [tsv, quad]}}
-    - {id: si, type: intersection, settings: {inputs: [ring, quad2]}}
+    - {id: si, type: intersection, settings: {inputs: [ring, quad]}}
     - id: cell
       type: extrude
       settings:
         layers:
           - {id: wafer, thickness: "H", sketch: [via, si], nz: 2}
 materials:
-  - {id: cu, ref: materials/copper, override: {alpha: {value: 1.6581238447607446e-5, unit: 1/K}, k: {value: 401.004, unit: W/(m*K)}}, select: ["dom:via"]}
-  - {id: silicon, ref: materials/silicon, override: {alpha: {value: 2.600985401459854e-6, unit: 1/K}, k: {value: 149.038, unit: W/(m*K)}}, select: ["dom:si"]}
+  - {id: cu, ref: materials/copper, T: {value: 298.15, unit: K}, select: ["dom:via"]}
+  - {id: silicon, ref: materials/silicon, T: {value: 298.15, unit: K}, select: ["dom:si"]}
 physics:
   - id: ht
     type: heat
@@ -47,8 +44,8 @@ physics:
     select: ["dom:cell"]
     settings: {model: 3d}
     bcs:
-      - {id: sym_x, type: roller, select: ["bnd:quad.left", "bnd:quad2.left"]}
-      - {id: sym_y, type: roller, select: ["bnd:quad.bottom", "bnd:quad2.bottom"]}
+      - {id: sym_x, type: roller, select: ["bnd:quad.left"]}
+      - {id: sym_y, type: roller, select: ["bnd:quad.bottom"]}
       - {id: face_bottom, type: roller, select: ["bnd:cell.bottom"]}
       - {id: face_top, type: roller, select: ["bnd:cell.top"]}
       - {id: rim, type: free, select: ["bnd:outer.edge"]}
@@ -75,8 +72,8 @@ results:
         - {id: cu_sxx, type: point, data: cu_pt, expr: solid.sxx, unit: MPa, label: "Cu in-plane stress inside the via (uniform in the exact solution: minus the interface pressure)"}
         - {id: cu_szz, type: point, data: cu_pt, expr: solid.szz, unit: MPa, label: "Cu axial stress inside the via"}
         - {id: si_szz, type: point, data: si_far_pt, expr: solid.szz, unit: MPa, label: "Si axial stress away from the via (uniform in the exact solution)"}
-        - {id: cu_sxx_mean, type: average, expr: solid.sxx, unit: MPa, over: ["dom:via"], label: "volume mean of the Cu in-plane stress (informative: the displayed stress is averaged at nodes shared with the Si)"}
-        - {id: si_szz_mean, type: average, expr: solid.szz, unit: MPa, over: ["dom:si"], label: "volume mean of the Si axial stress (informative, as above)"}
+        - {id: cu_sxx_mean, type: average, expr: solid.sxx, unit: MPa, over: ["dom:via"], label: "volume mean of the Cu in-plane stress"}
+        - {id: si_szz_mean, type: average, expr: solid.szz, unit: MPa, over: ["dom:si"], label: "volume mean of the Si axial stress"}
         - {id: rim_ur, type: point, data: rim_pt, expr: solid.u.x, unit: nm, label: "radial displacement of the rim at y = 0"}
         - {id: si_sxx_2a, type: point, data: si_pt, expr: solid.sxx, unit: MPa, label: "radial stress in the Si at r = 2a on y = 0 (single point, informative)"}
         - {id: si_syy_2a, type: point, data: si_pt, expr: solid.syy, unit: MPa, label: "hoop stress in the Si at r = 2a on y = 0 (single point, informative)"}
@@ -100,10 +97,8 @@ provenance:
     params.H: {basis: user, date: 2026-11-18, note: "modelling choice: plane strain, thin slab keeps the 3D mesh small"}
     params.T_ref: {basis: user, date: 2026-11-18, note: "illustrative stress-free temperature, not from a paper"}
     params.T_use: {basis: user, date: 2026-11-18, note: "illustrative final temperature (25 C)"}
-    materials.cu.override.alpha: {basis: measured, source: "materials/copper.yaml alpha evaluated by @amp/materials at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
-    materials.cu.override.k: {basis: measured, source: "materials/copper.yaml k at 298.15 K", date: 2026-11-18, note: "k does not enter (uniform T)"}
-    materials.silicon.override.alpha: {basis: measured, source: "materials/silicon.yaml alpha (Swenson 1983) at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
-    materials.silicon.override.k: {basis: measured, source: "materials/silicon.yaml k (HPL 1972) at 298.15 K", date: 2026-11-18, note: "k does not enter (uniform T)"}
+    materials.cu.T: {basis: user, date: 2026-11-18, note: "library alpha, k, cp of materials/copper evaluated at 298.15 K (25 C, the final temperature) and held constant over the temperature change; alpha = 1.6581238447607446e-5 1/K (NIST cryogenic OFHC Cu fit), k does not enter (uniform T)"}
+    materials.silicon.T: {basis: user, date: 2026-11-18, note: "library alpha, k, cp of materials/silicon evaluated at 298.15 K (25 C, the final temperature) and held constant over the temperature change; alpha = 2.600985401459854e-6 1/K (Swenson 1983 Table 2, linear interpolation), k does not enter (uniform T)"}
     mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; nested levels also halve the layer cells in z"}
     mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: the interface carries the stress jump"}
 assumptions:

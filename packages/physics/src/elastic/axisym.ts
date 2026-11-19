@@ -14,7 +14,8 @@ import { gatherX, physGrad, shape } from '../common/lagrange.ts';
 import { makeSolution, StageTimer, scalar, attachMesh } from '../common/solution.ts';
 import { dofPattern, isoD, solidConstraints, solidLoads, strainB, type SolidBc } from '../coupled/assemble.ts';
 import { assembleSolid, solidDofMap } from './modal.ts';
-import type { ElasticProblem } from './index.ts';
+import { elasticPreconditioner, type ElasticProblem } from './index.ts';
+import { constitutiveGroups } from './groups.ts';
 
 const REF: Record<string, number[][]> = {
   tri3: [[0, 0], [1, 0], [0, 1]],
@@ -71,20 +72,29 @@ export async function solveElasticAxisym(p: ElasticProblem): Promise<Solution & 
     for (let z = pat.rowptr[i]!; z < pat.rowptr[i + 1]!; z++) { const c = pat.colidx[z]!; if (!free[c]) s -= K[z]! * value[c]!; }
     b[R.map[i]!] = s;
   }
-  const S = new SpdSolver(R.pat, p.solver ?? 'cholesky');
+  // AMG-PCG (explicit or by the study setting): the planar elasticity preconditioner (smoothed aggregation; P2 cells
+  // through the two-level P1 path) with the rigid-body modes in (r, z) as the near-nullspace (DevLog-066). Only the
+  // z-translation is an exact zero-energy mode of the torsion-free axisymmetric operator; the r-translation and the
+  // in-plane rotation carry hoop strain e_phiphi = u_r / r and are low-energy modes away from the axis, which is what
+  // the coarse levels need to represent. Measured on tsv-stress-axisym (DevLog-066 s.4): fewer iterations than the
+  // scalar AMG (constant vector only) at every level.
+  const S = new SpdSolver(R.pat, p.solver ?? 'cholesky', undefined, { amg: (A) => elasticPreconditioner(m, R.inv, R.map, mask, A) });
   timer.time('factor', () => S.factor(R.val));
   const uf = timer.time('solve', () => S.solve(b));
   const u = new Float64Array(N);
   for (let i = 0; i < N; i++) u[i] = free[i] ? uf[R.map[i]!]! : active[i >> 1] ? value[i]! : 0;
   const t0 = performance.now();
   // nodal stresses: average of the element values at the element nodes
+  // element values at the cell nodes are kept (FieldData.elementNodal: per-domain recovery and element-value integrals
+  // in @amp/post, DevLog-059); NaN for masked cells
   const acc = new Float64Array(nn * 4), cnt = new Float64Array(nn), s = new Float64Array(4), ref = REF[m.cells.type]!;
+  const el = new Float64Array(nc * k * 4).fill(NaN);
   for (let e = 0; e < nc; e++) {
     if (!mask[e]) continue;
     for (let a = 0; a < k; a++) {
       axisymCellStress(p, u, e, ref[a]!, s);
       const v = m.cells.conn[k * e + a]!;
-      for (let j = 0; j < 4; j++) acc[4 * v + j]! += s[j]!;
+      for (let j = 0; j < 4; j++) { acc[4 * v + j]! += s[j]!; el[4 * (k * e + a) + j] = s[j]!; }
       cnt[v]!++;
     }
   }
@@ -93,22 +103,24 @@ export async function solveElasticAxisym(p: ElasticProblem): Promise<Solution & 
   const mises = new Float64Array(nn), s1 = new Float64Array(nn), s2 = new Float64Array(nn), s3 = new Float64Array(nn);
   let mmax = 0, umax = 0;
   for (let v = 0; v < nn; v++) {
-    const rr = acc[4 * v]!, zz = acc[4 * v + 1]!, pp = acc[4 * v + 2]!, rz = acc[4 * v + 3]!;
-    mises[v] = Math.sqrt(0.5 * ((rr - zz) ** 2 + (zz - pp) ** 2 + (pp - rr) ** 2) + 3 * rz * rz);
-    const c = 0.5 * (rr + zz), h = Math.hypot(0.5 * (rr - zz), rz);
-    const ps = [c + h, c - h, pp].sort((x, y) => y - x);
-    s1[v] = ps[0]!; s2[v] = ps[1]!; s3[v] = ps[2]!;
+    axisymInvariants(acc, v, mises, s1, s2, s3);
     if (active[v]) { mmax = Math.max(mmax, mises[v]!); umax = Math.max(umax, Math.hypot(u[2 * v]!, u[2 * v + 1]!)); }
   }
+  const nE = nc * k;
+  const eComp = (j: number) => Float64Array.from({ length: nE }, (_, i) => el[4 * i + j]!);
+  const eMises = new Float64Array(nE), eS1 = new Float64Array(nE), eS2 = new Float64Array(nE), eS3 = new Float64Array(nE);
+  for (let i = 0; i < nE; i++) axisymInvariants(el, i, eMises, eS1, eS2, eS3);
   timer.add('post', performance.now() - t0);
   const space: 'H1P1' | 'H1P2' = cellOrder(m) === 2 ? 'H1P2' : 'H1P1';
+  // constitutive group per cell (FieldData.cellGroup: per-material recovery in @amp/post, DevLog-066)
+  const cellGroup = constitutiveGroups(mask, p.E, p.nu, p.thermal?.alpha);
   const fields: Solution['fields'] = [
     { name: 'u', unit: 'm', space, components: 2, data: u },
-    ...(['srr', 'szz', 'sphi', 'srz'] as const).map((nm, j) => ({ name: nm, unit: 'Pa', space, components: 1 as const, data: comp(j) })),
-    { name: 'mises', unit: 'Pa', space, components: 1, data: mises },
-    { name: 's1', unit: 'Pa', space, components: 1, data: s1 },
-    { name: 's2', unit: 'Pa', space, components: 1, data: s2 },
-    { name: 's3', unit: 'Pa', space, components: 1, data: s3 },
+    ...(['srr', 'szz', 'sphi', 'srz'] as const).map((nm, j) => ({ name: nm, unit: 'Pa', space, components: 1 as const, data: comp(j), elementNodal: eComp(j), cellGroup })),
+    { name: 'mises', unit: 'Pa', space, components: 1, data: mises, elementNodal: eMises, cellGroup },
+    { name: 's1', unit: 'Pa', space, components: 1, data: s1, elementNodal: eS1, cellGroup },
+    { name: 's2', unit: 'Pa', space, components: 1, data: s2, elementNodal: eS2, cellGroup },
+    { name: 's3', unit: 'Pa', space, components: 1, data: s3, elementNodal: eS3, cellGroup },
   ];
   const sol = await makeSolution({
     mesh: m, ...(p.spec !== undefined ? { spec: p.spec } : { problemDigest: { physics: 'elastic', model: 'axisym', bcs: p.bcs.map((x) => x.type), nn } }),
@@ -118,4 +130,13 @@ export async function solveElasticAxisym(p: ElasticProblem): Promise<Solution & 
   });
   attachMesh(sol, m);
   return Object.assign(sol, { detail: { dof: R.pat.n }, u });
+}
+
+/** von Mises and principal stresses (s1 >= s2 >= s3) of entry i of [srr, szz, sphi, srz] values. */
+function axisymInvariants(acc: Float64Array, i: number, mises: Float64Array, s1: Float64Array, s2: Float64Array, s3: Float64Array): void {
+  const rr = acc[4 * i]!, zz = acc[4 * i + 1]!, pp = acc[4 * i + 2]!, rz = acc[4 * i + 3]!;
+  mises[i] = Math.sqrt(0.5 * ((rr - zz) ** 2 + (zz - pp) ** 2 + (pp - rr) ** 2) + 3 * rz * rz);
+  const c = 0.5 * (rr + zz), h = Math.hypot(0.5 * (rr - zz), rz);
+  const ps = [c + h, c - h, pp].sort((x, y) => y - x);
+  s1[i] = ps[0]!; s2[i] = ps[1]!; s3[i] = ps[2]!;
 }

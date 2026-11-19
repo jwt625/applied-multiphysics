@@ -14,7 +14,7 @@ import { CATALOG_PKG } from './catalog-pkg';
 export type Category = 'multiphysics' | 'packaging' | 'heat' | 'structural' | 'em-static' | 'rf' | 'optics' | 'acoustics' | 'fluids-rt';
 export type Dim = '2D' | 'axisym' | '3D';
 export type EvalClass = 'a' | 'b' | 'c';
-/** pass / fail / error / pending: gated targets of the case on this sims file; info: only non-gated targets ran; not-run: no harness run of this file (e.g. a hero variant) */
+/** pass / fail / error / pending: gated targets of the case on this sims file; info: only non-gated targets ran; not-run: no harness run of this file (e.g. a showcase variant) */
 export type RefStatus = 'pass' | 'fail' | 'error' | 'pending' | 'info' | 'not-run';
 
 export interface RefInfo {
@@ -75,7 +75,7 @@ export const CATALOG_A: CatalogEntry[] = [
 	{ id: 'nafems-t4', title: 'NAFEMS T4 plate', category: 'heat', physics: ['heat'], dimension: '2D', evalCases: ['HT-01'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: '1/1 gated (+1 info)', via: 'harness', log: CLI_A }, tags: ['NAFEMS', 'convection', 'steady'] },
 	{ id: 'heat-plate-fin', title: 'Heat-spreading plate', category: 'heat', physics: ['heat'], dimension: '2D', evalCases: ['HT-01'], evalClass: ['a'], caseStatus: 'unvalidated', hero: true,
-		ref: { status: 'not-run', note: 'hero model built on NAFEMS T4; the HT-01 gate runs on nafems-t4' }, tags: ['hero', 'convection', 'steady'] },
+		ref: { status: 'not-run', note: 'showcase model built on NAFEMS T4; the HT-01 gate runs on nafems-t4' }, tags: ['showcase', 'convection', 'steady'] },
 	{ id: 'nafems-t3', title: 'NAFEMS T3 transient bar', category: 'heat', physics: ['heat'], dimension: '2D', evalCases: ['HT-02'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: '1/1 gated (+1 info)', via: 'harness', log: CLI_A }, tags: ['NAFEMS', 'transient', '1D on a strip'] },
 	{ id: 'nafems-t2', title: 'NAFEMS T2 radiating rod', category: 'heat', physics: ['heat'], dimension: '2D', evalCases: ['HT-03'], evalClass: ['a'], caseStatus: 'unvalidated',
@@ -84,7 +84,7 @@ export const CATALOG_A: CatalogEntry[] = [
 		ref: { ...BASE, status: 'pass', targets: '4/4 gated', via: 'harness', log: CLI_A }, tags: ['Carslaw-Jaeger', 'transient', 'convection', '1D on a strip'] },
 	// structural mechanics
 	{ id: 'kirsch-plate', title: 'Plate with a hole', category: 'structural', physics: ['elastic'], dimension: '2D', evalCases: ['SM-01'], evalClass: ['a'], caseStatus: 'unvalidated', hero: true,
-		ref: { status: 'not-run', note: 'hero model; the SM-01 gate runs on kirsch-exact' }, tags: ['hero', 'stress concentration', 'plane stress'] },
+		ref: { status: 'not-run', note: 'showcase model; the SM-01 gate runs on kirsch-exact' }, tags: ['showcase', 'stress concentration', 'plane stress'] },
 	{ id: 'kirsch-exact', title: 'Kirsch plate, exact traction', category: 'structural', physics: ['elastic'], dimension: '2D', evalCases: ['SM-01'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: '5/5 gated', via: 'harness', log: CLI_A }, tags: ['Kirsch', 'stress concentration', 'plane stress'] },
 	{ id: 'nafems-le1', title: 'NAFEMS LE1 elliptic membrane', category: 'structural', physics: ['elastic'], dimension: '2D', evalCases: ['SM-02'], evalClass: ['a'], caseStatus: 'unvalidated',
@@ -99,7 +99,7 @@ export const CATALOG_A: CatalogEntry[] = [
 	{ id: 'helmholtz-em04', title: 'Helmholtz coil (EM-04 gate model)', category: 'em-static', physics: ['magnetostatics'], dimension: 'axisym', evalCases: ['EM-04'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: '3/3 gated (2 pending)', via: 'harness', log: CLI_A }, tags: ['coil', 'B field'] },
 	{ id: 'helmholtz-coil', title: 'Helmholtz coil', category: 'em-static', physics: ['magnetostatics'], dimension: 'axisym', evalCases: ['EM-04'], evalClass: ['a'], caseStatus: 'unvalidated', hero: true,
-		ref: { status: 'not-run', note: 'hero model; the EM-04 gate runs on helmholtz-em04' }, tags: ['hero', 'coil', 'B field'] },
+		ref: { status: 'not-run', note: 'showcase model; the EM-04 gate runs on helmholtz-em04' }, tags: ['showcase', 'coil', 'B field'] },
 	{ id: 'coplanar-rings', title: 'Coplanar current rings', category: 'em-static', physics: ['magnetostatics'], dimension: 'axisym', evalCases: ['EM-03'], evalClass: ['c'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: '3/3 gated (+1 info)', via: 'harness', log: CLI_C }, tags: ['Palace', 'inductance matrix'] },
 	// RF / microwave
@@ -108,7 +108,7 @@ export const CATALOG_A: CatalogEntry[] = [
 	{ id: 'cylinder-cavity-qd', title: 'Cylindrical cavity, dielectric Q (3D)', category: 'rf', physics: ['emw'], dimension: '3D', evalCases: ['RF-21'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'info', targets: 'Q_dielectric (non-gated)', via: 'harness', log: CLI_A }, tags: ['cavity', 'eigenmodes', 'loss'] },
 	{ id: 'cylinder-cavity', title: 'Cylindrical cavity eigenmodes', category: 'rf', physics: ['emw'], dimension: '3D', evalCases: ['RF-21', 'RF-01'], evalClass: ['a', 'c'], caseStatus: 'unvalidated', hero: true,
-		ref: { status: 'not-run', note: 'hero model (3D); the RF-21 gate runs on cylinder-cavity-axisym' }, tags: ['hero', 'cavity', 'eigenmodes'] },
+		ref: { status: 'not-run', note: 'showcase model (3D); the RF-21 gate runs on cylinder-cavity-axisym' }, tags: ['showcase', 'cavity', 'eigenmodes'] },
 	{ id: 'wr90-te-cutoffs', title: 'WR-90 TE cutoffs (scalar analog)', category: 'rf', physics: ['acoustics'], dimension: '2D', evalCases: ['RF-02'], evalClass: ['a'], caseStatus: 'unvalidated',
 		analog: 'TE cutoffs = Neumann eigenvalues of the cross-section, solved with the acoustics eigen solver at c = c0',
 		ref: { ...BASE, status: 'pass', targets: '3/3 gated (2 S-parameter targets pending)', via: 'harness-api', log: 'logs/W3-run-new-20261106T205928.log', note: 'case spec and eigen extracts set in memory' }, tags: ['waveguide', 'cutoff', 'analog'] },
@@ -118,7 +118,7 @@ export const CATALOG_A: CatalogEntry[] = [
 	{ id: 'si-slab-tm0', title: 'Si slab waveguide TM0', category: 'optics', physics: ['em-modes'], dimension: '2D', evalCases: ['WO-01'], evalClass: ['a'], caseStatus: 'unvalidated',
 		ref: { ...BASE, status: 'pass', targets: 'neff_TM0 gated', via: 'harness', log: CLI_A }, tags: ['slab', 'mode solver', 'SOI'] },
 	{ id: 'si-rib-waveguide', title: 'Rib waveguide modes', category: 'optics', physics: ['em-modes'], dimension: '2D', evalCases: ['WO-02'], evalClass: ['b'], caseStatus: 'unvalidated', hero: true,
-		ref: { status: 'pending', note: 'WO-02 spec pending in the case (slab-thickness sweep targets not in the harness)' }, tags: ['hero', 'rib', 'mode solver', 'SOI'] },
+		ref: { status: 'pending', note: 'WO-02 spec pending in the case (slab-thickness sweep targets not in the harness)' }, tags: ['showcase', 'rib', 'mode solver', 'SOI'] },
 	{ id: 'bragg-edge-lower', title: 'Bragg stack, lower gap edge (scalar analog)', category: 'optics', physics: ['acoustics'], dimension: '2D', evalCases: ['WO-21'], evalClass: ['a'], caseStatus: 'unvalidated',
 		analog: 'normal-incidence scalar wave equation (c = c0 / n, uniform rho); zone-edge mode of the half cell',
 		ref: { ...BASE, status: 'pass', targets: '3/3 with bragg-edge-upper', via: 'engine', log: 'logs/W3-run-bragg-20261106T205736.log', note: 'ratios f / f0 computed in the run script; relative error <= 2e-9 at the finest level' }, tags: ['photonic crystal', 'band gap', 'analog', '1D on a strip'] },
@@ -127,7 +127,7 @@ export const CATALOG_A: CatalogEntry[] = [
 		ref: { ...BASE, status: 'pass', targets: '3/3 with bragg-edge-lower', via: 'engine', log: 'logs/W3-run-bragg-20261106T205736.log', note: 'ratios f / f0 computed in the run script; relative error <= 2e-9 at the finest level' }, tags: ['photonic crystal', 'band gap', 'analog', '1D on a strip'] },
 	// acoustics
 	{ id: 'box-acoustics', title: 'Room acoustics, box modes', category: 'acoustics', physics: ['acoustics'], dimension: '3D', evalCases: ['AC-02'], evalClass: ['a'], caseStatus: 'unvalidated', hero: true,
-		ref: { ...BASE, status: 'pass', targets: '10/10 gated', via: 'harness', log: CLI_A }, tags: ['hero', 'room modes', 'eigenmodes'] },
+		ref: { ...BASE, status: 'pass', targets: '10/10 gated', via: 'harness', log: CLI_A }, tags: ['showcase', 'room modes', 'eigenmodes'] },
 ];
 
 /** Every catalog entry (class a + existing sims here, W4 class b / c in catalog-bc.ts, MX multiphysics in catalog-mp.ts); first entry per id wins. */

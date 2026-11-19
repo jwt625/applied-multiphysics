@@ -302,6 +302,78 @@ def wo72() -> dict[str, Any]:
 RING_NPROP = {1: 7, 2: 7, 3: 7, 4: 7}  # propagating modes per port at 1.531 um (fundamental + 6 cladding), both levels
 
 
+# Ring resonances (DevLog-061): harness resonance search on the drop power |S31|^2 per mesh level.
+# Isolated-ring reference: exact annulus dispersion relation (validation/driven/ring_reference.json, ring_bessel.py).
+# Scripted-scan values: DevLog-047 s.4.2 (validation/driven/ring_scan.ts, 2026-11-18), rounded as printed there.
+RING_REF = json.loads((ROOT / "validation" / "driven" / "ring_reference.json").read_text())
+RING_ISO = {r["m"]: r["lambda_um"] for r in RING_REF["resonances"]}
+RING_SCAN = {  # m: level -> (Lorentzian-fit centre um, fit Q, half-maximum Q, fit FWHM um)
+    24: {0: (1.5303997, 2257.3, 2257.9, 0.6780e-3), 1: (1.5305649, 2258.1, 2258.6, 0.6778e-3)},
+    23: {0: (1.5838438, 1687.8, 1688.7, 0.9384e-3), 1: (1.5839975, 1688.3, 1689.2, 0.9382e-3)},
+}
+RING_WIN = {24: (1.5285, 1.5325, 1.5305), 23: (1.5815, 1.5865, 1.584)}  # search window (um) and the group's base wavelength
+SCAN_CIT = "scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1 FWHM)"
+SCAN_LOC = "DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant digits)"
+ISO_CIT = "isolated dielectric annulus, exact dispersion relation (Bessel J, Y, H2), same indices and sizes"
+ISO_LOC = "validation/driven/ring_bessel.py -> validation/driven/ring_reference.json (mpmath vs scipy Newton below 1.1e-15 in k0)"
+
+
+def _res(tid: str, quantity: str, value: float, unit: str, tol: dict[str, Any], output: str, m: int, lvl: int, cit: str, loc: str, gate: bool, note: str) -> dict[str, Any]:
+    lo, hi, base = RING_WIN[m]
+    return {
+        "id": tid, "quantity": quantity, "metric_id": tid, "value": value, "unit": unit, "tolerance": {**tol, "after": "finest"},
+        "bounds": None, "basis": "D", "form": "solver_ref" if cit == SCAN_CIT else "closed_form", "gate": gate, "levels": [lvl],
+        "provenance": {"citation": cit, "locator": loc, "accessed": None},
+        # the schema has no regression / self-consistency form: solver_ref with an explicit note (DevLog-066)
+        "note": ("regression check against the same engine (earlier scripted scan of this model, not an independent reference); " + note) if cit == SCAN_CIT else note,
+        "extract": {"kind": "resonance", "name": "S31_abs", "power": 2, "shape": "peak", "axis": "wavelength", "window": [lo, hi], "window_unit": "um", "scan": 9, "output": output},
+        "spec": {"sim": "sims/ring-resonator-bus.yaml", "params": {"lam": base}, "study": "s"},
+    }
+
+
+def _combine(tid: str, quantity: str, value: float, unit: str, tol: dict[str, Any], expr: str, targets: dict[str, str], lvl: int, cit: str, loc: str, note: str) -> dict[str, Any]:
+    return {
+        "id": tid, "quantity": quantity, "metric_id": tid, "value": value, "unit": unit, "tolerance": {**tol, "after": "finest"},
+        "bounds": None, "basis": "D", "form": "closed_form", "gate": True, "levels": [lvl],
+        "provenance": {"citation": cit, "locator": loc, "accessed": None}, "note": note,
+        "extract": {"kind": "combine", "expr": expr, "targets": targets},
+    }
+
+
+def ring_resonance_refs() -> list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    for lvl in (0, 1):
+        for m in (24, 23):
+            c, qf, qh, fw = RING_SCAN[m][lvl]
+            L = f"order {m}, mesh level {lvl}"
+            refs.append(_res(f"lam{m}.L{lvl}", f"drop-peak centre (Lorentzian fit), {L}", c, "um", {"abs": round(0.01 * fw, 9)}, "center", m, lvl, SCAN_CIT, SCAN_LOC, True,
+                             "method cross-check on the same model: tolerance 0.01 FWHM; expected difference between the two searches about 1e-3 FWHM "
+                             "(different fit spans on a line that is Lorentzian in frequency, asymmetry O(1 / Q))"))
+            refs.append(_res(f"lam{m}_iso.L{lvl}", f"drop-peak centre vs the isolated ring, {L}", RING_ISO[m], "um", {"abs": round(fw, 9)}, "center", m, lvl, ISO_CIT, ISO_LOC, False,
+                             "informative: the bus couplers shift the resonance (measured -0.85 to -0.93 FWHM on level 0, -0.68 to -0.69 FWHM on level 1, DevLog-061); that shift has no independent "
+                             "reference here; tolerance shown = 1 FWHM"))
+            refs.append(_res(f"Q{m}.L{lvl}", f"loaded Q (Lorentzian fit), {L}", qf, "1", {"rel": 1e-2}, "q", m, lvl, SCAN_CIT, SCAN_LOC, False,
+                             "informative: no independent reference for the loaded Q (set by the couplers)"))
+            refs.append(_res(f"Qhm{m}.L{lvl}", f"loaded Q (half-maximum crossings), {L}", qh, "1", {"rel": 1e-2}, "q_halfmax", m, lvl, SCAN_CIT, SCAN_LOC, False,
+                             "informative: no independent reference for the loaded Q (set by the couplers)"))
+            refs.append(_res(f"drop{m}.L{lvl}", f"drop power |S31|^2 at the resonance, {L}", 1.0, "1", {"abs": 1e-3}, "peak", m, lvl,
+                             "coupled-mode theory in time of a lossless add-drop ring with two identical couplers: complete transfer to the drop port at resonance",
+                             "derivation in DevLog-061 s.4 (single-mode resonator amplitude, equal external decay rates into the two buses, no intrinsic loss)",
+                             True, "tolerance 1e-3 (set by DevLog-047 after its runs: 1 - D 5.4e-5..8.7e-5); departures come from the two couplers not being identical on the mesh and from radiation"))
+            refs.append(_combine(f"Qcons{m}.L{lvl}", f"Lorentzian Q / half-maximum Q - 1, {L}", 0.0, "1", {"abs": 3e-3}, "qf / qh - 1", {"qf": f"Q{m}.L{lvl}", "qh": f"Qhm{m}.L{lvl}"}, lvl,
+                                 "consistency of two width estimates of one isolated resonance (Lorentzian line shape of coupled-mode theory)",
+                                 "harness resonance search (packages/eval/src/resonance.ts): fit within +-1/2 FWHM vs secant half-maximum crossings",
+                                 "a line that is Lorentzian in frequency read on a wavelength axis makes the two estimates differ by O(1 / Q): 1 / Q = 4.4e-4 (order 24), 5.9e-4 (order 23); "
+                                 "tolerance 3e-3 = about 5 / Q of the lower-Q resonance; DevLog-047 measured 2.2e-4..5.3e-4"))
+        fsr_iso = RING_ISO[23] - RING_ISO[24]
+        refs.append(_combine(f"fsr.L{lvl}", f"free spectral range, order 23 minus order 24 drop-peak centres, mesh level {lvl}", fsr_iso, "um", {"rel": 1e-2},
+                             "l23 - l24", {"l23": f"lam23.L{lvl}", "l24": f"lam24.L{lvl}"}, lvl, ISO_CIT, ISO_LOC,
+                             "tolerance basis (labelled estimate): the coupled ring's FSR differs from the isolated ring's by the difference of the two coupling-induced shifts, "
+                             "which has no independent reference here; DevLog-047 measured -0.34 % at both levels; 1e-2 is about 3x that and below the FSR change of a "
+                             "1 % error in the ring group index or radius (FSR = lambda^2 / (n_g 2 pi R)), which the gate is meant to catch"))
+    return refs
+
+
 def wo73() -> dict[str, Any]:
     sim = "sims/ring-resonator-bus.yaml"
     sp = {"sim": sim, "params": {"lam": 1.531}, "study": "s"}
@@ -317,9 +389,10 @@ def wo73() -> dict[str, Any]:
         energy = {"kind": "expr", "expr": " + ".join(f"t{k}^2" for k in range(len(names))) + " - 1", "terms": {f"t{k}": _scal(n) for k, n in enumerate(names)}}
         refs.append(_zero_target(f"energy.L{lvl}", f"sum over propagating (port, mode) of |S_i1|^2 - 1 (mesh level {lvl})", 1e-9, energy,
                                  "energy conservation in a closed lossless box", "exact property; propagating modes per port in validation/c/cases_ext/driven.py RING_NPROP", sp, [lvl]))
-    return mk_case(
+    refs += ring_resonance_refs()
+    d = mk_case(
         "WO-73",
-        "Add-drop silicon ring (R 2 um, w 0.24 um, gap 0.2 um, 2D in-plane TM, four ports): reciprocity and energy at 1.531 um; resonances, FSR and Q by a scripted scan",
+        "Add-drop silicon ring (R 2 um, w 0.24 um, gap 0.2 um, 2D in-plane TM, four ports): reciprocity and energy at 1.531 um; drop-peak resonances, FSR and loaded Q by a resonance search",
         ["optics-scattering", "rf-sparams", "rf-resonator"],
         refs,
         {"sim": sim, "study": "s"},
@@ -327,11 +400,16 @@ def wo73() -> dict[str, Any]:
         materials={"core": {"n": 3.4767, "source": "materials/silicon.yaml n (Li 1980) at 1.55 um, rounded"}, "clad": {"n": 1.4444, "source": "materials/sio2-thermal-oxide.yaml n (Malitson 1965) at 1.55 um, rounded"}},
         bcs=[{"selection": "bus and drop ends", "type": "port", "expr": "4 ports, 12 modes each; ends split at y = 0"}, {"selection": "box top / bottom", "type": "pec"}],
         study={"type": "frequency", "wavelengths_m": [1.531e-6]},
-        budget_basis="not set; level 1 (194k DOF) took 5.3 s and 0.91 GB RSS in Node on 2026-11-18",
-        notes=["Resonance wavelengths, free spectral range and loaded Q need a search over wavelength, which the harness does not do; "
-               "they are checked by validation/driven/ring_scan.ts against the isolated-ring Bessel solution (validation/driven/ring_bessel.py) "
-               "on two mesh levels and recorded in the lane DevLog (not gated here)."],
+        budget_basis="measured 2026-11-18 by the harness (Node, M4 Pro, nice 10, other lanes running): per resonance (one worker, levels 0 and 1) "
+                     "26 s + 139 s (order 24) and 25 s + 147 s (order 23), cold, including the base solve; reciprocity and energy 1.5 s + 6.3 s; "
+                     "peak RSS 1.24 GB. The budget also sets each worker's time limit (20 x budget per level, capped at 600 s)",
+        notes=["Resonances: the harness re-solves the frequency study at chosen wavelengths around each drop peak (azimuthal orders 24 and 23; coarse scan of 9 points, "
+               "Lorentzian refinement, half-maximum crossings) on each mesh level. Gated: centres vs the scripted scan of the same model (regression check against the same engine, not an independent reference), drop power "
+               "at resonance, consistency of the two Q estimates, FSR vs the isolated ring with a stated tolerance basis. Informative: centres vs the isolated ring "
+               "(coupling-induced shift, no independent reference) and the Q values."],
     )
+    d["speed"]["budget_s"] = {"browser": None, "native": 180.0}
+    return d
 
 
 CASES: list[dict[str, Any]] = [wo70(), rf70(), wo71(), wo72(), wo73()]

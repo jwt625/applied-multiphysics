@@ -137,3 +137,60 @@ export function latticeStats(values: ArrayLike<number>, pos: ArrayLike<number>, 
 export function partLabel(part: ComplexPart, base: string): string {
 	return part === 're' ? `Re ${base}` : part === 'im' ? `Im ${base}` : part === 'abs' ? `|${base}|` : part === 'arg' ? `arg ${base}` : `Re(${base} e^jφ)`;
 }
+
+/**
+ * Probe value of a complex part from the exact Re and Im at a point (DevLog-064): the same combination the renderer
+ * makes per pixel, so |u|, phase and Re(u e^(j phi)) are exact at the point instead of interpolated nodal parts.
+ * `sign` is a mirror parity (applied to u), `a`, `b` the display affine (not applied to the phase, which stays in
+ * rad). null when either part is not available (outside the mesh).
+ */
+export function complexValue(re: number | null, im: number | null, part: ComplexPart, phi: number, sign = 1, a = 1, b = 0): number | null {
+	if (re === null || im === null || !Number.isFinite(re) || !Number.isFinite(im)) return null;
+	const v = complexPart([sign * re], [sign * im], part, phi)[0]!;
+	return part === 'arg' ? v : a * v + b;
+}
+
+/**
+ * Probe value of a complex part from the exact Re and Im of every component at a point (index = component). `comp` >= 0
+ * (or a scalar field): that component, as complexValue. `comp` < 0 on a vector: |u| and Re(u e^(j phi)) are the norm
+ * over the components of the per-component part (sqrt(sum_k |u_k|^2), the length of the instantaneous real vector),
+ * Re and Im the norms of the real and imaginary vectors; the phase of a vector is not defined (null: the view shows
+ * a component). The renderer combines the same per-component values (instNorm), so hover, click and drawing agree.
+ */
+export function complexVectorValue(re: ReadonlyArray<number | null>, im: ReadonlyArray<number | null>, comp: number, part: ComplexPart, phi: number, sign = 1, a = 1, b = 0): number | null {
+	if (comp >= 0 || re.length === 1) return complexValue(re[Math.max(0, comp)] ?? null, im[Math.max(0, comp)] ?? null, part, phi, sign, a, b);
+	if (part === 'arg' || !re.length || re.length !== im.length) return null;
+	let s2 = 0;
+	for (let k = 0; k < re.length; k++) {
+		const r = re[k], i = im[k];
+		if (r === null || i === null || r === undefined || i === undefined || !Number.isFinite(r) || !Number.isFinite(i)) return null;
+		const v = complexPart([sign * r], [sign * i], part, phi)[0]!;
+		s2 += v * v;
+	}
+	return a * Math.sqrt(s2) + b;
+}
+
+/** Norm over the components of Re(u e^(j phi)) at lattice points: `re[k]`, `im[k]` are the lattice values of component k
+ *  (the phase animation of a complex vector shown as a magnitude, one call per frame). */
+export function instNorm(re: ReadonlyArray<ArrayLike<number>>, im: ReadonlyArray<ArrayLike<number>>, phi: number, out?: Float32Array): Float32Array {
+	const n = Math.min(...re.map((x) => x.length), ...im.map((x) => x.length)), o = out && out.length === n ? out : new Float32Array(n);
+	const c = Math.cos(phi), s = Math.sin(phi), nc = Math.min(re.length, im.length);
+	for (let i = 0; i < n; i++) {
+		let s2 = 0;
+		for (let k = 0; k < nc; k++) { const v = c * re[k]![i]! - s * im[k]![i]!; s2 += v * v; }
+		o[i] = Math.sqrt(s2);
+	}
+	return o;
+}
+
+/** Largest |u| = sqrt(sum_k |u_k|^2) over lattice points of a complex vector (colour range of its phase animation). */
+export function peakAbsVector(re: ReadonlyArray<ArrayLike<number>>, im: ReadonlyArray<ArrayLike<number>>): number {
+	const n = Math.min(...re.map((x) => x.length), ...im.map((x) => x.length)), nc = Math.min(re.length, im.length);
+	let m = 0;
+	for (let i = 0; i < n; i++) {
+		let s2 = 0;
+		for (let k = 0; k < nc; k++) s2 += re[k]![i]! * re[k]![i]! + im[k]![i]! * im[k]![i]!;
+		if (s2 > m) m = s2;
+	}
+	return Math.sqrt(m);
+}

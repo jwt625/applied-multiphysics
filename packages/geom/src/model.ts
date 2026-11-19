@@ -2,6 +2,8 @@
 // 2D feature model: primitives, booleans on a planar arrangement, persistent entity IDs from construction history
 // (C2: `<feature>.<sub>`, `<id>#k` on splits, `parent` links). No painter order: overlapping solids must be resolved
 // by an explicit boolean or fragment; overlaps left at build time are an error.
+// Consumption (DevLog-065 D1): a feature referenced by a boolean leaves the final set (difference tools with keepTools
+// stay); it may still be referenced by later booleans, each reference using that feature's own shape.
 //
 // ID rules (DevLog-004 s.1.1):
 // - primitive F: domain F, boundaries F.<sub> (rect bottom/right/top/left; circle and ellipse edge; polygon e<i>;
@@ -537,12 +539,20 @@ export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number; m
     if (ext < 10 * tol) fail(`${o.feature}: extent ${ext.toPrecision(3)} m is below 10 x the geometric tolerance (${tol.toPrecision(3)} m = ${opts.relTol ?? 1e-9} x model size ${scale.toPrecision(3)} m); scale the model or pass a smaller relTol`);
   });
   let pi = 0;
-  const take = (ids: string[], who: string) =>
-    ids.map((x) => {
-      const o = live.get(x);
-      if (!o) fail(`${who}: input '${x}' ${seen.has(x) ? 'was already consumed' : 'is not defined before this feature'}`);
+  // consumption rule (DevLog-065 D1): every feature id names the shape that feature built (immutable). A boolean may
+  // reference any earlier feature, also one an earlier boolean already used, and gets that feature's own shape.
+  // Referencing consumes (the feature leaves the final set), except difference tools with keepTools, which stay in or
+  // return to it. Specs whose features feed at most one boolean build exactly as before.
+  const built = new Map<string, Obj>();
+  const take = (ids: string[], who: string) => {
+    const dup = ids.find((x, i) => ids.indexOf(x) !== i);
+    if (dup !== undefined) fail(`${who}: input '${dup}' is listed twice (a boolean takes each input once)`);
+    return ids.map((x) => {
+      const o = built.get(x);
+      if (!o) fail(`${who}: input '${x}' is not defined before this feature`);
       return o!;
     });
+  };
   for (const f of spec.features) {
     if (!ID_RE.test(f.id)) fail(`feature id '${f.id}' must match ${ID_RE}`);
     if (seen.has(f.id)) fail(`duplicate feature id '${f.id}'`);
@@ -558,11 +568,14 @@ export function buildGeometry2D(spec: GeometrySpec2D, opts: { relTol?: number; m
       const ins = take([f.target, ...f.tools], f.id);
       if (ins.some((x) => x.curveOnly)) fail(`${f.id}: difference needs solid inputs`);
       live.delete(f.target);
+      // keepTools: a tool still in the final set keeps its place (Map.set on an existing key), one consumed earlier returns
       if (!f.keepTools) for (const x of f.tools) live.delete(x);
+      else for (const x of f.tools) live.set(x, built.get(x)!);
       o = combine('difference', f.id, ins, tol).obj;
       if (!o.domains.length) fail(`${f.id}: difference removes the whole target`);
     } else o = prims[pi++]!;
     live.set(f.id, o);
+    built.set(f.id, o);
     order.push(f.id);
     all.push(o);
   }

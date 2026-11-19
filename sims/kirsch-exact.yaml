@@ -1,7 +1,7 @@
 # SM-01 (eval/cases/a/SM-01.yaml): Kirsch plate, quarter model with the exact Kirsch traction on the outer edges
 # (the case's BC), so the finite domain carries the infinite-plate field exactly. Traction = sigma_Kirsch(x, y) . n written
 # in Cartesian form (cos 2theta = (x^2 - y^2)/r^2, ...); checked against validation/a/gen_solid.py kirsch_field to 3e-16
-# relative on six edge points (DevLog-014 s.3, 2026-11-06).
+# relative on six edge points (2026-11-06).
 schema: amp-spec/0
 id: kirsch-exact
 title: Kirsch plate, exact traction

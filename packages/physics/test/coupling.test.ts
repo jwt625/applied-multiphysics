@@ -440,7 +440,8 @@ test('prepareRun (R1b, R1c): library n and dndT at the mode wavelength, dndT at 
   const library = { getProperty(_id: string, p: string, o?: { T?: number; lambda?: number }) {
     calls.push({ p, o });
     if (p === 'n') return { value: { perp: 2.2, par: 2.1 } };
-    if (p === 'dndT') return { value: 3e-5 };
+    // a T-dependent leaf, as the real library reports it without T (prepareRun passes T only to such leaves, DevLog-066)
+    if (p === 'dndT') { if (o?.T === undefined) throw new Error('fake.dndT depends on T: pass {T} in SI (K)'); return { value: 3e-5 }; }
     if (p === 'k') return { value: 5 };
     throw new Error(`no ${p}`);
   } };
@@ -458,7 +459,7 @@ test('prepareRun (R1b, R1c): library n and dndT at the mode wavelength, dndT at 
   const p = await prepareRun(spec, { library });
   const r = p.materials.m!;
   assert.equal(r['n.perp'], 2.2); assert.equal(r.dndT, 3e-5); assert.equal(r.k, 5);
-  const o = (pr: string) => calls.find((c) => c.p === pr)!.o as { T?: number; lambda?: number };
+  const o = (pr: string) => calls.filter((c) => c.p === pr).at(-1)!.o as { T?: number; lambda?: number };
   assert.ok(Math.abs(o('n').lambda! - 1.55e-6) < 1e-18);
   assert.ok(Math.abs(o('dndT').lambda! - 1.55e-6) < 1e-18 && o('dndT').T === 310);
   assert.equal(o('k').lambda, undefined);

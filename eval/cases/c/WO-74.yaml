@@ -1,0 +1,418 @@
+# WO-74: Uniform SOI grating coupler in 2D (Taillaert 2006 structure): port mode index and power balance gated; upward power vs Taillaert Fig. 3 at 1500-1650 nm informative
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-74
+class: c
+title: 'Uniform SOI grating coupler in 2D (Taillaert 2006 structure): port mode index and power balance gated; upward power
+  vs Taillaert Fig. 3 at 1500-1650 nm informative'
+status: unvalidated
+untestable_reason: null
+physics: [optics-scattering, rf-sparams]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec: {core_m: 2.2e-07, etch_m: 7.0e-08, period_m: 6.3e-07, fill: 0.5, periods: 30, box_m: 1.0e-06, substrate: 'Si, 0.5
+      um then PML', air_m: 1.5e-06, pml_m: 1.0e-06}
+materials:
+  si: {n: 3.47, source: Taillaert 2006 Fig. 2}
+  sio2: {n: 1.44, source: Taillaert 2006 Fig. 2}
+  air: {n: 1, source: Taillaert 2006 p.6072 (n_top = 1)}
+bcs:
+- {selection: input and output waveguide ends, type: port}
+- {selection: top and bottom layers, type: pml}
+initial: null
+study: {type: frequency, wavelength_m: 1.55e-06, polarization: TE of the chip (E along the grooves; emw-2d TM)}
+references:
+- id: neff_1_0.L0
+  quantity: effective index of the input-waveguide mode (port 1) (mesh level 0)
+  metric_id: neff_1_0
+  value: 2.824653303065373
+  unit: '1'
+  tolerance: {abs: 3.0e-05, after: finest, note: 'set from the measured level errors (-1.1e-5, -7.4e-7) with a margin of about
+      3 (DevLog-062 s.4)'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-74.json, metric_id: neff_1_0}
+  provenance: {citation: 'exact TE slab dispersion of the port cross-section (transfer matrix, mpmath vs scipy)', locator: validation/photonics2/gc_reference.py;
+      the paper quotes 2.83 (p.6072), accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract: {kind: scalar, name: neff_1_0}
+  spec: {sim: sims/si-grating-coupler-2d.yaml, study: s}
+- id: neff_1_0.L1
+  quantity: effective index of the input-waveguide mode (port 1) (mesh level 1)
+  metric_id: neff_1_0
+  value: 2.824653303065373
+  unit: '1'
+  tolerance: {abs: 3.0e-06, after: finest, note: 'set from the measured level errors (-1.1e-5, -7.4e-7) with a margin of about
+      3 (DevLog-062 s.4)'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-74.json, metric_id: neff_1_0}
+  provenance: {citation: 'exact TE slab dispersion of the port cross-section (transfer matrix, mpmath vs scipy)', locator: validation/photonics2/gc_reference.py;
+      the paper quotes 2.83 (p.6072), accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract: {kind: scalar, name: neff_1_0}
+  spec: {sim: sims/si-grating-coupler-2d.yaml, study: s}
+- id: balance.L0
+  quantity: net Poynting power out of the closed rectangle (two horizontal flux lines, two vertical lines near the ports)
+    / incident power (mesh level 0)
+  metric_id: balance
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 0.005, after: finest, note: 'set from the measured level values (2.5e-3, -5.6e-4 at 1550 nm) with a margin
+      of 2-3: the line integrals use recovered gradients of E_z'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-74.json, metric_id: balance}
+  provenance: {citation: 'Poynting theorem (lossless interior): exactly 0', locator: 'sim results P_up, P_down, P_x_out, P_x_in',
+    accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: (u + d + xo - xi) / p
+    terms:
+      u: {kind: result, node: P_up}
+      d: {kind: result, node: P_down}
+      xo: {kind: result, node: P_x_out}
+      xi: {kind: result, node: P_x_in}
+      p: {kind: scalar, name: P_in}
+  spec: {sim: sims/si-grating-coupler-2d.yaml, study: s}
+- id: balance.L1
+  quantity: net Poynting power out of the closed rectangle (two horizontal flux lines, two vertical lines near the ports)
+    / incident power (mesh level 1)
+  metric_id: balance
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 0.0015, after: finest, note: 'set from the measured level values (2.5e-3, -5.6e-4 at 1550 nm) with a margin
+      of 2-3: the line integrals use recovered gradients of E_z'}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-74.json, metric_id: balance}
+  provenance: {citation: 'Poynting theorem (lossless interior): exactly 0', locator: 'sim results P_up, P_down, P_x_out, P_x_in',
+    accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: (u + d + xo - xi) / p
+    terms:
+      u: {kind: result, node: P_up}
+      d: {kind: result, node: P_down}
+      xo: {kind: result, node: P_x_out}
+      xi: {kind: result, node: P_x_in}
+      p: {kind: scalar, name: P_in}
+  spec: {sim: sims/si-grating-coupler-2d.yaml, study: s}
+- id: up_1540.L0
+  quantity: upward power / incident power at 1540.0 nm (mesh level 0)
+  metric_id: up_1540
+  value: 0.4505658466193774
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1540}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.540009}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+- id: up_1540.L1
+  quantity: upward power / incident power at 1540.0 nm (mesh level 1)
+  metric_id: up_1540
+  value: 0.4505658466193774
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1540}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.540009}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+- id: up_1550.L0
+  quantity: upward power / incident power at 1550.0 nm (mesh level 0)
+  metric_id: up_1550
+  value: 0.45775217679039204
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1550}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.55}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+- id: up_1550.L1
+  quantity: upward power / incident power at 1550.0 nm (mesh level 1)
+  metric_id: up_1550
+  value: 0.45775217679039204
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1550}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.55}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+- id: up_1570.L0
+  quantity: upward power / incident power at 1570.3 nm (mesh level 0)
+  metric_id: up_1570
+  value: 0.4672483988020899
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1570}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.570261}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+- id: up_1570.L1
+  quantity: upward power / incident power at 1570.3 nm (mesh level 1)
+  metric_id: up_1570
+  value: 0.4672483988020899
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1570}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.570261}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+- id: up_1600.L0
+  quantity: upward power / incident power at 1600.0 nm (mesh level 0)
+  metric_id: up_1600
+  value: 0.46134534187589926
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1600}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.599953}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+- id: up_1600.L1
+  quantity: upward power / incident power at 1600.0 nm (mesh level 1)
+  metric_id: up_1600
+  value: 0.46134534187589926
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1600}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.599953}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+- id: up_1610.L0
+  quantity: upward power / incident power at 1610.0 nm (mesh level 0)
+  metric_id: up_1610
+  value: 0.45107915591730685
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1610}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.610037}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+- id: up_1610.L1
+  quantity: upward power / incident power at 1610.0 nm (mesh level 1)
+  metric_id: up_1610
+  value: 0.45107915591730685
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_sim
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-74.json, metric_id: up_1610}
+  provenance: {citation: 'D. Taillaert et al., Grating couplers for coupling between optical fibers and nanophotonic waveguides,
+      Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071', locator: 'Fig. 3 p.6072, dashed curve ''power
+      up'' (digitized, validation/photonics2/taillaert2006_fig3.json)', accessed: '2026-11-18', generator: validation/photonics2/gc_reference.py}
+  extract:
+    kind: expr
+    expr: u / p
+    terms:
+      u: {kind: result, node: P_up}
+      p: {kind: scalar, name: P_in}
+  spec:
+    sim: sims/si-grating-coupler-2d.yaml
+    params: {lambda0: 1.610037}
+    study: s
+  note: 'informative: the paper does not state the number of periods; this model (30 periods) gives 0.451 / 0.465 / 0.469
+    / 0.471 / 0.472 at 1550 nm for 15 / 20 / 25 / 30 / 40 periods and 0.458 / 0.475 / 0.484 / 0.487 / 0.489 at 1600 nm (level
+    0), a spread as large as the differences; reading resolution about 0.0015'
+reference_results:
+- {solver: 2D eigenmode expansion with PML (Taillaert 2006 p.6072), quantity: upward radiated power vs wavelength, form: figure}
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels, the finer one with an equal or
+    tighter tolerance
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (443k DOF) 10 s, 0.79 GB RSS per wavelength in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited published values
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: verification of a library example}
+spec: {sim: sims/si-grating-coupler-2d.yaml, study: s}
+missing: []
+assumptions: ['Number of periods not given by the paper: 30 (modelling choice); the upward fraction depends on it (target
+    notes)', Substrate set back 1 um from each port (port cross-sections without the substrate)]
+lane: G5
+created: '2026-11-18'

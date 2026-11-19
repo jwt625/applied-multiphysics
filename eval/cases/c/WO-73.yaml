@@ -1,10 +1,10 @@
-# WO-73: Add-drop silicon ring (R 2 um, w 0.24 um, gap 0.2 um, 2D in-plane TM, four ports): reciprocity and energy at 1.531 um; resonances, FSR and Q by a scripted scan
+# WO-73: Add-drop silicon ring (R 2 um, w 0.24 um, gap 0.2 um, 2D in-plane TM, four ports): reciprocity and energy at 1.531 um; drop-peak resonances, FSR and loaded Q by a resonance search
 # Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
 schema: amp-eval/0
 id: WO-73
 class: c
 title: 'Add-drop silicon ring (R 2 um, w 0.24 um, gap 0.2 um, 2D in-plane TM, four ports): reciprocity and energy at 1.531
-  um; resonances, FSR and Q by a scripted scan'
+  um; drop-peak resonances, FSR and loaded Q by a resonance search'
 status: unvalidated
 untestable_reason: null
 physics: [optics-scattering, rf-sparams, rf-resonator]
@@ -279,6 +279,734 @@ references:
     sim: sims/ring-resonator-bus.yaml
     params: {lam: 1.531}
     study: s
+- id: lam24.L0
+  quantity: drop-peak centre (Lorentzian fit), order 24, mesh level 0
+  metric_id: lam24.L0
+  value: 1.5303997
+  unit: um
+  tolerance: {abs: 6.78e-06, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); method
+    cross-check on the same model: tolerance 0.01 FWHM; expected difference between the two searches about 1e-3 FWHM (different
+    fit spans on a line that is Lorentzian in frequency, asymmetry O(1 / Q))'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: center
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: lam24_iso.L0
+  quantity: drop-peak centre vs the isolated ring, order 24, mesh level 0
+  metric_id: lam24_iso.L0
+  value: 1.531026170636794
+  unit: um
+  tolerance: {abs: 0.000678, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  levels: [0]
+  provenance: {citation: 'isolated dielectric annulus, exact dispersion relation (Bessel J, Y, H2), same indices and sizes',
+    locator: validation/driven/ring_bessel.py -> validation/driven/ring_reference.json (mpmath vs scipy Newton below 1.1e-15
+      in k0), accessed: null}
+  note: 'informative: the bus couplers shift the resonance (measured -0.85 to -0.93 FWHM on level 0, -0.68 to -0.69 FWHM on
+    level 1, DevLog-061); that shift has no independent reference here; tolerance shown = 1 FWHM'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: center
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: Q24.L0
+  quantity: loaded Q (Lorentzian fit), order 24, mesh level 0
+  metric_id: Q24.L0
+  value: 2257.3
+  unit: '1'
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [0]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); informative:
+    no independent reference for the loaded Q (set by the couplers)'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: q
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: Qhm24.L0
+  quantity: loaded Q (half-maximum crossings), order 24, mesh level 0
+  metric_id: Qhm24.L0
+  value: 2257.9
+  unit: '1'
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [0]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); informative:
+    no independent reference for the loaded Q (set by the couplers)'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: q_halfmax
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: drop24.L0
+  quantity: drop power |S31|^2 at the resonance, order 24, mesh level 0
+  metric_id: drop24.L0
+  value: 1.0
+  unit: '1'
+  tolerance: {abs: 0.001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: 'coupled-mode theory in time of a lossless add-drop ring with two identical couplers: complete transfer
+      to the drop port at resonance', locator: 'derivation in DevLog-061 s.4 (single-mode resonator amplitude, equal external
+      decay rates into the two buses, no intrinsic loss)', accessed: null}
+  note: 'tolerance 1e-3 (set by DevLog-047 after its runs: 1 - D 5.4e-5..8.7e-5); departures come from the two couplers not
+    being identical on the mesh and from radiation'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: peak
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: Qcons24.L0
+  quantity: Lorentzian Q / half-maximum Q - 1, order 24, mesh level 0
+  metric_id: Qcons24.L0
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: consistency of two width estimates of one isolated resonance (Lorentzian line shape of coupled-mode
+      theory), locator: 'harness resonance search (packages/eval/src/resonance.ts): fit within +-1/2 FWHM vs secant half-maximum
+      crossings', accessed: null}
+  note: 'a line that is Lorentzian in frequency read on a wavelength axis makes the two estimates differ by O(1 / Q): 1 /
+    Q = 4.4e-4 (order 24), 5.9e-4 (order 23); tolerance 3e-3 = about 5 / Q of the lower-Q resonance; DevLog-047 measured 2.2e-4..5.3e-4'
+  extract:
+    kind: combine
+    expr: qf / qh - 1
+    targets: {qf: Q24.L0, qh: Qhm24.L0}
+- id: lam23.L0
+  quantity: drop-peak centre (Lorentzian fit), order 23, mesh level 0
+  metric_id: lam23.L0
+  value: 1.5838438
+  unit: um
+  tolerance: {abs: 9.384e-06, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); method
+    cross-check on the same model: tolerance 0.01 FWHM; expected difference between the two searches about 1e-3 FWHM (different
+    fit spans on a line that is Lorentzian in frequency, asymmetry O(1 / Q))'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: center
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: lam23_iso.L0
+  quantity: drop-peak centre vs the isolated ring, order 23, mesh level 0
+  metric_id: lam23_iso.L0
+  value: 1.5846399581368178
+  unit: um
+  tolerance: {abs: 0.0009384, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  levels: [0]
+  provenance: {citation: 'isolated dielectric annulus, exact dispersion relation (Bessel J, Y, H2), same indices and sizes',
+    locator: validation/driven/ring_bessel.py -> validation/driven/ring_reference.json (mpmath vs scipy Newton below 1.1e-15
+      in k0), accessed: null}
+  note: 'informative: the bus couplers shift the resonance (measured -0.85 to -0.93 FWHM on level 0, -0.68 to -0.69 FWHM on
+    level 1, DevLog-061); that shift has no independent reference here; tolerance shown = 1 FWHM'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: center
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: Q23.L0
+  quantity: loaded Q (Lorentzian fit), order 23, mesh level 0
+  metric_id: Q23.L0
+  value: 1687.8
+  unit: '1'
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [0]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); informative:
+    no independent reference for the loaded Q (set by the couplers)'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: q
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: Qhm23.L0
+  quantity: loaded Q (half-maximum crossings), order 23, mesh level 0
+  metric_id: Qhm23.L0
+  value: 1688.7
+  unit: '1'
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [0]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); informative:
+    no independent reference for the loaded Q (set by the couplers)'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: q_halfmax
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: drop23.L0
+  quantity: drop power |S31|^2 at the resonance, order 23, mesh level 0
+  metric_id: drop23.L0
+  value: 1.0
+  unit: '1'
+  tolerance: {abs: 0.001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: 'coupled-mode theory in time of a lossless add-drop ring with two identical couplers: complete transfer
+      to the drop port at resonance', locator: 'derivation in DevLog-061 s.4 (single-mode resonator amplitude, equal external
+      decay rates into the two buses, no intrinsic loss)', accessed: null}
+  note: 'tolerance 1e-3 (set by DevLog-047 after its runs: 1 - D 5.4e-5..8.7e-5); departures come from the two couplers not
+    being identical on the mesh and from radiation'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: peak
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: Qcons23.L0
+  quantity: Lorentzian Q / half-maximum Q - 1, order 23, mesh level 0
+  metric_id: Qcons23.L0
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: consistency of two width estimates of one isolated resonance (Lorentzian line shape of coupled-mode
+      theory), locator: 'harness resonance search (packages/eval/src/resonance.ts): fit within +-1/2 FWHM vs secant half-maximum
+      crossings', accessed: null}
+  note: 'a line that is Lorentzian in frequency read on a wavelength axis makes the two estimates differ by O(1 / Q): 1 /
+    Q = 4.4e-4 (order 24), 5.9e-4 (order 23); tolerance 3e-3 = about 5 / Q of the lower-Q resonance; DevLog-047 measured 2.2e-4..5.3e-4'
+  extract:
+    kind: combine
+    expr: qf / qh - 1
+    targets: {qf: Q23.L0, qh: Qhm23.L0}
+- id: fsr.L0
+  quantity: free spectral range, order 23 minus order 24 drop-peak centres, mesh level 0
+  metric_id: fsr.L0
+  value: 0.05361378750002377
+  unit: um
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [0]
+  provenance: {citation: 'isolated dielectric annulus, exact dispersion relation (Bessel J, Y, H2), same indices and sizes',
+    locator: validation/driven/ring_bessel.py -> validation/driven/ring_reference.json (mpmath vs scipy Newton below 1.1e-15
+      in k0), accessed: null}
+  note: 'tolerance basis (labelled estimate): the coupled ring''s FSR differs from the isolated ring''s by the difference
+    of the two coupling-induced shifts, which has no independent reference here; DevLog-047 measured -0.34 % at both levels;
+    1e-2 is about 3x that and below the FSR change of a 1 % error in the ring group index or radius (FSR = lambda^2 / (n_g
+    2 pi R)), which the gate is meant to catch'
+  extract:
+    kind: combine
+    expr: l23 - l24
+    targets: {l23: lam23.L0, l24: lam24.L0}
+- id: lam24.L1
+  quantity: drop-peak centre (Lorentzian fit), order 24, mesh level 1
+  metric_id: lam24.L1
+  value: 1.5305649
+  unit: um
+  tolerance: {abs: 6.778e-06, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); method
+    cross-check on the same model: tolerance 0.01 FWHM; expected difference between the two searches about 1e-3 FWHM (different
+    fit spans on a line that is Lorentzian in frequency, asymmetry O(1 / Q))'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: center
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: lam24_iso.L1
+  quantity: drop-peak centre vs the isolated ring, order 24, mesh level 1
+  metric_id: lam24_iso.L1
+  value: 1.531026170636794
+  unit: um
+  tolerance: {abs: 0.0006778, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  levels: [1]
+  provenance: {citation: 'isolated dielectric annulus, exact dispersion relation (Bessel J, Y, H2), same indices and sizes',
+    locator: validation/driven/ring_bessel.py -> validation/driven/ring_reference.json (mpmath vs scipy Newton below 1.1e-15
+      in k0), accessed: null}
+  note: 'informative: the bus couplers shift the resonance (measured -0.85 to -0.93 FWHM on level 0, -0.68 to -0.69 FWHM on
+    level 1, DevLog-061); that shift has no independent reference here; tolerance shown = 1 FWHM'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: center
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: Q24.L1
+  quantity: loaded Q (Lorentzian fit), order 24, mesh level 1
+  metric_id: Q24.L1
+  value: 2258.1
+  unit: '1'
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [1]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); informative:
+    no independent reference for the loaded Q (set by the couplers)'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: q
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: Qhm24.L1
+  quantity: loaded Q (half-maximum crossings), order 24, mesh level 1
+  metric_id: Qhm24.L1
+  value: 2258.6
+  unit: '1'
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [1]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); informative:
+    no independent reference for the loaded Q (set by the couplers)'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: q_halfmax
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: drop24.L1
+  quantity: drop power |S31|^2 at the resonance, order 24, mesh level 1
+  metric_id: drop24.L1
+  value: 1.0
+  unit: '1'
+  tolerance: {abs: 0.001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: 'coupled-mode theory in time of a lossless add-drop ring with two identical couplers: complete transfer
+      to the drop port at resonance', locator: 'derivation in DevLog-061 s.4 (single-mode resonator amplitude, equal external
+      decay rates into the two buses, no intrinsic loss)', accessed: null}
+  note: 'tolerance 1e-3 (set by DevLog-047 after its runs: 1 - D 5.4e-5..8.7e-5); departures come from the two couplers not
+    being identical on the mesh and from radiation'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5285, 1.5325]
+    window_unit: um
+    scan: 9
+    output: peak
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.5305}
+    study: s
+- id: Qcons24.L1
+  quantity: Lorentzian Q / half-maximum Q - 1, order 24, mesh level 1
+  metric_id: Qcons24.L1
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: consistency of two width estimates of one isolated resonance (Lorentzian line shape of coupled-mode
+      theory), locator: 'harness resonance search (packages/eval/src/resonance.ts): fit within +-1/2 FWHM vs secant half-maximum
+      crossings', accessed: null}
+  note: 'a line that is Lorentzian in frequency read on a wavelength axis makes the two estimates differ by O(1 / Q): 1 /
+    Q = 4.4e-4 (order 24), 5.9e-4 (order 23); tolerance 3e-3 = about 5 / Q of the lower-Q resonance; DevLog-047 measured 2.2e-4..5.3e-4'
+  extract:
+    kind: combine
+    expr: qf / qh - 1
+    targets: {qf: Q24.L1, qh: Qhm24.L1}
+- id: lam23.L1
+  quantity: drop-peak centre (Lorentzian fit), order 23, mesh level 1
+  metric_id: lam23.L1
+  value: 1.5839975
+  unit: um
+  tolerance: {abs: 9.382e-06, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); method
+    cross-check on the same model: tolerance 0.01 FWHM; expected difference between the two searches about 1e-3 FWHM (different
+    fit spans on a line that is Lorentzian in frequency, asymmetry O(1 / Q))'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: center
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: lam23_iso.L1
+  quantity: drop-peak centre vs the isolated ring, order 23, mesh level 1
+  metric_id: lam23_iso.L1
+  value: 1.5846399581368178
+  unit: um
+  tolerance: {abs: 0.0009382, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  levels: [1]
+  provenance: {citation: 'isolated dielectric annulus, exact dispersion relation (Bessel J, Y, H2), same indices and sizes',
+    locator: validation/driven/ring_bessel.py -> validation/driven/ring_reference.json (mpmath vs scipy Newton below 1.1e-15
+      in k0), accessed: null}
+  note: 'informative: the bus couplers shift the resonance (measured -0.85 to -0.93 FWHM on level 0, -0.68 to -0.69 FWHM on
+    level 1, DevLog-061); that shift has no independent reference here; tolerance shown = 1 FWHM'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: center
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: Q23.L1
+  quantity: loaded Q (Lorentzian fit), order 23, mesh level 1
+  metric_id: Q23.L1
+  value: 1688.3
+  unit: '1'
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [1]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); informative:
+    no independent reference for the loaded Q (set by the couplers)'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: q
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: Qhm23.L1
+  quantity: loaded Q (half-maximum crossings), order 23, mesh level 1
+  metric_id: Qhm23.L1
+  value: 1689.2
+  unit: '1'
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [1]
+  provenance: {citation: 'scripted resonance scan of the same model (zoom scans of |S31|^2, 11-point Lorentzian fit over +-1
+      FWHM)', locator: 'DevLog-047 s.4.2 table (validation/driven/ring_scan.ts runs of 2026-11-18), values as printed (7 significant
+      digits)', accessed: null}
+  note: 'regression check against the same engine (earlier scripted scan of this model, not an independent reference); informative:
+    no independent reference for the loaded Q (set by the couplers)'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: q_halfmax
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: drop23.L1
+  quantity: drop power |S31|^2 at the resonance, order 23, mesh level 1
+  metric_id: drop23.L1
+  value: 1.0
+  unit: '1'
+  tolerance: {abs: 0.001, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: 'coupled-mode theory in time of a lossless add-drop ring with two identical couplers: complete transfer
+      to the drop port at resonance', locator: 'derivation in DevLog-061 s.4 (single-mode resonator amplitude, equal external
+      decay rates into the two buses, no intrinsic loss)', accessed: null}
+  note: 'tolerance 1e-3 (set by DevLog-047 after its runs: 1 - D 5.4e-5..8.7e-5); departures come from the two couplers not
+    being identical on the mesh and from radiation'
+  extract:
+    kind: resonance
+    name: S31_abs
+    power: 2
+    shape: peak
+    axis: wavelength
+    window: [1.5815, 1.5865]
+    window_unit: um
+    scan: 9
+    output: peak
+  spec:
+    sim: sims/ring-resonator-bus.yaml
+    params: {lam: 1.584}
+    study: s
+- id: Qcons23.L1
+  quantity: Lorentzian Q / half-maximum Q - 1, order 23, mesh level 1
+  metric_id: Qcons23.L1
+  value: 0.0
+  unit: '1'
+  tolerance: {abs: 0.003, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: consistency of two width estimates of one isolated resonance (Lorentzian line shape of coupled-mode
+      theory), locator: 'harness resonance search (packages/eval/src/resonance.ts): fit within +-1/2 FWHM vs secant half-maximum
+      crossings', accessed: null}
+  note: 'a line that is Lorentzian in frequency read on a wavelength axis makes the two estimates differ by O(1 / Q): 1 /
+    Q = 4.4e-4 (order 24), 5.9e-4 (order 23); tolerance 3e-3 = about 5 / Q of the lower-Q resonance; DevLog-047 measured 2.2e-4..5.3e-4'
+  extract:
+    kind: combine
+    expr: qf / qh - 1
+    targets: {qf: Q23.L1, qh: Qhm23.L1}
+- id: fsr.L1
+  quantity: free spectral range, order 23 minus order 24 drop-peak centres, mesh level 1
+  metric_id: fsr.L1
+  value: 0.05361378750002377
+  unit: um
+  tolerance: {rel: 0.01, after: finest}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  levels: [1]
+  provenance: {citation: 'isolated dielectric annulus, exact dispersion relation (Bessel J, Y, H2), same indices and sizes',
+    locator: validation/driven/ring_bessel.py -> validation/driven/ring_reference.json (mpmath vs scipy Newton below 1.1e-15
+      in k0), accessed: null}
+  note: 'tolerance basis (labelled estimate): the coupled ring''s FSR differs from the isolated ring''s by the difference
+    of the two coupling-induced shifts, which has no independent reference here; DevLog-047 measured -0.34 % at both levels;
+    1e-2 is about 3x that and below the FSR change of a 1 % error in the ring group index or radius (FSR = lambda^2 / (n_g
+    2 pi R)), which the gate is meant to catch'
+  extract:
+    kind: combine
+    expr: l23 - l24
+    targets: {l23: lam23.L1, l24: lam24.L1}
 reference_results: []
 convergence:
   levels_min: 2
@@ -288,8 +1016,11 @@ convergence:
   note: two nested levels (one uniform refinement); each quantity is gated on both levels with a tighter tolerance on the
     finer one
 speed:
-  budget_s: {browser: null, native: null}
-  budget_basis: not set; level 1 (194k DOF) took 5.3 s and 0.91 GB RSS in Node on 2026-11-18
+  budget_s: {browser: null, native: 180.0}
+  budget_basis: 'measured 2026-11-18 by the harness (Node, M4 Pro, nice 10, other lanes running): per resonance (one worker,
+    levels 0 and 1) 26 s + 139 s (order 24) and 25 s + 147 s (order 23), cold, including the base solve; reciprocity and energy
+    1.5 s + 6.3 s; peak RSS 1.24 GB. The budget also sets each worker''s time limit (20 x budget per level, capped at 600
+    s)'
   report: [dofs, wall_s_by_stage, error_vs_ref]
   reference_timings: []
 dataset: null
@@ -301,8 +1032,10 @@ hero: {suitable: false, why: verification of a library example}
 spec: {sim: sims/ring-resonator-bus.yaml, study: s}
 missing: []
 assumptions: []
-notes: ['Resonance wavelengths, free spectral range and loaded Q need a search over wavelength, which the harness does not
-    do; they are checked by validation/driven/ring_scan.ts against the isolated-ring Bessel solution (validation/driven/ring_bessel.py)
-    on two mesh levels and recorded in the lane DevLog (not gated here).']
+notes: ['Resonances: the harness re-solves the frequency study at chosen wavelengths around each drop peak (azimuthal orders
+    24 and 23; coarse scan of 9 points, Lorentzian refinement, half-maximum crossings) on each mesh level. Gated: centres
+    vs the scripted scan of the same model (regression check against the same engine, not an independent reference), drop
+    power at resonance, consistency of the two Q estimates, FSR vs the isolated ring with a stated tolerance basis. Informative:
+    centres vs the isolated ring (coupling-induced shift, no independent reference) and the Q values.']
 lane: E1
 created: '2026-11-18'

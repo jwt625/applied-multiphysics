@@ -12,6 +12,7 @@ states that basis. Loaded by validation/c/build_cases.py (cases_ext); ids WO-80.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -130,13 +131,54 @@ def wo81() -> dict[str, Any]:
                    budget_basis="not set; level 1 (140k DOF) 8.6 s in Node on 2026-11-18")
 
 
+# Second reference of WO-82 / WO-83 (lane G5, DevLog-062): Tidy3D finite-difference mode solver results held by the atlas
+# (validation/reference/<k>-tidy3d.json). Inline values (a case has one expected file, written by modes3/references.py);
+# validation/photonics2/atlas_tidy3d.py checks them against the atlas files and their sha256.
+TIDY3D: dict[str, dict[str, Any]] = {
+    "K2": {"sha256": "5568889c99058c2e6898effbf79671c5cbe89d470dcf0577089b8dba8c3def10",
+           "n_eff": {"value": 1.8942388017402074, "U": 0.004152696750105711},
+           "ng_tidy3d": {"value": 2.2909194473393812, "U": 0.0006023420878298325},
+           "te_fraction": {"value": 0.9903931572178755, "U": 0.00043296547558899223}},
+    "K3": {"sha256": "706bb36dcce3e76674bae5732b0e58d5e62a6b0f671452350dcff32d1dcbde08",
+           "n_eff": {"value": 1.9124811164073376, "U": 0.003657917599775573},
+           "ng_tidy3d": {"value": 2.2649815753266545, "U": 0.00022075990423342517},
+           "te_fraction": {"value": 0.9939612903516719, "U": 0.0001622931250871984}},
+}
+TIDY3D_CIT = ("Tidy3D 2.12.0 local finite-difference mode solver (staircase, no subpixel averaging, PEC window edge), core cells "
+              "25 / 12.5 / 6.25 nm, observed-order extrapolation with a GCI band (factor 1.25); run and held by eo-modulator-atlas")
+
+
+def tidy3d_refs(k: str) -> list[dict[str, Any]]:
+    t = TIDY3D[k]
+    loc = f"eo-modulator-atlas validation/reference/{k}-tidy3d.json (2026-10-14; re-extrapolated 2026-10-15; sha256 {t['sha256'][:16]}...), key extrapolated"
+    out: list[dict[str, Any]] = []
+    for q, mid, quantity, scalar, gate in (("n_eff", "neff_tidy3d", "n_eff TE0 vs a finite-difference solver", "neff_0", True),
+                                           ("ng_tidy3d", "ng_tidy3d", "group index TE0 vs a finite-difference solver", "ng_0", True),
+                                           ("te_fraction", "teFraction_tidy3d", "TE fraction vs a finite-difference solver", "teFraction_0", False)):
+        e = 10.0 ** (math.floor(math.log10(t[q]["U"])) - 1)
+        tol = float(f"{math.ceil(t[q]['U'] / e) * e:.2g}")   # U rounded up to 2 significant digits
+        for lvl in (0, 1):
+            out.append({
+                "id": f"{mid}.L{lvl}", "quantity": f"{quantity} (mesh level {lvl})", "metric_id": mid, "value": t[q]["value"], "unit": "1",
+                "tolerance": {"abs": tol, "after": "finest",
+                              "note": "tolerance = the reference's own uncertainty band U (GCI, factor 1.25, of its 3-level extrapolation, rounded up): the finite-difference reference converges at first order (staircase), so it is far coarser than this engine's levels"},
+                "bounds": None, "basis": "D", "form": "solver_ref", "gate": gate, "levels": [lvl],
+                "provenance": {"citation": TIDY3D_CIT, "locator": loc, "accessed": CREATED, "generator": "validation/photonics2/atlas_tidy3d.py (check of the inline values)"},
+                "extract": {"kind": "scalar", "name": scalar},
+                "note": ("independent second solver (finite differences, other code); the atlas uses it as a sanity check, not a gate; gated here at its own uncertainty band"
+                         if gate else "informative: TE fraction definitions may differ between implementations"),
+            })
+    return out
+
+
 def atlas_case(cid: str, k: str, sim: str, clad: str) -> dict[str, Any]:
     loc = f"eo-modulator-atlas validation/reference/{k}-fem.json extrapolated (sha256 in eval/expected/{cid}.json inputs); case validation/cases/{k}.yaml"
     refs = (two_level(cid, "neff_0", "n_eff TE0", "1", 2e-6 if k == "K3" else 1e-6, 1e-6 if k == "K2" else 5e-7, ATLAS_CIT, loc, kind="abs")
             + two_level(cid, "ng_0", "group index TE0 (with material dispersion)", "1", 1e-5, 3e-6, ATLAS_CIT, loc, kind="abs",
                         note="engine dn/dlambda from the library (LN Zelmon o / e, SiO2 Malitson converted to vacuum wavelength) at the case indices; the reference used the Sellmeier fits directly")
             + two_level(cid, "teFraction_0", "TE fraction", "1", 2e-6, 2e-6, ATLAS_CIT, loc, kind="abs", gate=False,
-                        note="informative: TE fraction definitions may differ between implementations"))
+                        note="informative: TE fraction definitions may differ between implementations")
+            + tidy3d_refs(k))
     return mk_case(cid, f"Thin-film LN rib ({k} of the EO atlas): x-cut, 600 nm film, 300 nm etch, 1 um top, 60 deg walls, {clad} clad, TE0 at 1550 nm",
                    refs, f"sims/{sim}.yaml", ATLAS,
                    geometry={"kind": "analytic", "spec": {"window_um": [[-5, 5], [-3, 3]], "rib_polygon_um": [[-0.673205081, 0.3], [0.673205081, 0.3], [0.5, 0.6], [-0.5, 0.6]], "slab_um": [0, 0.3]}},

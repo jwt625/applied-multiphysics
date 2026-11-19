@@ -38,7 +38,7 @@ test('sweep: create a range sweep, edit it to a list, round trip through the op 
 	assert.deepEqual(c.patch, [{ op: 'add', path: '/studies/1', value: { id: 'sweep1', type: 'parametric', physics: ['solid'], settings: { study: 'std1', sweep: [{ param: 'D', range: { start: '2 mm', stop: '10 mm', n: 5 } }] } } }]);
 	await log.apply(c.patch, { actor: 'user', reason: 'sweep' });
 	assert.ok(parseSpecText(log.text, reg).ok);
-	assert.ok(log.text.includes('# H1 Plate with a hole'));
+	assert.ok(log.text.includes('# Plate with a hole'));
 	assert.deepEqual(sweepDefOf(log.data, 'sweep1'), r);
 	// edit: a value list (text as typed), one op touching only the sweep
 	const vals = { ...r, axes: [{ ...r.axes[0]!, mode: 'values' as const, values: parseValueList('2, 4.5, 8'), start: '', stop: '', n: 2 }] };

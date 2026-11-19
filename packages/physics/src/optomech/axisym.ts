@@ -26,7 +26,7 @@ import { NPC, nCells, nNodes } from '../common/mesh.ts';
 import { gaussLegendre01, triRule } from '../common/quad.ts';
 import { shape, shapeTable, physGrad, gatherX } from '../common/lagrange.ts';
 import { restrict } from '../common/scalar.ts';
-import { shiftInvertEigen } from '../common/eigen.ts';
+import { shiftInvertEigen, eigenCheckNote } from '../common/eigen.ts';
 import { dofPattern, solidConstraints, type SolidBc } from '../coupled/assemble.ts';
 import { assembleSolid, solidDofMap, solidLambdaScale } from '../elastic/modal.ts';
 import { t4, type T4 } from './tensors.ts';
@@ -261,7 +261,9 @@ export interface SolidModesInput {
   mesh: Mesh; mask: Uint8Array; D: (e: number) => Float64Array; rho: Float64Array; bcs: readonly SolidBc[];
   nModes: number; shiftHz: number | null; signal?: AbortSignal;
 }
-export interface SolidModes { freqs: Float64Array; u: Float64Array[]; dof: number; nnz: number; residual: number; solver: string; ms: Record<string, number> }
+export interface SolidModes { freqs: Float64Array; u: Float64Array[]; dof: number; nnz: number; residual: number; solver: string; ms: Record<string, number>;
+  /** completeness-check note of the eigen search (eigenCheckNote; absent when it passed or was skipped) */
+  checkNote?: string }
 
 /**
  * Torsion-free axisymmetric solid modes K u = omega^2 M u with an arbitrary constitutive matrix per cell (MT's
@@ -288,7 +290,8 @@ export function solidModesAxisym(p: SolidModesInput): SolidModes {
   const order = Array.from(eig.lambda, (l, i) => [l, i] as const).sort((a, b) => a[0] - b[0]).map(([, i]) => i);
   const freqs = Float64Array.from(order, (i) => { const l = eig.lambda[i]!; return Math.abs(l) < 1e-8 * lamScale ? 0 : Math.sign(l) * Math.sqrt(Math.abs(l)) / (2 * Math.PI); });
   const u = order.map((i) => { const x = eig.vecs[i]!, out = new Float64Array(nn * 2); for (let r = 0; r < R.pat.n; r++) out[R.inv[r]!] = x[r]!; return out; });
-  return { freqs, u, dof: R.pat.n, nnz: R.pat.nnz, residual: Math.max(0, ...eig.residual), solver: `axisym solid (MOM): shift-invert block Arnoldi, ${eig.stats.factor}`, ms: { assemble: t1 - t0, solve: t2 - t1 } };
+  const chk = eigenCheckNote(eig.stats.check);
+  return { freqs, u, dof: R.pat.n, nnz: R.pat.nnz, residual: Math.max(0, ...eig.residual), solver: `axisym solid (MOM): shift-invert block Arnoldi, ${eig.stats.factor}`, ms: { assemble: t1 - t0, solve: t2 - t1 }, ...(chk ? { checkNote: chk } : {}) };
 }
 
 /** Fix the arbitrary sign of a mode: the dominant component of u at the max-|u| node is made positive (in place). */

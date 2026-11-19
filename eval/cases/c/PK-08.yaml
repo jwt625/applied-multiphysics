@@ -1,0 +1,123 @@
+# PK-08: Solder-bump array cell (axisymmetric): thermal resistance with spreading within two variational bounds
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: PK-08
+class: c
+title: 'Solder-bump array cell (axisymmetric): thermal resistance with spreading within two variational bounds'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond]
+dimension: 2D-axisym
+units: SI
+geometry:
+  kind: analytic
+  spec: {bump_radius_m: 5.0e-05, pitch_m: 0.0002, cell_radius_m: 0.00011283791670955128, bump_height_m: 7.5e-05, die_m: 0.0002,
+    interposer_m: 0.0001}
+materials:
+  si: {ref: materials/silicon, k_W_per_mK: 149.038, source: materials/silicon.yaml k (HPL 1972) at 298.15 K}
+  solder: {ref: materials/sac305, k_W_per_mK: 61, source: materials/sac305.yaml k (Indium Indalloy 256 data sheet)}
+bcs:
+- selection: die back
+  type: temperature
+  params: {T_K: 299.15}
+- selection: interposer bottom
+  type: temperature
+  params: {T_K: 298.15}
+- {selection: all other surfaces, type: adiabatic}
+initial: null
+study: {type: stationary}
+references:
+- id: Q_bump
+  quantity: heat flow through the bump at a 1 K difference
+  metric_id: Q_bump
+  value: null
+  unit: W
+  tolerance:
+    rule:
+      type: range
+      range: [0.004183284357494565, 0.00427101659469225]
+      note: same bounds, as a conductance at 1 K
+  bounds: [0.004183284357494565, 0.00427101659469225]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with plate
+      spreading resistances from separation of variables: uniform-flux disc (exact Bessel series) and isothermal disc (Galerkin,
+      edge-singular basis); own derivation, validation/pkg2/bump_bounds.py', locator: 'validation/pkg2/bump_bounds.py r_uf(),
+      r_iso(), main(); eval/expected/PK-08.json R_lower, R_upper (Galerkin change M 4 -> 6 below 1e-8, series extrapolated
+      in N, change about 3e-6)', accessed: null, generator: validation/pkg2/bump_bounds.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: Q_bump}
+- id: R_bump
+  quantity: thermal resistance per bump cell R = 1 K / Q
+  metric_id: R_bump
+  value: null
+  unit: K/W
+  tolerance:
+    rule:
+      type: range
+      range: [234.13629468046014, 239.04662330889593]
+      note: two-sided variational bound, rigorous for the modelled geometry up to the stated reference digits; the finite-element
+        value approaches the exact R from below
+  bounds: [234.13629468046014, 239.04662330889593]
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with plate
+      spreading resistances from separation of variables: uniform-flux disc (exact Bessel series) and isothermal disc (Galerkin,
+      edge-singular basis); own derivation, validation/pkg2/bump_bounds.py', locator: 'validation/pkg2/bump_bounds.py r_uf(),
+      r_iso(), main(); eval/expected/PK-08.json R_lower, R_upper (Galerkin change M 4 -> 6 below 1e-8, series extrapolated
+      in N, change about 3e-6)', accessed: null, generator: validation/pkg2/bump_bounds.py, source_accessed: '2026-11-18'}
+  extract:
+    kind: combine
+    expr: 1[K] / q
+    targets: {q: Q_bump}
+- id: R_vs_1D
+  quantity: R relative to the parallel-column resistance without spreading
+  metric_id: R_1D
+  value: 206.8685821474723
+  unit: K/W
+  tolerance:
+    rule:
+      type: range
+      range: [206.8685821474723, 239.04662330889593]
+      note: 'informative: the 1D parallel formula is a looser lower bound (no spreading)'
+  bounds: [206.8685821474723, 239.04662330889593]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with plate
+      spreading resistances from separation of variables: uniform-flux disc (exact Bessel series) and isothermal disc (Galerkin,
+      edge-singular basis); own derivation, validation/pkg2/bump_bounds.py', locator: 'validation/pkg2/bump_bounds.py r_uf(),
+      r_iso(), main(); eval/expected/PK-08.json R_lower, R_upper (Galerkin change M 4 -> 6 below 1e-8, series extrapolated
+      in N, change about 3e-6)', accessed: null, generator: validation/pkg2/bump_bounds.py, source_accessed: '2026-11-18'}
+  expected: {file: eval/expected/PK-08.json, metric_id: R_1D}
+  extract:
+    kind: combine
+    expr: 1[K] / q
+    targets: {q: Q_bump}
+reference_results: []
+convergence:
+  levels_min: 3
+  ratio_min: 2
+  method: none
+  h_factors: [1, 0.5, 0.25]
+  note: three nested levels; the range is checked on the finest level
+speed:
+  budget_s: {browser: 3.0, native: null}
+  budget_basis: est. from the lane's own runs on 2026-11-18 (DevLog-063), not a browser measurement
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own derivation, own reference code and closed forms from cited literature (formulas only); GPL-3.0-or-later
+    code
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: sims/bump-array-thermal.yaml
+missing: []
+assumptions: ['Cylindrical column, perfect contacts, no underfill; equal-area axisymmetric cell; constant k.']
+notes: ['Parts (K/W, validation/pkg2/bump_bounds.py): column 156.55; die spreading 47.17 (isothermal disc) to 49.62 (uniform
+    flux); interposer 30.42 to 32.88; the 1D parallel resistance 206.87 leaves spreading out.']
+lane: G6
+created: '2026-11-18'

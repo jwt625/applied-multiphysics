@@ -2,7 +2,7 @@
 # a = 0.81915 um, b = 2.7305 um (RG-401/U diameters read in um), shorted section of length 40 um. L_geom = L' l with the
 # TEM per-length inductance L' = mu0 eps0 / C'_vacuum from a 2D electrostatic cross-section (as sims/coax-line.yaml);
 # expected 9.63178 pH (eval/expected/EM-61.json, closed form mu0 l ln(b/a) / (2 pi)). The London-film kinetic inductance
-# (L_kin, L_total; lambda_L 0.4 um, film 0.1 um) needs a superconductor model the engine does not have (DevLog-022 s.5).
+# (L_kin, L_total; lambda_L 0.4 um, film 0.1 um) needs a superconductor model the engine does not have.
 schema: amp-spec/0
 id: micro-coax-lgeom
 title: Micro-coax geometric inductance

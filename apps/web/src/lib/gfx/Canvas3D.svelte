@@ -147,13 +147,16 @@
 			unregCam = registerCameraTarget({
 				preset: (dir, lookAt) => { const c = o(); V.look(dir, lookAt ? [lookAt[0] - c[0], lookAt[1] - c[1], lookAt[2] - c[2]] : [0, 0, 0]); },
 				pose: () => { const c = o(), p = V.pose(); return { pos: [p.pos[0] + c[0], p.pos[1] + c[1], p.pos[2] + c[2]], target: [p.target[0] + c[0], p.target[1] + c[1], p.target[2] + c[2]] }; },
-				setPose: (p) => { const c = o(); V.setPose([p.pos[0] - c[0], p.pos[1] - c[1], p.pos[2] - c[2]], [p.target[0] - c[0], p.target[1] - c[1], p.target[2] - c[2]]); }
+				setPose: (p) => { const c = o(); V.setPose([p.pos[0] - c[0], p.pos[1] - c[1], p.pos[2] - c[2]], [p.target[0] - c[0], p.target[1] - c[1], p.target[2] - c[2]]); },
+				centre: () => { const c = o(); return [c[0], c[1], c[2]]; }
 			});
 		}
 	});
 	let unregCam: (() => void) | null = null;
 	onMount(() => () => { unregCam?.(); unregCam = null; });
 	const TRIAD = [{ n: 'x', c: '#e06c5a' }, { n: 'y', c: '#6cbf6c' }, { n: 'z', c: '#6c9ee0' }];
+	/** triad arm length in px (a model axis seen end-on shrinks toward 0) */
+	const TRIAD_ARM = 32;
 </script>
 
 <div class="host" bind:this={host} role="presentation" onpointerdown={pdown} onpointerup={pup}>
@@ -173,11 +176,11 @@
 		</svg>
 	{/if}
 	{#if triad && axesDirs.length === 3}
-		<svg class="triad" width="64" height="64" viewBox="-32 -32 64 64" role="img" aria-label="axis triad" data-tip="Model axes x, y, z (z up) as seen by the camera">
+		<svg class="triad" width="96" height="96" viewBox="-48 -48 96 96" role="img" aria-label="axis triad" data-tip="Model axes x, y, z (z up) as seen by the camera">
 			{#each [0, 1, 2].sort((a, b) => axesDirs[a]![2] - axesDirs[b]![2]) as k (k)}
 				{@const d = axesDirs[k]!}
-				<line x1="0" y1="0" x2={20 * d[0]} y2={-20 * d[1]} style:stroke={TRIAD[k]!.c} />
-				<text x={26 * d[0]} y={-26 * d[1] + 3} style:fill={TRIAD[k]!.c}>{TRIAD[k]!.n}</text>
+				<line x1="0" y1="0" x2={TRIAD_ARM * d[0]} y2={-TRIAD_ARM * d[1]} style:stroke={TRIAD[k]!.c} />
+				<text x={(TRIAD_ARM + 9) * d[0]} y={-(TRIAD_ARM + 9) * d[1] + 4} style:fill={TRIAD[k]!.c}>{TRIAD[k]!.n}</text>
 			{/each}
 		</svg>
 	{/if}
@@ -193,7 +196,7 @@
 	.mk rect.b { fill: rgba(13, 13, 13, 0.82); stroke: rgba(224, 165, 38, 0.6); }
 	.mk text { fill: #f0c76a; font: 11px var(--mono); shape-rendering: auto; }
 	.triad { position: absolute; right: 6px; bottom: 44px; pointer-events: auto; overflow: visible; }
-	.triad line { stroke-width: 2; }
-	.triad text { font: 10px var(--mono); text-anchor: middle; }
+	.triad line { stroke-width: 2.5; stroke-linecap: square; }
+	.triad text { font: 600 12px var(--mono); text-anchor: middle; paint-order: stroke; stroke: rgba(13, 13, 13, 0.85); stroke-width: 3px; }
 	.fail { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
 </style>

@@ -1,0 +1,93 @@
+# PK-08 (eval/cases/c/PK-08.yaml): thermal resistance of one cell of a solder-bump array between a Si die and a Si
+# interposer, with heat spreading in both plates. Axisymmetric equal-area cell (radius b = pitch / sqrt(pi)) of a square
+# array: Si die / cylindrical SAC305 column / Si interposer; die back at T_hot, interposer bottom at T_cold; the cell
+# wall (symmetry) and the free surfaces around the column are adiabatic (no underfill: the library has no underfill k).
+# Result: heat flow per bump Q at a 1 K difference (W, numerically the conductance in W/K) and R = 1 K / Q.
+# Gate (validation/pkg2/bump_bounds.py, own derivation): R lies between two variational bounds, lower = column + the
+# isothermal-disc spreading resistances of both plates (Dirichlet principle), upper = column + the uniform-flux spreading
+# resistances (complementary energy); plate resistances from exact Bessel series (uniform flux) and a converged Galerkin
+# solution (isothermal disc). The parallel-column formula without spreading is 12 % lower than the gated range.
+# Modelling inputs NOT from a paper (illustrative): a, p, h_b, t_d, t_s, temperatures. Si k: materials/silicon at
+# the material temperature 298.15 K; SAC305 k from the library (scalar). Constant k.
+schema: amp-spec/0
+id: bump-array-thermal
+title: Solder-bump array thermal resistance with spreading
+description: One cell of a bump array between a Si die and a Si interposer (axisymmetric); thermal resistance per bump against two closed-form spreading bounds.
+params:
+  a: {value: 50, unit: um, description: bump radius (cylindrical column)}
+  p: {value: 200, unit: um, description: bump pitch (square array)}
+  b: {value: "p/sqrt(pi)", description: "equal-area cell radius"}
+  h_b: {value: 75, unit: um, description: bump height (stand-off)}
+  t_d: {value: 200, unit: um, description: die thickness}
+  t_s: {value: 100, unit: um, description: interposer thickness}
+  k_sac: {value: 61, unit: W/(m*K), description: SAC305 thermal conductivity (library)}
+  T_hot: {value: 299.15, unit: K, description: die back temperature}
+  T_cold: {value: 298.15, unit: K, description: interposer bottom temperature}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: interposer, type: rect, settings: {size: ["b", "t_s"], center: ["b/2", "t_s/2"]}}
+    - {id: bump, type: rect, settings: {size: ["a", "h_b"], center: ["a/2", "t_s + h_b/2"]}}
+    - {id: die, type: rect, settings: {size: ["b", "t_d"], center: ["b/2", "t_s + h_b + t_d/2"]}}
+materials:
+  - {id: si, ref: materials/silicon, T: {value: 298.15, unit: K}, select: ["dom:interposer", "dom:die"]}
+  - {id: solder, ref: materials/sac305, select: ["dom:bump"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:interposer", "dom:bump", "dom:die"]
+    bcs:
+      - {id: hot, type: temperature, select: ["bnd:die.top"], settings: {T: "T_hot"}}
+      - {id: cold, type: temperature, select: ["bnd:interposer.bottom"], settings: {T: "T_cold"}}
+mesh:
+  size: {hmax: "a/4"}
+  refine:
+    - {select: ["bnd:bump.left", "bnd:bump.right", "bnd:bump.top", "bnd:bump.bottom"], h: "a/16"}
+studies:
+  - {id: std1, type: stationary, physics: [ht]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: axis, type: cutline, data: sol_std1, from: ["0 um", "0 um"], to: ["0 um", "t_s + h_b + t_d"], n: 300}
+    - {id: under_die, type: cutline, data: sol_std1, from: ["0 um", "t_s + h_b"], to: ["b", "t_s + h_b"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: Q_bump, type: integral, expr: "k_sac*d(ht.T, z)/h_b", unit: W, over: ["dom:bump"], label: "heat flow down through the bump at a 1 K difference (numerically the conductance, W/K)"}
+        - {id: T_die_contact, type: average, expr: ht.T, unit: K, over: ["bnd:bump.top"], label: "mean temperature of the bump-to-die contact"}
+        - {id: T_ip_contact, type: average, expr: ht.T, unit: K, over: ["bnd:bump.bottom"], label: "mean temperature of the bump-to-interposer contact"}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: T_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: T_surf, type: surface, expr: ht.T, unit: K}
+    - id: T_lines
+      type: plot1d
+      items:
+        - {id: T_axis, type: linegraph, data: axis, x: arc, expr: ht.T, unit: K}
+        - {id: T_under_die, type: linegraph, data: under_die, x: arc, expr: ht.T, unit: K}
+provenance:
+  values:
+    params.a: {basis: user, date: 2026-11-18, note: "illustrative modelling input (100 um bump diameter), not from a paper"}
+    params.p: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.b: {basis: derived, date: 2026-11-18, note: "equal-area circular cell of the square pitch p (modelling approximation of the square cell)"}
+    params.h_b: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.t_d: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.t_s: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.k_sac: {basis: datasheet, source: "materials/sac305.yaml k (Indium Corporation Indalloy 256 product data sheet)", date: 2026-11-18, note: "repeated as a parameter for the heat-flow expression; must equal the library value"}
+    params.T_hot: {basis: user, date: 2026-11-18, note: "1 K difference: Q is numerically the conductance (linear model)"}
+    params.T_cold: {basis: user, date: 2026-11-18, note: "illustrative; the resistance does not depend on it (constant k)"}
+    materials.si.T: {basis: user, date: 2026-11-18, note: "library k of materials/silicon evaluated at 298.15 K (k = 149.038 W/(m K), HPL 1972) and held constant (linear model)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; the harness refines it by 1/2 per level (nested)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: temperature-gradient singularity at the contact edges r = a"}
+assumptions:
+  - {text: "Cylindrical bump column (real bumps are barrel-shaped) with perfect contact to both plates; no underfill, no intermetallic or pad layers", paths: [geometry]}
+  - {text: "Axisymmetric equal-area cell of a square array; the cell wall is adiabatic by symmetry", paths: [geometry]}
+  - {text: "Isothermal die back and interposer bottom; constant k", paths: [physics.ht.bcs, materials]}
+  - {text: "Heat flow from the volume mean of the axial gradient in the column: Q = k_sac / h_b times the integral of dT/dz over the bump (exact, since Q is the same through every cross-section of the column)", paths: [results.evaluations]}
+# eval: [PK-08]

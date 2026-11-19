@@ -34,4 +34,9 @@ export const CATALOG_DRIVEN: CatalogEntry[] = [
 		evalCases: ['AC-01'], evalClass: ['b'], caseStatus: 'unvalidated',
 		ref: { status: 'pass', date: '2026-11-18', targets: '2/2 gated (max and min along the axis)', via: 'harness', log: 'logs/eval-20261118T141921.jsonl', note: 'pressure magnitude vs rho c v along the duct (EAA benchmark duct, 2D)' },
 		tags: ['duct', 'plane wave', 'impedance', 'frequency domain', 'EAA benchmark', 'Hornikx 2015'] },
+	// grating coupler (photonics examples, part 2)
+	{ id: 'si-grating-coupler-2d', title: 'SOI grating coupler, upward power (2D)', category: 'optics', physics: ['emw-2d'], dimension: '2D',
+		evalCases: ['WO-74'], evalClass: ['c'], caseStatus: 'unvalidated',
+		ref: { status: 'pass', date: '2026-11-18', targets: '4/4 gated (2 mesh levels) + 10 info', via: 'harness', log: 'logs/G5-cli-final-20261118T190421.log', note: 'input-mode index vs the exact slab, Poynting balance; upward fraction vs Taillaert et al. 2006 Fig. 3 informative (number of periods not given in the paper)' },
+		tags: ['grating coupler', 'SOI', 'fiber coupling', 'directionality', 'Poynting flux', 'PML', 'ports', 'Taillaert 2006'] },
 ];

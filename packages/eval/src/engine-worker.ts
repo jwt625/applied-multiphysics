@@ -11,9 +11,11 @@ import type { EvalCase } from './loader.ts';
 import type { LevelObservation, TargetObservation } from './evaluate.ts';
 import type { Solution } from './contract-shim.ts';
 import type { Spec } from './contract-shim.ts';
-import { callPrepare, dtFactorsFor, extractFromSolution, usesResult, loadDefaultRegistry, setExpressionCompiler, setUnitsApi, specRuntime, type ResultEvaluator, type WorkerResult, type WorkerTarget } from './registry.ts';
+import { callPrepare, convertUnit, dtFactorsFor, extractFromSolution, usesResult, loadDefaultRegistry, setExpressionCompiler, setUnitsApi, specRuntime, type ResultEvaluator, type WorkerResult, type WorkerTarget } from './registry.ts';
 import { importWorkspace } from './workspace.ts';
 import { timeRuns } from './speed.ts';
+import { findResonance, type ResonanceResult } from './resonance.ts';
+import type { Extract } from './loader.ts';
 import type { LevelTimingSummary } from './source.ts';
 
 interface Data { root: string; caseData: EvalCase; spec: Spec; physicsId: string; type: string; factors: number[]; levelIdx: number[]; speed: boolean; targets: WorkerTarget[]; timeoutMs: number; studyId?: string }
@@ -57,6 +59,44 @@ async function main(d: Data): Promise<WorkerResult> {
     const t2 = performance.now();
     return { ctx, sol, wall_ms: t2 - t0, prepare_ms: t1 - t0, run_ms: t2 - t1 };
   };
+  // resonance targets (DevLog-061): one search per (level, search definition), shared by the targets that read it
+  const resCache = new Map<string, Promise<{ r: ResonanceResult; ms: number } | { error: string }>>();
+  const studyOf = (): { id: string; settings?: Record<string, unknown>; type?: string } | undefined => {
+    const st = ((d.spec as { studies?: Array<{ id: string; type?: string; settings?: Record<string, unknown> }> }).studies ?? []);
+    return d.studyId !== undefined ? st.find((x) => x.id === d.studyId) : st.find((x) => x.type === 'frequency');
+  };
+  const resonance = (level: number, ex: Extract) => {
+    const key = `${level}|${JSON.stringify([ex.name, ex.power ?? 1, ex.shape, ex.baseline ?? 1, ex.axis, ex.window, ex.window_unit, ex.scan ?? 13, ex.tol ?? 1e-3, ex.max_iter ?? 6])}`;
+    let p = resCache.get(key);
+    if (!p) {
+      p = (async () => {
+        const st = studyOf();
+        if (!st || st.type !== 'frequency') return { error: `resonance search needs a frequency study (${st ? `study '${st.id}' is '${st.type}'` : 'none found'})` };
+        const name = ex.name!, pw = ex.power ?? 1;
+        const evalY = async (xs: number[]): Promise<number[]> => {
+          const spec = structuredClone(d.spec) as unknown as { studies: Array<{ id: string; settings?: Record<string, unknown> }> };
+          const s = spec.studies.find((x) => x.id === st.id)!;
+          const settings = { ...(s.settings ?? {}) };
+          delete settings.wavelengths; delete settings.values;
+          settings[ex.axis === 'frequency' ? 'values' : 'wavelengths'] = xs.map((x) => ({ value: x, unit: ex.window_unit }));
+          s.settings = settings;
+          const ctx = await callPrepare(registry.prepare!, { case: d.caseData, spec: spec as unknown as Spec, physicsId: d.physicsId, level, hFactor: d.factors[level]!, dtFactor: dtf[level]!, signal, studyId: st.id });
+          const sol: Solution = registry.runStudy ? await registry.runStudy(ctx) : await mod.run(ctx);
+          return xs.map((_, k) => {
+            const n = xs.length > 1 ? `${name}_${k}` : name;
+            const v = sol.scalars?.[n] ?? sol.scalars?.[`${d.physicsId}.${n}`];
+            if (!v) throw new Error(`resonance search: module produced no scalar '${n}'`);
+            return Math.pow(v.value, pw);
+          });
+        };
+        const t0 = performance.now();
+        const r = await findResonance(evalY, { scan: ex.scan ?? 13, window: ex.window!, shape: ex.shape!, baseline: ex.baseline ?? 1, tol: ex.tol ?? 1e-3, maxIter: ex.max_iter ?? 6 });
+        return 'error' in r ? r : { r, ms: performance.now() - t0 };
+      })();
+      resCache.set(key, p);
+    }
+    return p;
+  };
   const levels: WorkerResult['levels'] = [];
   const per = new Map<string, LevelObservation[]>();
   const bad = new Map<string, { pending: string } | { error: string }>();
@@ -67,6 +107,19 @@ async function main(d: Data): Promise<WorkerResult> {
     for (const t of d.targets) {
       if (bad.has(t.tid)) continue;
       if (t.ref.levels && !t.ref.levels.includes(i)) continue;   // per-target levels
+      if (t.ref.extract?.kind === 'resonance') {
+        const rr = await resonance(i, t.ref.extract);
+        if ('error' in rr) { bad.set(t.tid, { error: `resonance search, level ${i + 1}: ${rr.error}` }); continue; }
+        const out = t.ref.extract.output!;
+        const raw = rr.r[out];
+        const dimless = out === 'q' || out === 'q_halfmax' || out === 'peak';
+        const v = dimless ? { value: raw } : convertUnit(raw, t.ref.extract.window_unit, t.ref.unit);
+        if ('error' in v) { bad.set(t.tid, v); continue; }
+        const arr = per.get(t.tid) ?? [];
+        arr.push({ value: v.value, h: d.factors[i]!, dof: sol.stats.dof, wall_ms: wall_ms + rr.ms, stages: sol.timing, meshHash: sol.meshHash, diag: { ...rr.r.diag, search_ms: Math.round(rr.ms) } });
+        per.set(t.tid, arr);
+        continue;
+      }
       const rf = usesResult(t.ref.extract) ? resultFor(sol, ctx as { mesh: unknown; spec?: unknown }) : undefined;
       const ex = extractFromSolution(sol, t.ref, { mesh: ctx.mesh, ...(registry.sample ? { sample: registry.sample } : {}), ...(t.points ? { points: t.points } : {}), ...(rf ? { result: rf } : {}) });
       if (!('value' in ex)) { bad.set(t.tid, ex); continue; }

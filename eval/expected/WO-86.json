@@ -1,0 +1,90 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-86",
+  "class": "c",
+  "generator": "validation/photonics2/k4_reference.py",
+  "command": "cd validation && uv run python photonics2/k4_reference.py",
+  "method": "eo-modulator-atlas push-pull case reference: scikit-fem P2 electrostatics (3 mesh scales), vector FEM N2/P2 arm modes, first-order Pockels with the full tensor, Richardson-type extrapolation with a GCI band (factor 1.25)",
+  "generated_at": "2026-11-18T18:45:00-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "VpiL_0",
+      "value": 0.02278604396033844,
+      "unit": "V*m",
+      "precision": {
+        "U": 5.383089975380396e-06,
+        "f_finest": 0.022781737488358135,
+        "p_observed": 1.4852203691445467,
+        "method": "observed_order_gci1.25",
+        "levels_f": [
+          0.022773987564257234,
+          0.022778838370015146,
+          0.022781737488358135
+        ]
+      },
+      "note": "push-pull VpiL = lambda / (2 |dn_A - dn_B|), dn per volt of the full terminal voltage; atlas value in V cm x 1e-2"
+    },
+    {
+      "metric_id": "dneffdV_0",
+      "value": -1.7004794706997226e-05,
+      "unit": "1/V",
+      "precision": {
+        "U": 5.528328054110629e-09,
+        "f_finest": -1.7009217369440514e-05,
+        "p_observed": 1.193257034596513,
+        "method": "observed_order_gci1.25",
+        "levels_f": [
+          -1.7014907938605487e-05,
+          -1.7011482562379494e-05,
+          -1.7009217369440514e-05
+        ]
+      },
+      "note": "first-order dn_eff / dV of arm A (x > 0)"
+    },
+    {
+      "metric_id": "neff_0",
+      "value": 1.894167067063121,
+      "unit": "1",
+      "precision": {
+        "U": 5.811805980915352e-08,
+        "f_finest": 1.8941670205686731,
+        "p_observed": 2.8912571769696687,
+        "method": "observed_order_gci1.25",
+        "levels_f": [
+          1.8941662359227431,
+          1.8941667221130563,
+          1.8941669404208579,
+          1.8941670205686731
+        ]
+      },
+      "note": "arm-A TE0 index = the air-clad rib reference (same window, electrodes absent); K4 arm mode at h 0.04 um: 1.894166940424576"
+    }
+  ],
+  "inputs": {
+    "files": [
+      "eo-modulator-atlas validation/reference/K4-es-eo.json",
+      "eo-modulator-atlas validation/reference/K2-fem.json"
+    ],
+    "sha256": [
+      "d58fd5d124d72580a3f375252fb2bd0396b5d3140090e657fd89beab01367bf5",
+      "3bf16decab4470dafb4f2deb0a9e79c0f35624fec646dcc1c20800ca87969e9b"
+    ],
+    "case_sha256": [
+      "50288924a7876ed8d976db4530c4e738a4b3538798f89c93db8d34126e35dae5",
+      "10e2b3543627506ea08d1f0a0a079ad8f62bfa66b27c77be77471f8a18d595d4"
+    ],
+    "atlas_commit": "0546007",
+    "atlas_date": "2026-10-15"
+  }
+}

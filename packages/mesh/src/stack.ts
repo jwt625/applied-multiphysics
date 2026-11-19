@@ -13,7 +13,7 @@ import { type Curve, type Mesh, type Stack, capKey, point, project, detmath } fr
 import { mesh2d, type MeshOptions2D } from './mesh2d.ts';
 import { subdivideInterval, splitPrism, splitQuad } from './layered.mjs';
 import { meshHash, tagHash } from './sha256.ts';
-import { tetQuality } from './quality.ts';
+import { tetQuality, tetMinDihedralDeg } from './quality.ts';
 import type { Projector } from './refine.ts';
 
 export interface StackMeshOptions {
@@ -21,6 +21,9 @@ export interface StackMeshOptions {
   /** default cell size along z (m) of layers without nz / dz; default mesh2d.hmax */
   dz?: number;
   order?: 1 | 2;
+  /** opt-in in-plane refinement of thin layers (dimensionless; off when absent; DevLog-065 D6): a layer whose z cell
+   * height dz gives maxLayerAspect * dz < hmax refines the 2D mesh of its sketch area to h = maxLayerAspect * dz */
+  maxLayerAspect?: number;
 }
 
 const projectors = new WeakMap<Mesh, Projector>();
@@ -73,11 +76,82 @@ export function stackQuality(m: Mesh): Record<string, number> {
   return out;
 }
 
+/** length with an SI prefix, 3 significant digits (warning text) */
+const fmtLen = (x: number) => {
+  const [f, u] = x >= 1 ? [1, 'm'] : x >= 1e-3 ? [1e3, 'mm'] : x >= 1e-6 ? [1e6, 'um'] : [1e9, 'nm'];
+  return `${Number((x * f).toPrecision(3))} ${u}`;
+};
+/** z cell height of a layer (as the z planes below: nz, else dz, else the default hz) */
+const layerDz = (L: Stack['layers'][number], hz: number) => (L.z[1] - L.z[0]) / (L.nz ?? subdivideInterval(L.z[0], L.z[1], L.dz ?? hz).length);
+/** 2D sketch domain ids of a layer without split suffixes, for a mesh.refine suggestion */
+const layerDomains = (L: Stack['layers'][number]) => [...new Set((L.sketch?.entities.domains ?? []).map((d) => d.id.replace(/(#\d+)+$/, '')))];
+
+/**
+ * Flat-tet guidance (DevLog-065 D5): per layer, the worst tet (min dihedral at the corner nodes); one warning per layer
+ * below FLAT_TET_DEG naming the layer, the worst cell's in-plane edge and height, and the remedy by its shape: wider
+ * than tall (a thin layer under coarse in-plane cells), taller than wide (in-plane cells refined below the layer's z
+ * cells, also by refinement meant for another layer: the 2D mesh is shared by every layer), or a thin 2D triangle.
+ */
+function flatLayerWarnings(st: Stack, m: Mesh): string[] {
+  const npe = m.cells.type === 'tet10' ? 10 : 4, C = m.cells.conn, D = m.cells.domain, X = m.nodes;
+  const worst = st.layers.map(() => ({ deg: Infinity, c: -1 }));
+  const one = new Int32Array(4), buf = new Float64Array(24);
+  for (let c = 0; c < D.length; c++) {
+    for (let a = 0; a < 4; a++) one[a] = C[npe * c + a]!;
+    const d = tetMinDihedralDeg(X, one, buf);
+    const w = worst[st.domInfo[D[c]!]!.layer]!;
+    if (d < w.deg) { w.deg = d; w.c = c; }
+  }
+  const out: string[] = [];
+  st.layers.forEach((L, k) => {
+    const { deg, c } = worst[k]!;
+    if (!(deg < FLAT_TET_DEG)) return;
+    // the worst cell's prism: distinct (x, y) of its corners = its 2D triangle; z extent = its z cell height
+    const xy: Array<[number, number]> = [];
+    let z0 = Infinity, z1 = -Infinity;
+    for (let a = 0; a < 4; a++) {
+      const v = C[npe * c + a]!, x = X[3 * v]!, y = X[3 * v + 1]!, z = X[3 * v + 2]!;
+      z0 = Math.min(z0, z); z1 = Math.max(z1, z);
+      if (!xy.some((p) => p[0] === x && p[1] === y)) xy.push([x, y]);
+    }
+    const dz = z1 - z0;
+    let h = 0, minAng = 180;
+    for (let i = 0; i < xy.length; i++) {
+      const p = xy[i]!, q = xy[(i + 1) % xy.length]!, r = xy[(i + 2) % xy.length]!;
+      h = Math.max(h, detmath.hyp2(q[0] - p[0], q[1] - p[1]));
+      const ux = q[0] - p[0], uy = q[1] - p[1], vx = r[0] - p[0], vy = r[1] - p[1];
+      minAng = Math.min(minAng, Math.abs(detmath.atan2(ux * vy - uy * vx, ux * vx + uy * vy)) * 180 / Math.PI);
+    }
+    const doms = layerDomains(L);
+    const list = doms.slice(0, 4).join(', ') + (doms.length > 4 ? `, ... (${doms.length} domains)` : '');
+    const cause = xy.length === 3 && minAng < FLAT_TET_DEG
+      ? `its 2D triangle is thin (min angle ${minAng.toFixed(2)} deg: a sliver or near tangency in the sketches). Remedy: simplify the sketch there or refine it (mesh.refine)`
+      : h > dz
+        ? `the cell is much wider than tall (a thin layer under coarse in-plane cells). Remedy: mesh.refine on this layer's sketch domains (${list}) with h comparable to the z cell height, or a smaller mesh.size.hmax; the 2D mesh is shared by all layers, so thick layers over the refined area need more z cells (nz or dz) to stay well shaped`
+        : `the cell is much taller than wide (in-plane cells refined below this layer's z cell height, possibly for another layer: the 2D mesh is shared by all layers). Remedy: more z cells in this layer (nz or dz), or less in-plane refinement over it`;
+    out.push(`flat tetrahedra in layer '${L.id}': min dihedral angle ${deg.toFixed(2)} deg (below ${FLAT_TET_DEG} deg) in a cell ${fmtLen(h)} wide and ${fmtLen(dz)} high; ${cause}`);
+  });
+  return out;
+}
+
 export function meshStack(st: Stack, o: StackMeshOptions = {}): Mesh {
   const t0 = performance.now();
   const order = o.order ?? 1;
   const ov = st.overlay;
-  const m2 = mesh2d(ov, { ...o.mesh2d, order });
+  const hz = o.dz ?? o.mesh2d?.hmax ?? detmath.hyp2(ov.bbox[2] - ov.bbox[0], ov.bbox[3] - ov.bbox[1]) / 20;
+  const opt2: MeshOptions2D = { ...o.mesh2d, order };
+  if (o.maxLayerAspect !== undefined) {
+    if (!(o.maxLayerAspect > 0) || !Number.isFinite(o.maxLayerAspect)) throw new Error(`mesh: stack ${st.id}: maxLayerAspect must be a finite number > 0`);
+    const hmax = o.mesh2d?.hmax ?? detmath.hyp2(ov.bbox[2] - ov.bbox[0], ov.bbox[3] - ov.bbox[1]) / 20;
+    const extra = st.layers.flatMap((L) => {
+      if (!L.sketch) return [];
+      const h = o.maxLayerAspect! * layerDz(L, hz);
+      // the overlay faces of this layer: overlay domains carry `dom:<layer>/<sketch domain>` as id or ancestor
+      return h < hmax ? [{ select: L.sketch.entities.domains.map((d) => `dom:${L.id}/${d.id.replace(/^dom:/, '')}`), h }] : [];
+    });
+    if (extra.length) opt2.refine = [...(o.mesh2d?.refine ?? []), ...extra];
+  }
+  const m2 = mesh2d(ov, opt2);
   const t2d = performance.now();
   const nL = st.layers.length;
   const npe2 = order === 2 ? 6 : 3;
@@ -93,7 +167,6 @@ export function meshStack(st: Stack, o: StackMeshOptions = {}): Mesh {
     tri.set(ar >= 0 ? [a, b, c] : [a, c, b], 3 * t);
   }
   // z planes
-  const hz = o.dz ?? o.mesh2d?.hmax ?? detmath.hyp2(ov.bbox[2] - ov.bbox[0], ov.bbox[3] - ov.bbox[1]) / 20;
   const zs: number[] = [st.layers[0]!.z[0]];
   const layerStart: number[] = [];
   for (const L of st.layers) {
@@ -239,12 +312,21 @@ export function meshStack(st: Stack, o: StackMeshOptions = {}): Mesh {
     dim: 3, nodes, cells: { type: order === 2 ? 'tet10' : 'tet4', conn: C, domain: D },
     facets: { type: order === 2 ? 'tri6' : 'tri3', conn: FC, boundary: FBo }, entities: st.entities, hash: meshHash(nodes, C),
   };
+  // 3D tag hash: domain and boundary ids (stack point ids derive from the sketch and layer ids; DevLog-065 D4)
   mesh.tagHash = tagHash(D, FC, FBo, [...st.entities.domains, ...st.entities.boundaries].map((e) => e.id));
+  if (st.entities.points) {
+    // point entity -> node: overlay vertex (PSLG vertices keep their coordinates in mesh2d) on the point's plane
+    const pos = new Map<string, number>();
+    for (let v = 0; v < N; v++) pos.set(`${X2[2 * v]},${X2[2 * v + 1]}`, v);
+    const OV = ov.vertices;
+    mesh.pointNode = Int32Array.from(st.pointAt, ({ plane, v }) => {
+      const v2 = pos.get(`${OV[2 * v]},${OV[2 * v + 1]}`);
+      return v2 === undefined ? -1 : map[v2 + N * layerStart[plane]!]!;
+    });
+  }
   mesh.quality = stackQuality(mesh);
   const md = mesh.quality.minDihedralDeg;
-  const flat = md !== undefined && md < FLAT_TET_DEG
-    ? [`flat tetrahedra: min dihedral angle ${md.toFixed(2)} deg (below ${FLAT_TET_DEG} deg): a layer much thinner than the in-plane cell size; refine that layer's sketch edges (mesh.refine) or lower mesh.size.hmax`]
-    : [];
+  const flat = md !== undefined && md < FLAT_TET_DEG ? flatLayerWarnings(st, mesh) : [];
   const warnings = [...new Set([...st.warnings, ...(m2.warnings ?? []), ...flat])];
   if (warnings.length) mesh.warnings = warnings;
   mesh.stats = {

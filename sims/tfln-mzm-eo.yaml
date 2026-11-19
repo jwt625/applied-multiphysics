@@ -1,14 +1,14 @@
 # CP-43 (eval/cases/b/CP-43.yaml): Pan et al. 2021, x-cut TFLN-on-Si MZM at 1957 nm, GSG push-pull, designed cross-section;
-# electrostatics -> em-modes (electro-optic, Pockels), 2D (lane MX, DevLog-035). Geometry ported from eo-modulator-atlas
+# electrostatics -> em-modes (electro-optic, Pockels), 2D. Geometry ported from eo-modulator-atlas
 # sims/pan2021/config.yaml (read only, at f418495 as in CP-43: the last atlas commit touching the file, identical at the
 # atlas HEAD 0546007 read on 2026-11-07; the atlas is the evidence holder, paper p.2-4): 600 nm LN film, rib
 # h 300 nm, top width 1.1 um, sidewall 30 deg from vertical (atlas project_inference), BOX 2 um, Si substrate; gold
 # electrodes 0.5 um thick, gap 6.5 um, signal 17 um, grounds 60 um; waveguides centred in the gaps. Frame: x lateral,
 # y film normal, z propagation; mirror plane x = -11.75 um. Target: paper-simulated VpiL 4.06 V cm push-pull (tol 10 %);
-# atlas engine 4.204 V cm (DevLog-032). Materials from this repo's library (not the atlas placeholders): LN n_o / n_e
+# atlas engine 4.204 V cm. Materials from this repo's library (not the atlas placeholders): LN n_o / n_e
 # (Zelmon 1997 fits at 1.957 um), eps^S (Weis-Gaylord 1985 Table 1, Warner 1967 row), r^S (Weis-Gaylord Table 4, 633 nm
 # clamped: no 1957 nm value exists in the source); SiO2 eps 3.9 (Zhu 2021) and n (Malitson); Si eps (Krupka 2006); air n (Mathar 2007).
-# n_g with material dispersion: dn/dlambda of LN, SiO2 and air from the library refs at 1.957 um (prepareRun, DevLog-046).
+# n_g with material dispersion: dn/dlambda of LN, SiO2 and air from the library refs at 1.957 um (prepareRun).
 schema: amp-spec/0
 id: tfln-mzm-eo
 title: TFLN modulator VpiL (electrostatics -> optics)

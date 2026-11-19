@@ -5,8 +5,8 @@
 # C' and Z0 against the partial-capacitance conformal form for a finite substrate (Qucs technical documentation s.12,
 # eqs. (12.7)-(12.9); after Gupta et al.) are informative: the source states no accuracy for that finite-h form.
 # Modelling inputs NOT from a paper (illustrative): S, G, h, X, Y. Si permittivity: materials/silicon eps_r (Krupka 2006,
-# 6.6-11.5 GHz, float-zone high-resistivity Si) at 298.15 K, as an override because prepareRun passes no temperature to
-# library tables (DevLog-049 R1). Metal and Si losses are not modelled (quasi-static, lossless).
+# 6.6-11.5 GHz, float-zone high-resistivity Si) at the material temperature 298.15 K. Metal and Si losses are not
+# modelled (quasi-static, lossless).
 schema: amp-spec/0
 id: cpw-si-interposer
 title: CPW on a Si interposer, C', L' and Z0
@@ -29,7 +29,7 @@ geometry:
     - {id: air_bot, type: rect, settings: {size: ["2*X", "Y"], center: ["0 um", "-h - Y/2"]}}
 materials:
   - {id: air, override: {eps_r: 1}, select: ["dom:air_gl", "dom:air_sl", "dom:air_sig", "dom:air_sr", "dom:air_gr", "dom:air_bot"]}
-  - {id: silicon, ref: materials/silicon, override: {eps_r: 11.662595}, select: ["dom:si"]}
+  - {id: silicon, ref: materials/silicon, T: {value: 298.15, unit: K}, select: ["dom:si"]}
 physics:
   - id: es
     type: electrostatics
@@ -74,7 +74,7 @@ provenance:
     params.X: {basis: user, date: 2026-11-18, note: "modelling choice: truncation of the grounds and the box"}
     params.Y: {basis: user, date: 2026-11-18, note: "modelling choice: truncation of the air"}
     materials.air.override.eps_r: {basis: user, date: 2026-11-18, note: "vacuum, as assumed by the closed forms"}
-    materials.silicon.override.eps_r: {basis: measured, source: "materials/silicon.yaml eps_r (Krupka 2006 Fig. 2, digitized) linearly interpolated by @amp/materials at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
+    materials.silicon.T: {basis: user, date: 2026-11-18, note: "library eps_r of materials/silicon (Krupka 2006 Fig. 2, digitized, linear interpolation) evaluated at 298.15 K: 11.662595"}
     mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
     mesh.size.grading: {basis: user, date: 2026-11-18, note: "modelling choice"}
     mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: strip and ground edge singularities"}

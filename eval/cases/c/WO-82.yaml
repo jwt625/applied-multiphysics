@@ -133,6 +133,124 @@ references:
       case validation/cases/K2.yaml, accessed: '2026-11-18', generator: validation/modes3/references.py}
   extract: {kind: scalar, name: teFraction_0}
   note: 'informative: TE fraction definitions may differ between implementations'
+- id: neff_tidy3d.L0
+  quantity: n_eff TE0 vs a finite-difference solver (mesh level 0)
+  metric_id: neff_tidy3d
+  value: 1.8942388017402074
+  unit: '1'
+  tolerance: {abs: 0.0042, after: finest, note: 'tolerance = the reference''s own uncertainty band U (GCI, factor 1.25, of
+      its 3-level extrapolation, rounded up): the finite-difference reference converges at first order (staircase), so it
+      is far coarser than this engine''s levels'}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  provenance: {citation: 'Tidy3D 2.12.0 local finite-difference mode solver (staircase, no subpixel averaging, PEC window
+      edge), core cells 25 / 12.5 / 6.25 nm, observed-order extrapolation with a GCI band (factor 1.25); run and held by eo-modulator-atlas',
+    locator: 'eo-modulator-atlas validation/reference/K2-tidy3d.json (2026-10-14; re-extrapolated 2026-10-15; sha256 5568889c99058c2e...),
+      key extrapolated', accessed: '2026-11-18', generator: validation/photonics2/atlas_tidy3d.py (check of the inline values)}
+  extract: {kind: scalar, name: neff_0}
+  note: independent second solver (finite differences, other code); the atlas uses it as a sanity check, not a gate; gated
+    here at its own uncertainty band
+- id: neff_tidy3d.L1
+  quantity: n_eff TE0 vs a finite-difference solver (mesh level 1)
+  metric_id: neff_tidy3d
+  value: 1.8942388017402074
+  unit: '1'
+  tolerance: {abs: 0.0042, after: finest, note: 'tolerance = the reference''s own uncertainty band U (GCI, factor 1.25, of
+      its 3-level extrapolation, rounded up): the finite-difference reference converges at first order (staircase), so it
+      is far coarser than this engine''s levels'}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  provenance: {citation: 'Tidy3D 2.12.0 local finite-difference mode solver (staircase, no subpixel averaging, PEC window
+      edge), core cells 25 / 12.5 / 6.25 nm, observed-order extrapolation with a GCI band (factor 1.25); run and held by eo-modulator-atlas',
+    locator: 'eo-modulator-atlas validation/reference/K2-tidy3d.json (2026-10-14; re-extrapolated 2026-10-15; sha256 5568889c99058c2e...),
+      key extrapolated', accessed: '2026-11-18', generator: validation/photonics2/atlas_tidy3d.py (check of the inline values)}
+  extract: {kind: scalar, name: neff_0}
+  note: independent second solver (finite differences, other code); the atlas uses it as a sanity check, not a gate; gated
+    here at its own uncertainty band
+- id: ng_tidy3d.L0
+  quantity: group index TE0 vs a finite-difference solver (mesh level 0)
+  metric_id: ng_tidy3d
+  value: 2.2909194473393812
+  unit: '1'
+  tolerance: {abs: 0.00061, after: finest, note: 'tolerance = the reference''s own uncertainty band U (GCI, factor 1.25, of
+      its 3-level extrapolation, rounded up): the finite-difference reference converges at first order (staircase), so it
+      is far coarser than this engine''s levels'}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [0]
+  provenance: {citation: 'Tidy3D 2.12.0 local finite-difference mode solver (staircase, no subpixel averaging, PEC window
+      edge), core cells 25 / 12.5 / 6.25 nm, observed-order extrapolation with a GCI band (factor 1.25); run and held by eo-modulator-atlas',
+    locator: 'eo-modulator-atlas validation/reference/K2-tidy3d.json (2026-10-14; re-extrapolated 2026-10-15; sha256 5568889c99058c2e...),
+      key extrapolated', accessed: '2026-11-18', generator: validation/photonics2/atlas_tidy3d.py (check of the inline values)}
+  extract: {kind: scalar, name: ng_0}
+  note: independent second solver (finite differences, other code); the atlas uses it as a sanity check, not a gate; gated
+    here at its own uncertainty band
+- id: ng_tidy3d.L1
+  quantity: group index TE0 vs a finite-difference solver (mesh level 1)
+  metric_id: ng_tidy3d
+  value: 2.2909194473393812
+  unit: '1'
+  tolerance: {abs: 0.00061, after: finest, note: 'tolerance = the reference''s own uncertainty band U (GCI, factor 1.25, of
+      its 3-level extrapolation, rounded up): the finite-difference reference converges at first order (staircase), so it
+      is far coarser than this engine''s levels'}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: true
+  levels: [1]
+  provenance: {citation: 'Tidy3D 2.12.0 local finite-difference mode solver (staircase, no subpixel averaging, PEC window
+      edge), core cells 25 / 12.5 / 6.25 nm, observed-order extrapolation with a GCI band (factor 1.25); run and held by eo-modulator-atlas',
+    locator: 'eo-modulator-atlas validation/reference/K2-tidy3d.json (2026-10-14; re-extrapolated 2026-10-15; sha256 5568889c99058c2e...),
+      key extrapolated', accessed: '2026-11-18', generator: validation/photonics2/atlas_tidy3d.py (check of the inline values)}
+  extract: {kind: scalar, name: ng_0}
+  note: independent second solver (finite differences, other code); the atlas uses it as a sanity check, not a gate; gated
+    here at its own uncertainty band
+- id: teFraction_tidy3d.L0
+  quantity: TE fraction vs a finite-difference solver (mesh level 0)
+  metric_id: teFraction_tidy3d
+  value: 0.9903931572178755
+  unit: '1'
+  tolerance: {abs: 0.00044, after: finest, note: 'tolerance = the reference''s own uncertainty band U (GCI, factor 1.25, of
+      its 3-level extrapolation, rounded up): the finite-difference reference converges at first order (staircase), so it
+      is far coarser than this engine''s levels'}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [0]
+  provenance: {citation: 'Tidy3D 2.12.0 local finite-difference mode solver (staircase, no subpixel averaging, PEC window
+      edge), core cells 25 / 12.5 / 6.25 nm, observed-order extrapolation with a GCI band (factor 1.25); run and held by eo-modulator-atlas',
+    locator: 'eo-modulator-atlas validation/reference/K2-tidy3d.json (2026-10-14; re-extrapolated 2026-10-15; sha256 5568889c99058c2e...),
+      key extrapolated', accessed: '2026-11-18', generator: validation/photonics2/atlas_tidy3d.py (check of the inline values)}
+  extract: {kind: scalar, name: teFraction_0}
+  note: 'informative: TE fraction definitions may differ between implementations'
+- id: teFraction_tidy3d.L1
+  quantity: TE fraction vs a finite-difference solver (mesh level 1)
+  metric_id: teFraction_tidy3d
+  value: 0.9903931572178755
+  unit: '1'
+  tolerance: {abs: 0.00044, after: finest, note: 'tolerance = the reference''s own uncertainty band U (GCI, factor 1.25, of
+      its 3-level extrapolation, rounded up): the finite-difference reference converges at first order (staircase), so it
+      is far coarser than this engine''s levels'}
+  bounds: null
+  basis: D
+  form: solver_ref
+  gate: false
+  levels: [1]
+  provenance: {citation: 'Tidy3D 2.12.0 local finite-difference mode solver (staircase, no subpixel averaging, PEC window
+      edge), core cells 25 / 12.5 / 6.25 nm, observed-order extrapolation with a GCI band (factor 1.25); run and held by eo-modulator-atlas',
+    locator: 'eo-modulator-atlas validation/reference/K2-tidy3d.json (2026-10-14; re-extrapolated 2026-10-15; sha256 5568889c99058c2e...),
+      key extrapolated', accessed: '2026-11-18', generator: validation/photonics2/atlas_tidy3d.py (check of the inline values)}
+  extract: {kind: scalar, name: teFraction_0}
+  note: 'informative: TE fraction definitions may differ between implementations'
 reference_results: []
 convergence:
   levels_min: 2

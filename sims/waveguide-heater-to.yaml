@@ -1,0 +1,131 @@
+# PK-11 (eval/cases/c/PK-11.yaml): cross-section of the waveguide-under-heater stack of sims/waveguide-heater-3d.yaml,
+# heat -> em-modes through the thermo-optic coupling. The heater (width w_h) is a uniform heat flux on the cladding top
+# carrying P_h / L_h per unit length (an infinitely long heater of power P_h over L_h). Results: heater and core
+# temperature rise, effective-index change, phase per unit length and P_pi for a heater of length L_h at 1550 nm (TE).
+# Gate (validation/pkg2/heater_layers.py): the mean heater temperature rise lies between two variational bounds from
+# exact cosine-series solutions of layered models (rigorous, about 32 % wide). The phase is informative (no independent
+# mode reference); the same section feeds the phase estimate of the 3D model (case PK-10).
+# Modelling inputs NOT from a paper (illustrative): dimensions, P_h, L_h, T_sub, the optical window. Optical constants as
+# in sims/si-microheater-to.yaml (library values at 1.55 um and 293 K): Si n (Li 1980) and dn/dT (Li 1980), SiO2 n
+# (Malitson 1965) and dn/dT (Leviton and Frey 2006). k: Si materials/silicon at 298.15 K, oxide 1.38 W/(m K) (Corning).
+schema: amp-spec/0
+id: waveguide-heater-to
+title: Waveguide under a heater, thermo-optic cross-section
+description: Si strip under a thin-film heater on oxide; heat conduction feeds the mode solver through dn/dT; index change and phase per milliwatt at 1550 nm.
+params:
+  W: {value: 30, unit: um, description: model width (x)}
+  w_wg: {value: 0.5, unit: um, description: waveguide width}
+  t_wg: {value: 0.22, unit: um, description: waveguide thickness}
+  w_h: {value: 2, unit: um, description: heater width}
+  L_h: {value: 20, unit: um, description: heater length (sets the power per unit length)}
+  t_sub: {value: 15, unit: um, description: "Si substrate modelled (bottom held at T_sub)"}
+  t_box: {value: 2, unit: um, description: buried oxide thickness}
+  t_c: {value: 1, unit: um, description: oxide cladding above the core layer}
+  P_h: {value: 1, unit: mW, description: heater power}
+  T_sub: {value: 293.15, unit: K, description: substrate bottom temperature (= temperature of the index data)}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+  d_win: {value: 1.5, unit: um, description: "optical window depth below the core (modelling choice)"}
+geometry:
+  dim: 2
+  features:
+    - {id: sub, type: rect, settings: {size: ["W", "t_sub"], center: ["0 um", "-t_box - t_sub/2"]}}
+    - {id: boxl, type: rect, settings: {size: ["W", "t_box"], center: ["0 um", "-t_box/2"]}}
+    - {id: corel, type: rect, settings: {size: ["W", "t_wg"], center: ["0 um", "t_wg/2"]}}
+    - {id: core, type: rect, settings: {size: ["w_wg", "t_wg"], center: ["0 um", "t_wg/2"]}}
+    - {id: core_ox, type: difference, settings: {base: corel, tools: [core], keepTools: true}}
+    - {id: clad_l, type: rect, settings: {size: ["(W - w_h)/2", "t_c"], center: ["-(W + w_h)/4", "t_wg + t_c/2"]}}
+    - {id: clad_m, type: rect, settings: {size: ["w_h", "t_c"], center: ["0 um", "t_wg + t_c/2"]}}
+    - {id: clad_r, type: rect, settings: {size: ["(W - w_h)/2", "t_c"], center: ["(W + w_h)/4", "t_wg + t_c/2"]}}
+    - {id: win, type: rect, settings: {size: ["4 um", "d_win + t_wg + t_c"], center: ["0 um", "(t_wg + t_c - d_win)/2"]}}
+    - {id: opt, type: fragment, settings: {inputs: [win, boxl, core_ox, core, clad_l, clad_m, clad_r]}}
+materials:
+  - {id: Si, override: {n: 3.476687043586583, dndT: {value: 1.8181439688454373e-4, unit: 1/K}, k: {value: 149.038, unit: W/(m*K)}}, select: ["dom:sub", "dom:core"]}
+  - {id: SiO2, override: {n: 1.4444232909003691, dndT: {value: 8.161870601597343e-6, unit: 1/K}, k: {value: 1.38, unit: W/(m*K)}}, select: ["dom:boxl", "dom:core_ox", "dom:clad_l", "dom:clad_m", "dom:clad_r"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:sub", "dom:boxl", "dom:core_ox", "dom:core", "dom:clad_l", "dom:clad_m", "dom:clad_r"]
+    bcs:
+      - {id: heater, type: heat-flux, select: ["bnd:clad_m.top"], settings: {q: "P_h/(w_h*L_h)"}}
+      - {id: sink, type: temperature, select: ["bnd:sub.bottom"], settings: {T: "T_sub"}}
+  - id: ewg
+    type: em-modes
+    select: ["dom:win&boxl", "dom:win&core_ox", "dom:win&core", "dom:win&clad_l", "dom:win&clad_m", "dom:win&clad_r"]
+    settings: {order: 2}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:win.left", "bnd:win.right", "bnd:win.top", "bnd:win.bottom"]}
+couplings:
+  - {id: to, type: thermo-optic, from: ht, to: ewg, settings: {Tref: "T_sub", power: "P_h/L_h"}}
+mesh:
+  size: {hmax: "W/30", grading: 0.3}
+  refine:
+    - {select: ["dom:win&core", "dom:win&core_ox", "dom:win&clad_m"], h: "t_wg/4"}
+    - {select: ["bnd:core.left", "bnd:core.right", "bnd:core.top", "bnd:core.bottom"], h: "t_wg/16"}
+studies:
+  - {id: std1, type: mode, physics: [ht, ewg], settings: {wavelength: "lambda0", nModes: 2}}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: vline, type: cutline, data: sol_std1, from: ["0 um", "-t_box"], to: ["0 um", "t_wg + t_c"], n: 200}
+    - {id: hline, type: cutline, data: sol_std1, from: ["-W/2", "t_wg/2"], to: ["W/2", "t_wg/2"], n: 300}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      steps: first
+      items:
+        - {id: T_heater, type: average, expr: ht.T, unit: K, over: ["bnd:clad_m.top"], label: "mean heater temperature"}
+        - {id: T_core, type: average, expr: ht.T, unit: K, over: ["dom:core"], label: "mean core temperature"}
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+        - {id: dneff, type: global, expr: ewg.dneff_0, unit: "1", label: "effective-index change of the fundamental mode"}
+        - {id: dphidz, type: global, expr: ewg.dphidz_0, unit: rad/mm, label: "phase change per unit length"}
+        - {id: Ppi, type: global, expr: ewg.Ppi_0, unit: mW, label: "power for a pi shift with a heater of length L_h"}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: T_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: T_surf, type: surface, expr: ht.T, unit: K}
+    - id: E_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: E_surf, type: surface, expr: ewg.normE, unit: V/m}
+    - id: T_lines
+      type: plot1d
+      items:
+        - {id: T_vert, type: linegraph, data: vline, x: arc, expr: ht.T, unit: K}
+        - {id: T_horiz, type: linegraph, data: hline, x: arc, expr: ht.T, unit: K}
+provenance:
+  values:
+    params.W: {basis: user, date: 2026-11-18, note: "illustrative modelling input (adiabatic sides), not from a paper"}
+    params.w_wg: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.t_wg: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.w_h: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.L_h: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.t_sub: {basis: user, date: 2026-11-18, note: "modelling choice: thin substrate slab, isothermal bottom"}
+    params.t_box: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.t_c: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.P_h: {basis: user, date: 2026-11-18, note: "1 mW: per-milliwatt results (linear in the temperature field)"}
+    params.T_sub: {basis: user, date: 2026-11-18, note: "293.15 K, the temperature of the Li 1980 index data"}
+    params.lambda0: {basis: user, date: 2026-11-18, note: "telecom C band"}
+    params.d_win: {basis: user, date: 2026-11-18, note: "modelling choice (PEC wall 1.5 um below the core)"}
+    materials.Si.override.n: {basis: derived, source: "materials/silicon.yaml n (Li 1980 p.576 Table 1, 293 K) at 1.55 um, vacuum wavelength (value as in sims/si-microheater-to.yaml)", date: 2026-11-18}
+    materials.Si.override.dndT: {basis: derived, source: "materials/silicon.yaml dndT (Li 1980 p.578 Table 2, 293 K) at 1.55 um (value as in sims/si-microheater-to.yaml)", date: 2026-11-18}
+    materials.Si.override.k: {basis: measured, source: "materials/silicon.yaml k (HPL 1972) at 298.15 K", date: 2026-11-18, note: "constant k"}
+    materials.SiO2.override.n: {basis: derived, source: "materials/sio2-thermal-oxide.yaml n (Malitson 1965 Sellmeier) at 1.55 um (value as in sims/si-microheater-to.yaml)", date: 2026-11-18}
+    materials.SiO2.override.dndT: {basis: derived, source: "materials/sio2-thermal-oxide.yaml dndT (Leviton and Frey 2006, bulk Corning 7980) at 1.55 um, 293.15 K (value as in sims/si-microheater-to.yaml)", date: 2026-11-18, note: "bulk fused silica stands in for the oxide film"}
+    materials.SiO2.override.k: {basis: datasheet, source: "materials/sio2-thermal-oxide.yaml k (Corning HPFS 7980: 1.38 W/(m K), bulk value used for the film)", date: 2026-11-18}
+    couplings.to.settings.Tref: {basis: user, date: 2026-11-18, note: "= T_sub: zero index change at zero heater power"}
+    couplings.to.settings.power: {basis: derived, source: "P_h / L_h (heater power per unit length of the 2D section)", date: 2026-11-18}
+    geometry.features.8.settings.size: {basis: user, date: 2026-11-18, note: "modelling choice: optical window 4 um wide from 1.5 um below the core to the cladding top (PEC walls)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice (core corners)"}
+assumptions:
+  - {text: "Thin-film heater as a uniform heat flux on the cladding top (no heater domain): its thickness, conduction and optical absorption are not modelled", paths: [physics.ht.bcs]}
+  - {text: "Infinitely long heater section: power per unit length P_h / L_h; heater ends are treated by the 3D model", paths: [couplings.to]}
+  - {text: "Optical window closed by PEC walls; the cladding top (1 um above the core) is the upper wall", paths: [physics.ewg]}
+  - {text: "dn/dT at 293 K, constant over the small temperature rise; constant k", paths: [materials]}
+# eval: [PK-11]

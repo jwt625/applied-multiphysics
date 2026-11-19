@@ -1,0 +1,80 @@
+# WO-88 (eval/cases/c/WO-88.yaml): 1D slot waveguide, five layers SiO2 / Si / SiO2 slot / Si / SiO2, at 1550 nm; the
+# fundamental mode with E normal to the layers (TM of the slab: H = H_x(y)), whose E_y jumps by eps_Si / eps_SiO2 into the
+# slot. Reduced to the 2D vector mode solver as in sims/si-slab-tm0.yaml: a narrow window in x (layers invariant in x),
+# PEC walls at y = +-L, natural x walls (exact for the x-invariant TM mode). Rail thickness, slot width and indices: the
+# FIG. 1 slot waveguide of M. Lipson, C. Angulo Barrios, V. R. Almeida, R. R. Panepucci, Q. Xu, US patent 7,519,257 B2
+# (2009-04-14) (rails w_h 220 nm wide, slot w_s 100 nm, h 250 nm, n_H 3.48, n_C 1.44 around 1.55 um), used in its 1D
+# (slab) form. Reference: exact transfer-matrix dispersion relation
+# (validation/photonics2/slot_slab.py).
+schema: amp-spec/0
+id: si-slot-slab
+title: Silicon slot waveguide (1D slot)
+description: Two 220 nm Si layers around a 100 nm oxide slot at 1550 nm; the mode with E normal to the layers concentrates in the low-index slot.
+params:
+  w_rail: {value: 220, unit: nm, description: Si rail thickness}
+  w_slot: {value: 100, unit: nm, description: slot width (low-index gap)}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+  L: {value: "w_slot/2 + w_rail + 2.5[um]", description: "half height of the window, modelling choice (cladding 2.5 um beyond the rails)"}
+  W: {value: 0.1, unit: um, description: "window width in x, modelling choice"}
+geometry:
+  dim: 2
+  features:
+    - {id: clad_box, type: rect, settings: {size: ["W", "2*L"], center: ["0 um", "0 um"]}}
+    - {id: rail_t, type: rect, settings: {size: ["W", "w_rail"], center: ["0 um", "w_slot/2 + w_rail/2"]}}
+    - {id: rail_b, type: rect, settings: {size: ["W", "w_rail"], center: ["0 um", "-(w_slot/2 + w_rail/2)"]}}
+    - {id: slot, type: rect, settings: {size: ["W", "w_slot"], center: ["0 um", "0 um"]}}
+    - {id: clad, type: difference, settings: {base: clad_box, tools: [rail_t, rail_b, slot], keepTools: true}}
+materials:
+  - {id: Si, override: {n: 3.48}, select: ["dom:rail_t", "dom:rail_b"]}
+  - {id: SiO2, override: {n: 1.44}, select: ["dom:clad", "dom:slot"]}
+physics:
+  - id: ewg
+    type: em-modes
+    select: ["dom:clad", "dom:rail_t", "dom:rail_b", "dom:slot"]
+    settings: {order: 2}
+    bcs:
+      - {id: walls, type: pec, select: ["bnd:clad_box.top", "bnd:clad_box.bottom"]}
+mesh:
+  size: {hmax: "W/2"}
+  refine:
+    - {select: ["dom:rail_t", "dom:rail_b"], h: "w_rail/8"}
+    - {select: ["dom:slot"], h: "w_slot/8"}
+studies:
+  - {id: modes, type: mode, physics: [ewg], settings: {wavelength: "lambda0", nModes: 1}}
+results:
+  datasets:
+    - {id: sol_modes, type: solution, data: modes}
+    - {id: across, type: cutline, data: sol_modes, from: ["0 um", "-(w_slot/2 + w_rail + 1[um])"], to: ["0 um", "w_slot/2 + w_rail + 1[um]"], n: 600}
+  evaluations:
+    - id: ev_modes
+      data: sol_modes
+      items:
+        - {id: neff, type: global, expr: ewg.neff_0, unit: "1"}
+  tables:
+    - {id: tbl_modes, from: ev_modes}
+  plots:
+    - id: E_map
+      type: plot2d
+      data: sol_modes
+      items:
+        - {id: E_map_surf, type: surface, expr: ewg.normE, unit: V/m}
+    - id: E_line
+      type: plot1d
+      items:
+        - {id: E_curve, type: linegraph, data: across, x: arc, expr: ewg.normE, unit: V/m}
+provenance:
+  values:
+    params.w_rail: {basis: paper_exact, source: "M. Lipson, C. Angulo Barrios, V. R. Almeida, R. R. Panepucci, Q. Xu, US patent 7,519,257 B2 (2009-04-14), FIG. 1 embodiment", locator: "description: width of high refractive index regions wh = 220 +- 10 nm", date: 2026-11-18, note: "rail width of the 2D example used as the rail thickness of the 1D slot (modelling choice)"}
+    params.w_slot: {basis: paper_exact, source: "US patent 7,519,257 B2 (2009-04-14), FIG. 1 embodiment", locator: "description: width of slot ws = 100 +- 10 nm", date: 2026-11-18}
+    params.lambda0: {basis: paper_exact, source: "US patent 7,519,257 B2 (2009-04-14)", locator: "description: at a wavelength around 1.55 um", date: 2026-11-18}
+    params.L: {basis: user, date: 2026-11-18, note: "modelling choice: field at the wall about exp(-2 pi / 1.55 um * sqrt(2.329^2 - 1.44^2) * 2.5 um) = 1e-8 of the rail value"}
+    params.W: {basis: user, date: 2026-11-18, note: "modelling choice as sims/si-slab-tm0.yaml"}
+    materials.Si.override.n: {basis: paper_exact, source: "US patent 7,519,257 B2 (2009-04-14)", locator: "description: refractive index of the silicon nH = 3.48 around 1.55 um", date: 2026-11-18}
+    materials.SiO2.override.n: {basis: paper_exact, source: "US patent 7,519,257 B2 (2009-04-14)", locator: "description: silicon oxide nC = 1.44 around 1.55 um (slot filled with the cladding oxide)", date: 2026-11-18}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "Indices are constants at 1550 nm (no dispersion); slot and cladding are the same oxide", paths: [materials]}
+  - {text: "1D slot (layers infinite in x): the patent's 2D slot cross-section is reduced to its slab form", paths: [geometry]}
+# eval: [WO-88]

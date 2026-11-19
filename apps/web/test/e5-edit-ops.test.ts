@@ -56,7 +56,7 @@ test('add: menus from the registry; templates hold id, type and empty containers
 	const before = h.log.text;
 	ok(await applyTreeOp(h, { op: 'add', parent: '/geometry', type: 'rect' }, { reg }));
 	assert.equal(h.log.ops.length, 1);
-	assert.ok(h.log.text.includes('# H1 Plate with a hole'), 'comments kept');
+	assert.ok(h.log.text.includes('# Plate with a hole'), 'comments kept');
 	assert.equal((h.data as { geometry: { features: unknown[] } }).geometry.features.length, 4);
 	await h.log.undo({ actor: 'user' });
 	assert.equal(h.log.text, before);

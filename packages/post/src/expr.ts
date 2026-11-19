@@ -20,7 +20,7 @@ import type { FieldData, Mesh, Solution } from '@amp/spec/types';
 import { compileExpression, ExpressionError, type CompiledExpression, type ScopeEntry } from '@amp/core/expr';
 import { parseUnit, DIMLESS, type Dim } from '@amp/core/units';
 import { fieldOf, meshOf } from './store.ts';
-import { interpolate, locatePoints, type PointSet } from './points.ts';
+import { elementNodalOf, interpolate, locatePoints, type DerivedMode, type PointSet } from './points.ts';
 
 const M: Dim = [1, 0, 0, 0, 0];
 const S: Dim = [0, 0, 1, 0, 0];
@@ -42,6 +42,11 @@ export interface ExprOptions {
    * counts as continuous. For plots (cut lines, cut points, grids); evaluations of extrema / integrals should keep
    * the default (exact cell values). */
   smooth?: boolean;
+  /** how fields with element values (`elementNodal`: derived fields such as stresses) are read: 'recovered' (default:
+   * per-material recovery, continuous inside each material group, the value of the group of the cell that holds the point),
+   * 'element' (each cell's own element values, discontinuous between cells) or 'averaged' (the producer's
+   * nodal mean across interfaces). Points.ts `DerivedMode`; no effect on other fields. */
+  derived?: DerivedMode;
 }
 
 export interface FieldExpr {
@@ -55,6 +60,8 @@ export interface FieldExpr {
   constant: number | null;
   /** solution fields read, by name */
   fields: string[];
+  /** true when a field was read through its element values (`derived: 'element'` and the field has `elementNodal`) */
+  elementValued: boolean;
   /** values at the point set (NaN outside the mesh) */
   evaluate(ps: PointSet): Float64Array;
 }
@@ -100,6 +107,9 @@ function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defs
   const tagged = new Set(sol.fields.flatMap((f) => (f.physics !== undefined ? [f.physics] : [])));
   const sources = new Map<string, Source>();
   const fieldsRead = new Set<string>();
+  let elementValued = false;
+  // a field read through its own element values: discontinuous between cells
+  const byElement = (f: FieldData): boolean => { const e = o.derived === 'element' && f.space !== 'DG0' && !!elementNodalOf(mesh, f); if (e) elementValued = true; return e; };
   // d(f, v) -> synthetic name __d<k>
   const dcalls: Array<{ f: string; v: string }> = [];
   if (/(?<![A-Za-z0-9_.])__d/.test(src0)) throw new ExpressionError(`expression "${src0}": names starting with __d are reserved`);
@@ -159,6 +169,7 @@ function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defs
         if (ax === null) throw new ExpressionError(`expression "${src0}": d(${f}, ${v}): '${v}' is not a coordinate (${axisym ? 'r, z on an axisymmetric mesh' : dim === 3 ? 'x, y, z, r' : 'x, y, r'})`);
         if (r.field.space === 'DG0') throw new ExpressionError(`expression "${src0}": d(${f}, ${v}): '${r.field.name}' is DG0 (piecewise constant); its derivative is not defined`);
         fieldsRead.add(r.field.name);
+        byElement(r.field);
         sources.set(name, { k: 'grad', field: r.field, comp: r.comp, v: ax });
         return { kind: 'field', key: name, dim: PER_M(fieldDim(r.field)), complex: false, continuous: false };
       }
@@ -171,6 +182,7 @@ function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defs
         let c = defsDone.get(name);
         if (!c) { c = compileOn(mesh, sol, o.defs[name]!, o, defsDone, [...chain, name]); defsDone.set(name, c); }
         for (const f of c.fields) fieldsRead.add(f);
+        if (c.elementValued) elementValued = true;
         if (c.constant !== null) return { kind: 'const', re: c.constant, dim: c.dim };
         sources.set(name, { k: 'def', name });
         return { kind: 'field', key: name, dim: c.dim, complex: false, continuous: c.continuous };
@@ -187,7 +199,7 @@ function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defs
         clash('field');
         fieldsRead.add(fr.field.name);
         sources.set(name, { k: 'field', field: fr.field, comp: fr.comp });
-        return { kind: 'field', key: name, dim: fieldDim(fr.field), complex: false, continuous: fr.field.space !== 'DG0' || !!o.smooth };
+        return { kind: 'field', key: name, dim: fieldDim(fr.field), complex: false, continuous: fr.field.space === 'DG0' ? !!o.smooth : !byElement(fr.field) };
       }
       const sc = scalarRef(name);
       if (sc) { clash('module scalar'); const u = parseUnit(sc.unit || '1'); return { kind: 'const', re: sc.value * u.factor, dim: u.dim, global: true }; }
@@ -219,7 +231,7 @@ function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defs
     const interp = (f: FieldData, grad: boolean) => {
       const c = cache.get(f);
       if (c && (!grad || c.grad)) return c;
-      const r = interpolate(f, ps, { grad, ...(o.smooth ? { smooth: true } : {}) });
+      const r = interpolate(f, ps, { grad, ...(o.smooth ? { smooth: true } : {}), ...(o.derived ? { derived: o.derived } : {}) });
       cache.set(f, r);
       return r;
     };
@@ -285,7 +297,7 @@ function compileOn(mesh: Mesh, sol: Solution, src0: string, o: ExprOptions, defs
   };
   return {
     src: src0, unit: ce.unit, dim: ce.dim, continuous: ce.continuous,
-    constant: ce.constant ? ce.constant.re : null, fields: [...fieldsRead], evaluate,
+    constant: ce.constant ? ce.constant.re : null, fields: [...fieldsRead], elementValued, evaluate,
   };
 }
 

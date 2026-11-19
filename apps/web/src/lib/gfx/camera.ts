@@ -46,10 +46,14 @@ export interface CameraTarget {
 	preset(dir: [number, number, number], lookAt: [number, number, number] | null): void;
 	pose(): CameraPose | null;
 	setPose(p: CameraPose): void;
+	/** look-at point of a preset without lookAt (the view centre, model frame, m) */
+	centre?(): [number, number, number];
 }
 
 let target: CameraTarget | null = null;
 let last: CameraPreset | null = null;
+/** look-at point of the last preset applied with an explicit lookAt (model frame); null = the view centre */
+let lastLook: [number, number, number] | null = null;
 let pending: CameraPose | CameraPreset | null = null;
 
 /** Canvas3D registers the mounted view; returns the unregister function. A pose queued before the mount is applied. */
@@ -58,7 +62,7 @@ export function registerCameraTarget(t: CameraTarget): () => void {
 	if (pending) {
 		const p = pending;
 		pending = null;
-		if (typeof p === 'string') t.preset(presetDirection(p), null);
+		if (typeof p === 'string') { t.preset(presetDirection(p), null); lastLook = null; }
 		else t.setPose(p);
 	}
 	return () => { if (target === t) target = null; };
@@ -75,7 +79,27 @@ export function setCameraPreset(preset: string, lookAt?: [number, number, number
 	if (lookAt !== undefined && !finite3(lookAt)) return false;
 	target.preset(presetDirection(preset), lookAt ?? null);
 	last = preset;
+	lastLook = lookAt ? [lookAt[0], lookAt[1], lookAt[2]] : null;
 	return true;
+}
+
+/**
+ * The preset whose direction the pose looks along (camera minus look-at point, within `tolDeg` degrees), else null
+ * (a free orbit: the camera select shows "custom"). With `lookAt` (a look-at point of a preset view: currentPreset() passes the view centre and the last explicit lookAt), the
+ * pose's look-at point must also lie within tan(tolDeg) x the camera distance of it (a pan is not a preset view).
+ */
+export function presetOfPose(p: CameraPose | null, tolDeg = 0.5, lookAt?: [number, number, number] | null): CameraPreset | null {
+	if (!p) return null;
+	const d = [p.pos[0] - p.target[0], p.pos[1] - p.target[1], p.pos[2] - p.target[2]];
+	const n = Math.hypot(d[0]!, d[1]!, d[2]!);
+	if (!(n > 0) || !Number.isFinite(n)) return null;
+	if (lookAt && Math.hypot(p.target[0] - lookAt[0], p.target[1] - lookAt[1], p.target[2] - lookAt[2]) > n * Math.tan((tolDeg * Math.PI) / 180)) return null;
+	const c = Math.cos((tolDeg * Math.PI) / 180);
+	for (const k of CAMERA_PRESETS) {
+		const u = presetDirection(k);
+		if ((u[0] * d[0]! + u[1] * d[1]! + u[2] * d[2]!) / n >= c) return k;
+	}
+	return null;
 }
 
 /** Last preset applied through setCameraPreset (null after a free orbit is not tracked). */
@@ -87,6 +111,16 @@ export function hasCameraView(): boolean {
 	return target !== null;
 }
 
+/** Preset of the mounted view's pose (camera select): the view direction of a preset and a look-at point a preset
+ *  view has (the view centre, or the last preset's explicit lookAt); null after a free orbit or a pan. */
+export function currentPreset(tolDeg = 0.5): CameraPreset | null {
+	const p = cameraPose();
+	const looks = [target?.centre?.() ?? null, lastLook].filter((x): x is [number, number, number] => x !== null);
+	if (!looks.length) return presetOfPose(p, tolDeg);
+	for (const L of looks) { const k = presetOfPose(p, tolDeg, L); if (k) return k; }
+	return null;
+}
+
 /** Current pose of the mounted 3D view (model frame), null without one. */
 export function cameraPose(): CameraPose | null {
 	return target?.pose() ?? null;
@@ -95,7 +129,7 @@ export function cameraPose(): CameraPose | null {
 /** Apply a pose or preset now, or when the next 3D view mounts (link restore). */
 export function applyCamera(p: CameraPose | CameraPreset): void {
 	if (target) {
-		if (typeof p === 'string') target.preset(presetDirection(p), null);
+		if (typeof p === 'string') { target.preset(presetDirection(p), null); lastLook = null; }
 		else target.setPose(p);
 	} else pending = p;
 }

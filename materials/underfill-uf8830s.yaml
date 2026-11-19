@@ -21,6 +21,11 @@ sources:
     url: https://dm.henkel-dam.com/is/content/henkel/lt-8234-Product_information_sheet-loctite-eccobond-uf-8830s
     access: vendor_open
     read: "text layer p.1-2 of the PDF fetched 2026-11-18 (sha256 2f351fadff75f497..., 2 pages, PDF creation date 2019-10-22; PDF not kept): table 'Thermal Properties' (Tg by TMA 118 C, CTE1 25, CTE2 100 ppm, DMA 3-point bend modulus 11,496 MPa at 25 C and 352 MPa at 250 C, tan delta peak 127 C); no thermal conductivity on the sheet"
+  krayden_uf8830s:
+    citation: "Krayden (distributor; former CAPLINQ product page, which redirects there), product page 'Loctite Eccobond UF8830S | Semiconductor capillary underfill that achieves MSL 3/2A', Technical Specifications section"
+    url: https://www.krayden.com/products/eccobond-uf8830s
+    access: open
+    read: "raw HTML fetched 2026-11-18 (sha256 af43a61ad231b7c4..., page not kept; https://www.caplinq.com/loctite-eccobond-uf8830s-semiconductor-capillary-underfill-that-achieves-msl-3/2a-uf8830s.html returns HTTP 301 to this page): Technical Specifications rows Pot Life 24 hours, Specific Gravity 1.6, Tg 118 C, Thermal Conductivity '0.6 W/m.K', Thixotropic index 0.85, Viscosity 22,120 mPa.s; no test method, temperature or source document stated for any row. DISTRIBUTOR listing, not a Henkel document"
 properties:
   E:
     value: 11500
@@ -98,8 +103,19 @@ properties:
   k:
     value: N/A
     unit: W/(m*K)
-    missing: "thermal conductivity on neither Henkel document read (TDS January 2017, product information sheet LT-8234 6/19; checked 2026-11-18). A distributor listing (Caplinq) is reported by a web search to show 0.6 W/(m K); the page was not readable on 2026-11-18 (HTTP 522, redirect to another distributor), so no value is stored. Sims that need k use a labelled override"
-    alternatives: []
+    missing: "thermal conductivity in no Henkel document read. Checked 2026-11-18: TDS January 2017 and product information sheet LT-8234 (6/19) (both read earlier on 2026-11-18, no k); Henkel brochure LT-6885 (10/25) 'High-Performance Materials for Telecom and Datacom Optoelectronics' (sha256 566b4a1cceee32e6..., pdf p.21 and p.39 underfill tables list viscosity, CTE alpha1 / alpha2, Tg, pot life only); Henkel product pages henkel-adhesives.com (301 to next.henkel-adhesives.com, then HTTP 404). Only a distributor listing gives a value (alternative distributor_listing, read 2026-11-18); sims that need k use a labelled override or that alternative"
+    alternatives:
+      - id: distributor_listing
+        use: "DISTRIBUTOR listing (Krayden, ex-CAPLINQ page), not a manufacturer document; no test method or temperature; use only as a labelled placeholder"
+        value: 0.6
+        unit: W/(m*K)
+        basis: datasheet
+        source: krayden_uf8830s
+        locator: "product page, Technical Specifications > Thermal Properties > Thermal Conductivity: '0.6 W/m.K'"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated; one significant digit as listed"}
+        conditions: {text: "cured state, method and temperature not stated by the distributor; not traceable to a Henkel document read here"}
+        valid: {T: {na: "temperature not stated"}}
   rho:
     value: N/A
     unit: kg/m^3

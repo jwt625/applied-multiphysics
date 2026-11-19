@@ -1,4 +1,4 @@
-# EM-01 (eval/cases/a/EM-01.yaml): coaxial line, TEM C', L', Z0 from 2D electrostatics (L4 gate packages/physics/gates/em.ts EM-01).
+# EM-01 (eval/cases/a/EM-01.yaml): coaxial line, TEM C', L', Z0 from 2D electrostatics (verification gate packages/physics/gates/em.ts EM-01).
 schema: amp-spec/0
 id: coax-line
 title: Coaxial line

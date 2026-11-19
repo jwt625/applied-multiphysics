@@ -5,7 +5,7 @@
 // R_ab = int h N_a N_b w dS and G_a = int g N_a w dS (Robin / flux). Every mesh node is a DOF (tri6 / tet10 nodes
 // included). Solves: supernodal Cholesky (@amp/core la/sparse), or AMG-preconditioned CG on request.
 
-import type { Mesh } from '@amp/spec/types';
+import type { Mesh, SolverRecord } from '@amp/spec/types';
 import { analyze, blockElementSlots, blockPattern, buildElementPattern, elementSlots, entryIndex, SparseCholesky } from '@amp/core/la/sparse';
 import { buildAMG } from '@amp/core/la/amg';
 import { NPC, nCells, nNodes } from './mesh.ts';
@@ -236,10 +236,30 @@ export interface LinearStats { solver: string; dof: number; nnz: number; iterati
 
 // ---------------------------------------------------------------------------------- linear solver from the study (S4)
 
+/**
+ * run.solver of a merged multiphysics solution (driver): byPhysics = the per-physics records (keyed like
+ * stats.byPhysics); the top-level record is 'direct' with nulls when every record is direct, else the first iterative
+ * kind in solve order with the maxima of rtol, iterations and residual over the records of that kind.
+ */
+export function mergeSolverRecords(byPhysics: ReadonlyArray<readonly [string, SolverRecord | undefined]>): (SolverRecord & { byPhysics: Record<string, SolverRecord> }) | undefined {
+  const got = byPhysics.filter((x): x is readonly [string, SolverRecord] => !!x[1]).map(([k, r]) => [k, { kind: r.kind, rtol: r.rtol, iterations: r.iterations, residual: r.residual }] as const);
+  if (!got.length) return undefined;
+  const it = got.map((x) => x[1]).filter((r) => r.kind !== 'direct');
+  const kind = it[0]?.kind;
+  const same = it.filter((r) => r.kind === kind);
+  const mx = (f: (r: SolverRecord) => number | null) => { const v = same.map(f).filter((x): x is number => x !== null); return v.length ? Math.max(...v) : null; };
+  const top: SolverRecord = kind ? { kind, rtol: mx((r) => r.rtol), iterations: mx((r) => r.iterations), residual: mx((r) => r.residual) } : { kind: 'direct', rtol: null, iterations: null, residual: null };
+  return { ...top, byPhysics: Object.fromEntries(got) };
+}
+
 /** Study-level linear solver setting (stationary study `settings.solver`, DevLog-045). */
 export type SolverSetting = 'direct' | 'amg-pcg' | 'auto';
-/** Physics types whose SpdSolver follows the study setting (scalar SPD problems; scalar AMG does not suit elasticity). */
-export const STUDY_SOLVER_TYPES: readonly string[] = ['heat', 'electrostatics', 'currents'];
+/**
+ * Physics types whose SpdSolver follows the study setting: the scalar SPD problems (scalar smoothed-aggregation AMG) and
+ * static elasticity (smoothed aggregation with the rigid-body near-nullspace, la/amg-sa.mjs, DevLog-060). Eigen
+ * studies are not affected (their solver setting belongs to the eigen solve).
+ */
+export const STUDY_SOLVER_TYPES: readonly string[] = ['heat', 'electrostatics', 'currents', 'elastic'];
 /**
  * 'auto' rule (measured, DevLog-045 s.3.3): the direct factor's cost per DOF (symbolic flops / n, from the AMD analysis the
  * direct path needs anyway) against AMG-PCG's roughly constant cost per DOF. Break-even measured near 3e5 flop/DOF
@@ -258,11 +278,27 @@ export function autoSolverChoice(n: number, flops: number, nnzL: number): { kind
   if (fpd >= AUTO_FLOPS_PER_DOF) return { kind: 'amg-pcg', reason: `direct factor ${fpd.toExponential(2)} flop/DOF >= ${AUTO_FLOPS_PER_DOF.toExponential(0)}` };
   return { kind: 'cholesky', reason: `direct factor ${fpd.toExponential(2)} flop/DOF < ${AUTO_FLOPS_PER_DOF.toExponential(0)}` };
 }
+/** AMG-PCG stops after 2000 iterations; a result whose relative residual is above rtol but within this factor of it is
+ *  accepted (withStudySolver states it in a solution note), above it is an error. */
+export const PCG_ACCEPT_FACTOR = 10;
 /** Default relative residual of the study-selected AMG-PCG (||b - A x|| / ||b||). */
 export const STUDY_AMG_RTOL = 1e-10;
 
-interface SolveRecord { kind: 'cholesky' | 'amg-pcg'; dof: number; rtol?: number; iterations?: number; residual?: number; reason?: string }
-interface Ambient { setting: SolverSetting; rtol: number; records: SolveRecord[] }
+interface SolveRecord { kind: 'cholesky' | 'amg-pcg'; dof: number; rtol?: number; iterations?: number; residual?: number; reason?: string; /** run.solver only (not in the study-setting note) */ silent?: boolean }
+
+/**
+ * Machine-readable record (C5 RunRecord.solver) of the linear solves of one module run: 'amg-pcg' when any solve was
+ * iterative (rtol, iterations and residual: the maxima over the iterative solves), else 'direct' with nulls.
+ */
+export function solverRecordOf(records: ReadonlyArray<{ kind: 'cholesky' | 'amg-pcg'; rtol?: number; iterations?: number; residual?: number }>): SolverRecord {
+  const it = records.filter((r) => r.kind === 'amg-pcg');
+  if (!it.length) return { kind: 'direct', rtol: null, iterations: null, residual: null };
+  return {
+    kind: 'amg-pcg', rtol: Math.max(...it.map((r) => r.rtol ?? 0)),
+    iterations: Math.max(...it.map((r) => r.iterations ?? 0)), residual: Math.max(...it.map((r) => r.residual ?? 0)),
+  };
+}
+interface Ambient { setting: SolverSetting | null; rtol: number; records: SolveRecord[] }
 let ambient: Ambient | null = null;
 
 /** The `solver` / `rtol` settings of a study node (undefined when absent; throws on a bad value). */
@@ -282,22 +318,34 @@ export function studySolverSetting(study: { settings?: unknown } | null | undefi
  * STUDY_AMG_RTOL), 'auto' (autoSolverChoice on the AMD symbolic analysis: AMG-PCG when the direct factor costs
  * >= AUTO_FLOPS_PER_DOF flop per DOF or needs > AUTO_MAX_FACTOR_BYTES, else direct). The solution's stats.solver,
  * stats.residual and a note report the solver, tolerance, iterations and achieved relative residual. Without the
- * setting, or for other physics, the module runs unchanged. The setting is held in module state for the duration of
+ * setting, or for other physics, the module runs unchanged. For these physics (outside eigen studies) the run record
+ * gets `run.solver` (solverRecordOf over every SpdSolver the module created; with or without the setting). The setting is held in module state for the duration of
  * run(): one run at a time per JS realm (true for the worker and the eval harness's worker per case).
  */
 export async function withStudySolver<T>(study: { settings?: unknown } | null | undefined, physicsType: string | undefined, run: () => Promise<T>): Promise<T> {
-  const st = physicsType && STUDY_SOLVER_TYPES.includes(physicsType) ? studySolverSetting(study) : undefined;
-  if (!st) return run();
+  if (!physicsType || !STUDY_SOLVER_TYPES.includes(physicsType) || (study as { type?: string } | null | undefined)?.type === 'eigen') return run();
+  const st = studySolverSetting(study);
   const prev = ambient;
-  const amb: Ambient = { setting: st.solver, rtol: st.rtol, records: [] };
+  // without a study setting the ambient only records the module's own choices (run.solver), nothing is switched
+  const amb: Ambient = { setting: st?.solver ?? null, rtol: st?.rtol ?? STUDY_AMG_RTOL, records: [] };
   ambient = amb;
   let sol: T;
   try { sol = await run(); } finally { ambient = prev; }
-  const amg = amb.records.filter((r) => r.kind === 'amg-pcg');
-  const o = sol as unknown as { stats?: { solver?: string; residual?: number }; notes?: string[] };
-  if (o && o.stats && amb.records.length) {
-    const maxDof = Math.max(...amb.records.map((r) => r.dof));
-    const why = [...new Set(amb.records.map((r) => r.reason).filter(Boolean))];
+  const recs = amb.records.filter((r) => !r.silent);
+  const amg = recs.filter((r) => r.kind === 'amg-pcg');
+  const o = sol as unknown as { stats?: { solver?: string; residual?: number }; notes?: string[]; run?: { solver?: SolverRecord } };
+  if (o && o.run && amb.records.length) o.run.solver = solverRecordOf(amb.records);
+  // AMG-PCG accepts a result up to PCG_ACCEPT_FACTOR x rtol (SpdSolver.pcg); a solve that stopped above rtol is stated
+  // (DevLog-066), with or without a study setting; run.solver.residual keeps the achieved value
+  const missed = amb.records.filter((r) => r.kind === 'amg-pcg' && r.rtol !== undefined && (r.residual ?? 0) > r.rtol);
+  if (o && missed.length) {
+    const worst = missed.reduce((a, r) => ((r.residual ?? 0) / r.rtol! > (a.residual ?? 0) / a.rtol! ? r : a));
+    o.notes = [...(o.notes ?? []), `linear solver: AMG-PCG stopped above its tolerance in ${missed.length} solve(s) (worst: relative residual ${(worst.residual ?? 0).toExponential(2)} after ${worst.iterations ?? 0} iterations, rtol ${worst.rtol}, ${worst.dof} DOF); results accepted up to ${PCG_ACCEPT_FACTOR} x rtol`];
+  }
+  if (!st) return sol;
+  if (o && o.stats && recs.length) {
+    const maxDof = Math.max(...recs.map((r) => r.dof));
+    const why = [...new Set(recs.map((r) => r.reason).filter(Boolean))];
     const head = `linear solver (study setting '${st.solver}'${why.length ? `; ${why.join('; ')}` : ''})`;
     let note: string;
     if (amg.length) {
@@ -311,21 +359,31 @@ export async function withStudySolver<T>(study: { settings?: unknown } | null | 
   return sol;
 }
 
-/** Reusable SPD solver on a fixed restricted pattern: Cholesky (default) or AMG-PCG. */
+/** A symmetric preconditioner (one cycle: x = M^-1 b, x overwritten) and its level sizes. */
+export interface Preconditioner { cycle: (b: Float64Array, x: Float64Array) => unknown; levels: { n: number; nnz: number }[] }
+
+/**
+ * Reusable SPD solver on a fixed restricted pattern: Cholesky (default) or AMG-PCG. With `o.amg` (vector
+ * problems, e.g. elasticity: smoothed aggregation with the rigid-body modes, la/amg-sa.mjs) AMG-PCG uses the
+ * preconditioner it builds from the matrix; without it, the scalar smoothed aggregation (la/amg.mjs, constant vector).
+ */
 export class SpdSolver {
   pat: Csr;
   kind: 'cholesky' | 'amg-pcg';
   private chol: SparseCholesky | null = null;
-  private amg: ReturnType<typeof buildAMG> | null = null;
+  private amg: Preconditioner | null = null;
   private val: Float64Array | null = null;
   private rec: SolveRecord | null = null;
+  private amgBuild: ((A: Csr & { val: Float64Array }) => Preconditioner) | undefined;
   lastIterations = 0;
   lastResidual = 0;
   rtol: number;
-  constructor(pat: Csr, kind: 'cholesky' | 'amg-pcg' = 'cholesky', rtol = 1e-11) {
-    this.pat = pat; this.kind = kind; this.rtol = rtol;
+  /** AMG hierarchy sizes of the last factor() (AMG-PCG only) */
+  get amgLevels(): { n: number; nnz: number }[] { return this.amg ? this.amg.levels : []; }
+  constructor(pat: Csr, kind: 'cholesky' | 'amg-pcg' = 'cholesky', rtol = 1e-11, o: { amg?: (A: Csr & { val: Float64Array }) => Preconditioner } = {}) {
+    this.pat = pat; this.kind = kind; this.rtol = rtol; this.amgBuild = o.amg;
     // study setting (withStudySolver): applies when the module asked for its default
-    if (ambient && kind === 'cholesky') {
+    if (ambient && ambient.setting && kind === 'cholesky') {
       let useAmg = ambient.setting === 'amg-pcg', reason: string | undefined;
       if (ambient.setting === 'auto') {
         const sym = analyze(pat);
@@ -336,6 +394,10 @@ export class SpdSolver {
       if (useAmg) { this.kind = 'amg-pcg'; this.rtol = ambient.rtol; }
       this.rec = { kind: this.kind, dof: pat.n, ...(useAmg ? { rtol: this.rtol } : {}), ...(reason ? { reason } : {}) };
       ambient.records.push(this.rec);
+    } else if (ambient) {
+      // recorded for run.solver only (module's own kind; no setting, or an explicit kind)
+      this.rec = { kind: this.kind, dof: pat.n, ...(this.kind === 'amg-pcg' ? { rtol: this.rtol } : {}), silent: true };
+      ambient.records.push(this.rec);
     }
   }
   private sym: ReturnType<typeof analyze> | null = null;
@@ -344,6 +406,10 @@ export class SpdSolver {
     if (this.kind === 'cholesky') {
       if (!this.chol) this.chol = this.sym ? new SparseCholesky(this.pat, null, { sym: this.sym }) : new SparseCholesky(this.pat);
       if (!this.chol.factor(val)) throw new Error('Cholesky: matrix not positive definite');
+    } else if (this.amgBuild) {
+      // a singular (under-constrained) system is an error here as on the direct path (DevLog-066)
+      try { this.amg = this.amgBuild({ ...this.pat, val }); }
+      catch (e) { const msg = (e as Error).message; throw new Error(/singular/.test(msg) ? `AMG-PCG: matrix not positive definite (${msg.replace(/^amg-sa: /, '')})` : msg); }
     } else {
       this.amg = buildAMG({ ...this.pat, val });
     }
@@ -380,7 +446,7 @@ export class SpdSolver {
     }
     this.lastIterations = it; this.lastResidual = rn / bn;
     if (this.rec) { this.rec.iterations = Math.max(this.rec.iterations ?? 0, it); this.rec.residual = Math.max(this.rec.residual ?? 0, rn / bn); }
-    if (rn > this.rtol * bn * 10) throw new Error(`AMG-PCG did not converge: relres ${rn / bn} after ${it} iterations`);
+    if (rn > this.rtol * bn * PCG_ACCEPT_FACTOR) throw new Error(`AMG-PCG did not converge: relres ${rn / bn} after ${it} iterations`);
     return x;
   }
 }

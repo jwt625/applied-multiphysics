@@ -1,0 +1,183 @@
+# WO-86: Push-pull thin-film LN modulator: two x-cut ribs in the gaps of a gold GSG line (gap 5 um), VpiL at 1550 nm vs an independent FEM chain
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-86
+class: c
+title: 'Push-pull thin-film LN modulator: two x-cut ribs in the gaps of a gold GSG line (gap 5 um), VpiL at 1550 nm vs an
+  independent FEM chain'
+status: unvalidated
+untestable_reason: null
+physics: [electrostatics, optics-modes, coupled-electro-optic]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    domain_um:
+    - [-500, 500]
+    - [-504.7, 500]
+    ribs_um: centred at x = +-12.5, film 0.6, etch 0.3, top 1.0, 60 deg walls
+    electrodes_um:
+      signal:
+      - [-10, 10]
+      - [0.3, 1.1]
+      grounds:
+      - [15, 115]
+      - [-115, -15]
+    box_um: 4.7
+    substrate_um: 500
+    optical_window_um:
+    - [7.5, 17.5]
+    - [-3, 3]
+materials:
+  ln:
+    n_o: 2.211111009
+    n_e: 2.13755965
+    eps_r: {perp: 44, par: 28}
+    r_pm_per_V: {r13: 9.6, r22: 6.8, r33: 30.9, r51: 32.6}
+    source: atlas validation/cases/K4.yaml (case inputs; n from Zelmon 1997 at 1550 nm)
+  sio2: {n: 1.444023622, eps_r: 3.9, source: atlas K4.yaml}
+  si: {eps_r: 11.7, source: atlas K4.yaml}
+  air: {n: 1, eps_r: 1, source: atlas K4.yaml}
+  gold: {conductor: true, source: atlas K4.yaml (perfect conductor)}
+bcs:
+- {selection: outer boundaries, type: zero charge}
+- {selection: signal, type: terminal 1 V}
+- {selection: grounds, type: ground}
+- {selection: optical window, type: pec}
+initial: null
+study: {type: eigen, solver: mode, wavelength_m: 1.55e-06, n: 2, chain: electrostatics (1 V terminal) -> first-order Pockels
+    in the mode solver}
+references:
+- id: VpiL_0.L0
+  quantity: push-pull VpiL (full terminal voltage) (mesh level 0)
+  metric_id: VpiL_0
+  value: 0.02278604396033844
+  unit: V*m
+  tolerance: {rel: 0.003, after: finest, note: set from the measured level errors with a margin of about 2 (DevLog-062 s.4);
+      wider than the reference band U}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-86.json, metric_id: VpiL_0}
+  provenance: {citation: 'eo-modulator-atlas canonical push-pull thin-film LN modulator reference (scikit-fem P2 electrostatics
+      on 3 mesh scales, vector FEM N2/P2 arm modes, first-order Pockels with the full tensor; extrapolated with a GCI band)',
+    locator: eo-modulator-atlas validation/reference/K4-es-eo.json key extrapolated (2026-10-15; sha256 in eval/expected/WO-86.json
+      inputs); case validation/cases/K4.yaml, accessed: '2026-11-18', generator: validation/photonics2/k4_reference.py}
+  extract: {kind: scalar, name: VpiL_0}
+- id: VpiL_0.L1
+  quantity: push-pull VpiL (full terminal voltage) (mesh level 1)
+  metric_id: VpiL_0
+  value: 0.02278604396033844
+  unit: V*m
+  tolerance: {rel: 0.0015, after: finest, note: set from the measured level errors with a margin of about 2 (DevLog-062 s.4);
+      wider than the reference band U}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-86.json, metric_id: VpiL_0}
+  provenance: {citation: 'eo-modulator-atlas canonical push-pull thin-film LN modulator reference (scikit-fem P2 electrostatics
+      on 3 mesh scales, vector FEM N2/P2 arm modes, first-order Pockels with the full tensor; extrapolated with a GCI band)',
+    locator: eo-modulator-atlas validation/reference/K4-es-eo.json key extrapolated (2026-10-15; sha256 in eval/expected/WO-86.json
+      inputs); case validation/cases/K4.yaml, accessed: '2026-11-18', generator: validation/photonics2/k4_reference.py}
+  extract: {kind: scalar, name: VpiL_0}
+- id: dneffdV_0.L0
+  quantity: first-order dn_eff/dV of the right arm (mesh level 0)
+  metric_id: dneffdV_0
+  value: -1.7004794706997226e-05
+  unit: 1/V
+  tolerance: {rel: 0.003, after: finest, note: set from the measured level errors with a margin of about 2 (DevLog-062 s.4);
+      wider than the reference band U}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-86.json, metric_id: dneffdV_0}
+  provenance: {citation: 'eo-modulator-atlas canonical push-pull thin-film LN modulator reference (scikit-fem P2 electrostatics
+      on 3 mesh scales, vector FEM N2/P2 arm modes, first-order Pockels with the full tensor; extrapolated with a GCI band)',
+    locator: eo-modulator-atlas validation/reference/K4-es-eo.json key extrapolated (2026-10-15; sha256 in eval/expected/WO-86.json
+      inputs); case validation/cases/K4.yaml, accessed: '2026-11-18', generator: validation/photonics2/k4_reference.py}
+  extract: {kind: scalar, name: dneffdV_0}
+- id: dneffdV_0.L1
+  quantity: first-order dn_eff/dV of the right arm (mesh level 1)
+  metric_id: dneffdV_0
+  value: -1.7004794706997226e-05
+  unit: 1/V
+  tolerance: {rel: 0.0015, after: finest, note: set from the measured level errors with a margin of about 2 (DevLog-062 s.4);
+      wider than the reference band U}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-86.json, metric_id: dneffdV_0}
+  provenance: {citation: 'eo-modulator-atlas canonical push-pull thin-film LN modulator reference (scikit-fem P2 electrostatics
+      on 3 mesh scales, vector FEM N2/P2 arm modes, first-order Pockels with the full tensor; extrapolated with a GCI band)',
+    locator: eo-modulator-atlas validation/reference/K4-es-eo.json key extrapolated (2026-10-15; sha256 in eval/expected/WO-86.json
+      inputs); case validation/cases/K4.yaml, accessed: '2026-11-18', generator: validation/photonics2/k4_reference.py}
+  extract: {kind: scalar, name: dneffdV_0}
+- id: neff_0.L0
+  quantity: n_eff TE0 of the right arm (mesh level 0)
+  metric_id: neff_0
+  value: 1.894167067063121
+  unit: '1'
+  tolerance: {abs: 1.0e-06, after: finest, note: as the air-clad rib case (its level errors 2.8e-7 / 5.0e-7)}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [0]
+  expected: {file: eval/expected/WO-86.json, metric_id: neff_0}
+  provenance: {citation: 'eo-modulator-atlas canonical push-pull thin-film LN modulator reference (scikit-fem P2 electrostatics
+      on 3 mesh scales, vector FEM N2/P2 arm modes, first-order Pockels with the full tensor; extrapolated with a GCI band)',
+    locator: eo-modulator-atlas validation/reference/K2-fem.json extrapolated (the arm window equals the air-clad rib case),
+    accessed: '2026-11-18', generator: validation/photonics2/k4_reference.py}
+  extract: {kind: scalar, name: neff_0}
+- id: neff_0.L1
+  quantity: n_eff TE0 of the right arm (mesh level 1)
+  metric_id: neff_0
+  value: 1.894167067063121
+  unit: '1'
+  tolerance: {abs: 1.0e-06, after: finest, note: as the air-clad rib case (its level errors 2.8e-7 / 5.0e-7)}
+  bounds: null
+  basis: P
+  form: solver_ref
+  gate: true
+  levels: [1]
+  expected: {file: eval/expected/WO-86.json, metric_id: neff_0}
+  provenance: {citation: 'eo-modulator-atlas canonical push-pull thin-film LN modulator reference (scikit-fem P2 electrostatics
+      on 3 mesh scales, vector FEM N2/P2 arm modes, first-order Pockels with the full tensor; extrapolated with a GCI band)',
+    locator: eo-modulator-atlas validation/reference/K2-fem.json extrapolated (the arm window equals the air-clad rib case),
+    accessed: '2026-11-18', generator: validation/photonics2/k4_reference.py}
+  extract: {kind: scalar, name: neff_0}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels, the finer one with an equal or
+    tighter tolerance
+speed:
+  budget_s: {browser: null, native: 240}
+  budget_basis: 'measured: both levels about 200 s in Node on 2026-11-18 (level 0 161k DOF 22 s 0.59 GB; level 1 646k DOF
+    179 s 1.46 GB RSS); the budget also sets the harness wall-clock limit'
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own work (Wentao Jiang, eo-modulator-atlas; engine GPL-3.0-or-later)
+  allowed: [cite_values, re_derive_setup, copy_with_attribution]
+  forbidden: []
+hero: {suitable: false, why: verification of a library example}
+spec: {sim: sims/tfln-mzm-pushpull.yaml, study: std1}
+missing: []
+assumptions: [Arm B is the mirror image of arm A about the signal centre (both the case and the engine), 'Electrodes are absent
+    from the optical problem (replaced by air), as in the reference']
+lane: G5
+created: '2026-11-18'

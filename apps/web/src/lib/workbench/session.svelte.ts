@@ -18,6 +18,8 @@ import { loadCaseFor, type CaseInfo } from '../cases';
 import { caseConvergence, levelValues, type AccState, type AccuracyDef, type LevelRecord } from '../post/accuracy';
 import { scopeOf } from '../engine/spec-adapter';
 import { fmt } from '../gfx/ticks';
+import { resultsClient, runKey, runStudies, type ResultsRun } from '../results/api.ts';
+import { evalGroups, evalsOfTable, SweepEvalQueue, tableFailure, type EvalState, type SweepEval } from './sweep-evals.ts';
 
 /** largest nested level the full-accuracy sequence solves in the browser (DOF) */
 export const ACC_DOF_CAP = 1_000_000;
@@ -46,12 +48,25 @@ export interface SweepPoint {
 	ms: number;
 	/** scalar results and DOF, kept for every point (the mesh and solution only for SWEEP_HELD points) */
 	scalars: Solution['scalars'] | null;
+	/** spec evaluation items evaluated on the point's solution when it was solved (DevLog-064; kept for every point):
+	 *  null = not evaluated (yet), {} = the spec has no enabled evaluation group */
+	evals: Record<string, SweepEval> | null;
+	/** evaluation group id -> why the group gave no value on this point (thrown, or a table without rows); null = none */
+	evalFailed: Record<string, string> | null;
+	/** while `evals` is null: waiting, being evaluated, dropped by the queue cap (evaluated when shown), or not queued */
+	evalState: EvalState;
 	dof: number;
 	/** mesh and solution are in memory; a solved point that is not held is re-solved when selected */
 	held: boolean;
 }
 /** sweep points whose mesh and solution stay in memory: the displayed one plus the most recently used (LRU) */
 export const SWEEP_HELD = 3;
+/** solutions waiting for their evaluation (queued in order); beyond this the oldest waiting point is skipped and is
+ *  evaluated when it is shown. Memory bound (design limit): the queue references at most SWEEP_EVAL_PENDING waiting
+ *  solutions and meshes plus the one being evaluated, on top of the SWEEP_HELD points (a held point's entries are the
+ *  same objects); the evaluation copies each run into the post worker, and the results client keeps up to
+ *  ResultsClient.MAX_RUNS (4) of those runs, worker copy plus a main-thread reference, LRU (results/api.ts). */
+export const SWEEP_EVAL_PENDING = 8;
 export interface SweepState { studyId: string; innerId: string; axes: SweepAxis[]; points: SweepPoint[]; spec: string; done: number; startedAt: number }
 
 /** The first parametric study of the data (amp-spec/0 core type `parametric`), or the study `id` when it is parametric; else null. */
@@ -140,6 +155,16 @@ export class Session {
 	private sweepBase: { text: string; data: unknown; params: Map<string, ParamInfo> | undefined } | null = null;
 	/** least recently used first */
 	private lru: number[] = [];
+	/** sweep points waiting for their evaluation items, in solve order; one evaluation runs at a time */
+	private evalQueue = new SweepEvalQueue<{ tok: number; i: number; sol: Solution; mesh: Mesh }>(
+		(q) => this.evalPoint(q),
+		(q) => q.tok !== this.sweepToken || (this.pts[q.i]?.evals ?? null) !== null,
+		SWEEP_EVAL_PENDING,
+		{
+			skip: (d) => appLog.warn(`sweep point ${d.i + 1}: evaluation items skipped while ${SWEEP_EVAL_PENDING} points wait (evaluated when the point is shown)`),
+			error: (d, e) => appLog.warn(`sweep point ${d.i + 1}: evaluation failed: ${e instanceof Error ? e.message : String(e)}`)
+		}
+	);
 	/** point being re-solved after eviction (-1: none) */
 	pointLoading = $state(-1);
 	private reEngine: EngineClient | null = null;
@@ -349,6 +374,7 @@ export class Session {
 		this.sweepToken++;
 		this.reToken++;
 		this.pointLoading = -1;
+		this.evalQueue.clear();
 		this.sweep = null;
 		this.pts = [];
 		this.active = -1;
@@ -457,9 +483,10 @@ export class Session {
 			let r = i;
 			for (let k = axes.length - 1; k >= 0; k--) { const n = axes[k]!.values.length; values[axes[k]!.param] = axes[k]!.values[r % n]!; r = Math.floor(r / n); }
 			const label = axes.map((a) => `${a.param} = ${fmt(values[a.param]!, 4)}${a.unit && a.unit !== '1' ? ` ${a.unit}` : ''}`).join(', ');
-			points.push({ index: i, values, label, status: 'pending', message: '', solution: null, mesh: null, quality: null, meshMs: null, meshSource: '', params: null, ms: 0, scalars: null, dof: 0, held: false });
+			points.push({ index: i, values, label, status: 'pending', message: '', solution: null, mesh: null, quality: null, meshMs: null, meshSource: '', params: null, ms: 0, scalars: null, evals: null, evalFailed: null, evalState: null, dof: 0, held: false });
 		}
 		this.pinned = false;
+		this.evalQueue.clear();
 		this.pts = points;
 		this.sweepPar = par;
 		this.sweepBase = base;
@@ -517,7 +544,7 @@ export class Session {
 			const L = lms[p.index];
 			if (L) { p.mesh = L.m; p.quality = L.q; p.meshMs = L.ms; p.meshSource = L.src; p.held = true; }
 			p.params = parseSpecText(texts[p.index]!, this.model.reg).params;
-			if (o.kind === 'result') { p.status = 'solved'; p.solution = o.solution; p.scalars = o.solution.scalars; p.dof = o.solution.stats.dof; solved++; }
+			if (o.kind === 'result') { p.status = 'solved'; p.solution = o.solution; p.scalars = o.solution.scalars; p.dof = o.solution.stats.dof; solved++; if (L) this.queueEval(tok, p.index, o.solution, L.m); }
 			else if (o.kind === 'unavailable') { p.status = 'unavailable'; p.message = o.reasons.join('; '); }
 			else if (o.kind === 'error') { p.status = 'error'; p.message = o.message; }
 			if (p.held) this.touch(p.index);
@@ -547,6 +574,43 @@ export class Session {
 		return solved && anySol ? { kind: 'result', solution: anySol, ms } : solved ? { kind: 'meshed', ms } : last;
 	}
 
+	/** Queue the evaluation items of a solved sweep point (bounded: SWEEP_EVAL_PENDING solutions wait at most; a point
+	 *  waiting, in flight or evaluated is not queued again). */
+	private queueEval(tok: number, i: number, sol: Solution, mesh: Mesh) {
+		if (this.evalQueue.push({ tok, i, sol, mesh })) this.publish();
+	}
+
+	/** Evaluate one queued point: every enabled evaluation group of the sweep's spec on the point's run (post worker, the
+	 *  same tables as the Table tab); only the numbers are kept (SweepPoint.evals, evalFailed). */
+	private async evalPoint(q: { tok: number; i: number; sol: Solution; mesh: Mesh }) {
+		const p = this.pts[q.i], base = this.sweepBase, par = this.sweepPar;
+		if (q.tok !== this.sweepToken || !p || !base || !par || (p.solution !== q.sol && p.solution !== null)) return;
+		this.publish();
+		const groups = evalGroups(base.data);
+		const out: Record<string, SweepEval> = {}, failed: Record<string, string> = {};
+		if (groups.length && p.params) {
+			const run: ResultsRun = { key: await runKey(q.sol), solution: q.sol, mesh: q.mesh, params: p.params, studies: runStudies(base.data, par.id), label: p.label };
+			const rc = resultsClient(this.post);
+			const st = q.sol.steps;
+			const stepText = (k: number) => (st ? `${k} (${st.kind} ${fmt(st.values[k] ?? NaN, 6)}${st.unit ? ` ${st.unit}` : ''})` : String(k));
+			for (const g of groups) {
+				try {
+					const t = await rc.table(base.data, g.id, [run]);
+					const why = tableFailure(t);
+					if (why) failed[g.id] = why;
+					Object.assign(out, evalsOfTable(t, g, stepText));
+				} catch (e) {
+					failed[g.id] = (e as Error).message;
+					appLog.warn(`sweep ${p.label}: evaluation group ${g.id}: ${(e as Error).message}`);
+				}
+			}
+		}
+		if (q.tok !== this.sweepToken) return;
+		p.evals = out;
+		p.evalFailed = Object.keys(failed).length ? failed : null;
+		this.publish();
+	}
+
 	/** Display sweep point i (dataset selector): its mesh, solution and params; the user's choice holds while the sweep runs. */
 	selectPoint(i: number) {
 		if (i < 0 && this.sweep) { this.pinned = true; this.active = -1; this.solution = null; this.reToken++; this.pointLoading = -1; void this.buildMesh(); return; }
@@ -563,7 +627,8 @@ export class Session {
 	/** Publish the master point list (snapshots: consumers see new objects on every change). */
 	private publish() {
 		if (!this.sweep) return;
-		this.sweep = { ...this.sweep, points: this.pts.map((q) => ({ ...q })), done: this.pts.filter((p) => p.status !== 'pending' && p.status !== 'solving').length };
+		const tok = this.sweepToken;
+		this.sweep = { ...this.sweep, points: this.pts.map((q, i) => ({ ...q, evalState: q.evals === null ? this.evalQueue.state(tok, i) : null })), done: this.pts.filter((p) => p.status !== 'pending' && p.status !== 'solving').length };
 	}
 
 	/** Mark point i used; drop the mesh and solution of the least recently used points beyond SWEEP_HELD (never the shown one). */
@@ -589,6 +654,7 @@ export class Session {
 		if (!p.held && p.status === 'solved') { void this.resolvePoint(i); return; }
 		if (p.mesh && p.quality && p.meshMs && this.mesh !== p.mesh) this.setMesh(p.mesh, p.quality, p.meshMs, p.meshSource, performance.now(), sw.spec);
 		this.solution = p.solution;
+		if (p.evals === null && p.status === 'solved' && p.solution && p.mesh) this.queueEval(this.sweepToken, i, p.solution, p.mesh);
 		this.solutionSpec = sw.spec;
 		this.solutionCoarse = false;
 		this.solutionLevel = 1;
@@ -685,6 +751,7 @@ export class Session {
 		this.reToken++;
 		this.pointLoading = -1;
 		this.reEngine?.cancel();
+		this.evalQueue.clear();
 		if (this.sweep) {
 			for (const p of this.pts) if (p.status === 'solving' || p.status === 'pending') p.status = 'cancelled';
 			this.publish();

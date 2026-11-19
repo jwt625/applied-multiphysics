@@ -1,0 +1,142 @@
+# Tantalum film, sputtered (lane G1 sourcing, DevLog-041 s.4.3 follow-up). Each leaf names its film (deposition,
+# thickness, phase). Default leaves describe as-deposited room-temperature magnetron-sputtered Ta without a seed layer
+# (beta-Ta-rich); alpha-Ta films (on a TaN or TiN seed, or deposited at 600 C) and bulk Ta are alternatives.
+schema: amp-material/0
+id: tantalum-film
+name: Tantalum film (magnetron sputtered)
+class: metal
+description: >-
+  Sputtered Ta thin film (diffusion barrier, resistor, superconducting-circuit layer). The phase depends on deposition:
+  room-temperature sputtering on Si or oxide gives metastable tetragonal beta-Ta (high resistivity); a TaN or TiN seed
+  or a heated substrate gives bcc alpha-Ta. Defaults: electrical resistivity of a 200 nm film sputtered on unheated
+  Si (beta-dominated by XRD) and thermal conductivity of a 170 nm film sputtered at room temperature on fused silica
+  (tentatively beta-rich). Bulk annealed Ta k (HPL 1972) is an alternative labelled bulk.
+verified_on: 2026-11-18
+sources:
+  singer2024:
+    citation: "M. Singer, B. Schoof, H. Gupta, D. Zahn, J. Weber, M. Tornow, Tantalum thin films sputtered on silicon and on different seed layers: material characterization and coplanar waveguide resonator performance, IEEE International Conference on Quantum Computing and Engineering (QCE) 2024; arXiv:2409.06041v1"
+    doi: 10.1109/QCE60285.2024.00141
+    url: https://arxiv.org/abs/2409.06041
+    access: open
+    read: "text layer of the arXiv v1 PDF fetched 2026-11-18 (sha256 14e235df1c0be700..., 6 pages; PDF not kept): Sec. II.A deposition (RF magnetron, Alcatel A450, about 7 cm target-to-chip, 20 sccm Ar, 18 ubar, 200 W; Ta about 200 nm; seed layers 5-6 nm with 2 sccm N2 added), Sec. II.B four-point Hall-bar resistivity, Sec. III.A GI-XRD phase assignment, Sec. III.B resistivity values; DOI of the IEEE version from the arXiv abstract page"
+  deng2026:
+    citation: "Z. Deng, J. Ma, P. Jiang, Experimental assessment of the Wiedemann-Franz law in thin metal films using thermoreflectance and electrical measurements, J. Appl. Phys. 140, 115101 (2026); arXiv:2609.17990"
+    doi: 10.1063/5.0341686
+    url: https://arxiv.org/abs/2609.17990
+    access: open
+    read: "text layer of the arXiv PDF fetched 2026-11-18 (sha256 532c1ae8250f36bd..., 24 pages, author accepted manuscript; PDF not kept): Sec. II.B and Table 1 (deposition, thickness), phase discussion (beta-Ta-rich, not XRD-confirmed), Sec. III.A Ta film fit (k_m, C_m), anisotropic-fit check; the film resistivity appears only in figures (not read as numbers); journal reference and DOI from the arXiv abstract page, accessed 2026-11-18 (values read from the accepted manuscript, not the journal version)"
+  nie2001:
+    citation: "H. B. Nie, S. Y. Xu, S. J. Wang, L. P. You, Z. Yang, C. K. Ong, J. Li, T. Y. F. Liew, Structural and electrical properties of tantalum nitride thin films fabricated by using reactive radio-frequency magnetron sputtering, Appl. Phys. A 73(2), 229-236 (2001); arXiv:cond-mat/0305683v2"
+    url: https://arxiv.org/abs/cond-mat/0305683
+    access: open
+    read: "text layer of the arXiv v2 PDF fetched 2026-11-18 (sha256 0e896bc27ffd7751..., 10 pages; PDF not kept): Sec. 2 deposition, Sec. 3.5 resistivity, Table 1 (thickness, resistivity vs N2 partial pressure); journal reference from the arXiv abstract page"
+  hpl1972:
+    citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
+    doi: 10.1063/1.3253100
+    url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
+    access: open
+    read: "PDF fetched 2026-11-18 (sha256 84a8af6036cff51a..., 144 pages, scanned; PDF not kept); 400 dpi page render of journal p.399 (pdf p.122) 'Thermal conductivity of tantalum': recommended-value table (solid) and REMARKS"
+properties:
+  rho_e:
+    value: 157.8e-6
+    unit: ohm*cm
+    basis: measured
+    source: singer2024
+    locator: "arXiv p.3 Sec. III.B: Ta 'sputtered without heating directly onto the silicon substrate has a resistivity of 157.8 +- 1.7 uOhm.cm' (Fig. 3(a)); phase: 'a mix of phases dominated by beta-Ta contributions' (GI-XRD, Fig. 2(b))"
+    accessed: 2026-11-18
+    derivation: "uOhm cm -> ohm cm: x 1e-6 (exact)"
+    uncertainty: {abs: 1.7e-6, unit: ohm*cm, note: "+- as printed (statistic not stated)"}
+    conditions: {text: "about 200 nm Ta, RF magnetron sputtered at 200 W, 20 sccm Ar, 18 ubar, about 7 cm target-to-chip, unheated (20 C) high-resistivity Si(100) after BOE dip; four-point measurement on a 300 um x 3600 um Hall bar (1500 um voltage-pad spacing); measurement temperature not stated for Fig. 3(a), the paper states room-temperature four-needle-probe resistance measurements"}
+    valid: {T: {na: "room temperature (not quantified)"}}
+    alternatives:
+      - id: alpha_on_tan_seed
+        use: "alpha-Ta on a TaN seed (Cu barrier stack Ta / TaN, alpha-Ta)"
+        value: 26.7e-6
+        unit: ohm*cm
+        basis: measured
+        source: singer2024
+        locator: "arXiv p.3 Sec. III.B: Ta on the tantalum nitride seed layer 26.7 +- 0.1 uOhm.cm; XRD: alpha-Ta peaks only (Fig. 2(d))"
+        accessed: 2026-11-18
+        derivation: "x 1e-6 (exact)"
+        uncertainty: {abs: 0.1e-6, unit: ohm*cm, note: "as printed"}
+        conditions: {text: "about 200 nm Ta on a 5-6 nm TaN seed (Ta target with 2 sccm N2 added), same chamber without breaking vacuum, deposition otherwise as the default leaf"}
+        valid: {T: {na: "room temperature (not quantified)"}}
+      - id: alpha_on_tin_seed
+        use: "alpha-Ta on a TiN seed"
+        value: 26.7e-6
+        unit: ohm*cm
+        basis: measured
+        source: singer2024
+        locator: "arXiv p.3 Sec. III.B: Ta on the titanium nitride seed layer 26.7 +- 0.2 uOhm.cm; XRD: alpha-Ta peaks only (Fig. 2(e))"
+        accessed: 2026-11-18
+        derivation: "x 1e-6 (exact)"
+        uncertainty: {abs: 0.2e-6, unit: ohm*cm, note: "as printed"}
+        conditions: {text: "about 200 nm Ta on a 5-6 nm TiN seed, deposition otherwise as the default leaf"}
+        valid: {T: {na: "room temperature (not quantified)"}}
+      - id: heated_600c
+        use: "Ta sputtered on Si heated to 600 C (alpha-Ta with small beta-Ta peaks)"
+        value: 58.1e-6
+        unit: ohm*cm
+        basis: measured
+        source: singer2024
+        locator: "arXiv p.3 Sec. III.B: 58.1 +- 2.0 uOhm.cm; XRD Fig. 2(c): sharp alpha-Ta peaks, small remaining beta-Ta peaks"
+        accessed: 2026-11-18
+        derivation: "x 1e-6 (exact)"
+        uncertainty: {abs: 2.0e-6, unit: ohm*cm, note: "as printed"}
+        conditions: {text: "about 200 nm Ta on Si(100) heated to 600 C, deposition otherwise as the default leaf"}
+        valid: {T: {na: "room temperature (not quantified)"}}
+      - id: beta_on_aln_seed
+        use: "beta-Ta on an AlN seed"
+        value: 177.0e-6
+        unit: ohm*cm
+        basis: measured
+        source: singer2024
+        locator: "arXiv p.3 Sec. III.B: Ta on the aluminum nitride seed layer 177.0 +- 0.4 uOhm.cm, 'in the reported range for beta-Ta'"
+        accessed: 2026-11-18
+        derivation: "x 1e-6 (exact)"
+        uncertainty: {abs: 0.4e-6, unit: ohm*cm, note: "as printed"}
+        conditions: {text: "about 200 nm Ta on a 5-6 nm AlN seed, deposition otherwise as the default leaf"}
+        valid: {T: {na: "room temperature (not quantified)"}}
+      - id: nie_rf_glass_703nm
+        use: "thick RF-sputtered Ta on glass (other group; bcc-Ta with [100] texture per the source)"
+        value: 0.095e-3
+        unit: ohm*cm
+        basis: measured
+        source: nie2001
+        locator: "Table 1 row PN 0.0 %: thickness 703 nm, rho 0.095 mOhm cm; Sec. 3.5: 'At room temperature, the resistivity of pure Ta film was measured to be 95 uOhm cm' (four-point method, 77-295 K setup)"
+        accessed: 2026-11-18
+        derivation: "mOhm cm -> ohm cm: x 1e-3 (exact)"
+        uncertainty: {na: "not stated"}
+        conditions: {T: "295 K", text: "703 nm Ta, reactive-system RF (13.56 MHz) magnetron sputtering without N2, 3 inch Ta target (99.95 %), 200 W (4.3 W/cm2), 5.0 mTorr Ar, 8-14 cm target-substrate, rotating stage, no intentional heating, glass substrate, as deposited"}
+        valid: {T: {unit: K, range: [295, 295]}}
+  k:
+    value: 8.0
+    unit: W/(m*K)
+    basis: measured
+    source: deng2026
+    locator: "arXiv p.11-12 Sec. III.A 'Ta film (sputtered)': isotropic fit of the 500 kHz and 24 kHz square-pulsed-source thermoreflectance data 'k_m = 8.0 +- 1.2 W/(m K)' (C_m = 2.33 +- 0.08 MJ/(m3 K)); anisotropic check k_r 7.8 +- 1.4, k_z 8.1 +- 0.8 W/(m K); Table 2 95 % interval [6.79, 9.20]"
+    accessed: 2026-11-18
+    uncertainty: {abs: 1.2, unit: W/(m*K), note: "as printed (Table 2 gives the 95 % confidence interval 6.79-9.20)"}
+    conditions: {text: "170 +- 8 nm Ta (cross-section SEM), magnetron sputtered, Ar 3 mTorr, about 0.16 nm/s, base pressure <= 0.001 mTorr, polished fused silica, room temperature, no intentional heating (Table 1); phase not characterized, 'tentatively described as beta-Ta-rich' by the authors; measured at room temperature (value not stated in K)"}
+    valid: {T: {na: "room-temperature measurement; the source shows k_m(T) for 80-300 K in a figure only (not digitized)"}}
+    note: "isotropic effective value (k_r = k_z assumed); the authors report it is nearly an order of magnitude below bulk alpha-Ta. No alpha-Ta film k was read: for alpha-Ta films use a labelled override or the bulk alternative with care"
+    alternatives:
+      - id: bulk_hpl1972
+        use: "BULK well-annealed high-purity Ta (not a film value): upper bound for an alpha-Ta film"
+        table:
+          x: T
+          x_unit: K
+          xs: [200, 223.2, 250, 273.2, 298.2, 300, 323.2, 350, 373.2, 400, 473.2, 500, 573.2, 600, 673.2, 700, 773.2, 800, 873.2, 900, 973.2, 1000, 1073.2, 1100, 1173.2, 1200]
+          ys: [0.575, 0.574, 0.574, 0.574, 0.575, 0.575, 0.576, 0.576, 0.577, 0.578, 0.582, 0.582, 0.585, 0.586, 0.588, 0.590, 0.593, 0.594, 0.597, 0.598, 0.602, 0.602, 0.605, 0.606, 0.609, 0.610]
+        unit: W/(cm*K)
+        basis: measured
+        source: hpl1972
+        locator: "journal p.399, Thermal conductivity of tantalum, recommended values (solid), rows 200-1200 K (page render); 200, 223.2 and 250 K marked '* Interpolated'"
+        accessed: 2026-11-18
+        uncertainty: {rel: 0.05, note: "REMARKS: +-5 % at moderate temperatures, +-10 % at low and high temperatures"}
+        conditions: {text: "BULK well-annealed high-purity tantalum (values below 100 K apply only to residual resistivity 0.214 uOhm cm; not used here); table continues to 3200 K (not transcribed)"}
+        analog_of: "bulk tantalum (no tantalum.yaml in this library)"
+missing:
+  - {property: k, what: "alpha-Ta film thermal conductivity: no named film measurement read (2026-11-18)"}
+  - {property: tcr, what: "temperature coefficient of resistance (tcr) of the films: Singer 2024 and Nie 2001 show R(T) or rho(T) in figures only"}
+  - {what: "rho (film density), E, nu, alpha, cp, optical n and kappa of Ta films: not read"}

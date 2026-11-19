@@ -30,7 +30,19 @@ export interface Rule {
 }
 export interface ConstTerm { value: number; unit: string; source?: string }
 export interface Extract {
-  kind: 'scalar' | 'probe' | 'field' | 'eigen' | 'steps' | 'reduce' | 'expr' | 'result' | 'combine';
+  kind: 'scalar' | 'probe' | 'field' | 'eigen' | 'steps' | 'reduce' | 'expr' | 'result' | 'combine' | 'resonance';
+  /** resonance (DevLog-061): search a peak or dip of the per-step scalar `name` (raised to `power`) over the axis of the
+   *  frequency study by re-solving; `output` names the reported quantity; window in window_unit */
+  shape?: 'peak' | 'dip';
+  axis?: 'wavelength' | 'frequency';
+  window?: [number, number];
+  window_unit?: string;
+  scan?: number;
+  output?: 'center' | 'fwhm' | 'q' | 'peak' | 'center_halfmax' | 'fwhm_halfmax' | 'q_halfmax';
+  power?: number;
+  baseline?: number;
+  tol?: number;
+  max_iter?: number;
   /** combine: name -> target id of this case; `expr` is evaluated per level on those targets' values (target units) */
   targets?: Record<string, string>;
   /** result: evaluation item id in the spec's results (C10; DevLog-028) */
@@ -379,6 +391,11 @@ function semanticChecks(
         else if (tid === targetId(r)) at(`${p}/extract/targets/${k}`, 'extract-combine', `a combine target cannot use itself`);
         else if (other?.extract?.kind === 'combine') at(`${p}/extract/targets/${k}`, 'extract-combine', `target '${tid}' is itself a combine target (one level only)`);
       }
+    }
+    if (r.extract?.kind === 'resonance') {
+      const ex = r.extract;
+      if (!ex.name || !ex.shape || !ex.axis || !ex.window || !ex.window_unit || !ex.output) at(`${p}/extract`, 'extract-resonance', `extract kind 'resonance' needs name, shape, axis, window, window_unit and output`);
+      else if (!(ex.window[1] > ex.window[0])) at(`${p}/extract/window`, 'extract-resonance', `window [${ex.window.join(', ')}] must be increasing`);
     }
     if (r.extract?.kind === 'result' && !r.extract.node) at(`${p}/extract`, 'extract-result', `extract kind 'result' needs node (an evaluation item id of the spec's results)`);
     if (r.extract?.kind === 'probe' && (!r.extract.point || !(r.extract.field ?? r.extract.name))) {

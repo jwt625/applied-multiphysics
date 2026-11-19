@@ -1,4 +1,4 @@
-# H4 Rib waveguide modes (DevLog-001 s.8). Geometry and wavelength of eval gate WO-02 (R3; Hadley 2002 rib as
+# Rib waveguide modes. Geometry and wavelength of eval gate WO-02 (Hadley 2002 rib as
 # re-tabulated in the femwell benchmarks): lambda 1.15 um, n 3.44 / 3.40 / 1, rib 3 x 1 um, slab t = 0..0.7 um,
 # reference n_eff 3.412022 (t = 0) ... 3.414100 (t = 0.7 um). A Si/SiO2 SOI variant is not defined yet (see missing).
 schema: amp-spec/0
@@ -86,6 +86,6 @@ assumptions:
   - {text: "PEC on the window boundary is a truncation; the guided mode must have decayed there", paths: [physics.ewg.bcs.walls]}
 missing:
   - {what: "t = 0 point of the WO-02 table needs a geometry variant without the slab (zero-thickness feature)", needed_for: [geometry, eval]}
-  - {what: "Si/SiO2 SOI rib geometry for the 'Si rib' hero: no sourced case defines it (WO-01 is a 1D slab)", needed_for: [geometry]}
+  - {what: "Si/SiO2 SOI rib geometry for an SOI variant of this model: no sourced case defines it (WO-01 is a 1D slab)", needed_for: [geometry]}
   - {what: "which mode (polarization) WO-02 gates is not stated in the eval-set source survey", needed_for: [eval]}
 # eval: [WO-02]

@@ -1,0 +1,32 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-89",
+  "class": "c",
+  "generator": "validation/photonics2/sin_reference.py",
+  "command": "cd validation && uv run python photonics2/sin_reference.py",
+  "method": "measured group index (Munoz et al., Sensors 17, 2088 (2017), s.3.4); no computation",
+  "generated_at": "2026-11-18T19:03:49-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "ng_0",
+      "value": 1.892,
+      "unit": "1",
+      "precision": {
+        "method": "measured (optical frequency-domain reflectometry), TE",
+        "other_measurement": "MZI 1.90-1.92 (TE)",
+        "locator": "Munoz et al. 2017 s.3.4"
+      }
+    }
+  ]
+}

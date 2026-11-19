@@ -23,7 +23,7 @@ materials:
       page via materials/bt-hl832nx.yaml (in-plane, below Tg)'}
 bcs:
 - {selection: 'x = 0, y = 0', type: roller (quarter symmetry)}
-- {selection: bottom centre patch 0.1 x 0.1 mm, type: u_z = 0}
+- {selection: bottom centre corner (x = y = z = 0), type: fixed point (pin)}
 - selection: all
   type: uniform temperature change
   params: {T_ref_K: 398.15, T_K: 298.15}
@@ -36,7 +36,7 @@ references:
   value: null
   unit: m
   tolerance:
-    rule: {type: sign, sign: -1, note: 'dome: the bottom moves down away from the centre patch'}
+    rule: {type: sign, sign: -1, note: 'dome: the bottom moves down away from the pinned centre'}
   bounds: null
   basis: D
   form: closed_form
@@ -52,7 +52,7 @@ references:
   value: null
   unit: m
   tolerance:
-    rule: {type: sign, sign: -1, note: 'dome: the bottom moves down away from the centre patch'}
+    rule: {type: sign, sign: -1, note: 'dome: the bottom moves down away from the pinned centre'}
   bounds: null
   basis: D
   form: closed_form

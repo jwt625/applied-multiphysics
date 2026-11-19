@@ -4,8 +4,8 @@
 # (validation/pkg/tsv_lame.py; same derivation as the advanced-packaging-atlas case A/MA7, own work). A real TSV has free
 # faces and a liner: near-surface stresses (Ryu et al., IEEE TDMR 11, 35 (2011)) are not modelled here.
 # Modelling inputs NOT from a paper (illustrative): a, R, H, T_ref, T_use. Materials from the library (materials/copper,
-# materials/silicon); E, nu bind from the library; alpha and k are temperature tables there and prepareRun has no
-# temperature for library tables yet (DevLog-049 R1), so they are overrides equal to the library value at 298.15 K.
+# materials/silicon); E, nu bind from the library; alpha and k are temperature tables there, evaluated at the material
+# temperature 298.15 K.
 # Constant alpha over the temperature change is a modelling simplification (no plasticity, no alpha(T) integral).
 schema: amp-spec/0
 id: tsv-stress-axisym
@@ -24,8 +24,8 @@ geometry:
     - {id: via, type: rect, settings: {size: ["a", "H"], center: ["a/2", "H/2"]}}
     - {id: si, type: rect, settings: {size: ["R - a", "H"], center: ["(R + a)/2", "H/2"]}}
 materials:
-  - {id: cu, ref: materials/copper, override: {alpha: {value: 1.6581238447607446e-5, unit: 1/K}, k: {value: 401.004, unit: W/(m*K)}}, select: ["dom:via"]}
-  - {id: silicon, ref: materials/silicon, override: {alpha: {value: 2.600985401459854e-6, unit: 1/K}, k: {value: 149.038, unit: W/(m*K)}}, select: ["dom:si"]}
+  - {id: cu, ref: materials/copper, T: {value: 298.15, unit: K}, select: ["dom:via"]}
+  - {id: silicon, ref: materials/silicon, T: {value: 298.15, unit: K}, select: ["dom:si"]}
 physics:
   - id: ht
     type: heat
@@ -82,10 +82,8 @@ provenance:
     params.H: {basis: user, date: 2026-11-18, note: "modelling choice: with rollers on both faces the solution does not depend on H"}
     params.T_ref: {basis: user, date: 2026-11-18, note: "illustrative stress-free temperature, not from a paper"}
     params.T_use: {basis: user, date: 2026-11-18, note: "illustrative final temperature (25 C)"}
-    materials.cu.override.alpha: {basis: measured, source: "materials/copper.yaml alpha (NIST cryogenic OFHC Cu fit) evaluated by @amp/materials at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
-    materials.cu.override.k: {basis: measured, source: "materials/copper.yaml k (table) evaluated by @amp/materials at 298.15 K", date: 2026-11-18, note: "T is uniform (Dirichlet on every outer boundary), k does not enter"}
-    materials.silicon.override.alpha: {basis: measured, source: "materials/silicon.yaml alpha (Swenson 1983 Table 2) linearly interpolated by @amp/materials at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
-    materials.silicon.override.k: {basis: measured, source: "materials/silicon.yaml k (HPL 1972) at 298.15 K", date: 2026-11-18, note: "k does not enter (uniform T)"}
+    materials.cu.T: {basis: user, date: 2026-11-18, note: "library alpha, k, cp of materials/copper evaluated at 298.15 K (25 C, the final temperature) and held constant over the temperature change; alpha = 1.6581238447607446e-5 1/K (NIST cryogenic OFHC Cu fit), k does not enter (uniform T)"}
+    materials.silicon.T: {basis: user, date: 2026-11-18, note: "library alpha, k, cp of materials/silicon evaluated at 298.15 K (25 C, the final temperature) and held constant over the temperature change; alpha = 2.600985401459854e-6 1/K (Swenson 1983 Table 2, linear interpolation), k does not enter (uniform T)"}
     mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; the harness refines it by 1/2 per level (nested)"}
 assumptions:
   - {text: "Isotropic Si with the Voigt-Reuss-Hill E, nu of materials/silicon.yaml (derived from the cubic C); a real (001) wafer is anisotropic in plane", paths: [materials.silicon]}

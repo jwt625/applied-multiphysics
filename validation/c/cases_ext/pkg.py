@@ -118,12 +118,12 @@ CASES: list[dict] = [
                  quantity="Cu axial stress at (0.4a, 0.2a, H/2)"),
             tref("PK-02", "si_szz", "si_szz", {"rel": 1e-3}, citation=LAME, locator=LAME_LOC,
                  quantity="Si axial stress at (3a, a, H/2) (uniform in the exact solution)"),
-            tref("PK-02", "cu_srr", "cu_sxx_mean", {"rel": 2e-3}, citation=LAME, locator=LAME_LOC, gate=False, tid="cu_sxx_mean",
-                 quantity="volume mean of the displayed Cu stress sxx",
-                 note="informative: the displayed stress is averaged at nodes shared by Cu and Si, so its volume mean over "
-                      "the via converges at first order (-3.1 % / -1.6 % at hFactor 1 / 0.5, DevLog-049 R2)"),
-            tref("PK-02", "si_szz", "si_szz_mean", {"rel": 2e-3}, citation=LAME, locator=LAME_LOC, gate=False, tid="si_szz_mean",
-                 quantity="volume mean of the displayed Si axial stress", note="informative, as cu_sxx_mean"),
+            tref("PK-02", "cu_srr", "cu_sxx_mean", {"rel": 1e-3}, citation=LAME, locator=LAME_LOC, tid="cu_sxx_mean",
+                 quantity="volume mean of the Cu stress sxx (stress recovered within each material)",
+                 note="per-material stress recovery: +9.0e-5 / +6.1e-6 at hFactor 1 / 0.5"),
+            tref("PK-02", "si_szz", "si_szz_mean", {"rel": 1e-3}, citation=LAME, locator=LAME_LOC, tid="si_szz_mean",
+                 quantity="volume mean of the Si axial stress (stress recovered within each material)",
+                 note="per-material stress recovery: -7.9e-6 / -8.4e-7 at hFactor 1 / 0.5"),
             tref("PK-02", "rim_ur", "rim_ur", {"rel": 1e-3}, citation=LAME, locator=LAME_LOC),
             tref("PK-02", "si_srr_2a", "si_sxx_2a", {"rel": 1e-2}, citation=LAME, locator=LAME_LOC, gate=False,
                  note="single point on tets: informative"),
@@ -262,7 +262,7 @@ def _pk06() -> dict:
     prov = {"citation": cit, "locator": loc, "accessed": None, "generator": e["generator"], "source_accessed": CREATED}
     probe = lambda tid, node: {"id": tid, "quantity": f"bottom u_z at {tid[-2:]}", "metric_id": tid, "value": None,  # noqa: E731
                                "unit": "m", "tolerance": {"rule": {"type": "sign", "sign": -1, "note": "dome: the bottom "
-                               "moves down away from the centre patch"}}, "bounds": None, "basis": "D", "form": "closed_form",
+                               "moves down away from the pinned centre"}}, "bounds": None, "basis": "D", "form": "closed_form",
                                "gate": False, "provenance": prov, "extract": {"kind": "result", "node": node}}
     curv = {"id": "w_curv", "quantity": "centre curvature d2w/dr2 of the bottom surface from two probes", "metric_id": "w_curv",
             "value": v["w_curv"], "unit": "1/m",
@@ -287,7 +287,7 @@ def _pk06() -> dict:
                    "substrate": {"ref": "materials/bt-hl832nx", "E_Pa": 28e9, "nu": 0.19, "alpha_per_K": 14e-6,
                                  "source": "MGC HL832NX product page via materials/bt-hl832nx.yaml (in-plane, below Tg)"}},
         bcs=[{"selection": "x = 0, y = 0", "type": "roller (quarter symmetry)"},
-             {"selection": "bottom centre patch 0.1 x 0.1 mm", "type": "u_z = 0"},
+             {"selection": "bottom centre corner (x = y = z = 0)", "type": "fixed point (pin)"},
              {"selection": "all", "type": "uniform temperature change", "params": {"T_ref_K": 398.15, "T_K": 298.15}}],
         study={"type": "stationary"},
         assumptions=["Isotropic layers (BT in-plane constants used isotropically); linear, small deflection; perfect bond; "

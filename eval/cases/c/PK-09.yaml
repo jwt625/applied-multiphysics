@@ -1,0 +1,153 @@
+# PK-09: Hybrid-bond Cu pad expansion (axisymmetric): wide-pad rise vs thin-film closed form; real-pad protrusion informative
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: PK-09
+class: c
+title: 'Hybrid-bond Cu pad expansion (axisymmetric): wide-pad rise vs thin-film closed form; real-pad protrusion informative'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond, solid-thermal-stress]
+dimension: 2D-axisym
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    pad_radius_m: 1.5e-06
+    thickness_m: 1.0e-06
+    cell_radius_m: 5.0e-06
+    wide_variant: {pad_radius_m: 1.0e-05, cell_radius_m: 2.0e-05}
+materials:
+  cu: {ref: materials/copper, E_Pa: 123500000000.0, nu: 0.35, alpha_per_K: 1.6581238447607446e-05, source: 'materials/copper.yaml
+      E, nu (Ledbetter-Naimon 1974); alpha at 298.15 K (NIST OFHC fit)'}
+  sio2: {ref: materials/sio2-thermal-oxide, E_Pa: 73000000000.0, nu: 0.16, alpha_per_K: 5.0e-07, source: materials/sio2-thermal-oxide.yaml}
+  si: {alpha_per_K: 2.600985401459854e-06, source: materials/silicon.yaml alpha at 298.15 K (Swenson 1983); wafer rigid}
+bcs:
+- {selection: pad and oxide bottom, type: fixed (frame of the Si wafer)}
+- {selection: rim r = R, type: roller}
+- {selection: top, type: free}
+- selection: all
+  type: uniform temperature change
+  params: {T_ref_K: 298.15, T_K: 398.15}
+initial: null
+study: {type: stationary}
+references:
+- id: uz_pad_wide
+  quantity: pad-centre top rise, wide pad (frame of the Si wafer)
+  metric_id: uz_pad_wide
+  value: 2.9035910172768076
+  unit: nm
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: 'Thin-film thermo-elastic closed form on a rigid base, eps_zz = (1 + nu) / (1 - nu) (alpha - alpha_Si)
+      dT (own derivation; validation/pkg2/pad_film.py)', locator: validation/pkg2/pad_film.py main(); eval/expected/PK-09.json,
+    accessed: null, generator: validation/pkg2/pad_film.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: uz_pad}
+  spec:
+    sim: sims/hybrid-bond-pad.yaml
+    params: {a: 10, R: 20}
+  note: 'wide-pad variant (a = 10 h, R = 20 h): edge disturbance decays exponentially with distance / h'
+- id: uz_rim_wide
+  quantity: oxide top rise at the rim, wide pad cell (frame of the Si wafer)
+  metric_id: uz_ox_wide
+  value: -0.2901360792492179
+  unit: nm
+  tolerance: {rel: 0.001}
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: 'Thin-film thermo-elastic closed form on a rigid base, eps_zz = (1 + nu) / (1 - nu) (alpha - alpha_Si)
+      dT (own derivation; validation/pkg2/pad_film.py)', locator: validation/pkg2/pad_film.py main(); eval/expected/PK-09.json,
+    accessed: null, generator: validation/pkg2/pad_film.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: uz_rim}
+  spec:
+    sim: sims/hybrid-bond-pad.yaml
+    params: {a: 10, R: 20}
+  note: 'wide-pad variant (a = 10 h, R = 20 h): edge disturbance decays exponentially with distance / h'
+- id: uz_pad
+  quantity: pad-centre top rise, real pad
+  metric_id: uz_pad
+  value: null
+  unit: nm
+  tolerance:
+    rule:
+      type: range
+      range: [-10, 10]
+      note: informative
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Thin-film thermo-elastic closed form on a rigid base, eps_zz = (1 + nu) / (1 - nu) (alpha - alpha_Si)
+      dT (own derivation; validation/pkg2/pad_film.py)', locator: validation/pkg2/pad_film.py main(); eval/expected/PK-09.json,
+    accessed: null, generator: validation/pkg2/pad_film.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: uz_pad}
+- id: uz_rim
+  quantity: oxide top rise at the rim, real pad
+  metric_id: uz_rim
+  value: null
+  unit: nm
+  tolerance:
+    rule:
+      type: range
+      range: [-10, 10]
+      note: informative
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Thin-film thermo-elastic closed form on a rigid base, eps_zz = (1 + nu) / (1 - nu) (alpha - alpha_Si)
+      dT (own derivation; validation/pkg2/pad_film.py)', locator: validation/pkg2/pad_film.py main(); eval/expected/PK-09.json,
+    accessed: null, generator: validation/pkg2/pad_film.py, source_accessed: '2026-11-18'}
+  extract: {kind: result, node: uz_rim}
+- id: protrusion
+  quantity: pad-centre protrusion over the oxide at the rim, real pad (a = 1.5 h)
+  metric_id: protrusion
+  value: null
+  unit: nm
+  tolerance:
+    rule:
+      type: range
+      range: [1.6081238447607447, 3.1937270965260254]
+      note: 'informative: laterally free and biaxially constrained limits (estimates, not bounds)'
+  bounds: null
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Thin-film thermo-elastic closed form on a rigid base, eps_zz = (1 + nu) / (1 - nu) (alpha - alpha_Si)
+      dT (own derivation; validation/pkg2/pad_film.py)', locator: validation/pkg2/pad_film.py main(); eval/expected/PK-09.json,
+    accessed: null, generator: validation/pkg2/pad_film.py, source_accessed: '2026-11-18'}
+  extract:
+    kind: combine
+    expr: p - o
+    targets: {p: uz_pad, o: uz_rim}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels; finest compared
+speed:
+  budget_s: {browser: 3.0, native: null}
+  budget_basis: est. from the lane's own runs on 2026-11-18 (DevLog-063), not a browser measurement
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own derivation, own reference code and closed forms from cited literature (formulas only); GPL-3.0-or-later
+    code
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: sims/hybrid-bond-pad.yaml
+missing: []
+assumptions: [Rigid Si wafer; constant alpha over the heating; linear elasticity; pad flush at the reference temperature;
+    illustrative inputs.]
+notes: ['Expansion coefficients are entered relative to Si (alpha - alpha_Si): exact frame change for a rigid wafer that expands
+    freely; protrusions are unchanged by it.']
+lane: G6
+created: '2026-11-18'

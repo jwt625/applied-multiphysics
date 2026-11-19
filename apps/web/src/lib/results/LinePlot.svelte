@@ -21,7 +21,18 @@
 		/** dashed line (overlaid series stay visible where they coincide) */
 		dash?: boolean;
 	}
-	export const SERIES_COLORS = ['#3987e5', '#e0803a', '#3fae7a', '#c160c1', '#c9a227', '#5bb5c9'];
+	/**
+	 * Categorical series colours (DevLog-064): the dark-surface steps of the eight-hue palette of the dataviz reference
+	 * (blue, orange, aqua, yellow, magenta, green, violet, red), in that fixed order. Checked with its palette validator
+	 * on the panel background #0d0d0d (2026-11-18): lightness band, chroma floor and contrast >= 3:1 pass; worst
+	 * adjacent colour-vision-deficiency distance 8.4 (OKLab x100, target >= 8), worst adjacent normal-vision distance
+	 * 19.3 (floor 15). A ninth series and later reuse the colours in order with a dashed line (secondary encoding).
+	 */
+	export const SERIES_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#0ca30c', '#9085e9', '#e66767'];
+	/** colour of the k-th series (0-based) */
+	export const seriesColor = (k: number): string => SERIES_COLORS[((k % SERIES_COLORS.length) + SERIES_COLORS.length) % SERIES_COLORS.length]!;
+	/** the k-th series is drawn dashed: its colour repeats an earlier series' */
+	export const seriesDashed = (k: number): boolean => k >= SERIES_COLORS.length;
 
 	/** "Nice" linear ticks covering [min, max] with about `target` intervals. */
 	export function linearTicks(min: number, max: number, target = 5): number[] {
@@ -101,7 +112,9 @@
 	const ty = (v: number) => (logY ? Math.log10(v) : v);
 	const okX = (v: number) => Number.isFinite(v) && (!logX || v > 0);
 	const okY = (v: number) => Number.isFinite(v) && (!logY || v > 0);
-	const colorOf = (s: Series, k: number) => s.color ?? SERIES_COLORS[k % SERIES_COLORS.length]!;
+	const colorOf = (s: Series, k: number) => s.color ?? seriesColor(k);
+	/** dashed: requested, or a series past the palette without its own colour (colour repeats) */
+	const dashOf = (s: Series, k: number) => !!s.dash || (!s.color && seriesDashed(k));
 
 	function extent() {
 		let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
@@ -217,7 +230,7 @@
 			ctx.fillStyle = color;
 			ctx.lineWidth = 1.6;
 			const YY = s.y2 ? Z : Y;
-			if (s.y2 || s.dash) ctx.setLineDash(s.y2 ? [6, 3] : [7, 4]);
+			if (s.y2 || dashOf(s, k)) ctx.setLineDash(s.y2 ? [6, 3] : [7, 4]);
 			if (s.line !== false) {
 				ctx.beginPath();
 				let pen = false;
@@ -298,7 +311,7 @@
 			{/if}
 			<span class="grow"></span>
 			{#if note}<span class="note">{note}</span>{/if}
-			{#each series as s, k}<span class="key" data-tip="{s.tip ?? s.name}{s.y2 ? '\n(right axis, dashed)' : ''}"><i class:dash={s.y2 || s.dash} style:background={colorOf(s, k)}></i>{s.name}</span>{/each}
+			{#each series as s, k}<span class="key" data-tip="{s.tip ?? s.name}{s.y2 ? '\n(right axis, dashed)' : ''}"><i class:dash={s.y2 || dashOf(s, k)} style:background={colorOf(s, k)}></i>{s.name}</span>{/each}
 		</div>
 	{/if}
 	<div class="cv" bind:this={cv} role="img" aria-label={ariaLabel}>

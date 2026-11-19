@@ -1073,7 +1073,8 @@
             "reduce",
             "expr",
             "result",
-            "combine"
+            "combine",
+            "resonance"
           ]
         },
         "node": {
@@ -1098,7 +1099,7 @@
         },
         "name": {
           "type": "string",
-          "description": "scalar name (kind scalar) or field name (probe, field)"
+          "description": "scalar name (kind scalar, resonance) or field name (probe, field)"
         },
         "field": {
           "type": "string"
@@ -1235,6 +1236,78 @@
             "minLength": 1
           },
           "description": "combine: name -> target id of this case; expr is evaluated per mesh level on those targets' values (in their target units), so a target can span several specs"
+        },
+        "shape": {
+          "enum": [
+            "peak",
+            "dip"
+          ],
+          "description": "resonance: peak (maximum of the scalar) or dip (minimum, measured from baseline)"
+        },
+        "axis": {
+          "enum": [
+            "wavelength",
+            "frequency"
+          ],
+          "description": "resonance: axis of the search; the solved frequency study's wavelengths (vacuum) or values (Hz) are replaced by the search points"
+        },
+        "window": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "resonance: search interval [lo, hi] on the axis, in window_unit; the extreme of the coarse scan must lie inside it"
+        },
+        "window_unit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "resonance: unit of window (a length for wavelength, a frequency for frequency); centre and width are converted to the target unit"
+        },
+        "scan": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 101,
+          "description": "resonance: points of the coarse scan over the window (default 13); the step should be below the linewidth"
+        },
+        "output": {
+          "enum": [
+            "center",
+            "fwhm",
+            "q",
+            "peak",
+            "center_halfmax",
+            "fwhm_halfmax",
+            "q_halfmax"
+          ],
+          "description": "resonance: reported quantity: Lorentzian-fit centre, full width at half maximum and Q = centre / FWHM; the same from the half-maximum crossings of the computed curve; peak = scalar^power at the fitted centre"
+        },
+        "power": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "resonance: exponent applied to the scalar (2: |S|^2 from S_abs; default 1)"
+        },
+        "baseline": {
+          "type": "number",
+          "description": "resonance, dip: level the dip is measured from (default 1)"
+        },
+        "tol": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.1,
+          "description": "resonance: convergence tolerance, relative to the FWHM for the centre and to the half width for the width (default 1e-3)"
+        },
+        "max_iter": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "resonance: Lorentzian refinement steps (default 6)"
         }
       },
       "additionalProperties": false

@@ -12,6 +12,20 @@ const fail = (m) => {
   throw new Error(`em3d amg: ${m}`);
 };
 
+import { makeCsrKernels } from './wasm/csr.mjs';
+
+/** Diagonal slot per row of a square CSR matrix (-1 when absent). */
+function diagSlotOf(A) {
+  const d = new Int32Array(A.n).fill(-1);
+  for (let i = 0; i < A.n; i++)
+    for (let q = A.rowptr[i]; q < A.rowptr[i + 1]; q++)
+      if (A.colidx[q] === i) {
+        d[i] = q;
+        break;
+      }
+  return d;
+}
+
 /** Transpose of a CSR matrix {n (rows), m (cols), rowptr, colidx, val}. */
 export function csrTranspose(A) {
   const m = A.m ?? A.n;
@@ -233,8 +247,14 @@ export function buildAMG(A, { theta = 0.08, coarseMax = 400, maxLevels = 20, swe
     lev.r = new Float64Array(lev.A.n);
     lev.x = new Float64Array(lev.A.n);
     lev.b = new Float64Array(lev.A.n);
+    // WASM CSR kernels (bitwise identical to the loops below; DevLog-060), null on small levels or when unavailable
+    lev.k = lev.solve ? null : makeCsrKernels(lev.A, lev.A.val, diagSlotOf(lev.A));
   }
   const gs = (lev, b, x, dir) => {
+    if (lev.k) {
+      for (let s = 0; s < sweeps; s++) lev.k.gs(b, x, dir);
+      return;
+    }
     const { A, d } = lev;
     const n = A.n;
     for (let s = 0; s < sweeps; s++)
@@ -261,7 +281,8 @@ export function buildAMG(A, { theta = 0.08, coarseMax = 400, maxLevels = 20, swe
     }
     x.fill(0);
     gs(lev, b, x, 1);
-    spmv(lev.A, x, lev.r);
+    if (lev.k) lev.k.spmv(x, lev.r);
+    else spmv(lev.A, x, lev.r);
     for (let i = 0; i < lev.A.n; i++) lev.r[i] = b[i] - lev.r[i];
     const nxt = levels[l + 1];
     spmv(lev.PT, lev.r, nxt.b);

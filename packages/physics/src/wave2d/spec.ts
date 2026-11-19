@@ -43,15 +43,22 @@ export const WAVE2D_REGISTRATIONS: Registration[] = [
     }) },
 ];
 
+// S-parameters between higher port modes p, q (mode 0 is the bare S<i><j> form); a frequency study with several
+// frequencies suffixes every scalar with the step index, '<name>_<s>' (DevLog-047 R3, DevLog-061)
+const S_HIGHER = ['S<i><j>_<p><q>_re', 'S<i><j>_<p><q>_im', 'S<i><j>_<p><q>_abs', 'S<i><j>_<p><q>_dB', 'S<i><j>_<p><q>_phase'];
+const stepped = (names: string[]) => names.map((n) => `${n}_<s>`);
+const FREQ_EMW = ['S<i><j>_re', 'S<i><j>_im', 'S<i><j>_abs', 'S<i><j>_dB', 'S<i><j>_phase', 'beta_<i>_<k>', 'neff_<i>_<k>', 'P_in', 'P_src_<i>', 'sigma2d_back', 'sigma2d_fwd', 'sigma2d_total', 'freq'];
+const FREQ_AC = ['S<i><j>_re', 'S<i><j>_im', 'S<i><j>_abs', 'S<i><j>_dB', 'S<i><j>_phase', 'beta_<i>_<k>', 'P_in', 'P_src_<i>', 'sigma2d_back', 'sigma2d_fwd', 'sigma2d_total', 'freq'];
+
 export const RESULT_NAMES_WAVE2D: Record<string, { fields: string[]; scalars: string[] }> = {
   'emw-2d': {
     fields: ['Ez_re', 'Ez_im', 'Ez_abs', 'Ez_sc_re', 'Ez_sc_im', 'Ez_sc_abs', 'H_re', 'H_im', 'normH', 'Hz_re', 'Hz_im', 'Hz_abs', 'Hz_sc_re', 'Hz_sc_im', 'Hz_sc_abs', 'E_re', 'E_im', 'normE'],
-    scalars: ['S<i><j>_re', 'S<i><j>_im', 'S<i><j>_abs', 'S<i><j>_dB', 'S<i><j>_phase', 'beta_<i>_<k>', 'neff_<i>_<k>', 'P_in', 'P_src_<i>', 'sigma2d_back', 'sigma2d_fwd', 'sigma2d_total', 'freq',
-      'f_<b>', 'f_<b>_<k>', 'fmax_<b>', 'fmin_<b>', 'kx_<k>', 'ky_<k>'],
+    scalars: [...FREQ_EMW,
+      'f_<b>', 'f_<b>_<k>', 'fmax_<b>', 'fmin_<b>', 'kx_<k>', 'ky_<k>', ...S_HIGHER, ...stepped([...FREQ_EMW, ...S_HIGHER])],
   },
   'acoustics-frequency': {
     fields: ['p_re', 'p_im', 'p_abs', 'p_sc_re', 'p_sc_im', 'p_sc_abs', 'v_re', 'v_im', 'normV'],
-    scalars: ['S<i><j>_re', 'S<i><j>_im', 'S<i><j>_abs', 'S<i><j>_dB', 'S<i><j>_phase', 'beta_<i>_<k>', 'P_in', 'P_src_<i>', 'sigma2d_back', 'sigma2d_fwd', 'sigma2d_total', 'freq'],
+    scalars: [...FREQ_AC, ...S_HIGHER, ...stepped([...FREQ_AC, ...S_HIGHER])],
   },
 };
 

@@ -9,7 +9,7 @@
 # Modelling inputs NOT from a paper (illustrative): all dimensions, powers, the bump area fraction and T_case. The
 # micro-bump layer is homogenised with the parallel (Wiener) rule k_eff = f k_SAC305 + (1 - f) k_underfill, with the
 # underfill term left out because the library has no underfill k (materials/underfill-uf8830s: N/A): k_eff = f k_SAC305.
-# Si k: materials/silicon at 298.15 K as an override (no temperature for library tables yet, DevLog-049 R1); constant k
+# Si k: materials/silicon at the material temperature 298.15 K; constant k
 # (linear model; Si k falls with temperature, not modelled).
 schema: amp-spec/0
 id: interposer-thermal-3d
@@ -47,7 +47,7 @@ geometry:
           - {id: active, thickness: "t_a", sketch: [logic, mem_l, mem_r], nz: 1}
           - {id: bulk, thickness: "t_d - t_a", sketch: [logic, mem_l, mem_r], nz: 2}
 materials:
-  - {id: si, ref: materials/silicon, override: {k: {value: 149.038, unit: W/(m*K)}}, select: ["dom:pkg.interposer", "dom:pkg.active", "dom:pkg.bulk"]}
+  - {id: si, ref: materials/silicon, T: {value: 298.15, unit: K}, select: ["dom:pkg.interposer", "dom:pkg.active", "dom:pkg.bulk"]}
   - {id: bump_layer, override: {k: "f_b*k_sac"}, select: ["dom:pkg.bumps"]}
 physics:
   - id: ht
@@ -59,7 +59,7 @@ physics:
       - {id: q_mem_r, type: heat-source, select: ["dom:mem_r.active"], settings: {Q: "P_M/(w_M*l_M*t_a)"}}
       - {id: cold_plate, type: temperature, select: ["bnd:pkg.top"], settings: {T: "T_case"}}
 studies:
-  - {id: std1, type: stationary, physics: [ht]}
+  - {id: std1, type: stationary, physics: [ht], settings: {solver: auto}}
 mesh:
   size: {hmax: 0.5 mm}
 results:
@@ -104,7 +104,7 @@ provenance:
     params.f_b: {basis: user, date: 2026-11-18, note: "illustrative bump diameter 25 um on a 55 um square pitch, not from a paper"}
     params.k_sac: {basis: datasheet, source: "materials/sac305.yaml k (Indium Corporation Indalloy 256 product data sheet)", date: 2026-11-18}
     params.T_case: {basis: user, date: 2026-11-18, note: "illustrative; the resistances do not depend on it (linear model)"}
-    materials.si.override.k: {basis: measured, source: "materials/silicon.yaml k (HPL 1972) at 298.15 K", date: 2026-11-18, note: "override only because prepareRun passes no temperature to library tables (library tables get no temperature yet)"}
+    materials.si.T: {basis: user, date: 2026-11-18, note: "library k of materials/silicon evaluated at 298.15 K (k = 149.038 W/(m K), HPL 1972) and held constant (linear model; Si k falls with temperature, not modelled)"}
     materials.bump_layer.override.k: {basis: derived, date: 2026-11-18, note: "parallel (Wiener) homogenisation f k_SAC305; the underfill term (1 - f) k_underfill is left out (library k N/A), so the layer conductance is a lower estimate"}
     mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; thin layers give flat tets (P2)"}
 assumptions:

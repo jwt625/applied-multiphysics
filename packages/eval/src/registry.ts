@@ -385,6 +385,12 @@ function physicsEntries(spec: Spec): Array<{ id: string; type: string }> {
   return ph.filter((p) => p && typeof p === 'object').map((p) => ({ id: String((p as { id?: unknown }).id ?? ''), type: String((p as { type?: unknown }).type ?? '') }));
 }
 
+/** A result name is declared when it matches an entry of RESULT_NAMES (fields or scalars); each '<x>' segment of an
+ *  entry is a wildcard for one or more characters other than '_' (e.g. 'C_<i>_<j>', 'S<i><j>_abs_<s>'). */
+export function nameDeclared(names: string[], x: string): boolean {
+  return names.some((n) => new RegExp(`^${n.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/<[^>]+>/g, '[^_]+')}$`).test(x));
+}
+
 export interface EngineOptions { timeoutS?: number; timeoutCapS?: number; maxOldMb?: number }
 
 /** Wall-clock limit of a case (audit B1): 20 x budget_s (native, else browser) per level, at least 30 s per level,
@@ -527,17 +533,18 @@ export class EngineSource implements Source {
       fields: s.order.flatMap((id, i) => rn0[s.types![i]!]!.fields.flatMap((n) => [n, `${id}.${n}`])),
       scalars: s.order.flatMap((id, i) => rn0[s.types![i]!]!.scalars.flatMap((n) => [n, `${id}.${n}`])),
     } : undefined;
-    const known = (names: string[], x: string) => names.some((n) => new RegExp(`^${n.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/<[^>]+>/g, '[^_]+')}$`).test(x));
+    const known = nameDeclared;
     for (const r of refs) {
       if (!r.metric_id && !r.extract?.name) { pre[targetId(r)] = { pending: 'no metric_id: targets are looked up by metric_id only' }; continue; }
       // B3: the metric must be one the module declares (RESULT_NAMES), else pending with the reason
       const kind = r.extract?.kind ?? 'scalar';
-      if (rn && (kind === 'scalar' || kind === 'probe' || kind === 'field' || kind === 'reduce')) {
-        // every engine name the target needs: the scalar, or each field (`fields` lists several)
-        const names = kind === 'scalar' ? [r.extract?.name ?? r.metric_id!] : r.extract?.fields?.length ? r.extract.fields : [r.extract?.field ?? r.extract?.name ?? ''];
-        const list = kind === 'scalar' ? rn.scalars : rn.fields;
+      if (rn && (kind === 'scalar' || kind === 'probe' || kind === 'field' || kind === 'reduce' || kind === 'resonance')) {
+        // every engine name the target needs: the scalar (resonance: the per-step scalar), or each field (`fields` lists several)
+        const sc = kind === 'scalar' || kind === 'resonance';
+        const names = sc ? [r.extract?.name ?? r.metric_id!] : r.extract?.fields?.length ? r.extract.fields : [r.extract?.field ?? r.extract?.name ?? ''];
+        const list = sc ? rn.scalars : rn.fields;
         const missing = names.filter((n) => !known(list, n));
-        if (missing.length) { pre[targetId(r)] = { pending: `module '${s.module.type}' does not produce ${kind === 'scalar' ? 'scalar' : 'field'}${missing.length > 1 ? 's' : ''} ${missing.map((n) => `'${n}'`).join(', ')} (declares: ${list.join(', ') || 'none'})` }; continue; }
+        if (missing.length) { pre[targetId(r)] = { pending: `module '${s.module.type}' does not produce ${sc ? 'scalar' : 'field'}${missing.length > 1 ? 's' : ''} ${missing.map((n) => `'${n}'`).join(', ')} (declares: ${list.join(', ') || 'none'})` }; continue; }
       }
       const pts = r.extract?.kind === 'field' ? (r.extract.points ?? samplePoints(lc.expected, r.extract.samples_key)) : undefined;
       targets.push({ tid: targetId(r), ref: r, ...(pts ? { points: pts } : {}) });

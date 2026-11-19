@@ -1,0 +1,251 @@
+# PK-10: Waveguide under a heater (3D quarter): heater temperature rise within variational bounds; phase from the cross-section
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: PK-10
+class: c
+title: 'Waveguide under a heater (3D quarter): heater temperature rise within variational bounds; phase from the cross-section'
+status: unvalidated
+untestable_reason: null
+physics: [heat-cond]
+dimension: 3D
+units: SI
+geometry:
+  kind: analytic
+  spec: {W_m: 3.0e-05, w_wg_m: 5.0e-07, t_wg_m: 2.2e-07, w_h_m: 2.0e-06, L_h_m: 2.0e-05, t_sub_m: 1.5e-05, t_box_m: 2.0e-06,
+    t_c_m: 1.0e-06, P_h_W: 0.001, L_m: 3.0e-05, model: quarter}
+materials:
+  si: {ref: materials/silicon, k_W_per_mK: 149.038, source: materials/silicon.yaml k (HPL 1972) at 298.15 K}
+  oxide: {ref: materials/sio2-thermal-oxide, k_W_per_mK: 1.38, source: materials/sio2-thermal-oxide.yaml k (Corning HPFS 7980)}
+bcs:
+- selection: heater rectangle on the cladding top
+  type: heat flux
+  params: {P_W: 0.001}
+- selection: substrate bottom
+  type: temperature
+  params: {T_K: 293.15}
+- {selection: all other surfaces, type: adiabatic}
+initial: null
+study: {type: stationary}
+references:
+- id: dT_heater
+  quantity: mean heater temperature rise at 1 mW
+  metric_id: dT_heater
+  value: null
+  unit: K
+  tolerance:
+    rule:
+      type: range
+      range: [18.042142436358702, 24.176429468495638]
+      note: rigorous two-sided bound (about 33 % wide); the finite-element value approaches the exact value from below
+  bounds: [18.042142436358702, 24.176429468495638]
+  basis: D
+  form: closed_form
+  gate: true
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with exact
+      cosine-series fields of horizontally layered models (core layer all Si / all oxide) as trial fields in the true medium;
+      own derivation, validation/pkg2/heater_layers.py', locator: 'validation/pkg2/heater_layers.py improved(), core_energies();
+      eval/expected/PK-10.json dT_heater_lower, dT_heater_upper', accessed: null, generator: validation/pkg2/heater_layers.py,
+    source_accessed: '2026-11-18'}
+  extract:
+    kind: combine
+    expr: th - 293.15[K]
+    targets: {th: T_heater}
+- id: T_heater
+  quantity: mean heater temperature
+  metric_id: T_heater
+  value: null
+  unit: K
+  tolerance:
+    rule:
+      type: range
+      range: [311.19214243635867, 317.32642946849563]
+      note: 'informative: same bound on the temperature'
+  bounds: [311.19214243635867, 317.32642946849563]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with exact
+      cosine-series fields of horizontally layered models (core layer all Si / all oxide) as trial fields in the true medium;
+      own derivation, validation/pkg2/heater_layers.py', locator: 'validation/pkg2/heater_layers.py improved(), core_energies();
+      eval/expected/PK-10.json dT_heater_lower, dT_heater_upper', accessed: null, generator: validation/pkg2/heater_layers.py,
+    source_accessed: '2026-11-18'}
+  extract: {kind: result, node: T_heater}
+- id: dT_heater_vs_layered
+  quantity: heater rise vs the exact all-oxide and all-Si core-layer models
+  metric_id: dT_heater_vs_layered
+  value: null
+  unit: K
+  tolerance:
+    rule:
+      type: range
+      range: [16.69885568670126, 24.404690637074616]
+      note: 'informative: the two layered models bracket it too (wider)'
+  bounds: [16.69885568670126, 24.404690637074616]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with exact
+      cosine-series fields of horizontally layered models (core layer all Si / all oxide) as trial fields in the true medium;
+      own derivation, validation/pkg2/heater_layers.py', locator: 'validation/pkg2/heater_layers.py improved(), core_energies();
+      eval/expected/PK-10.json dT_heater_lower, dT_heater_upper', accessed: null, generator: validation/pkg2/heater_layers.py,
+    source_accessed: '2026-11-18'}
+  extract:
+    kind: combine
+    expr: th - 293.15[K]
+    targets: {th: T_heater}
+- id: T_core
+  quantity: mean core temperature
+  metric_id: T_core
+  value: null
+  unit: K
+  tolerance:
+    rule:
+      type: range
+      range: [293.15, 317.32642946849563]
+      note: 'informative: the core lies below the heater (maximum principle: below the heater maximum; the mean heater bound
+        is used as a loose indication)'
+  bounds: [293.15, 317.32642946849563]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with exact
+      cosine-series fields of horizontally layered models (core layer all Si / all oxide) as trial fields in the true medium;
+      own derivation, validation/pkg2/heater_layers.py', locator: 'validation/pkg2/heater_layers.py improved(), core_energies();
+      eval/expected/PK-10.json dT_heater_lower, dT_heater_upper', accessed: null, generator: validation/pkg2/heater_layers.py,
+    source_accessed: '2026-11-18'}
+  extract: {kind: result, node: T_core}
+- id: dneff_2d
+  quantity: effective-index change of the cross-section at 1 mW over L_h
+  metric_id: dneff_2d
+  value: null
+  unit: '1'
+  tolerance:
+    rule:
+      type: range
+      range: [0, 1]
+      note: 'informative (positive: dn/dT > 0)'
+  bounds: [0, 1]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with exact
+      cosine-series fields of horizontally layered models (core layer all Si / all oxide) as trial fields in the true medium;
+      own derivation, validation/pkg2/heater_layers.py', locator: 'validation/pkg2/heater_layers.py improved(), core_energies();
+      eval/expected/PK-10.json dT_heater_lower, dT_heater_upper', accessed: null, generator: validation/pkg2/heater_layers.py,
+    source_accessed: '2026-11-18'}
+  extract: {kind: result, node: dneff}
+  spec: sims/waveguide-heater-to.yaml
+- id: T_core_2d
+  quantity: mean core temperature of the cross-section
+  metric_id: T_core_2d
+  value: null
+  unit: K
+  tolerance:
+    rule:
+      type: range
+      range: [293.15, 393.15]
+      note: informative
+  bounds: [293.15, 393.15]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with exact
+      cosine-series fields of horizontally layered models (core layer all Si / all oxide) as trial fields in the true medium;
+      own derivation, validation/pkg2/heater_layers.py', locator: 'validation/pkg2/heater_layers.py improved(), core_energies();
+      eval/expected/PK-10.json dT_heater_lower, dT_heater_upper', accessed: null, generator: validation/pkg2/heater_layers.py,
+    source_accessed: '2026-11-18'}
+  extract: {kind: result, node: T_core}
+  spec: sims/waveguide-heater-to.yaml
+- id: dphi_3d
+  quantity: 'phase shift of the 3D section at 1 mW: k0 (dn_eff / dT_core of the section) times the core temperature rise integrated
+    along the waveguide'
+  metric_id: dphi_3d
+  value: null
+  unit: rad
+  tolerance:
+    rule:
+      type: range
+      range: [0, 10]
+      note: 'informative estimate: assumes the cross-section temperature shape scales along y'
+  bounds: [0, 10]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with exact
+      cosine-series fields of horizontally layered models (core layer all Si / all oxide) as trial fields in the true medium;
+      own derivation, validation/pkg2/heater_layers.py', locator: 'validation/pkg2/heater_layers.py improved(), core_energies();
+      eval/expected/PK-10.json dT_heater_lower, dT_heater_upper', accessed: null, generator: validation/pkg2/heater_layers.py,
+    source_accessed: '2026-11-18'}
+  extract:
+    kind: combine
+    expr: 6.283185307179586 / (1.55[um]) * dn / (tc2 - 293.15[K]) * 4 * ci / (0.5[um] * 0.22[um])
+    targets: {dn: dneff_2d, tc2: T_core_2d, ci: core_rise_integral}
+- id: core_rise_integral
+  quantity: integral of the core temperature rise over the quarter core
+  metric_id: core_rise_integral
+  value: null
+  unit: K*m^3
+  tolerance:
+    rule:
+      type: range
+      range: [0, 1]
+      note: informative (positive)
+  bounds: [0, 1]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with exact
+      cosine-series fields of horizontally layered models (core layer all Si / all oxide) as trial fields in the true medium;
+      own derivation, validation/pkg2/heater_layers.py', locator: 'validation/pkg2/heater_layers.py improved(), core_energies();
+      eval/expected/PK-10.json dT_heater_lower, dT_heater_upper', accessed: null, generator: validation/pkg2/heater_layers.py,
+    source_accessed: '2026-11-18'}
+  extract: {kind: result, node: core_rise_integral}
+- id: dphi_2d_x_Lh
+  quantity: 'phase shift of an infinitely long section times L_h: k0 dn_eff L_h'
+  metric_id: dphi_2d_x_Lh
+  value: null
+  unit: rad
+  tolerance:
+    rule:
+      type: range
+      range: [0, 10]
+      note: 'informative: the 1D-along-the-waveguide estimate that ignores the heater ends'
+  bounds: [0, 10]
+  basis: D
+  form: closed_form
+  gate: false
+  provenance: {citation: 'Variational bounds of steady conduction (Dirichlet and complementary-energy principles) with exact
+      cosine-series fields of horizontally layered models (core layer all Si / all oxide) as trial fields in the true medium;
+      own derivation, validation/pkg2/heater_layers.py', locator: 'validation/pkg2/heater_layers.py improved(), core_energies();
+      eval/expected/PK-10.json dT_heater_lower, dT_heater_upper', accessed: null, generator: validation/pkg2/heater_layers.py,
+    source_accessed: '2026-11-18'}
+  extract:
+    kind: combine
+    expr: 6.283185307179586 / (1.55[um]) * dn * 20[um]
+    targets: {dn: dneff_2d}
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels; the bound is checked on the finest level
+speed:
+  budget_s: {browser: 60.0, native: null}
+  budget_basis: est. from the lane's own runs on 2026-11-18 (DevLog-063), not a browser measurement
+  report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own derivation, own reference code and closed forms from cited literature (formulas only); GPL-3.0-or-later
+    code
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: 'verification case, not a demo'}
+spec: sims/waveguide-heater-3d.yaml
+missing: []
+assumptions: [Thin-film heater as a uniform surface heat flux; constant k; thin isothermal-bottom substrate.]
+notes: ['The Si strip perturbs the layered models strongly, so the rigorous bracket is wide (about a third); the plain layered
+    models (core layer all oxide / all Si) are listed as a wider bracket.']
+lane: G6
+created: '2026-11-18'

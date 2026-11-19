@@ -109,6 +109,27 @@ export function tetQuality(nodes: Float64Array, conn: Int32Array, nv = 4): Quali
   return { n, minDihedralDeg: dmin, maxDihedralDeg: dmax, minShape: qmin, meanShape: qsum / n, nPoor: poor, nInverted: inv, measure: meas, hist };
 }
 
+/** Min dihedral angle (deg) of one tet given by its 4 corner node indices (same formulas as tetQuality, no allocation
+ * per call: `w` is a 24-entry scratch buffer). */
+export function tetMinDihedralDeg(nodes: Float64Array, v: ArrayLike<number>, w: Float64Array = new Float64Array(24)): number {
+  for (let a = 0; a < 4; a++) { const i = v[a]!; w[3 * a] = nodes[3 * i]!; w[3 * a + 1] = nodes[3 * i + 1]!; w[3 * a + 2] = nodes[3 * i + 2]!; }
+  for (let f = 0; f < 4; f++) {
+    const [a, b, c] = FACES[f]!;
+    const e1x = w[3 * b!]! - w[3 * a!]!, e1y = w[3 * b! + 1]! - w[3 * a! + 1]!, e1z = w[3 * b! + 2]! - w[3 * a! + 2]!;
+    const e2x = w[3 * c!]! - w[3 * a!]!, e2y = w[3 * c! + 1]! - w[3 * a! + 1]!, e2z = w[3 * c! + 2]! - w[3 * a! + 2]!;
+    const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+    const l = detmath.hyp3(nx, ny, nz);
+    w[12 + 3 * f] = nx / l; w[13 + 3 * f] = ny / l; w[14 + 3 * f] = nz / l;
+  }
+  let dmin = 180;
+  for (let f = 0; f < 4; f++)
+    for (let g = f + 1; g < 4; g++) {
+      const c = w[12 + 3 * f]! * w[12 + 3 * g]! + w[13 + 3 * f]! * w[13 + 3 * g]! + w[14 + 3 * f]! * w[14 + 3 * g]!;
+      dmin = Math.min(dmin, (Math.PI - acos(Math.max(-1, Math.min(1, c)))) * deg);
+    }
+  return dmin;
+}
+
 /** Signed volume of a prism6 / hex8 by splitting into tets (min tet volume ratio as a validity check). */
 export function solidQuality(nodes: Float64Array, conn: Int32Array, type: 'hex8' | 'prism6'): QualitySummary {
   const split = type === 'hex8'

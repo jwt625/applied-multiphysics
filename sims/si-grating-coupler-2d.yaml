@@ -1,0 +1,154 @@
+# WO-74 (eval/cases/c/WO-74.yaml): uniform SOI grating coupler, 2D side view (x along the waveguide, y up), chip TE
+# (E along z, out of the plane: emw-2d TM, u = E_z). Structure of D. Taillaert et al., Jpn. J. Appl. Phys. 45, 6071 (2006),
+# Fig. 2 / Fig. 3: Si core 220 nm (n 3.47) on 1 um buried oxide (n 1.44) over a Si substrate (n 3.47), air above; period
+# 630 nm, etch 70 nm, filling factor 0.5. The paper does not state the number of periods: 30 here (modelling choice,
+# long enough that the remaining guided power is small; the transmitted fraction is reported). The guided TE0 mode
+# enters through a port on the input waveguide; PML above and below; a port on the output waveguide takes the remaining
+# guided power. Upward power = flux of the Poynting vector S_y = Im(E_z dE_z*/dy) / (2 omega mu0) through a horizontal
+# line 1 um above the core, divided by the incident power. The Si substrate stops 1 um before each port so the port
+# cross-sections hold only the guiding layers (a substrate there would put substrate modes ahead of the guided mode);
+# the guided mode's leakage through 1 um oxide is negligible there. Reference: digitized "power up" curve of Fig. 3
+# (validation/photonics2/taillaert2006_fig3.json).
+# Core polygon: validation/photonics2/grating_polygon.py 30.
+schema: amp-spec/0
+id: si-grating-coupler-2d
+title: SOI grating coupler, upward power (2D)
+description: Uniform grating (630 nm period, 70 nm etch) in a 220 nm Si waveguide on 1 um oxide over silicon; fraction of the guided power radiated upwards, reflected and transmitted vs wavelength.
+params:
+  t_si: {value: 220, unit: nm, description: Si core thickness}
+  etch: {value: 70, unit: nm, description: grating etch depth}
+  Lam: {value: 630, unit: nm, description: grating period}
+  ff: {value: 0.5, description: "filling factor (unetched tooth fraction of the period)"}
+  t_box: {value: 1, unit: um, description: buried oxide}
+  t_sub: {value: 0.5, unit: um, description: Si substrate modelled above the bottom PML}
+  h_air: {value: 1.5, unit: um, description: "air above the core, below the top PML"}
+  t_pml: {value: 1, unit: um, description: "PML thickness (top and bottom)"}
+  xg0: {value: 3, unit: um, description: "grating start (input waveguide length)"}
+  L_out: {value: 3, unit: um, description: output waveguide length after the 30 periods}
+  xs0: {value: 1, unit: um, description: substrate set back from each port}
+  X: {value: "xg0 + 30*Lam + L_out", description: domain length}
+  y_line: {value: "t_si + 1[um]", description: height of the upward-flux line}
+  lambda0: {value: 1.55, unit: um, description: vacuum wavelength}
+  c0: {value: 299792458, unit: m/s, description: "speed of light in vacuum (SI exact)"}
+  mu0: {value: 1.25663706212e-6, unit: H/m, description: "vacuum permeability (CODATA 2018)"}
+  omega: {value: "2*pi*c0/lambda0", description: angular frequency}
+  hc: {value: 50, unit: nm, description: mesh size in the core}
+  y_down: {value: "-t_box/2", description: height of the downward-flux line (middle of the buried oxide)}
+geometry:
+  dim: 2
+  features:
+    - id: core
+      type: polygon
+      settings: {points: [["0 um", "t_si"], ["0 um", "0 um"], ["X", "0 um"], ["X", "t_si"], ["xg0 + 30*Lam", "t_si"], ["xg0 + 30*Lam", "t_si - etch"], ["xg0 + 29*Lam + ff*Lam", "t_si - etch"], ["xg0 + 29*Lam + ff*Lam", "t_si"], ["xg0 + 29*Lam", "t_si"], ["xg0 + 29*Lam", "t_si - etch"], ["xg0 + 28*Lam + ff*Lam", "t_si - etch"], ["xg0 + 28*Lam + ff*Lam", "t_si"], ["xg0 + 28*Lam", "t_si"], ["xg0 + 28*Lam", "t_si - etch"], ["xg0 + 27*Lam + ff*Lam", "t_si - etch"], ["xg0 + 27*Lam + ff*Lam", "t_si"], ["xg0 + 27*Lam", "t_si"], ["xg0 + 27*Lam", "t_si - etch"], ["xg0 + 26*Lam + ff*Lam", "t_si - etch"], ["xg0 + 26*Lam + ff*Lam", "t_si"], ["xg0 + 26*Lam", "t_si"], ["xg0 + 26*Lam", "t_si - etch"], ["xg0 + 25*Lam + ff*Lam", "t_si - etch"], ["xg0 + 25*Lam + ff*Lam", "t_si"], ["xg0 + 25*Lam", "t_si"], ["xg0 + 25*Lam", "t_si - etch"], ["xg0 + 24*Lam + ff*Lam", "t_si - etch"], ["xg0 + 24*Lam + ff*Lam", "t_si"], ["xg0 + 24*Lam", "t_si"], ["xg0 + 24*Lam", "t_si - etch"], ["xg0 + 23*Lam + ff*Lam", "t_si - etch"], ["xg0 + 23*Lam + ff*Lam", "t_si"], ["xg0 + 23*Lam", "t_si"], ["xg0 + 23*Lam", "t_si - etch"], ["xg0 + 22*Lam + ff*Lam", "t_si - etch"], ["xg0 + 22*Lam + ff*Lam", "t_si"], ["xg0 + 22*Lam", "t_si"], ["xg0 + 22*Lam", "t_si - etch"], ["xg0 + 21*Lam + ff*Lam", "t_si - etch"], ["xg0 + 21*Lam + ff*Lam", "t_si"], ["xg0 + 21*Lam", "t_si"], ["xg0 + 21*Lam", "t_si - etch"], ["xg0 + 20*Lam + ff*Lam", "t_si - etch"], ["xg0 + 20*Lam + ff*Lam", "t_si"], ["xg0 + 20*Lam", "t_si"], ["xg0 + 20*Lam", "t_si - etch"], ["xg0 + 19*Lam + ff*Lam", "t_si - etch"], ["xg0 + 19*Lam + ff*Lam", "t_si"], ["xg0 + 19*Lam", "t_si"], ["xg0 + 19*Lam", "t_si - etch"], ["xg0 + 18*Lam + ff*Lam", "t_si - etch"], ["xg0 + 18*Lam + ff*Lam", "t_si"], ["xg0 + 18*Lam", "t_si"], ["xg0 + 18*Lam", "t_si - etch"], ["xg0 + 17*Lam + ff*Lam", "t_si - etch"], ["xg0 + 17*Lam + ff*Lam", "t_si"], ["xg0 + 17*Lam", "t_si"], ["xg0 + 17*Lam", "t_si - etch"], ["xg0 + 16*Lam + ff*Lam", "t_si - etch"], ["xg0 + 16*Lam + ff*Lam", "t_si"], ["xg0 + 16*Lam", "t_si"], ["xg0 + 16*Lam", "t_si - etch"], ["xg0 + 15*Lam + ff*Lam", "t_si - etch"], ["xg0 + 15*Lam + ff*Lam", "t_si"], ["xg0 + 15*Lam", "t_si"], ["xg0 + 15*Lam", "t_si - etch"], ["xg0 + 14*Lam + ff*Lam", "t_si - etch"], ["xg0 + 14*Lam + ff*Lam", "t_si"], ["xg0 + 14*Lam", "t_si"], ["xg0 + 14*Lam", "t_si - etch"], ["xg0 + 13*Lam + ff*Lam", "t_si - etch"], ["xg0 + 13*Lam + ff*Lam", "t_si"], ["xg0 + 13*Lam", "t_si"], ["xg0 + 13*Lam", "t_si - etch"], ["xg0 + 12*Lam + ff*Lam", "t_si - etch"], ["xg0 + 12*Lam + ff*Lam", "t_si"], ["xg0 + 12*Lam", "t_si"], ["xg0 + 12*Lam", "t_si - etch"], ["xg0 + 11*Lam + ff*Lam", "t_si - etch"], ["xg0 + 11*Lam + ff*Lam", "t_si"], ["xg0 + 11*Lam", "t_si"], ["xg0 + 11*Lam", "t_si - etch"], ["xg0 + 10*Lam + ff*Lam", "t_si - etch"], ["xg0 + 10*Lam + ff*Lam", "t_si"], ["xg0 + 10*Lam", "t_si"], ["xg0 + 10*Lam", "t_si - etch"], ["xg0 + 9*Lam + ff*Lam", "t_si - etch"], ["xg0 + 9*Lam + ff*Lam", "t_si"], ["xg0 + 9*Lam", "t_si"], ["xg0 + 9*Lam", "t_si - etch"], ["xg0 + 8*Lam + ff*Lam", "t_si - etch"], ["xg0 + 8*Lam + ff*Lam", "t_si"], ["xg0 + 8*Lam", "t_si"], ["xg0 + 8*Lam", "t_si - etch"], ["xg0 + 7*Lam + ff*Lam", "t_si - etch"], ["xg0 + 7*Lam + ff*Lam", "t_si"], ["xg0 + 7*Lam", "t_si"], ["xg0 + 7*Lam", "t_si - etch"], ["xg0 + 6*Lam + ff*Lam", "t_si - etch"], ["xg0 + 6*Lam + ff*Lam", "t_si"], ["xg0 + 6*Lam", "t_si"], ["xg0 + 6*Lam", "t_si - etch"], ["xg0 + 5*Lam + ff*Lam", "t_si - etch"], ["xg0 + 5*Lam + ff*Lam", "t_si"], ["xg0 + 5*Lam", "t_si"], ["xg0 + 5*Lam", "t_si - etch"], ["xg0 + 4*Lam + ff*Lam", "t_si - etch"], ["xg0 + 4*Lam + ff*Lam", "t_si"], ["xg0 + 4*Lam", "t_si"], ["xg0 + 4*Lam", "t_si - etch"], ["xg0 + 3*Lam + ff*Lam", "t_si - etch"], ["xg0 + 3*Lam + ff*Lam", "t_si"], ["xg0 + 3*Lam", "t_si"], ["xg0 + 3*Lam", "t_si - etch"], ["xg0 + 2*Lam + ff*Lam", "t_si - etch"], ["xg0 + 2*Lam + ff*Lam", "t_si"], ["xg0 + 2*Lam", "t_si"], ["xg0 + 2*Lam", "t_si - etch"], ["xg0 + 1*Lam + ff*Lam", "t_si - etch"], ["xg0 + 1*Lam + ff*Lam", "t_si"], ["xg0 + 1*Lam", "t_si"], ["xg0 + 1*Lam", "t_si - etch"], ["xg0 + ff*Lam", "t_si - etch"], ["xg0 + ff*Lam", "t_si"]]}
+    - {id: topr, type: rect, settings: {size: ["X", "t_si + h_air"], center: ["X/2", "(t_si + h_air)/2"]}}
+    - {id: top, type: difference, settings: {base: topr, tools: [core], keepTools: true}}
+    - {id: pmlt, type: rect, settings: {size: ["X", "t_pml"], center: ["X/2", "t_si + h_air + t_pml/2"]}}
+    - {id: box, type: rect, settings: {size: ["X", "t_box"], center: ["X/2", "-t_box/2"]}}
+    - {id: lowl, type: rect, settings: {size: ["xs0", "t_sub"], center: ["xs0/2", "-t_box - t_sub/2"]}}
+    - {id: sub, type: rect, settings: {size: ["X - 2*xs0", "t_sub"], center: ["X/2", "-t_box - t_sub/2"]}}
+    - {id: lowr, type: rect, settings: {size: ["xs0", "t_sub"], center: ["X - xs0/2", "-t_box - t_sub/2"]}}
+    - {id: pmlbl, type: rect, settings: {size: ["xs0", "t_pml"], center: ["xs0/2", "-t_box - t_sub - t_pml/2"]}}
+    - {id: pmlbs, type: rect, settings: {size: ["X - 2*xs0", "t_pml"], center: ["X/2", "-t_box - t_sub - t_pml/2"]}}
+    - {id: pmlbr, type: rect, settings: {size: ["xs0", "t_pml"], center: ["X - xs0/2", "-t_box - t_sub - t_pml/2"]}}
+materials:
+  - {id: Si, override: {n: 3.47}, select: ["dom:core", "dom:sub", "dom:pmlbs"]}
+  - {id: SiO2, override: {n: 1.44}, select: ["dom:box", "dom:lowl", "dom:lowr", "dom:pmlbl", "dom:pmlbr"]}
+  - {id: Air, override: {n: 1}, select: ["dom:top", "dom:pmlt"]}
+physics:
+  - id: w
+    type: emw-2d
+    select: ["dom:core", "dom:top", "dom:pmlt", "dom:box", "dom:lowl", "dom:sub", "dom:lowr", "dom:pmlbl", "dom:pmlbs", "dom:pmlbr"]
+    settings: {polarization: TM}
+    bcs:
+      - {id: pin, type: port, select: ["bnd:lowl.left", "bnd:box.left", "bnd:core.e0", "bnd:topr.left"], settings: {nModes: 1, excite: true, power: "1 W/m"}}
+      - {id: pout, type: port, select: ["bnd:lowr.right", "bnd:box.right", "bnd:core.e2", "bnd:topr.right"], settings: {nModes: 1}}
+      - {id: absorb, type: pml, select: ["dom:pmlt", "dom:pmlbl", "dom:pmlbs", "dom:pmlbr"]}
+mesh:
+  size: {hmax: "0.2 um", grading: 0.3}
+  refine:
+    - {select: ["dom:core"], h: "hc"}
+    - {select: ["dom:sub", "dom:pmlbs"], h: "0.09 um"}
+    - {select: ["dom:box", "dom:lowl", "dom:lowr", "dom:pmlbl", "dom:pmlbr"], h: "0.15 um"}
+studies:
+  - {id: s, type: frequency, physics: [w], settings: {wavelengths: ["lambda0"]}}
+  - id: sweep
+    type: parametric
+    physics: [w]
+    settings:
+      study: s
+      sweep:
+        - {param: lambda0, values: ["1.5 um", "1.51 um", "1.52 um", "1.53 um", "1.54 um", "1.55 um", "1.56 um", "1.57 um", "1.58 um", "1.59 um", "1.6 um", "1.61 um", "1.62 um", "1.63 um", "1.64 um", "1.65 um"]}
+results:
+  datasets:
+    - {id: sol_s, type: solution, data: s}
+    - {id: sol_sweep, type: solution, data: sweep}
+    - {id: up_line, type: cutline, data: sol_s, from: ["0 um", "y_line"], to: ["X", "y_line"]}
+    - {id: down_line, type: cutline, data: sol_s, from: ["0 um", "y_down"], to: ["X", "y_down"]}
+    - {id: in_line, type: cutline, data: sol_s, from: ["0.25 um", "y_down"], to: ["0.25 um", "y_line"]}
+    - {id: out_line, type: cutline, data: sol_s, from: ["X - 0.25[um]", "y_down"], to: ["X - 0.25[um]", "y_line"]}
+    - {id: up_line_sweep, type: cutline, data: sol_sweep, from: ["0 um", "y_line"], to: ["X", "y_line"]}
+  evaluations:
+    - id: ev_s
+      data: sol_s
+      items:
+        - {id: P_up, type: integral, data: up_line, expr: "(w.Ez_im*d(w.Ez_re, y) - w.Ez_re*d(w.Ez_im, y))/(2*omega*mu0)", unit: W/m, label: "upward power per unit depth through the line (incident 1 W/m: numerically the upward fraction)"}
+        - {id: P_down, type: integral, data: down_line, expr: "(w.Ez_re*d(w.Ez_im, y) - w.Ez_im*d(w.Ez_re, y))/(2*omega*mu0)", unit: W/m, label: "downward power per unit depth through the buried oxide (incident 1 W/m: numerically the downward fraction)"}
+        - {id: P_x_in, type: integral, data: in_line, expr: "(w.Ez_im*d(w.Ez_re, x) - w.Ez_re*d(w.Ez_im, x))/(2*omega*mu0)", unit: W/m, label: "net power per unit depth along +x through the vertical line near the input port, between the two horizontal lines"}
+        - {id: P_x_out, type: integral, data: out_line, expr: "(w.Ez_im*d(w.Ez_re, x) - w.Ez_re*d(w.Ez_im, x))/(2*omega*mu0)", unit: W/m, label: "net power per unit depth along +x through the vertical line near the output port"}
+        - {id: R, type: global, expr: "w.S11_abs^2", unit: "1", label: "reflected fraction (guided mode)"}
+        - {id: T, type: global, expr: "w.S21_abs^2", unit: "1", label: "transmitted fraction (guided mode)"}
+    - id: ev_sweep
+      data: sol_sweep
+      items:
+        - {id: P_up_l, type: integral, data: up_line_sweep, expr: "(w.Ez_im*d(w.Ez_re, y) - w.Ez_re*d(w.Ez_im, y))/(2*omega*mu0)", unit: W/m, label: "upward power per unit depth (incident 1 W/m: numerically the upward fraction)"}
+        - {id: R_l, type: global, expr: "w.S11_abs^2", unit: "1", label: "reflected fraction"}
+        - {id: T_l, type: global, expr: "w.S21_abs^2", unit: "1", label: "transmitted fraction"}
+  tables:
+    - {id: tbl_s, from: ev_s}
+    - {id: tbl_sweep, from: ev_sweep}
+  plots:
+    - id: Ez_field
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_re_surf, type: surface, expr: w.Ez_re, unit: V/m, colormap: balance}
+    - id: Ez_magnitude
+      type: plot2d
+      data: sol_s
+      items:
+        - {id: Ez_abs_surf, type: surface, expr: w.Ez_abs, unit: V/m}
+    - id: spectrum
+      type: plot1d
+      items:
+        - {id: spectrum_curve, type: tablegraph, table: tbl_sweep}
+provenance:
+  values:
+    params.t_si: {basis: paper_exact, source: "D. Taillaert et al., Jpn. J. Appl. Phys. 45(8A), 6071-6077 (2006), doi 10.1143/JJAP.45.6071", locator: "p.6072 text and Fig. 2 (220 nm Si core, n = 3.47)", date: 2026-11-18}
+    params.etch: {basis: paper_exact, source: "Taillaert 2006", locator: "p.6072 Fig. 3 caption (etch depth 70 nm)", date: 2026-11-18}
+    params.Lam: {basis: paper_exact, source: "Taillaert 2006", locator: "p.6072 Fig. 3 caption (period 630 nm)", date: 2026-11-18}
+    params.ff: {basis: paper_exact, source: "Taillaert 2006", locator: "p.6072 Fig. 3 caption (filling factor 0.5)", date: 2026-11-18}
+    params.t_box: {basis: paper_exact, source: "Taillaert 2006", locator: "p.6072 text and Fig. 2 (1 um oxide, n = 1.44)", date: 2026-11-18}
+    params.t_sub: {basis: user, date: 2026-11-18, note: "modelling choice: the substrate (Fig. 2, n 3.47, semi-infinite) is 0.5 um of Si followed by the PML"}
+    params.h_air: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.t_pml: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.xg0: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.L_out: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.xs0: {basis: user, date: 2026-11-18, note: "modelling choice: substrate set back from the ports (see header)"}
+    params.X: {basis: user, date: 2026-11-18, note: "30 periods: the paper does not state the number of periods (modelling choice)"}
+    params.y_line: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.lambda0: {basis: paper_exact, source: "Taillaert 2006", locator: "p.6072 Fig. 3 (1500-1650 nm)", date: 2026-11-18}
+    params.c0: {basis: paper_exact, source: "SI definition of the metre (exact)", date: 2026-11-18}
+    params.mu0: {basis: paper_exact, source: "CODATA 2018 recommended value (as packages/physics electrostatics MU0)", date: 2026-11-18}
+    params.hc: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    params.y_down: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    materials.Si.override.n: {basis: paper_exact, source: "Taillaert 2006", locator: "Fig. 2 (n = 3.47, core and substrate)", date: 2026-11-18}
+    materials.SiO2.override.n: {basis: paper_exact, source: "Taillaert 2006", locator: "Fig. 2 (n = 1.44)", date: 2026-11-18}
+    materials.Air.override.n: {basis: paper_exact, source: "Taillaert 2006", locator: "p.6072 (standard SOI: top cladding n_top = 1)", date: 2026-11-18}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.2.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+assumptions:
+  - {text: "2D (grooves infinitely long), constant indices (no dispersion), TE of the chip (E parallel to the grooves) as in the paper", paths: [physics.w, materials]}
+  - {text: "Number of periods not given by the paper: 30 periods (the remaining guided power at the output port is reported as T)", paths: [geometry]}
+  - {text: "Substrate set back 1 um from each port (oxide below the box there); guided-mode leakage through the 1 um oxide over that length is negligible", paths: [geometry]}
+# eval: [WO-74]

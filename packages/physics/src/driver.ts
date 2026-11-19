@@ -12,7 +12,7 @@ import { isoNow } from '@amp/spec';
 import { COUPLINGS, COUPLING_NEEDS, couplingImpl, type CouplingImpl } from './couplings/index.ts';
 import { specReadiness } from './common/ctx.ts';
 import { attachMesh, checkAbort } from './common/solution.ts';
-import { withStudySolver } from './common/scalar.ts';
+import { mergeSolverRecords, withStudySolver } from './common/scalar.ts';
 
 type SolutionExt = Solution & { notes?: string[]; normalization?: string };
 
@@ -287,6 +287,8 @@ function mergeSolutions(plan: StudyPlan, sols: Map<string, { sol: SolutionExt; g
     meshHash: first.meshHash, fields, ...(steps ? { steps } : {}), scalars, stats, timing,
     run: { ...first.run, startedAt },
   };
+  const solverRec = mergeSolverRecords(distinct.map((d) => [d.ids.join('+'), d.sol.run?.solver] as const));
+  if (solverRec) out.run.solver = solverRec; else delete out.run.solver;
   for (const d of distinct) if (d.sol.meshHash !== out.meshHash) throw new Error(`physics ${d.ids.join('+')} solved on a different mesh (${d.sol.meshHash.slice(0, 12)})`);
   const notes = [...new Set(distinct.flatMap((d) => d.sol.notes ?? []))];
   if (notes.length) out.notes = notes;

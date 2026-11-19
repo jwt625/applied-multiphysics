@@ -98,3 +98,43 @@ export function cubeRule(d: 2 | 3, n: number): Rule {
   ruleCache.set(key, r);
   return r;
 }
+
+/**
+ * Symmetric positive-weight rules on the unit tet (DevLog-060, degree-matched tet quadrature option): degree <= 1:
+ * centroid (1 point); 2: the 4-point rule with barycentric orbit (b, a, a, a), a = (5 - sqrt 5) / 20 (Keast 1986,
+ * Comput. Methods Appl. Mech. Eng. 55:339); 3..5: the 14-point degree-5 rule with two 4-point orbits and one 6-point
+ * orbit (Walkington 2000, "Quadrature on simplices of arbitrary dimension", rule of degree 5; also Keast 1986). Weights
+ * sum to 1/6. The exact moments of every monomial up to the stated degree are checked in the tests. Returns null for
+ * degree > 5 (callers keep the collapsed rule).
+ */
+export function symTetRule(degree: number): Rule | null {
+  const key = `symtet${degree <= 1 ? 1 : degree <= 2 ? 2 : degree <= 5 ? 5 : 0}`;
+  if (degree > 5) return null;
+  const hit = ruleCache.get(key);
+  if (hit) return hit;
+  const P: number[] = [], W: number[] = [];
+  // orbit of barycentric (l0, l1, l2, l3) -> reference point (l1, l2, l3), distinct permutations only
+  const orbit = (l: number[], w: number) => {
+    const seen = new Set<string>();
+    const perms = (a: number[]): number[][] => (a.length <= 1 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map((p) => [x, ...p])));
+    for (const p of perms(l)) {
+      const k = p.join(',');
+      if (seen.has(k)) continue;
+      seen.add(k);
+      P.push(p[1]!, p[2]!, p[3]!); W.push(w);
+    }
+  };
+  if (degree <= 1) orbit([0.25, 0.25, 0.25, 0.25], 1 / 6);
+  else if (degree <= 2) { const a = (5 - Math.sqrt(5)) / 20; orbit([1 - 3 * a, a, a, a], 1 / 24); }
+  else {
+    const a1 = 0.31088591926330061, w1 = 0.018781320953002642;
+    const a2 = 0.092735250310891226, w2 = 0.012248840519393658;
+    const b = 0.045503704125649649, w3 = 0.0070910034628469110;
+    orbit([1 - 3 * a1, a1, a1, a1], w1);
+    orbit([1 - 3 * a2, a2, a2, a2], w2);
+    orbit([b, b, 0.5 - b, 0.5 - b], w3);
+  }
+  const r = { dim: 3, n: W.length, pts: Float64Array.from(P), wts: Float64Array.from(W) };
+  ruleCache.set(key, r);
+  return r;
+}

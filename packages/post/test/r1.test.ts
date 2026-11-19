@@ -194,3 +194,19 @@ test('audit fixes: curved-cell crossings, closed-loop orientation, name clashes,
   const H = evalIntegral(s2, 'T', cutLine(m2, [1, 0.5], [3, 0.5]));
   close(H.coverage!.covered, 1, 1e-13, 'coverage'); close(H.coverage!.length, 2, 1e-15, 'length');
 });
+
+// DevLog-061 R1 / DevLog-066: per-frequency global items on a multi-frequency solution
+test('evalGlobal step: <name>_<step> first on a multi-frequency solution; bare-name behaviour unchanged', () => {
+  const sol = {
+    meshHash: 'x', fields: [], steps: { kind: 'freq' as const, values: Float64Array.from([1.9e14, 2.0e14]), unit: 'Hz' },
+    scalars: { S21_abs_0: { value: 0.5, unit: '1' }, S21_abs_1: { value: 0.25, unit: '1' } },
+    stats: { dof: 0, solver: 'x' }, timing: {}, run: {} as never,
+  };
+  assert.equal(evalGlobal(sol, 'w.S21_abs^2', { physicsId: 'w', step: 1 }).value, 0.0625);
+  assert.equal(evalGlobal(sol, 'S21_abs', { step: 0 }).value, 0.5);
+  assert.equal(evalGlobal(sol, 'S21_abs_1').value, 0.25);
+  assert.throws(() => evalGlobal(sol, 'S21_abs'), /S21_abs_0, S21_abs_1/);
+  // a single-frequency solution: step does not rename
+  const one = { ...sol, steps: { kind: 'freq' as const, values: Float64Array.from([2e14]), unit: 'Hz' }, scalars: { S21_abs: { value: 0.3, unit: '1' } } };
+  assert.equal(evalGlobal(one, 'S21_abs', { step: 0 }).value, 0.3);
+});

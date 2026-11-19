@@ -25,7 +25,7 @@ test('diffPatch reproduces the target and round-trips through the op log and the
   await log.apply(p2, { actor: 'user' });
   assert.ok(jsonEq(log.data, b));
   assert.ok(parseSpecText(log.text, reg).ok);
-  assert.ok(log.text.includes('# H1 Plate with a hole'), 'comments kept by the splice');
+  assert.ok(log.text.includes('# Plate with a hole'), 'comments kept by the splice');
   await log.undo({ actor: 'user' });
   assert.equal(log.text, text);
   assert.deepEqual(setOp(a, '/params/D/value', 10), []);

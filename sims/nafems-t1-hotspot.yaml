@@ -1,5 +1,5 @@
 # CP-21 (eval/cases/a/CP-21.yaml): NAFEMS T1, plane-stress membrane with a circular hot spot, as a heat -> elastic chain
-# (lane MX, DevLog-035). Quarter membrane 10 x 10 with the hot spot r = 1 (Abaqus deck nt1xxf8x.inp via
+# Quarter membrane 10 x 10 with the hot spot r = 1 (Abaqus deck nt1xxf8x.inp via
 # advanced-packaging-atlas validation/cases/B/nafems-T1.yaml); E 100 GPa, nu 0.3; alpha 1e-5 /K in the hot spot, 0 in the
 # membrane (Altair OS-V 0100). The benchmark prescribes T = 100 C in the hot spot; here a heat physics with T = 100 C on
 # the outer edges and no source gives a uniform 100 C everywhere, which equals the benchmark load because the membrane

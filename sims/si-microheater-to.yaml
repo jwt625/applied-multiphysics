@@ -1,5 +1,5 @@
 # Thermo-optic phase shifter: Ti microheater above a Si strip waveguide, heat -> em-modes (thermo-optic), 2D cross-section
-# (lane MX, DevLog-035; DevLog-001 H11). Device: reference switch without thermal isolation of X. Wang et al., IEEE
+# Device: reference switch without thermal isolation of X. Wang et al., IEEE
 # Photon. Technol. Lett. 32(19), 1281-1284 (2020), doi 10.1109/LPT.2020.3020428 (NSF public-access copy
 # par.nsf.gov/servlets/purl/10198282): Si 450 x 220 nm, BOX 3 um, SiO2 cladding t_c 500 nm above the Si top, Ti heater
 # 1.5 um x 100 nm x 450 um on the cladding, substrate 300 um held at 300 K in the paper's simulation; measured P_pi

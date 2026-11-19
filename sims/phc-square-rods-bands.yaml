@@ -1,6 +1,6 @@
 # MPB Python tutorial square lattice of dielectric rods (r 0.2 a, eps 12, air), TM (E_z) band structure on the
 # Gamma-X-M-Gamma path, solved as a Bloch eigenproblem of emw-2d on one unit cell with two periodic conditions
-# (DevLog-050). The gap between band 1 (maximum at M) and band 2 (minimum at X) is the first TM gap; references: MPB
+# The gap between band 1 (maximum at M) and band 2 (minimum at X) is the first TM gap; references: MPB
 # 1.34.0 resolution study (Richardson) and an independent plane-wave expansion (eval/expected/WO-04.json; cases WO-90,
 # WO-91). The rod is centred in the cell (MPB puts it at the origin; a translation, the bands are the same).
 # Rights: GPL-2.0-or-later (MPB / Meep), cite_values + re_derive_setup + copy_with_attribution; no tutorial file is copied.

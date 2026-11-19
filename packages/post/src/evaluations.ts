@@ -7,6 +7,10 @@
 //   lattice  at the points of a refined barycentric lattice of level `resolution` per triangle (refine.mjs pattern)
 //   quad     at the quadrature points of the region
 //   points   at the dataset's sample points (cut line, edge, cut points)
+// Derived fields with element values (`elementNodal`, e.g. stresses; points.ts `DerivedMode`, DevLog-059): every
+// evaluation reads the per-material recovery (one value per material group at interfaces, DevLog-066; the producer's nodal values
+// elsewhere, so fields without interfaces are read as before, bitwise). `derived: 'element'` reads each cell's own
+// element values instead (integrals: method suffix `_element_values`).
 
 import type { Mesh, Solution } from '@amp/spec/types';
 import { NPC } from '@amp/physics/common/mesh';
@@ -119,7 +123,7 @@ function integral(sol: Solution, expr: string, region: Region, o: EvalOptions): 
   return {
     c,
     r: {
-      value: s, unit: formatUnit(d), dim: d, method: `${rule}${rev ? '_2pi_r' : ''}`,
+      value: s, unit: formatUnit(d), dim: d, method: `${rule}${rev ? '_2pi_r' : ''}${c.elementValued ? '_element_values' : ''}`,
       n: w.length - out, continuous: c.continuous, measure: { value: meas, unit: formatUnit(md) }, ...(out ? { nOutside: out } : {}), ...(nan ? { nNaN: nan } : {}),
       ...(region.kind === 'line' ? { coverage: { covered: region.covered, length: region.length } } : {}),
     },
@@ -228,15 +232,20 @@ export function evalPoint(sol: Solution, expr: string, at: CutPointsDataset | Li
 
 /**
  * Global evaluation: an expression of params, `pi` and solution scalars (`<physicsId>.<scalar>` or `<scalar>`) only;
- * a field, coordinate or d() reference is an error. `sol` may be null (params only).
+ * a field, coordinate or d() reference is an error. `sol` may be null (params only). `step` (DevLog-061 R1): on a
+ * frequency study with several frequencies, whose scalars are named `<name>_<step>` (wave2d), a name resolves to its
+ * `<name>_<step>` form first, then to the bare name.
  */
-export function evalGlobal(sol: Solution | null, expr: string, o: Pick<ExprOptions, 'params' | 'physicsId'> = {}): { value: number; unit: string; dim: number[] } {
+export function evalGlobal(sol: Solution | null, expr: string, o: Pick<ExprOptions, 'params' | 'physicsId'> & { step?: number } = {}): { value: number; unit: string; dim: number[] } {
   const scalars = sol?.scalars ?? {};
   const pv = (name: string) => paramLookup(o.params, name);
+  const stepped = o.step !== undefined && sol?.steps?.kind === 'freq' && sol.steps.values.length > 1;
   const c = compileExpression(expr, {
     resolve: (name: string) => {
       const segs = name.split('.');
       for (const k of [name, ...(segs.length > 1 && (!o.physicsId || segs[0] === o.physicsId) ? [segs.slice(1).join('.')] : [])]) {
+        const ks = stepped ? `${k}_${o.step}` : null;
+        if (ks && Object.hasOwn(scalars, ks)) { const s = scalars[ks]!, u = parseUnit(s.unit || '1'); return { kind: 'const', re: s.value * u.factor, dim: u.dim, global: true }; }
         if (Object.hasOwn(scalars, k)) { const s = scalars[k]!, u = parseUnit(s.unit || '1'); return { kind: 'const', re: s.value * u.factor, dim: u.dim, global: true }; }
       }
       const p = pv(name);

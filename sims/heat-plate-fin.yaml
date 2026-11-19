@@ -1,4 +1,4 @@
-# H2 Heat-spreading plate (DevLog-001 s.8). Base model = NAFEMS T4 as defined in R3 HT-01: 0.6 x 1.0 m plate,
+# Heat-spreading plate. Base model = NAFEMS T4 as defined in eval case HT-01: 0.6 x 1.0 m plate,
 # bottom 100 C, left insulated, right + top convection h 750 W/m2 K to 0 C; target T(E = 0.6, 0.2 m) = 18.3 C.
 # The fin and the transient variant are not defined by a sourced case yet (see missing).
 schema: amp-spec/0
@@ -54,6 +54,6 @@ provenance:
 assumptions:
   - {text: "2D conduction per unit depth; no internal heat source", paths: [physics.ht]}
 missing:
-  - {what: "fin geometry of the plate-and-fin hero: no sourced case defines it", needed_for: [geometry]}
+  - {what: "fin geometry of the plate-and-fin model: no sourced case defines it", needed_for: [geometry]}
   - {what: "transient variant (rho, cp, initial state, time window): not defined; NAFEMS T3 (eval case HT-02) is a separate 1D case", needed_for: [solution]}
 # eval: [HT-01]   (informative pairing: the HT-01 case spec runs on nafems-t4)

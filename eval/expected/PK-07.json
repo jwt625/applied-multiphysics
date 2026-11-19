@@ -1,0 +1,122 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "PK-07",
+  "class": "c",
+  "generator": "validation/pkg2/strip_bem.py",
+  "command": "cd validation && uv run python pkg2/strip_bem.py",
+  "method": "air-line C'_0 of the thick strip by boundary elements with an image (own code, converged); Hammerstad-Jensen with thickness correction (informative)",
+  "generated_at": "2026-11-18T18:21:02-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "L_per_m",
+      "value": 3.797679774286957e-07,
+      "unit": "H/m",
+      "definition": "mu0 eps0 / C'_0 (boundary elements, thick strip, vacuum)",
+      "precision": {
+        "bem_rel_ext_minus_fine": 2.465939442022679e-07,
+        "bem_p_obs": 1.394138758738704
+      },
+      "locator": "validation/pkg2/strip_bem.py bem_c0(), converge(): Richardson of the last two panel levels"
+    },
+    {
+      "metric_id": "L_per_m_hj",
+      "value": 3.7943578805275754e-07,
+      "unit": "H/m",
+      "definition": "Z_L1(u1) / c0 (Hammerstad-Jensen with thickness)",
+      "precision": {
+        "closed_form_accuracy": "not stated by the source for the thickness term"
+      },
+      "locator": "Qucs technical documentation s.11.1.3 eqs. (11.22)-(11.25) with (11.4)-(11.6), (11.15)-(11.18); scikit-rf skrf/media/mline.py (hammerstadjensen branch)"
+    },
+    {
+      "metric_id": "C_per_m",
+      "value": 6.229108951576161e-11,
+      "unit": "F/m",
+      "definition": "eps_eff / (c0 Z_L1(u1)) (Hammerstad-Jensen with thickness)",
+      "precision": {
+        "closed_form_accuracy": "not stated by the source for the thickness term"
+      },
+      "locator": "Qucs technical documentation s.11.1.3 eqs. (11.22)-(11.25) with (11.4)-(11.6), (11.15)-(11.18); scikit-rf skrf/media/mline.py (hammerstadjensen branch)"
+    },
+    {
+      "metric_id": "Z0",
+      "value": 78.04699419634427,
+      "unit": "Ohm",
+      "definition": "Z_L1(u_r) / sqrt(eps_eff(u_r)) (Hammerstad-Jensen with thickness)",
+      "precision": {
+        "closed_form_accuracy": "not stated by the source for the thickness term"
+      },
+      "locator": "Qucs technical documentation s.11.1.3 eqs. (11.22)-(11.25) with (11.4)-(11.6), (11.15)-(11.18); scikit-rf skrf/media/mline.py (hammerstadjensen branch)"
+    },
+    {
+      "metric_id": "C0_ratio",
+      "value": 1.1104270163522396,
+      "unit": "1",
+      "definition": "C'_0(t) / C'_0(0) = L'(0) / L'(t): BEM thick strip over Hammerstad-Jensen zero thickness",
+      "precision": {
+        "zero_thickness_accuracy": "0.01 % (W/h <= 1, Qucs s.11.1)"
+      },
+      "locator": "validation/pkg2/strip_bem.py bem_c0(), converge(): Richardson of the last two panel levels; Qucs technical documentation s.11.1.3 eqs. (11.22)-(11.25) with (11.4)-(11.6), (11.15)-(11.18); scikit-rf skrf/media/mline.py (hammerstadjensen branch)"
+    }
+  ],
+  "inputs": {
+    "W_m": 1e-05,
+    "h_m": 1e-05,
+    "t_m": 2e-06,
+    "eps_r": 2.9
+  },
+  "bem": {
+    "n_side": [
+      40,
+      80,
+      160,
+      320,
+      640
+    ],
+    "C0": [
+      2.9297743339586044e-11,
+      2.929802062490523e-11,
+      2.9298103758182617e-11,
+      2.9298134678144063e-11,
+      2.929814644231589e-11
+    ],
+    "p_obs": 1.394138758738704,
+    "C0_ext": 2.929815366706316e-11,
+    "rel_last_change": 4.01532972471112e-07,
+    "rel_ext_minus_fine": 2.465939442022679e-07
+  },
+  "bem_thin_check": {
+    "t_m": 1e-08,
+    "C0_ext": 2.6419285189481227e-11,
+    "hj_zero_thickness_C0": 2.6384582899745906e-11
+  },
+  "hj_thick": {
+    "u1": 1.2540210470436255,
+    "ur": 1.1871972916713336,
+    "Z01": 113.75198755350569,
+    "eps_eff": 2.12424998412438,
+    "Z0": 78.04699419634427,
+    "L_per_m": 3.7943578805275754e-07,
+    "C_per_m": 6.229108951576161e-11
+  },
+  "hj_zero": {
+    "u1": 1.0,
+    "ur": 1.0,
+    "Z01": 126.4238652040079,
+    "eps_eff": 2.2174002456238564,
+    "Z0": 84.89986866012278,
+    "L_per_m": 4.217046220822712e-07,
+    "C_per_m": 5.850518060257958e-11
+  }
+}

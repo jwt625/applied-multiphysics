@@ -130,7 +130,7 @@ function checkedEigen(pat: Csr, K: Float64Array, M: Float64Array, sigma: number,
   let e: EigenResult | null = null;
   for (let attempt = 0; attempt < 4; attempt++) {
     const nWant = Math.min(want + 2 + 6 * attempt, pat.n);
-    e = shiftInvertEigen({ pat, K, M, sigma, nWant, kPsd: sigma < 0, tol: 1e-11, blockSize: block, maxBasis: Math.max(40, 3 * nWant + 2 * block), seed: 20261118 + attempt, ...(signal ? { signal } : {}) });
+    e = shiftInvertEigen({ pat, K, M, sigma, nWant, kPsd: sigma < 0, tol: 1e-11, blockSize: block, maxBasis: Math.max(40, 3 * nWant + 2 * block), seed: 20261118 + attempt, check: 'off', ...(signal ? { signal } : {}) });
     if (sigma > 0) return e;   // shifted search: no lower-end completeness claim
     const L = Array.from(e.lambda);
     // first gap at or after index want - 1

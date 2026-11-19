@@ -67,13 +67,13 @@ const origin = `http://127.0.0.1:${port}`;
 
 // ---- capture state: the graphics stage fills the window; toolbar, footer, colorbar, badges, notes, progress hidden;
 // the overlay text of the canvases (probe / peak markers and labels, cut-line guides, drag handles; SVG in Canvas2D and
-// Canvas3D) hidden. A shown 1D plot group (.g1, thin models) fills the window instead, without its header and legend bar,
+// Canvas3D) and the 3D axis triad hidden. A shown 1D plot group (.g1, thin models) fills the window instead, without its header and legend bar,
 // below a 50 px top inset (the landing card's G / M / R tabs sit there, not on the y-axis ticks).
 const CSS = `
 .gfx { position: fixed !important; inset: 0 !important; z-index: 2147483000 !important; }
 .gfx .stage { inset: 0 !important; }
 .gfx > :not(.stage) { display: none !important; }
-.gfx .stage .mk, .gfx .stage .gd, .gfx .stage .hd, .gfx .stage .ring, .gfx .stage svg text { display: none !important; }
+.gfx .stage .mk, .gfx .stage .gd, .gfx .stage .hd, .gfx .stage .ring, .gfx .stage svg text, .gfx .stage .triad { display: none !important; }
 .g1 { position: fixed !important; inset: 0 !important; z-index: 2147483001 !important; display: block !important; }
 .g1 .g1h, .g1 .lp .bar, .g1 .p1 .badge, .g1 .p1 .errs { display: none !important; }
 .g1 .g1b { position: absolute !important; inset: 50px 0 0 0 !important; }
@@ -181,8 +181,11 @@ async function encode(shots: Partial<Record<View, Buffer>>, crop = true): Promis
 	return { ext: r.ext, data: Object.fromEntries(Object.entries(r.out).map(([k, v]) => [k, Buffer.from(v, 'base64')])), box: r.box };
 }
 
-interface Plan { last: string | null; pick: string | null; thin: boolean; aspect: number; plot1d: string | null; cutline: string | null; expr: string | null; unit: string | null; lo: number[]; hi: number[]; axisym: boolean }
-/** what the result view shows: the last physics of a one-way coupling chain (its first 2D plot group); thin 2D models a line plot */
+/** `why`: how `pick` was chosen ('last': the group of the last physics of the coupling chain; 'first3d': the first 3D
+ *  plot group with a surface or volume item; null: no group picked, the workbench's default result view) */
+interface Plan { last: string | null; pick: string | null; why: 'last' | 'first3d' | null; thin: boolean; aspect: number; plot1d: string | null; cutline: string | null; expr: string | null; unit: string | null; lo: number[]; hi: number[]; axisym: boolean }
+/** what the result view shows: the last physics of a one-way coupling chain (its first 2D plot group); thin 2D models a
+ *  line plot; a 3D mesh its first 3D plot group with a surface or volume item (the last physics of a chain first) */
 function resultPlan(p: Page): Promise<Plan> {
 	return p.evaluate((a) => {
 		const s = (window as unknown as { __ampWorkbench: Hook }).__ampWorkbench.session;
@@ -191,10 +194,12 @@ function resultPlan(p: Page): Promise<Plan> {
 		const seq = (d.couplings ?? []).filter((c) => a.seqTypes.includes(String(c.type)));
 		const froms = new Set(seq.map((c) => String(c.from)));
 		const last = seq.length ? (seq.map((c) => String(c.to)).find((t) => !froms.has(t)) ?? String(seq.at(-1)!.to)) : null;
-		const surf = (g: O) => ((g.items as O[] | undefined) ?? []).find((i) => i.type === 'surface') ?? null;
-		const p2 = plots.filter((g) => g.type === 'plot2d' && g.enabled !== false && surf(g));
-		const pick = last ? (p2.find((g) => String(surf(g)!.expr).includes(`${last}.`)) ?? null) : null;
 		const m = s.mesh;
+		const three = !!m && m.dim === 3;
+		// 2D: the first surface item; 3D: the first surface or volume item (the 3D view colours a volume's exterior)
+		const surf = (g: O) => ((g.items as O[] | undefined) ?? []).find((i) => i.enabled !== false && (i.type === 'surface' || (three && i.type === 'volume'))) ?? null;
+		const p2 = plots.filter((g) => g.type === (three ? 'plot3d' : 'plot2d') && g.enabled !== false && surf(g));
+		const pick = last ? (p2.find((g) => String(surf(g)!.expr).includes(`${last}.`)) ?? null) : null;
 		const lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
 		if (m && m.dim === 2) for (let i = 0; i < m.nodes.length; i += 2) for (let k = 0; k < 2; k++) { const v = m.nodes[i + k]!; if (v < lo[k]!) lo[k] = v; if (v > hi[k]!) hi[k] = v; }
 		const w = hi[0]! - lo[0]!, h = hi[1]! - lo[1]!;
@@ -206,7 +211,7 @@ function resultPlan(p: Page): Promise<Plan> {
 		const expr = shown ? String(surf(shown)!.expr) : f0 && ph ? `${ph}.${f0.name}` : null;
 		const unit = shown && surf(shown)!.unit ? String(surf(shown)!.unit) : null;
 		return {
-			last, pick: pick ? String(pick.id) : null, thin: aspect > a.thin, aspect,
+			last, pick: pick ? String(pick.id) : three && p2[0] ? String(p2[0].id) : null, why: (pick ? 'last' : three && p2[0] ? 'first3d' : null) as 'last' | 'first3d' | null, thin: aspect > a.thin, aspect,
 			plot1d: String(plots.find((g) => g.type === 'plot1d' && g.enabled !== false)?.id ?? '') || null,
 			cutline: String((d.results?.datasets ?? []).find((x) => x.type === 'cutline')?.id ?? '') || null,
 			expr, unit, lo, hi, axisym: !!m?.axisym,
@@ -328,7 +333,7 @@ for (const id of todo) {
 			else {
 				if (line) rec.line1d = line.error;
 				if (notice) missing.result = `not drawable: ${notice.slice(0, 160)}`;
-				else { shots.result = await p.screenshot(); resultView = ov ? `capture-only plot: ${ov.why}` : plan.pick ? `plot ${plan.pick} (last physics of the coupling chain: ${plan.last})` : 'default plot'; }
+				else { shots.result = await p.screenshot(); resultView = ov ? `capture-only plot: ${ov.why}` : plan.pick && plan.why === 'last' ? `plot ${plan.pick} (last physics of the coupling chain: ${plan.last})` : plan.pick && plan.why === 'first3d' ? `plot ${plan.pick} (first 3D plot group)` : 'default result view of the workbench'; }
 			}
 		} else missing.result = st.status === 'unavailable' ? `unavailable: ${st.reasons.join('; ').slice(0, 300)}` : `error: ${(st.error || '').slice(0, 300)}`;
 	} catch (e) {

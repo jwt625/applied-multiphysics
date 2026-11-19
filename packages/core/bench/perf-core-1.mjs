@@ -7,7 +7,7 @@
 // comparison (--compare A B).
 // Usage (repo root):
 //   nice -n 10 node --max-old-space-size=1536 packages/core/bench/perf-core-1.mjs --only ac02 [--runs 5] [--dump DIR]
-//     [--solve js|wasm] [--levels 1,0.5] [--em3d-h 0.5]
+//     [--solve js|wasm] [--levels 1,0.5] [--em3d-h 0.5] [--eigen-check off|auto|inertia]
 //   node packages/core/bench/perf-core-1.mjs --compare DIR_A DIR_B
 // Workloads: ac02 h6 kirsch rib rf21 pzt4 hotarm em3d fbar membrane t2 (see WORKLOADS). One JSONL record per level to
 // logs/perf-core-1-<YYYYMMDDTHHMMSS>.jsonl (or --out FILE).
@@ -113,6 +113,8 @@ wrap(SupernodalLDLT.prototype, 'solveMany', 'solve', (a) => a[1]);
 
 const { parseYaml } = await import(pathToFileURL(join(REPO, 'packages/spec/src/index.ts')).href);
 const phys = await import(pathToFileURL(join(REPO, 'packages/physics/src/index.ts')).href);
+// --eigen-check off|auto|inertia (DevLog-060): default completeness check of the shift-invert eigen driver
+if (arg('eigen-check')) (await import(pathToFileURL(join(REPO, 'packages/physics/src/common/eigen.ts')).href)).setEigenCheckDefault(arg('eigen-check'));
 const spec = parseYaml(readFileSync(join(REPO, 'sims', W.sim), 'utf8')).data;
 let cs;
 if (W.case) {

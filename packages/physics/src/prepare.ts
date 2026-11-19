@@ -12,6 +12,9 @@
 // is defaulted. The context carries `timing` (validate, geometry_mesh, materials, ms) and `notes`.
 // Optical binding (DevLog-046): em-modes `loss` reads library kappa and `dispersion` library dn/dlambda (with
 // provenance notes) at the mode wavelength; emw-2d reads its properties at lambda = c0 / f of a single-frequency study.
+// Material temperature (DevLog-058): library tables / fits of a `ref:` material are evaluated at the material node's
+// `T` when given, else at the run temperature `T` of the caller (CaseCtx.T), else without a temperature (T-dependent
+// leaves then fail with a note, as before). The thermo-optic coupling Tref still sets the dndT temperature.
 
 import type { Mesh, RunContext, Spec, StudyNode } from '@amp/spec/types';
 import { validateSpec, resolveParams, resolveQuantity } from '@amp/spec';
@@ -55,7 +58,7 @@ export interface CaseCtx {
   case?: Record<string, unknown>; physicsId?: string; level?: number; hFactor?: number; signal?: AbortSignal;
   /** time-step factor of this level (L8 convergence.dt_with_h: hFactor^(space_order / time_order)) */
   dtFactor?: number;
-  /** temperature for T-dependent material tables (K) */
+  /** run temperature for T-dependent material tables (K); a material node `T` takes precedence for its material */
   T?: number;
   library?: MaterialLibrary | null;
   /** study to prepare (default: the first study of the physics, or the eval case's study type) */
@@ -130,16 +133,18 @@ export async function prepareRun(a: PrepareArgs | Record<string, unknown>, b?: C
   timing.materials = performance.now() - t0;
   // per-wavelength tables (B7): same spec, types and context with lambda replaced; the spec's overrides already hold
   // any value filled from the eval case, so a re-evaluation reads them as overrides
-  const atCache = new Map<number, { table: MaterialTable; notes: string[] }>();
+  const atCache = new Map<string, { table: MaterialTable; notes: string[] }>();
   const materialsAt = (lambda: number, out?: string[]): MaterialTable => {
     if (!(typeof lambda === 'number' && Number.isFinite(lambda) && lambda > 0)) throw new Error(`materialsAt: lambda must be a positive wavelength in m, got ${lambda}`);
-    let hit = atCache.get(lambda);
+    // key: wavelength and run temperature (material node temperatures are part of the fixed prepared spec)
+    const key = `${lambda}|${args.T ?? ''}`;
+    let hit = atCache.get(key);
     if (!hit) {
       const nn: string[] = [];
       const mc2: MatContext = { ...mctx, props: [...mctx.props], optional: [...mctx.optional], lambda, lambdaFrom: 'frequency' };
       delete mc2.multiFreq;
-      hit = { table: resolveMaterials(spec, types, args.case, args.T, lib, nn, mc2), notes: nn.filter((x) => !x.startsWith('materials: library n / kappa of')) };
-      atCache.set(lambda, hit);
+      hit = { table: resolveMaterials(spec, types, args.case, args.T, lib, nn, mc2), notes: nn.filter((x) => !x.startsWith('materials: library n / kappa of') && !MATERIAL_T_NOTE.test(x)) };
+      atCache.set(key, hit);
     }
     if (out) out.push(...hit.notes);
     return structuredClone(hit.table);
@@ -341,12 +346,36 @@ function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknow
   const caseMats = (cs?.materials ?? {}) as Record<string, Record<string, unknown>>;
   const need = [...new Set([...types.flatMap((t) => NEEDS[t] ?? []), ...mc.props, ...mc.optional])];
   const optional = new Set(mc.optional);
-  /** library options per property: n and dndT at the mode wavelength, dndT at the thermo-optic Tref */
-  const libOpts = (p: string): { T?: number; lambda?: number } => {
-    const o: { T?: number; lambda?: number } = T !== undefined ? { T } : {};
+  /** library options per property at temperature Tm (material or run T): n, kappa and dndT at the mode wavelength,
+   * dndT at the thermo-optic Tref */
+  const libOpts = (p: string, Tm: number | undefined): { T?: number; lambda?: number } => {
+    const o: { T?: number; lambda?: number } = Tm !== undefined ? { T: Tm } : {};
     if ((p === 'n' || p === 'dndT' || p === 'kappa') && mc.lambda !== undefined) o.lambda = mc.lambda;
     if (p === 'dndT' && mc.Tref !== undefined) o.T = mc.Tref;
     return o;
+  };
+  /**
+   * Library value with the temperature applied only to leaves that depend on it (DevLog-066): the property is first
+   * evaluated without T; when that succeeds the leaf does not depend on T (a constant or a single-temperature table, e.g.
+   * Si n at 293 K) and is used as-is, with a note when T lies outside its stated temperature validity. A leaf that needs
+   * T (or fails for another reason) is evaluated with T as before, so its value and errors are unchanged.
+   */
+  const libGet = (id: string, p: string, o: { T?: number; lambda?: number }, label: string, why: string) => {
+    if (o.T === undefined || !lib) return lib!.getProperty(id, p, o);
+    const { T, ...noT } = o;
+    let pv: ReturnType<MaterialLibrary['getProperty']> & { valid?: { T?: { unit?: string; range?: [number, number] } } };
+    try { pv = lib.getProperty(id, p, noT); } catch { return lib.getProperty(id, p, o); }
+    const vt = pv.valid?.T;
+    if (vt && vt.unit && vt.range) {
+      const k = (x: number) => { const r = resolveQuantity({ value: x, unit: vt.unit! }, scope) as { na?: boolean; si: number }; return r.na ? NaN : r.si; };
+      const lo = k(vt.range[0]), hi = k(vt.range[1]), tol = 1e-9 * Math.max(Math.abs(lo), Math.abs(hi));
+      if (Number.isFinite(lo) && Number.isFinite(hi) && (T < lo - tol || T > hi + tol)) {
+        const stated = vt.range[0] === vt.range[1] ? `${vt.range[0]} ${vt.unit}` : `${vt.range[0]}-${vt.range[1]} ${vt.unit}`;
+        const note = `${label}.${p}: the library value does not depend on temperature and is stated for T = ${stated}; used as-is at the ${why} ${T} K`;
+        if (!notes.includes(note)) notes.push(note);
+      }
+    }
+    return pv;
   };
   const has = (rec: Record<string, number>, p: string) => p in rec || Object.keys(rec).some((k) => k.startsWith(`${p}.`));
   const fromCase = (matId: string, prop: string): number | undefined => {
@@ -382,6 +411,11 @@ function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknow
       if (c !== undefined) fill(k, c, 'N/A in the spec');
     }
     const ref = (m as { ref?: string }).ref;
+    const Tm = materialT(m, scope, T, ref, Object.keys(ov).length > 0, notes);
+    const tWhy = (p: string) => (p === 'dndT' && mc.Tref !== undefined ? 'thermo-optic reference temperature' : m.T !== undefined ? 'material temperature' : 'run temperature');
+    // library dndT is read at the thermo-optic Tref; say so when the material's own temperature differs (DevLog-066)
+    if (ref && lib && need.includes('dndT') && mc.Tref !== undefined && Tm !== undefined && Tm !== mc.Tref && !has(rec, 'dndT'))
+      notes.push(`materials.${m.id} (${ref}).dndT: library dndT at the thermo-optic reference temperature ${mc.Tref} K, not at the ${m.T !== undefined ? 'material' : 'run'} temperature ${Tm} K`);
     if (ref) {
       const id = ref.replace(/^materials\//, '');
       if (!lib) notes.push(`materials.${m.id}: no material library available for ${ref} (inject one with prepareRun({library}))`);
@@ -393,11 +427,11 @@ function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknow
       for (const p of need) {
         if (has(rec, p) || !lib) continue;
         if (nGiven && (p === 'eps_r' || p === 'tan_delta')) {
-          try { lib.getProperty(id, p, libOpts(p)); skipped.push(p); } catch { /* not in the library: nothing skipped */ }
+          try { libGet(id, p, libOpts(p, Tm), `materials.${m.id} (${ref})`, tWhy(p)); skipped.push(p); } catch { /* not in the library: nothing skipped */ }
           continue;
         }
         try {
-          const pv = lib.getProperty(id, p, libOpts(p));
+          const pv = libGet(id, p, libOpts(p, Tm), `materials.${m.id} (${ref})`, tWhy(p));
           if (typeof pv.value === 'number') rec[p] = pv.value;
           else for (const [c, v] of Object.entries(pv.value)) if (typeof v === 'number') rec[`${p}.${c}`] = v;   // tensor: '<prop>.<component>'
           fromLib.push(p);
@@ -406,8 +440,8 @@ function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknow
       if (skipped.length) notes.push(`materials.${m.id} (${ref}): emw-2d uses the override n${has(rec, 'kappa') ? ' / kappa' : ''}; library ${skipped.join(', ')} not used (the override n states the optical index)`);
       // a library eps_r next to a library n: the 2D wave module states which one it used (wavelength-bound runs: n;
       // eigen and bands studies: eps_r), so no note here (DevLog-050 s.9)
-      if (lib && mc.dispersion && mc.domainsOf) libraryDispersion(m, id, ref, rec, lib, mc, T, has, notes);
-      if (lib && mc.dispersion && mc.domainsOf) libraryKappaDispersion(m, id, ref, rec, lib, mc, T, has, notes);
+      if (lib && mc.dispersion && mc.domainsOf) libraryDispersion(m, id, ref, rec, lib, mc, Tm, has, notes);
+      if (lib && mc.dispersion && mc.domainsOf) libraryKappaDispersion(m, id, ref, rec, lib, mc, Tm, has, notes);
     }
     // fill from the eval case only what is really absent: a tensor value ('<p>.<component>') counts as present, and an
     // optional property (absent = not used by the module) is taken only from the case entry of the same material id,
@@ -425,6 +459,35 @@ function resolveMaterials(spec: Spec, types: string[], cs: Record<string, unknow
     else if (mc.multiFreq) notes.push(`materials: frequency study with ${mc.multiFreq} frequencies: library values of ${refs.join(', ')} are resolved here once, without a wavelength; the driven 2D wave solver re-evaluates them at lambda = c0 / f per frequency (materialsAt), other callers use this single evaluation`);
   }
   return out;
+}
+
+/** Notes of materialT (stated once by prepareRun, not repeated per materialsAt wavelength). */
+const MATERIAL_T_NOTE = /^materials\.[^ ]+(\.T: | \(materials\/[^)]*\): library values at T = )/;
+
+/**
+ * Temperature (K) for the library leaves of one material: the node `T` (params allowed) when given and resolvable,
+ * else the run temperature. A node T gets a provenance note on a `ref:` material (and on a material without `ref:`,
+ * a note that it has no effect there); an N/A or unresolvable node T falls back to the run T with a note.
+ */
+function materialT(m: { id: string; T?: unknown }, scope: ReturnType<typeof scopeOf>, runT: number | undefined, ref: string | undefined, hasOverride: boolean, notes: string[]): number | undefined {
+  if (m.T === undefined) return runT;
+  let r: { na?: boolean; si: number } | undefined;
+  try { r = resolveQuantity(m.T, scope) as { na?: boolean; si: number }; } catch (e) {
+    notes.push(`materials.${m.id}.T: not resolvable (${(e as Error).message.slice(0, 120)})${runT !== undefined ? `; run temperature ${runT} K used` : '; no temperature for the library'}`);
+    return runT;
+  }
+  if (r.na || !(Number.isFinite(r.si) && r.si > 0)) {
+    notes.push(`materials.${m.id}.T: N/A${runT !== undefined ? `; run temperature ${runT} K used` : '; no temperature for the library'}`);
+    return runT;
+  }
+  if (!ref) { notes.push(`materials.${m.id}.T: ${r.si} K has no effect (no library reference; override values are used as given)`); return r.si; }
+  notes.push(`materials.${m.id} (${ref}): library values at T = ${r.si} K (material temperature)${runT !== undefined && runT !== r.si ? `, not at the run temperature ${runT} K` : ''}${hasOverride ? '; override values as given' : ''}`);
+  return r.si;
+}
+
+/** True unless the property evaluates without a temperature (a T-independent leaf; DevLog-066). */
+function dependsOnT(lib: MaterialLibrary, id: string, p: string, o: MaterialEvalOptions): boolean {
+  try { lib.getProperty(id, p, o); return false; } catch { return true; }
 }
 
 /**
@@ -447,8 +510,10 @@ function libraryDispersion(m: { id: string; select: readonly string[] }, id: str
   for (const c of comps) {
     const key = c ? `dn_dlambda.${c}` : 'dn_dlambda';
     try {
+      // the temperature only for a T-dependent n (DevLog-066: e.g. Si n is a 293 K table in lambda)
+      const useT = T !== undefined && dependsOnT(lib, id, 'n', { lambda: lam, ...(c ? { component: c } : {}), ...(lo.alternative ? { alternative: lo.alternative } : {}), ...(lo.extrapolate ? { extrapolate: true } : {}) });
       const r = dispersion(lib as unknown as Library, id, lam, {
-        ...(T !== undefined ? { T } : {}), ...(c ? { component: c } : {}), ...(lo.alternative ? { alternative: lo.alternative } : {}), ...(lo.extrapolate ? { extrapolate: true } : {}),
+        ...(useT ? { T } : {}), ...(c ? { component: c } : {}), ...(lo.alternative ? { alternative: lo.alternative } : {}), ...(lo.extrapolate ? { extrapolate: true } : {}),
       });
       rec[key] = r.dn_dlambda;
       const flags = [
@@ -481,7 +546,7 @@ function libraryKappaDispersion(m: { id: string; select: readonly string[] }, id
   const lam = mc.lambda;
   if (lam === undefined) { notes.push(`materials.${m.id} (${ref}).dkappa_dlambda: no mode wavelength in the study: library kappa dispersion not evaluated`); return; }
   const h = KAPPA_REL_STEP * lam;
-  const o = { ...(T !== undefined ? { T } : {}) };
+  const o = { ...(T !== undefined && dependsOnT(lib, id, 'kappa', { lambda: lam }) ? { T } : {}) };
   try {
     const at = (l: number) => {
       const v = lib.getProperty(id, 'kappa', { ...o, lambda: l }) as { value: number | Record<string, number>; extrapolated?: boolean; source?: string };

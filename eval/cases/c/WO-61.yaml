@@ -28,8 +28,8 @@ references:
   metric_id: gap_lower
   value: 0.27442033227152357
   unit: 1 (c/a)
-  tolerance: {rel: 0.0001, after: richardson, note: MPB Richardson GCI <= 1.3e-5 rel; MPB vs PWE limit <= 7.7e-6 rel; margin
-      about 8x}
+  tolerance: {rel: 0.0001, after: finest, note: MPB Richardson GCI <= 1.3e-5 rel; MPB vs PWE limit <= 7.7e-6 rel; margin about
+      8x}
   bounds: null
   basis: D
   form: solver_ref
@@ -37,12 +37,19 @@ references:
   expected: {file: eval/expected/WO-61.json, metric_id: gap_lower}
   provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson; agrees with the independent PWE limit (this lane)',
     locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/c/gen_pwe.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmax_0}
+      a: {value: 1, unit: um, source: 'sims/phc-triangular-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI definition of the metre (exact)}
 - quantity: gap upper edge (converged)
   metric_id: gap_upper
   value: 0.4452180074121474
   unit: 1 (c/a)
-  tolerance: {rel: 0.0001, after: richardson, note: MPB Richardson GCI <= 1.3e-5 rel; MPB vs PWE limit <= 7.7e-6 rel; margin
-      about 8x}
+  tolerance: {rel: 0.0001, after: finest, note: MPB Richardson GCI <= 1.3e-5 rel; MPB vs PWE limit <= 7.7e-6 rel; margin about
+      8x}
   bounds: null
   basis: D
   form: solver_ref
@@ -50,11 +57,18 @@ references:
   expected: {file: eval/expected/WO-61.json, metric_id: gap_upper}
   provenance: {citation: 'MPB (meep 1.34.0) resolutions 16-256, Richardson; agrees with the independent PWE limit (this lane)',
     locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null, generator: validation/c/gen_pwe.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmin_1}
+      a: {value: 1, unit: um, source: 'sims/phc-triangular-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI definition of the metre (exact)}
 - quantity: PWE gap lower edge
   metric_id: pwe_gap_lower
   value: 0.27441945682736507
   unit: 1 (c/a)
-  tolerance: {rel: 0.0001}
+  tolerance: {rel: 0.0001, after: finest}
   bounds: null
   basis: D
   form: solver_ref
@@ -62,11 +76,18 @@ references:
   expected: {file: eval/expected/WO-61.json, metric_id: pwe_gap_lower}
   provenance: {citation: plane-wave expansion (this lane), locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py,
     accessed: null, generator: validation/c/gen_pwe.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmax_0}
+      a: {value: 1, unit: um, source: 'sims/phc-triangular-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI definition of the metre (exact)}
 - quantity: PWE gap upper edge
   metric_id: pwe_gap_upper
   value: 0.44522020121595035
   unit: 1 (c/a)
-  tolerance: {rel: 0.0001}
+  tolerance: {rel: 0.0001, after: finest}
   bounds: null
   basis: D
   form: solver_ref
@@ -74,11 +95,18 @@ references:
   expected: {file: eval/expected/WO-61.json, metric_id: pwe_gap_upper}
   provenance: {citation: plane-wave expansion (this lane), locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py,
     accessed: null, generator: validation/c/gen_pwe.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmin_1}
+      a: {value: 1, unit: um, source: 'sims/phc-triangular-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI definition of the metre (exact)}
 - quantity: MPB 1.34.0 resolution 32 lower edge
   metric_id: mpb32_gap_lower
   value: 0.2746902260167484
   unit: 1 (c/a)
-  tolerance: {rel: 0.01}
+  tolerance: {rel: 0.01, after: finest}
   bounds: null
   basis: D
   form: solver_ref
@@ -86,11 +114,18 @@ references:
   expected: {file: eval/expected/WO-61.json, metric_id: mpb32_gap_lower}
   provenance: {citation: MPB at tutorial settings, locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null,
     generator: validation/c/gen_pwe.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmax_0}
+      a: {value: 1, unit: um, source: 'sims/phc-triangular-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI definition of the metre (exact)}
 - quantity: MPB 1.34.0 resolution 32 upper edge
   metric_id: mpb32_gap_upper
   value: 0.4453310810690973
   unit: 1 (c/a)
-  tolerance: {rel: 0.01}
+  tolerance: {rel: 0.01, after: finest}
   bounds: null
   basis: D
   form: solver_ref
@@ -98,11 +133,18 @@ references:
   expected: {file: eval/expected/WO-61.json, metric_id: mpb32_gap_upper}
   provenance: {citation: MPB at tutorial settings, locator: validation/c/gen_pwe.py; validation/c/mpb/mpb_gaps.py, accessed: null,
     generator: validation/c/gen_pwe.py}
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmin_1}
+      a: {value: 1, unit: um, source: 'sims/phc-triangular-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI definition of the metre (exact)}
 - quantity: gap lower edge
   metric_id: gap_lower_edge
   value: 0.275065617068082
   unit: 1 (c/a)
-  tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
+  tolerance: {rel: 0.01, after: finest, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
       tolerance proposed (assumption)'}
   bounds: null
   basis: P
@@ -112,11 +154,18 @@ references:
   extraction: text
   note: MPB tutorial printout; MPB 1.34.0 at the same settings gives a different value (see mpb32_gap_*), so these digits
     are not reproducible with the current MPB
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmax_0}
+      a: {value: 1, unit: um, source: 'sims/phc-triangular-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI definition of the metre (exact)}
 - quantity: gap upper edge
   metric_id: gap_upper_edge
   value: 0.446289918847647
   unit: 1 (c/a)
-  tolerance: {rel: 0.01, after: richardson, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
+  tolerance: {rel: 0.01, after: finest, note: 'MPB value at resolution 32 with subpixel averaging, not a converged reference;
       tolerance proposed (assumption)'}
   bounds: null
   basis: P
@@ -126,11 +175,25 @@ references:
   extraction: text
   note: MPB tutorial printout; MPB 1.34.0 at the same settings gives a different value (see mpb32_gap_*), so these digits
     are not reproducible with the current MPB
+  extract:
+    kind: expr
+    expr: f * a / c
+    terms:
+      f: {kind: scalar, name: fmin_1}
+      a: {value: 1, unit: um, source: 'sims/phc-triangular-rods-bands.yaml params.a (lattice constant, scale choice)'}
+      c: {value: 299792458, unit: m/s, source: SI definition of the metre (exact)}
 reference_results: []
-convergence: {levels_min: 3, ratio_min: 1.5, method: richardson_gci, safety_factor: 1.25}
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement), as the band-sim cases WO-90 / WO-93; the finest level is compared (a third
+    level for Richardson is over the time budget)
 speed:
-  budget_s: {browser: 2.0, native: null}
-  budget_basis: as WO-04; est.
+  budget_s: {browser: null, native: 60.0}
+  budget_basis: 'measured 2026-11-18 on the same sim (case WO-93; Node, M4 Pro, nice 10): 16 s at level 0 (4,240 DOF), 48
+    s at level 1 (16,960 DOF)'
   report: [dofs, wall_s_by_stage, iterations, error_vs_ref]
   reference_timings: []
 dataset: null
@@ -139,10 +202,13 @@ rights:
   allowed: [cite_values, re_derive_setup, copy_with_attribution]
   forbidden: []
 hero: {suitable: false, why: 'verification case, not a demo'}
-spec: {status: pending, reason: 'no sims/ model yet; capability gaps per case: DevLog-022 s.3.5 (2026-11-06)', proposed: sims/phc-triangular-rods.yaml}
+spec: sims/phc-triangular-rods-bands.yaml
 missing: []
 assumptions: []
 source_case: {suite: MPB tutorial, file: doc/docs/Python_Tutorial.md, url: github.com/NanoComp/mpb tag v1.12.0, accessed: '2026-11-06',
   note: cache/eval-c/sources/mpb/Python_Tutorial.md sha256 beebeb55eabd0e1b7297045377fb505ed56d688c7f246c8fce3363c4b6886001}
 lane: L7c
 created: '2026-11-06'
+notes: ['Engine: sims/phc-triangular-rods-bands.yaml (emw-2d TM Bloch eigenproblem on the full unit cell): band 1 maximum
+    (fmax_0) and band 2 minimum (fmin_1) along the k path, times a / c; every target reads the same two scalars (PWE, MPB
+    resolution 32 and tutorial targets informative). ']

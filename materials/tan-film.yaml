@@ -1,0 +1,138 @@
+# Tantalum nitride film, reactively sputtered (lane G1 sourcing, DevLog-041 s.4.3 follow-up). Ta-N film properties
+# depend strongly on the N2 fraction (phase: bcc Ta(N), hexagonal Ta2N, fcc TaN, N-rich phases). Each leaf names its
+# film; resistivity and thermal conductivity come from DIFFERENT films (different groups and N2 fractions).
+schema: amp-material/0
+id: tan-film
+name: Tantalum nitride film (reactive sputtered)
+class: ceramic
+description: >-
+  Reactively sputtered Ta-N thin film (diffusion barrier, thin-film resistor, seed layer). Resistivity from a series of
+  RF-sputtered films (Nie et al. 2001) versus N2 partial pressure; default = the 7.5 % N2 film, where the source first
+  reports fcc TaN. Thermal conductivity from a 330 nm RF reactive-sputtered film dominated by the Ta2N phase (Zhang et
+  al. 2025, TDTR), a different deposition from the resistivity default.
+verified_on: 2026-11-18
+sources:
+  nie2001:
+    citation: "H. B. Nie, S. Y. Xu, S. J. Wang, L. P. You, Z. Yang, C. K. Ong, J. Li, T. Y. F. Liew, Structural and electrical properties of tantalum nitride thin films fabricated by using reactive radio-frequency magnetron sputtering, Appl. Phys. A 73(2), 229-236 (2001); arXiv:cond-mat/0305683v2"
+    url: https://arxiv.org/abs/cond-mat/0305683
+    access: open
+    read: "text layer of the arXiv v2 PDF fetched 2026-11-18 (sha256 0e896bc27ffd7751..., 10 pages; PDF not kept): abstract, Sec. 2 deposition, Sec. 3.1 thickness, Sec. 3.5 resistivity, Sec. 4 conclusion (phase sequence), Table 1 (thickness, lattice constant, resistivity vs N2 partial pressure); journal reference from the arXiv abstract page"
+  zhang2025:
+    citation: "M. Zhang, T. Chen, A. Zeng, J. Tang, R. Guo, P. Jiang, Simultaneous measurement of thermal conductivity, heat capacity, and interfacial thermal conductance by leveraging negative delay-time data in time-domain thermoreflectance, Prog. Nat. Sci.: Mater. Int. 35, 375-384 (2025); arXiv:2411.15767"
+    doi: 10.1016/j.pnsc.2025.02.001
+    url: https://arxiv.org/abs/2411.15767
+    access: open
+    read: "text layer of the arXiv PDF fetched 2026-11-18 (sha256 c71d1d5226c4566f..., PDF not kept): Sec. 3.2 TaN film (deposition, thickness, fitted k, C, G at room temperature), Table I (measured vs literature k, C); journal reference from the arXiv abstract page"
+properties:
+  rho_e:
+    value: 0.426e-3
+    unit: ohm*cm
+    basis: measured
+    source: nie2001
+    locator: "Table 1 row PN 7.5 %: thickness 619 nm, lattice constant 4.365 A, resistivity 0.426 mOhm cm (films on glass); Sec. 4: fcc TaN dominates 'when N2 partial pressure was close to 7.5 % or higher'"
+    accessed: 2026-11-18
+    derivation: "mOhm cm -> ohm cm: x 1e-3 (exact)"
+    uncertainty: {na: "not stated"}
+    conditions: {T: "295 K", text: "619 nm Ta-N (fcc TaN, random orientation per abstract), reactive RF (13.56 MHz) magnetron sputtering, 3 inch Ta target (99.95 %), 200 W (4.3 W/cm2), total Ar/N2 pressure 5.0 mTorr with 7.5 % N2 partial pressure, 8-14 cm target-substrate, 9 rpm rotation, no intentional heating, glass substrate, as deposited; standard four-point method. Table 1 states no temperature; Sec. 3.5 gives the pure-Ta row (95 uOhm cm) as the room-temperature (295 K) value, so the table is read as 295 K"}
+    valid: {T: {unit: K, range: [295, 295]}, note: "Sec. 3.5: semiconductor-like rho(T) (rho decreasing with decreasing T) for N2 >= 7.5 % between 77 and 295 K, figure only"}
+    alternatives:
+      - id: n2_2p5pct
+        use: "2.5 % N2: bcc Ta(N) + hexagonal Ta2N, metallic rho(T)"
+        value: 0.116e-3
+        unit: ohm*cm
+        basis: measured
+        source: nie2001
+        locator: "Table 1 row PN 2.5 %: 673 nm, 0.116 mOhm cm"
+        accessed: 2026-11-18
+        derivation: "x 1e-3 (exact)"
+        uncertainty: {na: "not stated"}
+        conditions: {T: "295 K", text: "as the default leaf with 2.5 % N2 partial pressure; 673 nm"}
+        valid: {T: {unit: K, range: [295, 295]}}
+      - id: n2_5pct
+        use: "5.0 % N2: bcc Ta(N) + hexagonal Ta2N, metallic rho(T)"
+        value: 0.254e-3
+        unit: ohm*cm
+        basis: measured
+        source: nie2001
+        locator: "Table 1 row PN 5.0 %: 653 nm, 0.254 mOhm cm"
+        accessed: 2026-11-18
+        derivation: "x 1e-3 (exact)"
+        uncertainty: {na: "not stated"}
+        conditions: {T: "295 K", text: "as the default leaf with 5.0 % N2 partial pressure; 653 nm"}
+        valid: {T: {unit: K, range: [295, 295]}}
+      - id: n2_10pct
+        use: "10 % N2: fcc TaN"
+        value: 0.702e-3
+        unit: ohm*cm
+        basis: measured
+        source: nie2001
+        locator: "Table 1 row PN 10 %: 583 nm, 0.702 mOhm cm"
+        accessed: 2026-11-18
+        derivation: "x 1e-3 (exact)"
+        uncertainty: {na: "not stated"}
+        conditions: {T: "295 K", text: "as the default leaf with 10 % N2 partial pressure; 583 nm"}
+        valid: {T: {unit: K, range: [295, 295]}}
+      - id: n2_15pct
+        use: "15 % N2: fcc TaN"
+        value: 2.70e-3
+        unit: ohm*cm
+        basis: measured
+        source: nie2001
+        locator: "Table 1 row PN 15 %: 543 nm, 2.70 mOhm cm"
+        accessed: 2026-11-18
+        derivation: "x 1e-3 (exact)"
+        uncertainty: {na: "not stated"}
+        conditions: {T: "295 K", text: "as the default leaf with 15 % N2 partial pressure; 543 nm"}
+        valid: {T: {unit: K, range: [295, 295]}}
+      - id: n2_20pct
+        use: "20 % N2: fcc TaN"
+        value: 2.81e-3
+        unit: ohm*cm
+        basis: measured
+        source: nie2001
+        locator: "Table 1 row PN 20 %: 505 nm, 2.81 mOhm cm"
+        accessed: 2026-11-18
+        derivation: "x 1e-3 (exact)"
+        uncertainty: {na: "not stated"}
+        conditions: {T: "295 K", text: "as the default leaf with 20 % N2 partial pressure; 505 nm"}
+        valid: {T: {unit: K, range: [295, 295]}}
+      - id: n2_25pct
+        use: "25 % N2: [111]-textured fcc TaN (abstract: 6.0 mOhm cm)"
+        value: 5.93e-3
+        unit: ohm*cm
+        basis: measured
+        source: nie2001
+        locator: "Table 1 row PN 25 %: 448 nm, 5.93 mOhm cm (abstract rounds to 6.0 mOhm cm)"
+        accessed: 2026-11-18
+        derivation: "x 1e-3 (exact)"
+        uncertainty: {na: "not stated"}
+        conditions: {T: "295 K", text: "as the default leaf with 25 % N2 partial pressure; 448 nm"}
+        valid: {T: {unit: K, range: [295, 295]}}
+      - id: n2_30pct
+        use: "30 % N2: fcc TaN + N-rich Ta-N phases"
+        value: 14.8e-3
+        unit: ohm*cm
+        basis: measured
+        source: nie2001
+        locator: "Table 1 row PN 30 %: 403 nm, 14.8 mOhm cm"
+        accessed: 2026-11-18
+        derivation: "x 1e-3 (exact)"
+        uncertainty: {na: "not stated"}
+        conditions: {T: "295 K", text: "as the default leaf with 30 % N2 partial pressure; 403 nm"}
+        valid: {T: {unit: K, range: [295, 295]}}
+  k:
+    value: 4.22
+    unit: W/(m*K)
+    basis: measured
+    source: zhang2025
+    locator: "arXiv Sec. 3.2: 'k_TaN = 4.22 +- 0.17 W/(m K)' (C_TaN = 2.80 +- 0.12 J/(cm3 K), G_Al/TaN = 46.0 +- 2.3 MW/(m2 K)); Table I row TaN: current 4.22 +- 0.17"
+    accessed: 2026-11-18
+    uncertainty: {abs: 0.17, unit: W/(m*K), note: "as printed (4.0 %)"}
+    conditions: {text: "330 nm Ta-N film (cross-section SEM), RF reactive magnetron sputtering with 3 % N2 flow ratio, sapphire substrate, 106 nm Al transducer; 'a mixture of polycrystalline and amorphous Ta-N phases dominated by the Ta2N phase'; TDTR at 5.2 MHz, 7.5 um spot radius, cross-plane (k_z); room temperature (value not stated in K); sputter power and pressure not stated"}
+    valid: {T: {na: "room-temperature measurement; k(T) for 80-400 K is shown in a figure only (not digitized)"}}
+    note: "different film from the rho_e default (Ta2N-dominated vs fcc TaN); no thermal conductivity read for an fcc TaN film"
+    alternatives: []
+missing:
+  - {property: k, what: "thermal conductivity of an fcc TaN film (the rho_e default phase): not read"}
+  - {property: tcr, what: "TCR of the Nie 2001 films: rho(T) in figures only"}
+  - {what: "rho (film density), E, nu, alpha, cp, optical n and kappa: not read"}

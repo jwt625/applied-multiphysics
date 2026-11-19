@@ -1,0 +1,66 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "PK-09",
+  "class": "c",
+  "generator": "validation/pkg2/pad_film.py",
+  "command": "cd validation && uv run python pkg2/pad_film.py",
+  "method": "thin-film thermo-elastic closed forms on a rigid base (own derivation)",
+  "generated_at": "2026-11-18T18:36:55-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "uz_pad_wide",
+      "value": 2.9035910172768076e-09,
+      "unit": "m",
+      "definition": "pad-centre top rise (frame of the Si wafer), wide pad a = 10 h",
+      "locator": "validation/pkg2/pad_film.py main(): u_z' = h (1 + nu) / (1 - nu) (alpha - alpha_Si) dT"
+    },
+    {
+      "metric_id": "uz_ox_wide",
+      "value": -2.901360792492179e-10,
+      "unit": "m",
+      "definition": "oxide top rise at the cell rim (frame of the Si wafer), wide pad cell",
+      "locator": "validation/pkg2/pad_film.py main(): u_z' = h (1 + nu) / (1 - nu) (alpha - alpha_Si) dT"
+    },
+    {
+      "metric_id": "protrusion_wide",
+      "value": 3.1937270965260253e-09,
+      "unit": "m",
+      "definition": "pad-centre protrusion over the oxide at the rim, wide pad",
+      "locator": "validation/pkg2/pad_film.py main(): u_z' = h (1 + nu) / (1 - nu) (alpha - alpha_Si) dT"
+    },
+    {
+      "metric_id": "protrusion_free",
+      "value": 1.6081238447607447e-09,
+      "unit": "m",
+      "definition": "laterally free limit h (alpha_Cu - alpha_ox) dT (engineering estimate)",
+      "locator": "validation/pkg2/pad_film.py main(): u_z' = h (1 + nu) / (1 - nu) (alpha - alpha_Si) dT"
+    },
+    {
+      "metric_id": "protrusion_constrained",
+      "value": 3.1937270965260253e-09,
+      "unit": "m",
+      "definition": "biaxially constrained thin-film limit (engineering estimate)",
+      "locator": "validation/pkg2/pad_film.py main(): u_z' = h (1 + nu) / (1 - nu) (alpha - alpha_Si) dT"
+    }
+  ],
+  "inputs": {
+    "h_m": 1e-06,
+    "dT_K": 100.0,
+    "alpha_cu": 1.6581238447607446e-05,
+    "alpha_ox": 5e-07,
+    "alpha_si": 2.600985401459854e-06,
+    "nu_cu": 0.35,
+    "nu_ox": 0.16
+  }
+}

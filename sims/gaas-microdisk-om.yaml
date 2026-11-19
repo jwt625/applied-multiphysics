@@ -1,14 +1,14 @@
-# GaAs microdisk optomechanics (lane MOM, DevLog-034): vacuum coupling g0 between the TE p = 1, m = 10 whispering-gallery
+# GaAs microdisk optomechanics: vacuum coupling g0 between the TE p = 1, m = 10 whispering-gallery
 # mode and the radial breathing modes of a free 1 um radius, 320 nm thick GaAs disk, axisymmetric (r, z). Inputs and
 # reference values from C. Baker et al., "Photoelastic coupling in gallium arsenide optomechanical disk resonators",
 # Opt. Express 22, 14072 (2014), arXiv 1403.4269v1: geometry and modes (Table 3 caption, p.11 text: no AlGaAs pedestal),
 # isotropic GaAs mechanics (Table 4), photoelastic constants (Table 2, at 1.15 um). Refractive index: Skauli et al. 2003
 # Sellmeier at 1.32 um (Baker Table 1 wavelength). Reference (Baker Table 3, FEM, g = -d omega / dx; printed "GHz/nm" and
-# "MHz" are angular rates, rad/s, DevLog-034 F1): 1st RBM 1.375 GHz, g_om geo 1080, pe 984 (printed GHz/nm), x_zpf
+# "MHz" are angular rates, rad/s: their "~1.4 THz/nm" equals omega0 / R in rad/s per nm): 1st RBM 1.375 GHz, g_om geo 1080, pe 984 (printed GHz/nm), x_zpf
 # 1.23e-15 m, |g0| geo 1.33e6, pe 1.21e6 rad/s; 2nd RBM 3.5 GHz, g_om 412 / 1720 (printed GHz/nm), |g0| 0.474e6 / 1.98e6
 # rad/s. Convention: the engine reports g0 / 2 pi in Hz with the sign of d omega / d alpha (negative for expansion: the
 # WGM frequency drops when the disk rim moves out); Baker quotes |g0| in rad/s, so compare |g0| x 2 pi with Baker.
-# Gate results: DevLog-034 s.4; tests packages/physics/test/mom-coupling.test.ts.
+# Gate tests: packages/physics/test/mom-coupling.test.ts.
 schema: amp-spec/0
 id: gaas-microdisk-om
 title: GaAs microdisk optomechanical coupling g0
@@ -100,4 +100,4 @@ assumptions:
   - {text: "Optical permittivity at a single wavelength (1.32 um); the computed WGM wavelength is reported", paths: [params.n_GaAs]}
 missing:
   - {what: "GaAs photoelastic constants are not storable in materials/ (no photoelastic property type; materials/gaas.yaml records them under missing): they are coupling settings here with provenance (Baker Table 2). rho, E, nu come from materials/gaas.yaml; eps_r is an override (n_GaAs^2)", needed_for: [solution]}
-# eval: []   (reference: Baker 2014 Table 3; gates in DevLog-034 s.4)
+# eval: []   (reference: Baker 2014 Table 3; gates in packages/physics/test/mom-coupling.test.ts)

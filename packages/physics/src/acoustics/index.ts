@@ -11,7 +11,7 @@
 import type { Mesh, PhysicsModule, RunContext, Solution, FieldData } from '@amp/spec/types';
 import { assembleCells, restrict } from '../common/scalar.ts';
 import { facetsOn, facetNodes, nNodes } from '../common/mesh.ts';
-import { shiftInvertEigen } from '../common/eigen.ts';
+import { shiftInvertEigen, eigenCheckNote } from '../common/eigen.ts';
 import { StageTimer, makeSolution, attachMesh } from '../common/solution.ts';
 import { cellProps, bcSelections, bcTypes, eigenStudy, physicsNode, optionalCellProp, q } from '../common/ctx.ts';
 import { solveAcousticsFrequency, wave2dReadiness } from '../wave2d/index.ts';
@@ -85,6 +85,8 @@ export async function solveAcousticModes(p: AcousticProblem): Promise<Solution &
     timer,
   });
   attachMesh(sol, mesh);
+  const chkNote = eigenCheckNote(eig.stats.check);
+  if (chkNote) (sol as Solution & { notes?: string[] }).notes = [...((sol as Solution & { notes?: string[] }).notes ?? []), chkNote];
   return Object.assign(sol, { detail: { eigResidual: eig.residual, stats: { ...eig.stats, sigma } } });
 }
 

@@ -90,6 +90,10 @@ export interface RefineOptions {
   quality?: (m: Mesh) => Record<string, number>;
 }
 
+/** Entity ids in the tag hash: 2D domain, boundary and point ids; 3D domain and boundary ids (stack point ids derive
+ * from the sketch and layer ids; DevLog-065 D4), as meshStack. */
+const tagIds = (m: Mesh) => (m.dim === 3 ? [...m.entities.domains, ...m.entities.boundaries] : [...m.entities.domains, ...m.entities.boundaries, ...(m.entities.points ?? [])]).map((x) => x.id);
+
 /** One level of nested uniform refinement (each cell -> 4 (2D) or 8 (3D) children). */
 export function refineUniform(m: Mesh, o: RefineOptions = {}): Mesh {
   const t0 = performance.now();
@@ -239,7 +243,7 @@ export function refineUniform(m: Mesh, o: RefineOptions = {}): Mesh {
   if (m.axisym !== undefined) out.axisym = m.axisym;
   if (m.pointNode) out.pointNode = m.pointNode;
   if (fnv === 2 && m.facetCurve) { out.facetCurve = Int32Array.from(fCurve); out.facetParam = Float64Array.from(fParam); }
-  out.tagHash = tagHash(domain, fc, fb, [...m.entities.domains, ...m.entities.boundaries, ...(m.entities.points ?? [])].map((x) => x.id));
+  out.tagHash = tagHash(domain, fc, fb, tagIds(m));
   out.quality = o.quality ? o.quality(out) : curvedQuality(out);
   out.stats = { nodes: nodes.length / D, cells: domain.length, facets: fb.length, refine_ms: performance.now() - t0 };
   return out;
@@ -291,7 +295,7 @@ export function toP2(m: Mesh, o: RefineOptions = {}): Mesh {
     ...m, nodes, cells: { type: nv === 3 ? 'tri6' : 'tet10', conn: C, domain: m.cells.domain },
     facets: { type: fnv === 2 ? 'line3' : 'tri6', conn: FC, boundary: m.facets.boundary }, hash: meshHash(nodes, C),
   };
-  out.tagHash = tagHash(out.cells.domain, FC, out.facets.boundary, [...m.entities.domains, ...m.entities.boundaries, ...(m.entities.points ?? [])].map((x) => x.id));
+  out.tagHash = tagHash(out.cells.domain, FC, out.facets.boundary, tagIds(m));
   out.quality = curvedQuality(out);
   return out;
 }

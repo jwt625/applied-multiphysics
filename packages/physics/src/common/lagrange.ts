@@ -4,7 +4,7 @@
 // Reference cells: line [0, 1]; triangle (0,0) (1,0) (0,1); tet (0,0,0) (1,0,0) (0,1,0) (0,0,1); quad / hex [0, 1]^d.
 
 import type { CellType } from '@amp/spec/types';
-import { type Rule, cubeRule, lineRule, tetRule, triRule } from './quad.ts';
+import { type Rule, cubeRule, lineRule, symTetRule, tetRule, triRule } from './quad.ts';
 import { NPC } from './mesh.ts';
 
 export const REF_DIM: Partial<Record<CellType, number>> = { line2: 1, line3: 1, tri3: 2, tri6: 2, quad4: 2, tet4: 3, tet10: 3, hex8: 3 };
@@ -82,7 +82,40 @@ export interface ShapeTable { type: CellType; nn: number; rd: number; rule: Rule
 const tabCache = new Map<string, ShapeTable>();
 
 /** Default rule for a cell type and polynomial degree of the integrand (exact for affine simplices). */
+/**
+ * Tet quadrature mode (DevLog-060; option, default 'collapsed'): 'collapsed' = collapsed Gauss tetRule for every
+ * requested degree (the engine's rule since the start); 'matched' = symmetric positive-weight rules exact to the
+ * requested degree (quad.ts symTetRule: 1, 4 or 14 points up to degree 5; collapsed above), and in elastic assembly on
+ * affine tet cells the per-term degrees (stiffness 2 (p - 1), loads (p - 1) + p). On affine cells both modes integrate
+ * the same polynomials exactly (round-off differences); on curved isoparametric cells the integrands are rational and
+ * the rules differ at the discretisation level. Node runs may set it with the environment variable AMP_TET_QUADRATURE.
+ */
+export type TetQuadrature = 'collapsed' | 'matched';
+let tetMode: TetQuadrature = (() => {
+  const v = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.AMP_TET_QUADRATURE;
+  return v === 'matched' ? 'matched' : 'collapsed';
+})();
+/** Set the tet quadrature mode; returns the previous one. */
+export function setTetQuadrature(mode: TetQuadrature): TetQuadrature {
+  if (mode !== 'collapsed' && mode !== 'matched') throw new Error(`tet quadrature '${String(mode)}': expected collapsed or matched`);
+  const p = tetMode; tetMode = mode; return p;
+}
+export function tetQuadrature(): TetQuadrature { return tetMode; }
+
+/** Whether the tet10 cell with coordinates X (10 x 3) has straight edges (midside nodes at the edge midpoints). */
+export function isAffineTet10(X: Float64Array): boolean {
+  const E = [[0, 1], [1, 2], [0, 2], [0, 3], [1, 3], [2, 3]];
+  let h = 0;
+  for (const [a, b] of E) h = Math.max(h, Math.hypot(X[3 * a!]! - X[3 * b!]!, X[3 * a! + 1]! - X[3 * b! + 1]!, X[3 * a! + 2]! - X[3 * b! + 2]!));
+  for (let j = 0; j < 6; j++) {
+    const [a, b] = E[j]!, m = 4 + j;
+    for (let d = 0; d < 3; d++) if (Math.abs(X[3 * m + d]! - 0.5 * (X[3 * a! + d]! + X[3 * b! + d]!)) > 1e-12 * h) return false;
+  }
+  return true;
+}
+
 export function defaultRule(type: CellType, degree: number): Rule {
+  if (tetMode === 'matched' && (type === 'tet4' || type === 'tet10')) { const r = symTetRule(degree); if (r) return r; }
   const n = Math.max(1, Math.ceil((degree + 2) / 2));
   switch (REF_DIM[type]) {
     case 1: return lineRule(n);

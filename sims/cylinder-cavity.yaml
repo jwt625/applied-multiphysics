@@ -1,4 +1,4 @@
-# H5 Cylindrical cavity eigenmodes (DevLog-001 s.8). Eval gate RF-01 (R3; Palace docs cylinder.md): PEC cylinder,
+# Cylindrical cavity eigenmodes. Eval gate RF-01 (Palace docs cylinder.md): PEC cylinder,
 # a = 2.74 cm, d = 2a, filled with eps_r 2.08, tan d 4e-4; TM010 2.903605, TE111 2.922212, TM011 3.468149,
 # TE211 4.146842, TM110 4.626474, TE011 5.000140 GHz.
 schema: amp-spec/0

@@ -1,12 +1,12 @@
 # Titanium nitride film (lane T4, DevLog-041), for plasmonics and heaters. Optical constants of one named deposition
-# (pulsed-DC sputtered 50 nm film, Beliaev et al. 2023). Electrical, thermal and mechanical film values: not read (N/A).
+# (pulsed-DC sputtered 50 nm film, Beliaev et al. 2023); one named 3-omega film k as an alternative (Moraes 2015). Electrical and mechanical film values: N/A.
 schema: amp-material/0
 id: tin-film
 name: Titanium nitride film (sputtered)
 class: ceramic
 description: >-
   TiN thin film. Complex refractive index of a 50 nm pulsed-DC sputtered film on Si (Beliaev et al. 2023, ellipsometry
-  and FTIR). TiN film properties depend strongly on deposition method, temperature and stoichiometry.
+  and FTIR); thermal conductivity of one 580 nm dc reactive-sputtered fcc TiN film (Moraes 2015, 3-omega) as an alternative only. TiN film properties depend strongly on deposition method, temperature and stoichiometry.
 verified_on: 2026-11-18
 sources:
   beliaev2023:
@@ -16,6 +16,12 @@ sources:
     access: paywalled
     read: "abstract on DTU Orbit (orbit.dtu.dk publication page, fetched 2026-11-18): 50 nm films on Si, ellipsometry and FTIR 210 nm to the mid-IR, all measurements at room temperature, resistivity measured (values not in the abstract); full-text PDF request returned HTTP 403 (not retried). n, k table from the refractiveindex.info entry (CC0) TiN/nk/Beliaev-sputtering.yml (sha256 6829a7708416..., 1176 rows 0.2114-20 um, comment '50 nm thick film deposited by pulsed-DC sputtering'); rows at >= 0.05 um spacing from 0.40 to 2.58 um transcribed"
     licence: "refractiveindex.info database: CC0 1.0"
+  moraes2015:
+    citation: "V. Moraes, Thermal conductivity of nitride based thin films, Diploma (MSc) thesis, Vienna University of Technology (TU Wien), Institute of Materials Science and Technology, 2015-03-31 (supervisor P. H. Mayrhofer); contains the manuscript 'Publication I'"
+    doi: 10.34726/hss.2015.29230
+    url: https://repositum.tuwien.at/handle/20.500.12708/5225
+    access: open
+    read: "text layer of the repositum PDF fetched 2026-11-18 (sha256 f1d0463fb8f4e670..., 49 pages; PDF not kept): Publication I abstract, Sec. II Experimental (deposition, 3-omega method), Table I (deposition parameters, composition, thickness), Sec. III results text (room-temperature k values, 200-330 K trend)"
 properties:
   n:
     table:
@@ -59,8 +65,20 @@ properties:
   k:
     value: N/A
     unit: W/(m*K)
-    missing: "TiN film thermal conductivity not read from a primary source. Searched 2026-11-18: Baba et al., THERMINIC 2006 (arXiv:0709.1845, open) measured the thermal diffusivity of reactive RF-sputtered TiN films (200-800 nm, N/Ti dependent) but shows it only in figures (Figs. 9-10, not digitized), with k computed from bulk density and heat capacity; no tabulated k. Value depends on deposition and stoichiometry; sims use a labelled override"
-    alternatives: []
+    missing: "no default: the only TiN film k read (2026-11-18) is one master-thesis 3-omega measurement of a 580 nm dc reactive-sputtered film deposited at 500 C (alternative moraes2015_3omega, 3.1 W/(m K) at 295 K), a different deposition from the optical leaves of this file; TiN film k depends on deposition and stoichiometry. Also checked: Baba et al. 2006 (arXiv:0709.1845) gives diffusivity in figures only. Sims select the alternative explicitly or use a labelled override"
+    alternatives:
+      - id: moraes2015_3omega
+        use: "one named measurement: 580 nm dc reactive-sputtered fcc TiN at 500 C (master thesis, 3-omega); select explicitly"
+        value: 3.1
+        unit: W/(m*K)
+        basis: measured
+        source: moraes2015
+        locator: "Publication I: abstract (pdf p.41) and Sec. III results (pdf p.48, thesis p.43): 'The room temperature (295K) thermal conductivities of our nitride based coatings are: 3.1 W m-1 K-1 for c-TiN'; Table I (pdf p.42) row TiN: Tdep 500 C, no bias, Ti 38.97 at.%, N 61.03 at.% (EDS), 580 nm, 5.8 nm/min"
+        accessed: 2026-11-18
+        uncertainty: {na: "not stated for the TiN value"}
+        conditions: {T: "295 K", text: "580 nm single-phase fcc TiN, reactive dc magnetron sputtering (AJA Orion 5), 2 inch Ti target (99.9 %) at 12.1 W/cm2, Ar/N2 flow-rate ratio 8/2, 0.4 Pa, 500 C, floating substrate potential, Si(100) substrate after Ar plasma etch; cross-plane k by the differential 3-omega method; EDS N content 61 at.% (the author attributes the deviation from 50-55 at.% to EDS difficulties)"}
+        valid: {T: {unit: K, range: [295, 295]}, note: "the source measured 200-330 K (k increases slightly with T, figure only, not digitized)"}
+        note: "different deposition from the n / kappa leaves of this file (Beliaev 2023, 50 nm pulsed-DC film); master thesis, not a peer-reviewed journal paper"
   alpha:
     value: N/A
     unit: 1/K

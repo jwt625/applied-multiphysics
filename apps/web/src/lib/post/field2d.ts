@@ -149,6 +149,93 @@ export interface Field2D {
 	/** nNodes * components (H1) or nCells * components (DG0) */
 	data: ArrayLike<number>;
 	components: number;
+	/** H1 derived fields (stresses): values per (element, local node), index (t * npe + a) * components + j, read instead
+	 *  of `data` at the element's nodes; e.g. @amp/post `recoverPerDomain` (one value per domain at material interfaces,
+	 *  DevLog-059). Absent: `data`. */
+	perCell?: ArrayLike<number>;
+	/** the producer's element values at the element nodes (FieldData.elementNodal); `withPerDomain` turns them into
+	 *  `perCell` */
+	elementNodal?: Float64Array;
+	/** recovery group per triangle (FieldData.cellGroup: equal material constants); absent or invalid: the domain */
+	cellGroup?: Int32Array;
+}
+
+/**
+ * A display field with per-domain values (Field2D.perCell) when it carries element values: the rule of @amp/post
+ * `recoverPerDomain` (DevLog-059; kept equal by apps/web/test/g2-interface-display.test.ts): at a node whose elements
+ * (those with finite element values) lie in one domain, the producer's nodal value `data`; at a node shared by several
+ * domains, the mean of the element values of the elements of the same domain at that node. Unchanged when there are
+ * no element values, for DG0, or when no node is shared by two domains. Local copy: the display bundle does not load
+ * @amp/post.
+ */
+export function withPerDomain(m: Mesh2D, f: Field2D): Field2D {
+	const el = f.elementNodal;
+	if (!el || f.perCell || f.space === 'DG0') return f;
+	const k = m.npe, nc = f.components, nT = m.nT, conn = m.conn, nN = m.nodes.length / 2;
+	if (el.length !== nT * k * nc) throw new Error(`display: element values ${el.length}, mesh needs ${nT * k * nc}`);
+	const active = new Uint8Array(nT);
+	for (let t = 0; t < nT; t++) { let ok = 1; for (let i = t * k * nc; i < (t + 1) * k * nc; i++) if (!Number.isFinite(el[i]!)) { ok = 0; break; } active[t] = ok; }
+	// recovery groups: the producer's material groups when valid (same rule as @amp/post recoveryGroups), else the domain
+	const dom = f.cellGroup && f.cellGroup.length === nT && f.cellGroup.every((g, t) => g >= 0 || !active[t]) ? f.cellGroup : m.domain;
+	const first = new Int32Array(nN).fill(-1), multi = new Uint8Array(nN);
+	let nMulti = 0;
+	for (let t = 0; t < nT; t++) {
+		if (!active[t]) continue;
+		for (let a = 0; a < k; a++) {
+			const v = conn[k * t + a]!;
+			if (first[v]! < 0) first[v] = dom[t]!;
+			else if (first[v] !== dom[t] && !multi[v]) { multi[v] = 1; nMulti++; }
+		}
+	}
+	if (!nMulti) return f;
+	let nG = 0; for (let t = 0; t < nT; t++) nG = Math.max(nG, dom[t]! + 1);
+	const slotOf = new Map<number, number>(), slot = new Int32Array(k * nT).fill(-1);
+	for (let t = 0; t < nT; t++) {
+		if (!active[t]) continue;
+		for (let a = 0; a < k; a++) {
+			const v = conn[k * t + a]!;
+			if (!multi[v]) continue;
+			const key = v * nG + dom[t]!;
+			let s = slotOf.get(key);
+			if (s === undefined) { s = slotOf.size; slotOf.set(key, s); }
+			slot[k * t + a] = s;
+		}
+	}
+	const sum = new Float64Array(slotOf.size * nc), cnt = new Float64Array(slotOf.size);
+	for (let t = 0; t < nT; t++)
+		for (let a = 0; a < k; a++) {
+			const s = slot[k * t + a]!;
+			if (s < 0) continue;
+			for (let j = 0; j < nc; j++) sum[nc * s + j]! += el[(k * t + a) * nc + j]!;
+			cnt[s]!++;
+		}
+	const pc = new Float64Array(nT * k * nc);
+	for (let t = 0; t < nT; t++)
+		for (let a = 0; a < k; a++) {
+			const s = slot[k * t + a]!, v = conn[k * t + a]!, o = (k * t + a) * nc;
+			for (let j = 0; j < nc; j++) pc[o + j] = s >= 0 ? sum[nc * s + j]! / cnt[s]! : f.data[v * nc + j]!;
+		}
+	return { ...f, perCell: pc };
+}
+
+/** Every component of a field on element t at barycentrics (the hover of a complex pair resident in the post worker:
+ *  the same evalElement call per component as an `evalAt` request for that component). */
+export function componentsAt(m: Mesh2D, f: Field2D, t: number, L0: number, L1: number, L2: number): number[] {
+	const out: number[] = [];
+	for (let k = 0; k < f.components; k++) out.push(evalElement(m, f, t, L0, L1, L2, k));
+	return out;
+}
+
+/** Hover probe of the post worker at (x, y): the located element and domain, the set field's value and, with a resident
+ *  complex pair (fields already through withPerDomain), Re and Im of every component. null outside the mesh. */
+export function probeHit(m: Mesh2D, loc: Locator, field: (Field2D & { comp: number }) | null, pair: { key: number; re: Field2D; im: Field2D } | null, x: number, y: number): { t: number; domain: number; value: number | null; cx?: { key: number; re: number[]; im: number[] } } | null {
+	const h = loc.locate(x, y);
+	if (!h) return null;
+	const [L0, L1, L2] = h.L;
+	return {
+		t: h.t, domain: m.domain[h.t]!, value: field ? evalElement(m, field, h.t, L0, L1, L2, field.comp) : null,
+		...(pair ? { cx: { key: pair.key, re: componentsAt(m, pair.re, h.t, L0, L1, L2), im: componentsAt(m, pair.im, h.t, L0, L1, L2) } } : {})
+	};
 }
 
 /** Value of component `comp` (or the magnitude when comp = -1) of a field on element t at barycentrics. */
@@ -161,6 +248,7 @@ export function evalElement(m: Mesh2D, f: Field2D, t: number, L0: number, L1: nu
 		return Math.sqrt(s);
 	};
 	if (f.space === 'DG0') return get(t);
+	if (f.perCell) return evalPerCell(m, f.perCell, nc, f.space === 'H1P1' || m.npe === 3, t, L0, L1, L2, comp);
 	const c = m.conn, o = m.npe * t;
 	if (f.space === 'H1P1' || m.npe === 3) {
 		if (comp >= 0 || nc === 1) return L0 * get(c[o]!) + L1 * get(c[o + 1]!) + L2 * get(c[o + 2]!);
@@ -184,6 +272,22 @@ export function evalElement(m: Mesh2D, f: Field2D, t: number, L0: number, L1: nu
 		for (let k = 0; k < 6; k++) v += W6[k]! * f.data[nc * c[o + k]! + q]!;
 		s += v * v;
 	}
+	return Math.sqrt(s);
+}
+
+/** evalElement for per (element, local node) values (Field2D.perCell); `p1`: corners only (as for data). */
+function evalPerCell(m: Mesh2D, pc: ArrayLike<number>, nc: number, p1: boolean, t: number, L0: number, L1: number, L2: number, comp: number): number {
+	const o = m.npe * t;
+	if (!p1) p2(L0, L1, L2, W6);
+	const one = (q: number) => {
+		if (p1) return L0 * pc[o * nc + q]! + L1 * pc[(o + 1) * nc + q]! + L2 * pc[(o + 2) * nc + q]!;
+		let v = 0;
+		for (let k = 0; k < 6; k++) v += W6[k]! * pc[(o + k) * nc + q]!;
+		return v;
+	};
+	if (comp >= 0 || nc === 1) return one(comp >= 0 ? comp : 0);
+	let s = 0;
+	for (let q = 0; q < nc; q++) { const v = one(q); s += v * v; }
 	return Math.sqrt(s);
 }
 
@@ -291,9 +395,11 @@ export function smoothCoefficients(m: Mesh2D, f: Field2D, comp: number): { coef:
 		const o = m.npe * t;
 		for (let j = 0; j < nc; j++) {
 			const q = comps[j]!, e = 6 * nc * t + 6 * j;
+			const pc = f.space === 'DG0' ? undefined : f.perCell;
 			if (rec) for (let k = 0; k < 3; k++) coef[e + k] = rec[3 * nAll * t + 3 * q + k]!;
+			else if (pc) for (let k = 0; k < 3; k++) coef[e + k] = pc[(o + k) * nAll + q]!;
 			else for (let k = 0; k < 3; k++) coef[e + k] = f.data[nAll * c[o + k]! + q]!;
-			if (p2) for (let k = 3; k < 6; k++) coef[e + k] = f.data[nAll * c[o + k]! + q]!;
+			if (p2) for (let k = 3; k < 6; k++) coef[e + k] = pc ? pc[(o + k) * nAll + q]! : f.data[nAll * c[o + k]! + q]!;
 			else { coef[e + 3] = 0.5 * (coef[e]! + coef[e + 1]!); coef[e + 4] = 0.5 * (coef[e + 1]! + coef[e + 2]!); coef[e + 5] = 0.5 * (coef[e + 2]! + coef[e]!); }
 		}
 	}

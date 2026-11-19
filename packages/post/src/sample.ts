@@ -4,7 +4,7 @@
 import type { Mesh, Solution } from '@amp/spec/types';
 import { evaluateField } from './evaluate.ts';
 import { fieldOf, meshOf } from './store.ts';
-import { interpolate, locatePoints } from './points.ts';
+import { interpolate, locatePoints, type DerivedMode } from './points.ts';
 
 export interface SampleOptions {
   mesh?: Mesh; component?: number | 'norm'; step?: number; /** reference-coordinate tolerance for points on curved walls (e.g. 1e-3) */ snap?: number;
@@ -13,6 +13,9 @@ export interface SampleOptions {
   /** DG0 (per cell) fields: values from the corner recovery of the 2D view (`recoverDG0`, linear on the cell corners,
    * jumps kept at domain interfaces) instead of the cell constant; for plots (cut lines, grids). Other spaces unaffected. */
   smooth?: boolean;
+  /** fields with element values (`elementNodal`, e.g. stresses): 'recovered' (default, per-material recovery: the value
+   * of the material group of the cell that holds the point), 'element' or 'averaged' (points.ts `DerivedMode`) */
+  derived?: DerivedMode;
 }
 
 /**
@@ -29,7 +32,7 @@ export function sample(sol: Solution, field: string, points: ArrayLike<number> |
   if (flat.length % mesh.dim) throw new Error(`sample: ${flat.length} coordinates is not a multiple of dim ${mesh.dim}`);
   const { values } = o.smooth && f.space === 'DG0'
     ? interpolate(f, locatePoints(mesh, flat, o.snap ? { snap: o.snap } : {}), { smooth: true })
-    : evaluateField(mesh, f, flat, o.snap ? { snap: o.snap } : {});
+    : evaluateField(mesh, f, flat, { ...(o.snap ? { snap: o.snap } : {}), ...(o.derived ? { derived: o.derived } : {}) });
   const nc = f.components, np = flat.length / mesh.dim, out = new Float64Array(np);
   for (let i = 0; i < np; i++) {
     if (o.component === 'norm') { let s = 0; for (let j = 0; j < nc; j++) s += values[i * nc + j]! ** 2; out[i] = Math.sqrt(s); }

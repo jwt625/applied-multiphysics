@@ -1,0 +1,114 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "WO-74",
+  "class": "c",
+  "generator": "validation/photonics2/gc_reference.py",
+  "command": "cd validation && uv run python photonics2/gc_reference.py",
+  "method": "TE slab dispersion of the port cross-section (exact, walls as in the sim); Poynting balance 0 (exact); upward fraction digitized from Taillaert et al., Jpn. J. Appl. Phys. 45, 6071 (2006), Fig. 3 (2D eigenmode expansion with PML)",
+  "generated_at": "2026-11-18T18:59:11-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "mpmath": "1.4.1"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "neff_1_0",
+      "value": 2.824653303065373,
+      "unit": "1",
+      "precision": {
+        "method": "mpmath 40 digits vs scipy",
+        "open_slab_value": 2.8246533030653076,
+        "paper_value": 2.83,
+        "paper_locator": "Taillaert 2006 p.6072: fundamental TE mode 2.83"
+      }
+    },
+    {
+      "metric_id": "balance",
+      "value": 0.0,
+      "unit": "1",
+      "precision": {
+        "method": "exact (Poynting theorem, lossless interior)"
+      }
+    },
+    {
+      "metric_id": "up_1540",
+      "value": 0.4505658466193774,
+      "unit": "1",
+      "lambda_read_nm": 1540.009,
+      "precision": {
+        "resolution": 0.0015399278937889033,
+        "line_extent": [
+          0.449539228023518,
+          0.45159246521523655
+        ],
+        "method": "digitized (photonics2/digitize_taillaert.py)"
+      }
+    },
+    {
+      "metric_id": "up_1550",
+      "value": 0.45775217679039204,
+      "unit": "1",
+      "lambda_read_nm": 1550.0,
+      "precision": {
+        "resolution": 0.0015399278937889033,
+        "line_extent": [
+          0.45672555819453264,
+          0.4587787953862512
+        ],
+        "method": "digitized (photonics2/digitize_taillaert.py)"
+      }
+    },
+    {
+      "metric_id": "up_1570",
+      "value": 0.4672483988020899,
+      "unit": "1",
+      "lambda_read_nm": 1570.261,
+      "precision": {
+        "resolution": 0.0012832732448240542,
+        "line_extent": [
+          0.46647843485519536,
+          0.46801836274898423
+        ],
+        "method": "digitized (photonics2/digitize_taillaert.py)"
+      }
+    },
+    {
+      "metric_id": "up_1600",
+      "value": 0.46134534187589926,
+      "unit": "1",
+      "lambda_read_nm": 1599.953,
+      "precision": {
+        "resolution": 0.0015399278937887923,
+        "line_extent": [
+          0.4603187232800401,
+          0.46237196047175844
+        ],
+        "method": "digitized (photonics2/digitize_taillaert.py)"
+      }
+    },
+    {
+      "metric_id": "up_1610",
+      "value": 0.45107915591730685,
+      "unit": "1",
+      "lambda_read_nm": 1610.037,
+      "precision": {
+        "resolution": 0.0015399278937889033,
+        "line_extent": [
+          0.4500525373214477,
+          0.45210577451316625
+        ],
+        "method": "digitized (photonics2/digitize_taillaert.py)"
+      }
+    }
+  ],
+  "inputs": {
+    "digitized": "validation/photonics2/taillaert2006_fig3.json"
+  }
+}

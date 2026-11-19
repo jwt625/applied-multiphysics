@@ -1,0 +1,102 @@
+# PK-09 (eval/cases/c/PK-09.yaml): hybrid-bond Cu pad expansion. Axisymmetric cell of a pad array: Cu pad (radius a,
+# thickness h) flush in an SiO2 layer of the same thickness, bonded to a Si wafer treated as rigid (its surface follows the
+# free expansion of Si), top free, cell rim on rollers (array symmetry), uniform heating by dT from the flush state.
+# Frame of the Si wafer: every expansion coefficient is entered relative to Si (alpha - alpha_Si) and the base is fixed.
+# This exact change of frame leaves the stresses unchanged and removes alpha_Si dT z from u_z, the same at the pad top and
+# at the oxide top, so the protrusion (pad-centre top minus oxide top at the rim) is the physical one.
+# Gate (validation/pkg2/pad_film.py, own derivation): with a wide pad (a = 10 h, per-case parameter override) the
+# pad-centre and far-oxide rises equal the thin-film closed form h (1 + nu) / (1 - nu) (alpha - alpha_Si) dT. The real
+# pad (a = 1.5 h) lies between the laterally free and the biaxially constrained limits (informative, not a bound).
+# Modelling inputs NOT from a paper (illustrative): a, h, R, temperatures. Materials: Cu E, nu (Ledbetter-Naimon 1974) and
+# SiO2 E, nu, alpha from the library; Cu and Si alpha are library temperature tables evaluated at 298.15 K and held
+# constant over dT (the Cu fit is valid to 300 K; Cu alpha rises with temperature, not modelled). No plasticity, no
+# interface diffusion, no dishing or recess.
+schema: amp-spec/0
+id: hybrid-bond-pad
+title: Hybrid-bond Cu pad expansion (axisymmetric)
+description: Cu pad flush in SiO2 on a rigid Si wafer, heated by 100 K; pad protrusion over the oxide surface against thin-film closed forms.
+params:
+  a: {value: 1.5, unit: um, description: pad radius}
+  h: {value: 1, unit: um, description: pad and oxide thickness}
+  R: {value: 5, unit: um, description: "cell radius (equal-area cell of an 8.9 um pitch)"}
+  T_ref: {value: 298.15, unit: K, description: "stress-free (flush) temperature"}
+  T_use: {value: 398.15, unit: K, description: final uniform temperature}
+  alpha_cu: {value: 1.6581238447607446e-5, unit: 1/K, description: Cu expansion coefficient (library at 298.15 K)}
+  alpha_si: {value: 2.600985401459854e-6, unit: 1/K, description: Si expansion coefficient (library at 298.15 K)}
+  alpha_ox: {value: 0.5e-6, unit: 1/K, description: SiO2 expansion coefficient (library)}
+geometry:
+  dim: 2
+  axisym: true
+  features:
+    - {id: pad, type: rect, settings: {size: ["a", "h"], center: ["a/2", "h/2"]}}
+    - {id: oxide, type: rect, settings: {size: ["R - a", "h"], center: ["(R + a)/2", "h/2"]}}
+materials:
+  - {id: cu, ref: materials/copper, T: {value: 298.15, unit: K}, override: {alpha: "alpha_cu - alpha_si"}, select: ["dom:pad"]}
+  - {id: sio2, ref: materials/sio2-thermal-oxide, override: {alpha: "alpha_ox - alpha_si"}, select: ["dom:oxide"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:pad", "dom:oxide"]
+    bcs:
+      - {id: uniform, type: temperature, select: ["bnd:pad.top", "bnd:pad.bottom", "bnd:oxide.top", "bnd:oxide.bottom", "bnd:oxide.right"], settings: {T: "T_use"}}
+  - id: solid
+    type: elastic
+    select: ["dom:pad", "dom:oxide"]
+    settings: {model: axisym}
+    bcs:
+      - {id: wafer, type: fixed, select: ["bnd:pad.bottom", "bnd:oxide.bottom"]}
+      - {id: rim, type: roller, select: ["bnd:oxide.right"]}
+      - {id: top, type: free, select: ["bnd:pad.top", "bnd:oxide.top"]}
+couplings:
+  - {id: th2sm, type: thermal-expansion, from: ht, to: solid, settings: {Tref: "T_ref"}}
+mesh:
+  size: {hmax: "h/6"}
+  refine:
+    - {select: ["bnd:pad.right"], h: "h/30"}
+studies:
+  - {id: std1, type: stationary, physics: [ht, solid]}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: centre_top, type: cutpoint, data: sol_std1, points: [["0 um", "h"]]}
+    - {id: rim_top, type: cutpoint, data: sol_std1, points: [["R", "h"]]}
+    - {id: top_line, type: cutline, data: sol_std1, from: ["0 um", "h"], to: ["R", "h"], n: 300}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: uz_pad, type: point, data: centre_top, expr: solid.u.z, unit: nm, label: "pad-centre top rise (frame of the Si wafer)"}
+        - {id: uz_rim, type: point, data: rim_top, expr: solid.u.z, unit: nm, label: "oxide top rise at the cell rim (frame of the Si wafer)"}
+        - {id: uz_pad_mean, type: average, expr: solid.u.z, unit: nm, over: ["bnd:pad.top"], label: "mean pad-top rise"}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: uz_map
+      type: plot2d
+      data: sol_std1
+      items:
+        - {id: uz_surf, type: surface, expr: solid.u.z, unit: nm}
+    - id: top_profile
+      type: plot1d
+      items:
+        - {id: uz_top, type: linegraph, data: top_line, x: arc, expr: solid.u.z, unit: nm}
+provenance:
+  values:
+    params.a: {basis: user, date: 2026-11-18, note: "illustrative modelling input (3 um pad), not from a paper"}
+    params.h: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.R: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.T_ref: {basis: user, date: 2026-11-18, note: "illustrative: pad flush with the oxide at 25 C"}
+    params.T_use: {basis: user, date: 2026-11-18, note: "illustrative: 100 K heating"}
+    params.alpha_cu: {basis: measured, source: "materials/copper.yaml alpha (NIST cryogenic OFHC Cu fit, valid 4-300 K) evaluated by @amp/materials at 298.15 K", date: 2026-11-18, note: "held constant over the 100 K heating (above the fit range; Cu alpha rises with temperature)"}
+    params.alpha_si: {basis: measured, source: "materials/silicon.yaml alpha (Swenson 1983 Table 2) linearly interpolated by @amp/materials at 298.15 K", date: 2026-11-18, note: "held constant over the heating"}
+    params.alpha_ox: {basis: paper_model_input, source: "materials/sio2-thermal-oxide.yaml alpha (0.5 ppm/K)", date: 2026-11-18}
+    materials.cu.override.alpha: {basis: derived, date: 2026-11-18, note: "expansion relative to the Si wafer (frame change, exact): alpha_Cu - alpha_Si"}
+    materials.cu.T: {basis: user, date: 2026-11-18, note: "library k, cp of materials/copper evaluated at 298.15 K (k = 401.004 W/(m K)); k does not enter (uniform T); alpha stays the relative-expansion override"}
+    materials.sio2.override.alpha: {basis: derived, date: 2026-11-18, note: "expansion relative to the Si wafer (frame change, exact): alpha_SiO2 - alpha_Si"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice; the harness refines it by 1/2 per level (nested)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice: Cu / SiO2 interface with the free-surface corner"}
+assumptions:
+  - {text: "Si wafer rigid: its surface follows the free expansion of Si; wafer compliance and bow are not modelled", paths: [physics.solid.bcs]}
+  - {text: "Linear thermo-elasticity with constant alpha over the 100 K heating; no Cu plasticity, no grain or interface effects", paths: [couplings, params]}
+  - {text: "Pad flush with the oxide at T_ref (no CMP recess or dishing); perfect bonding to the wafer and to the oxide", paths: [geometry]}
+# eval: [PK-09]

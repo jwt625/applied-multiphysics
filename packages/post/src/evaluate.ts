@@ -6,6 +6,7 @@
 import type { FieldData, Mesh } from '@amp/spec/types';
 import { NPC, nCells } from '@amp/physics/common/mesh';
 import { REF_DIM, shape } from '@amp/physics/common/lagrange';
+import { derivedValues, type DerivedMode } from './points.ts';
 
 export interface Located { cell: number; ref: Float64Array }
 
@@ -147,9 +148,10 @@ export function locatorFor(mesh: Mesh): Locator {
 /**
  * Values of a field at points (dim coordinates per point, flattened). Returns components x nPoints values
  * (point-major: value of component j at point i is out[i * components + j]); NaN outside the mesh.
- * `grad`: also return the gradient (components x dim per point) for H1 fields.
+ * `grad`: also return the gradient (components x dim per point) for H1 fields. `derived` (default 'recovered'): how a
+ * field with element values (`elementNodal`) is read (points.ts `DerivedMode`).
  */
-export function evaluateField(mesh: Mesh, field: FieldData, points: ArrayLike<number>, o: { grad?: boolean; snap?: number } = {}): { values: Float64Array; grad?: Float64Array } {
+export function evaluateField(mesh: Mesh, field: FieldData, points: ArrayLike<number>, o: { grad?: boolean; snap?: number; derived?: DerivedMode } = {}): { values: Float64Array; grad?: Float64Array } {
   const dim = mesh.dim, np = points.length / dim, nc = field.components;
   const L = locatorFor(mesh);
   const values = new Float64Array(np * nc).fill(NaN);
@@ -162,6 +164,7 @@ export function evaluateField(mesh: Mesh, field: FieldData, points: ArrayLike<nu
   if (isH1 && field.data.length !== nNodes * nc) throw new Error(`evaluateField: '${field.name}' has ${field.data.length} values, mesh has ${nNodes} nodes x ${nc} components`);
   if (field.space === 'DG0' && field.data.length !== nCells(mesh) * nc) throw new Error(`evaluateField: DG0 '${field.name}' length mismatch`);
   if (!isH1 && field.space !== 'DG0') throw new Error(`evaluateField: space ${field.space} not supported (Nedelec coefficients: evaluate the module's H1 projection, e.g. emw 'E_nodal', or a DG0 field)`);
+  const dv = isH1 ? derivedValues(mesh, field, o.derived) : null, src = dv ?? field.data;
   for (let i = 0; i < np; i++) {
     for (let d = 0; d < dim; d++) p[d] = points[dim * i + d]!;
     const loc = L.locate(p, o.snap ?? 0);
@@ -170,7 +173,7 @@ export function evaluateField(mesh: Mesh, field: FieldData, points: ArrayLike<nu
     shape(mesh.cells.type, loc.ref, N, dN);
     for (let j = 0; j < nc; j++) {
       let s = 0;
-      for (let a = 0; a < k; a++) s += N[a]! * field.data[mesh.cells.conn[k * loc.cell + a]! * nc + j]!;
+      for (let a = 0; a < k; a++) s += N[a]! * src[(dv ? k * loc.cell + a : mesh.cells.conn[k * loc.cell + a]!) * nc + j]!;
       values[i * nc + j] = s;
     }
     if (grad) {
@@ -179,7 +182,7 @@ export function evaluateField(mesh: Mesh, field: FieldData, points: ArrayLike<nu
       for (let a = 0; a < k; a++) { const n = mesh.cells.conn[k * loc.cell + a]!; for (let r = 0; r < dim; r++) for (let s = 0; s < rd; s++) J[3 * r + s]! += mesh.nodes[dim * n + r]! * dN[rd * a + s]!; }
       for (let j = 0; j < nc; j++) {
         const gr = [0, 0, 0];
-        for (let a = 0; a < k; a++) { const v = field.data[mesh.cells.conn[k * loc.cell + a]! * nc + j]!; for (let s = 0; s < rd; s++) gr[s]! += v * dN[rd * a + s]!; }
+        for (let a = 0; a < k; a++) { const v = src[(dv ? k * loc.cell + a : mesh.cells.conn[k * loc.cell + a]!) * nc + j]!; for (let s = 0; s < rd; s++) gr[s]! += v * dN[rd * a + s]!; }
         // grad_x = J^-T grad_ref: solve J^T g = gr
         const JT = [J[0]!, J[3]!, J[6]!, J[1]!, J[4]!, J[7]!, J[2]!, J[5]!, J[8]!];
         const g = solve(JT, gr, dim);

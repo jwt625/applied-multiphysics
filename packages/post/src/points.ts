@@ -150,12 +150,151 @@ export function recoverDG0(mesh: Mesh, f: FieldData): Float64Array {
 }
 
 /**
+ * How a derived field (an H1 field whose producer averaged element values at the nodes and also gives them per cell:
+ * `elementNodal`) is read:
+ *   recovered  per-material recovery (`recoverPerDomain`): continuous inside each material group (FieldData.cellGroup,
+ *              else each domain), one value per group at nodes on material interfaces; the value of the group of the
+ *              cell that holds the point (default)
+ *   element    the element's own values (no averaging), discontinuous between cells
+ *   averaged   the producer's nodal mean over every cell at a node, across interfaces (the field's `data`)
+ * Fields without `elementNodal` (primary fields, DG0, older producers) read `data` in every mode.
+ */
+export type DerivedMode = 'recovered' | 'element' | 'averaged';
+
+/** A field with the optional element values at the cell nodes (FieldData.elementNodal, contract extension). */
+type WithElement = FieldData & { elementNodal?: Float64Array; cellGroup?: Int32Array };
+
+/**
+ * Recovery group per cell of a derived field (DevLog-066): the producer's constitutive group (FieldData.cellGroup:
+ * cells of the same material constants share a group, so a boundary between two domains of one material is not an
+ * interface) when it is present, has one entry per cell and is >= 0 on every cell with element values; else the
+ * geometric domain (cells.domain).
+ */
+export function recoveryGroups(mesh: Mesh, f: FieldData, active?: Uint8Array): Int32Array {
+  const g = (f as WithElement).cellGroup, nC = nCells(mesh);
+  if (!g || g.length !== nC) return mesh.cells.domain;
+  for (let c = 0; c < nC; c++) if ((!active || active[c]) && g[c]! < 0) return mesh.cells.domain;
+  return g;
+}
+
+/**
+ * Element values at the cell nodes before nodal averaging, `(cell * k + a) * components + j` (k nodes per cell, VTK
+ * order; NaN for cells the producer left out), or null when the field carries none (or is not H1).
+ */
+export function elementNodalOf(mesh: Mesh, f: FieldData): Float64Array | null {
+  const e = (f as WithElement).elementNodal;
+  if (!e || (f.space !== 'H1P1' && f.space !== 'H1P2')) return null;
+  const n = nCells(mesh) * NPC[mesh.cells.type] * f.components;
+  if (e.length !== n) throw new Error(`field '${f.name}': elementNodal has ${e.length} values, mesh needs ${n} (cells x nodes per cell x components)`);
+  return e;
+}
+
+const perDomain = new WeakMap<FieldData, { mesh: Mesh; values: Float64Array | null }>();
+
+/**
+ * Per-material recovery of a derived field (DevLog-059; groups DevLog-066): per (cell, local node) values, index
+ * `(cell * k + a) * nc + j`. Groups: `recoveryGroups` (the producer's constitutive group FieldData.cellGroup, else the
+ * geometric domain cells.domain). At a node whose cells (those with finite element values) all lie in one group: the
+ * producer's nodal value `data` (bitwise). At a node shared by cells of several groups: the mean of the element values
+ * of the cells of the same group at that node (count-weighted, the producer's rule restricted to the group), so a
+ * material interface keeps one value per side while a boundary between two domains of one material keeps the smooth
+ * nodal mean. Returns null when the field has no `elementNodal` or no node is shared by two groups (every reader then
+ * uses `data`, unchanged). Cached per (field, mesh).
+ */
+export function recoverPerDomain(mesh: Mesh, f: FieldData): Float64Array | null {
+  const hit = perDomain.get(f);
+  if (hit && hit.mesh === mesh) return hit.values;
+  const el = elementNodalOf(mesh, f);
+  let values: Float64Array | null = null;
+  if (el) {
+    checkField(mesh, f);
+    const k = NPC[mesh.cells.type], nc = f.components, nC = nCells(mesh), conn = mesh.cells.conn;
+    const nN = mesh.nodes.length / mesh.dim;
+    const active = new Uint8Array(nC);
+    for (let c = 0; c < nC; c++) { let ok = 1; for (let i = c * k * nc; i < (c + 1) * k * nc; i++) if (!Number.isFinite(el[i]!)) { ok = 0; break; } active[c] = ok; }
+    const dom = recoveryGroups(mesh, f, active);
+    const first = new Int32Array(nN).fill(-1), multi = new Uint8Array(nN);
+    let nMulti = 0;
+    for (let c = 0; c < nC; c++) {
+      if (!active[c]) continue;
+      const g = dom[c]!;
+      for (let a = 0; a < k; a++) {
+        const v = conn[k * c + a]!;
+        if (first[v]! < 0) first[v] = g;
+        else if (first[v] !== g && !multi[v]) { multi[v] = 1; nMulti++; }
+      }
+    }
+    if (nMulti) {
+      // slot per (interface node, group)
+      const slotOf = new Map<number, number>(), slot = new Int32Array(k * nC).fill(-1);
+      let nG = 0; for (let c = 0; c < nC; c++) nG = Math.max(nG, dom[c]! + 1);
+      for (let c = 0; c < nC; c++) {
+        if (!active[c]) continue;
+        for (let a = 0; a < k; a++) {
+          const v = conn[k * c + a]!;
+          if (!multi[v]) continue;
+          const key = v * nG + dom[c]!;
+          let s = slotOf.get(key);
+          if (s === undefined) { s = slotOf.size; slotOf.set(key, s); }
+          slot[k * c + a] = s;
+        }
+      }
+      const sum = new Float64Array(slotOf.size * nc), cnt = new Float64Array(slotOf.size);
+      for (let c = 0; c < nC; c++)
+        for (let a = 0; a < k; a++) {
+          const s = slot[k * c + a]!;
+          if (s < 0) continue;
+          for (let j = 0; j < nc; j++) sum[nc * s + j]! += el[(k * c + a) * nc + j]!;
+          cnt[s]!++;
+        }
+      values = new Float64Array(nC * k * nc);
+      for (let c = 0; c < nC; c++)
+        for (let a = 0; a < k; a++) {
+          const s = slot[k * c + a]!, v = conn[k * c + a]!, o = (k * c + a) * nc;
+          for (let j = 0; j < nc; j++) values[o + j] = s >= 0 ? sum[nc * s + j]! / cnt[s]! : f.data[v * nc + j]!;
+        }
+    }
+  }
+  perDomain.set(f, { mesh, values });
+  return values;
+}
+
+const elementFilled = new WeakMap<FieldData, { mesh: Mesh; values: Float64Array | null }>();
+
+/** Element values with the cells the producer left out (non-finite values) read from `data` at their nodes. */
+function elementValues(mesh: Mesh, f: FieldData): Float64Array | null {
+  const hit = elementFilled.get(f);
+  if (hit && hit.mesh === mesh) return hit.values;
+  const el = elementNodalOf(mesh, f);
+  let values = el;
+  if (el) {
+    const k = NPC[mesh.cells.type], nc = f.components, nC = nCells(mesh), conn = mesh.cells.conn;
+    for (let c = 0; c < nC; c++) {
+      let ok = true;
+      for (let i = c * k * nc; i < (c + 1) * k * nc; i++) if (!Number.isFinite(el[i]!)) { ok = false; break; }
+      if (ok) continue;
+      if (values === el) { checkField(mesh, f); values = Float64Array.from(el); }
+      for (let a = 0; a < k; a++) for (let j = 0; j < nc; j++) values![(k * c + a) * nc + j] = f.data[conn[k * c + a]! * nc + j]!;
+    }
+  }
+  elementFilled.set(f, { mesh, values });
+  return values;
+}
+
+/** Per (cell, local node) values of a field for a mode, or null when the reader uses `data` at the cell's nodes. */
+export function derivedValues(mesh: Mesh, f: FieldData, mode: DerivedMode = 'recovered'): Float64Array | null {
+  if (mode === 'averaged') return null;
+  return mode === 'element' ? elementValues(mesh, f) : recoverPerDomain(mesh, f);
+}
+
+/**
  * Values (point-major, components per point) and optionally gradients ((point * components + j) * dim + d) of a field
  * at a point set, from each point's own cell. NaN outside. Gradients of a DG0 field are an error (not differentiable).
  * `smooth`: a DG0 field is read through `recoverDG0` (corner values, linear / bilinear on the cell's corners), as the
- * 2D view draws it, instead of the cell constant; other spaces are unaffected.
+ * 2D view draws it, instead of the cell constant; other spaces are unaffected. `derived` (default 'recovered'): how a
+ * field with element values (`elementNodal`) is read (`DerivedMode`); no effect on other fields.
  */
-export function interpolate(f: FieldData, ps: PointSet, o: { grad?: boolean; smooth?: boolean } = {}): { values: Float64Array; grad?: Float64Array } {
+export function interpolate(f: FieldData, ps: PointSet, o: { grad?: boolean; smooth?: boolean; derived?: DerivedMode } = {}): { values: Float64Array; grad?: Float64Array } {
   const mesh = ps.mesh, dim = mesh.dim, nc = f.components, np = ps.n;
   checkField(mesh, f);
   if (o.grad && f.space === 'DG0') throw new Error(`d(): field '${f.name}' is DG0 (piecewise constant); its derivative is not defined`);
@@ -168,6 +307,9 @@ export function interpolate(f: FieldData, ps: PointSet, o: { grad?: boolean; smo
   const corners = smooth ? recoverDG0(mesh, f) : null;
   const ct = smooth ? CORNER_TYPE[type]! : type, nk = NPC[ct];
   const Nk = new Float64Array(nk), dNk = new Float64Array(nk * (REF_DIM[ct] ?? rd));
+  // derived fields: per (cell, local node) values (index (k c + a) nc + j); else data at the cell's nodes
+  const dv = f.space === 'DG0' ? null : derivedValues(mesh, f, o.derived);
+  const src = dv ?? f.data;
   for (let i = 0; i < np; i++) {
     const c = ps.cell[i]!;
     if (c < 0) continue;
@@ -182,7 +324,7 @@ export function interpolate(f: FieldData, ps: PointSet, o: { grad?: boolean; smo
     shape(type, r, N, dN);
     for (let j = 0; j < nc; j++) {
       let s = 0;
-      for (let a = 0; a < k; a++) s += N[a]! * f.data[conn[k * c + a]! * nc + j]!;
+      for (let a = 0; a < k; a++) s += N[a]! * src[(dv ? k * c + a : conn[k * c + a]!) * nc + j]!;
       values[i * nc + j] = s;
     }
     if (!grad) continue;
@@ -190,7 +332,7 @@ export function interpolate(f: FieldData, ps: PointSet, o: { grad?: boolean; smo
     for (let a = 0; a < k; a++) { const nd = conn[k * c + a]!; for (let p = 0; p < dim; p++) for (let s = 0; s < rd; s++) J[3 * p + s]! += X[dim * nd + p]! * dN[rd * a + s]!; }
     for (let j = 0; j < nc; j++) {
       gr.fill(0);
-      for (let a = 0; a < k; a++) { const v = f.data[conn[k * c + a]! * nc + j]!; for (let s = 0; s < rd; s++) gr[s]! += v * dN[rd * a + s]!; }
+      for (let a = 0; a < k; a++) { const v = src[(dv ? k * c + a : conn[k * c + a]!) * nc + j]!; for (let s = 0; s < rd; s++) gr[s]! += v * dN[rd * a + s]!; }
       // physical gradient g solves J^T g = gr
       solveT(J, gr, dim, grad, (i * nc + j) * dim);
     }

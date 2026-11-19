@@ -6,7 +6,7 @@
 // dataset values and nodal values through results/adapter.ts (@amp/post kernels), loaded on the first such message.
 /// <reference lib="webworker" />
 import type { Mesh } from '@amp/spec/types';
-import { Locator, evalCoef, evalElement, latticeValues, packCoef, refinedDisplay, refinePattern, smoothCoefficients, toMesh2D, type ElementCoef, type Field2D, type Mesh2D } from './field2d';
+import { Locator, evalCoef, probeHit, evalElement, latticeValues, packCoef, refinedDisplay, refinePattern, smoothCoefficients, toMesh2D, withPerDomain, type ElementCoef, type Field2D, type Mesh2D } from './field2d';
 import { bbox3, exterior, marchingTets, slice } from './solid3d';
 import { fluxLines } from './flux2d';
 import { revolveSurface, type RevolvedSurface } from './revolve';
@@ -15,6 +15,9 @@ import type { ResultsFromWorker, ResultsToWorker } from '../results/api';
 export type ToPost =
 	| { type: 'mesh'; mesh: Mesh }
 	| { type: 'field'; field: (Field2D & { comp: number }) | null }
+	/** Re and Im of the shown complex field, kept here so the hover reads both at the pointer without posting them per
+	 *  move (`key` is echoed in the probe reply) */
+	| { type: 'pair'; key: number; pair: { re: Field2D; im: Field2D } | null }
 	| { type: 'probe'; req: number; x: number; y: number }
 	| { type: 'exterior'; req: number }
 	| { type: 'display'; req: number; r: number }
@@ -41,7 +44,7 @@ export type FromPost =
 	| { type: 'evalAt'; req: number; values: Array<number | null> }
 	| ({ type: 'revolve'; req: number } & RevolvedSurface)
 	| { type: 'flux'; req: number; segs: Float64Array; arrows: Float64Array; nLines: number; ms: number }
-	| { type: 'probe'; req: number; x: number; y: number; hit: { t: number; domain: number; value: number | null } | null; ms: number }
+	| { type: 'probe'; req: number; x: number; y: number; hit: { t: number; domain: number; value: number | null; cx?: { key: number; re: number[]; im: number[] } } | null; ms: number }
 	| { type: 'exterior'; req: number; pos: Float32Array; node: Int32Array; pair: Int32Array; cell: Int32Array; nrm: Float32Array; edges: Int32Array; features: Int32Array; c0: [number, number, number]; ms: number }
 	| { type: 'cut'; req: number; pos: Float32Array; val: Float32Array; disp: Float32Array | null; nTri: number; ms: number }
 	| { type: 'error'; req: number; message: string }
@@ -52,6 +55,7 @@ let mesh: Mesh | null = null;
 let m2: Mesh2D | null = null;
 let loc: Locator | null = null;
 let field: (Field2D & { comp: number }) | null = null;
+let pair: { key: number; re: Field2D; im: Field2D } | null = null;
 
 let results: Promise<typeof import('../results/eval-worker')> | null = null;
 
@@ -72,12 +76,13 @@ ctx.onmessage = (ev: MessageEvent<ToPost>) => {
 			m2 = mesh.dim === 2 ? toMesh2D(mesh) : null;
 			loc = null;
 			field = null;
-		} else if (m.type === 'field') field = m.field;
+			pair = null;
+		} else if (m.type === 'pair') pair = m.pair && m2 ? { key: m.key, re: withPerDomain(m2, m.pair.re), im: withPerDomain(m2, m.pair.im) } : null;
+		else if (m.type === 'field') field = m.field && m2 ? { ...withPerDomain(m2, m.field), comp: m.field.comp } : m.field;
 		else if (m.type === 'probe') {
 			if (!m2) return ctx.postMessage({ type: 'probe', req: m.req, x: m.x, y: m.y, hit: null, ms: 0 } satisfies FromPost);
 			loc ??= new Locator(m2);
-			const h = loc.locate(m.x, m.y);
-			const hit = h ? { t: h.t, domain: m2.domain[h.t]!, value: field ? evalElement(m2, field, h.t, h.L[0], h.L[1], h.L[2], field.comp) : null } : null;
+			const hit = probeHit(m2, loc, field, pair, m.x, m.y);
 			ctx.postMessage({ type: 'probe', req: m.req, x: m.x, y: m.y, hit, ms: performance.now() - t0 } satisfies FromPost);
 		} else if (m.type === 'display') {
 			if (!m2) throw new Error('no 2D mesh');
@@ -87,10 +92,11 @@ ctx.onmessage = (ev: MessageEvent<ToPost>) => {
 		} else if (m.type === 'evalAt') {
 			if (!m2) throw new Error('no 2D mesh');
 			loc ??= new Locator(m2);
+			const ef = withPerDomain(m2, m.field);
 			const values: Array<number | null> = [];
 			for (let i = 0; i < m.points.length; i += 2) {
 				const h = loc.locate(m.points[i]!, m.points[i + 1]!);
-				values.push(h ? evalElement(m2, m.field, h.t, h.L[0], h.L[1], h.L[2], m.comp) : null);
+				values.push(h ? evalElement(m2, ef, h.t, h.L[0], h.L[1], h.L[2], m.comp) : null);
 			}
 			ctx.postMessage({ type: 'evalAt', req: m.req, values } satisfies FromPost);
 		} else if (m.type === 'revolve') {
@@ -105,7 +111,7 @@ ctx.onmessage = (ev: MessageEvent<ToPost>) => {
 			ctx.postMessage({ type: 'flux', req: m.req, ...r, ms: performance.now() - t0 } satisfies FromPost, [r.segs.buffer, r.arrows.buffer]);
 		} else if (m.type === 'lattice') {
 			if (!m2) throw new Error('no 2D mesh');
-			const r = lattice(m2, m);
+			const r = lattice(m2, { ...m, field: withPerDomain(m2, m.field) });
 			const tr: Transferable[] = [r.values.buffer];
 			if (r.coef) tr.push(r.coef.data.buffer);
 			ctx.postMessage({ type: 'lattice', req: m.req, ...r, ms: performance.now() - t0 } satisfies FromPost, tr);
@@ -148,7 +154,8 @@ function lattice(m2: Mesh2D, q: Extract<ToPost, { type: 'lattice' }>): Omit<Latt
 			for (let p = 0; p < pat.np; p++) v[t * pat.np + p] = evalCoef(sc.coef, sc.nc, sc.mag, t, pat.L[3 * p]!, pat.L[3 * p + 1]!, pat.L[3 * p + 2]!);
 		const pk = packCoef(sc.coef, sc.nc, m2.nT);
 		const note = q.field.space === 'DG0' ? 'per-cell values recovered to the element corners (area-weighted mean within each domain), linear in between'
-			: q.field.space === 'H1P2' && m2.npe === 6 ? 'P2 element basis evaluated per pixel' : 'P1 element basis evaluated per pixel';
+			: (q.field.space === 'H1P2' && m2.npe === 6 ? 'P2 element basis evaluated per pixel' : 'P1 element basis evaluated per pixel')
+				+ (q.field.perCell ? '; nodal values averaged within each material domain (one value per side at interfaces)' : '');
 		coef = { ...pk, nc: sc.nc, mag: sc.mag, a: q.a, b: q.b, psi: q.psi, note };
 	}
 	const n = v.length;

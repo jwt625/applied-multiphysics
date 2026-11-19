@@ -1,5 +1,5 @@
-# EM-03 (eval/cases/c/EM-03.yaml, L7c): Palace rings, inductance matrix of two coplanar concentric rings. Axisymmetric
-# A_phi with round wire sections of diameter w carrying uniform current, as in the L4 gate packages/physics/gates/em.ts
+# EM-03 (eval/cases/c/EM-03.yaml): Palace rings, inductance matrix of two coplanar concentric rings. Axisymmetric
+# A_phi with round wire sections of diameter w carrying uniform current, as in the verification gate packages/physics/gates/em.ts
 # (EM-03); far boundary A = 0 on a half circle R_b = 100 r_b.
 schema: amp-spec/0
 id: coplanar-rings

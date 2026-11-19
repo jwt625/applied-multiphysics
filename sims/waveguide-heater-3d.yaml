@@ -1,0 +1,113 @@
+# PK-10 (eval/cases/c/PK-10.yaml): thermo-optic phase-shifter section, 3D heat conduction in a layer stack (extrude).
+# Quarter of the device (symmetry planes x = 0 and y = 0 are adiabatic): Si substrate (bottom isothermal) / buried oxide /
+# core layer with a Si strip waveguide along y in oxide / oxide cladding; a thin-film heater of width w_h and length L_h
+# on the cladding top, centred over the waveguide, modelled as a uniform heat flux (its own conduction and thickness
+# are left out, so no heater-film conductivity is needed; TiN film k is N/A in the library). Every other surface is
+# adiabatic. Results: mean heater temperature rise at P_h = 1 mW, mean and integrated core temperature rise.
+# Gate (validation/pkg2/heater_layers.py, own derivation): the mean heater temperature rise lies between two variational
+# bounds built from exact cosine-series solutions of layered models (core layer all Si / all oxide used as trial fields
+# in the true medium). The bracket is rigorous but wide (about 34 %): the Si strip is a strong local perturbation.
+# Phase: the 2D cross-section sims/waveguide-heater-to.yaml (heat -> modes, same stack) gives the index change per core
+# temperature rise; the 3D integral of the core temperature along the waveguide turns it into a phase (eval case PK-10,
+# informative; the engine has no 3D -> 2D cut transfer for the thermo-optic coupling).
+# Modelling inputs NOT from a paper (illustrative): all dimensions, P_h, T_sub. Materials: Si k from materials/silicon at
+# 298.15 K, oxide k from materials/sio2-thermal-oxide (scalar, 25 C); constant k.
+schema: amp-spec/0
+id: waveguide-heater-3d
+title: Waveguide under a heater (3D)
+description: Quarter of a thermo-optic phase-shifter section in a layer stack; heater and waveguide temperature rise per milliwatt against two closed-form bounds.
+params:
+  W: {value: 30, unit: um, description: "model width in x (full device; the quarter model spans W/2)"}
+  L: {value: 30, unit: um, description: "model length in y (full device; the quarter model spans L/2)"}
+  w_wg: {value: 0.5, unit: um, description: waveguide width}
+  t_wg: {value: 0.22, unit: um, description: waveguide (core layer) thickness}
+  w_h: {value: 2, unit: um, description: heater width}
+  L_h: {value: 20, unit: um, description: heater length}
+  t_sub: {value: 15, unit: um, description: "Si substrate modelled (bottom held at T_sub)"}
+  t_box: {value: 2, unit: um, description: buried oxide thickness}
+  t_c: {value: 1, unit: um, description: oxide cladding above the core layer}
+  P_h: {value: 1, unit: mW, description: heater power (full device)}
+  T_sub: {value: 293.15, unit: K, description: substrate bottom temperature}
+geometry:
+  dim: 3
+  features:
+    - {id: chip, type: rect, settings: {size: ["W/2", "L/2"], center: ["W/4", "L/4"]}}
+    - {id: chip_c, type: rect, settings: {size: ["W/2", "L/2"], center: ["W/4", "L/4"]}}
+    - {id: wg, type: rect, settings: {size: ["w_wg/2", "L/2"], center: ["w_wg/4", "L/4"]}}
+    - {id: core_ox, type: difference, settings: {base: chip_c, tools: [wg], keepTools: true}}
+    - {id: chip_t, type: rect, settings: {size: ["W/2", "L/2"], center: ["W/4", "L/4"]}}
+    - {id: htr, type: rect, settings: {size: ["w_h/2", "L_h/2"], center: ["w_h/4", "L_h/4"]}}
+    - {id: clad_ox, type: difference, settings: {base: chip_t, tools: [htr], keepTools: true}}
+    - id: stack
+      type: extrude
+      settings:
+        layers:
+          - {id: sub, thickness: "t_sub", sketch: [chip], nz: 2}
+          - {id: box, thickness: "t_box", sketch: [chip], nz: 2}
+          - {id: core, thickness: "t_wg", sketch: [core_ox, wg], nz: 1}
+          - {id: clad, thickness: "t_c", sketch: [clad_ox, htr], nz: 2}
+materials:
+  - {id: silicon, ref: materials/silicon, T: {value: 298.15, unit: K}, select: ["dom:chip.sub", "dom:wg"]}
+  - {id: oxide, ref: materials/sio2-thermal-oxide, select: ["dom:chip.box", "dom:core_ox", "dom:clad_ox", "dom:htr"]}
+physics:
+  - id: ht
+    type: heat
+    select: ["dom:stack"]
+    bcs:
+      - {id: heater, type: heat-flux, select: ["bnd:htr.clad.top"], settings: {q: "P_h/(w_h*L_h)"}}
+      - {id: sink, type: temperature, select: ["bnd:stack.bottom"], settings: {T: "T_sub"}}
+mesh:
+  size: {hmax: 2 um}
+  refine:
+    - {select: ["bnd:wg.right"], h: "w_wg/2"}
+    - {select: ["bnd:htr.right", "bnd:htr.top"], h: "w_h/4"}
+studies:
+  - {id: std1, type: stationary, physics: [ht], settings: {solver: auto}}
+results:
+  datasets:
+    - {id: sol_std1, type: solution, data: std1}
+    - {id: along_wg, type: cutline, data: sol_std1, from: ["0 um", "0 um", "t_sub + t_box + t_wg/2"], to: ["0 um", "L/2", "t_sub + t_box + t_wg/2"], n: 200}
+    - {id: across, type: cutline, data: sol_std1, from: ["0 um", "0 um", "t_sub + t_box + t_wg/2"], to: ["W/2", "0 um", "t_sub + t_box + t_wg/2"], n: 200}
+  evaluations:
+    - id: ev_std1
+      data: sol_std1
+      items:
+        - {id: T_heater, type: average, expr: ht.T, unit: K, over: ["bnd:htr.clad.top"], label: "mean heater temperature"}
+        - {id: T_core, type: average, expr: ht.T, unit: K, over: ["dom:wg"], label: "mean waveguide-core temperature (whole modelled length)"}
+        - {id: core_rise_integral, type: integral, expr: "ht.T - T_sub", unit: "K*um^3", over: ["dom:wg"], label: "integral of the core temperature rise over the quarter core"}
+        - {id: T_max, type: global, expr: ht.T_max, unit: K}
+  tables:
+    - {id: tbl_std1, from: ev_std1}
+  plots:
+    - id: T_3d
+      type: plot3d
+      data: sol_std1
+      items:
+        - {id: T_vol, type: volume, expr: ht.T, unit: K}
+    - id: T_lines
+      type: plot1d
+      items:
+        - {id: T_along, type: linegraph, data: along_wg, x: arc, expr: ht.T, unit: K}
+        - {id: T_across, type: linegraph, data: across, x: arc, expr: ht.T, unit: K}
+provenance:
+  values:
+    params.W: {basis: user, date: 2026-11-18, note: "illustrative modelling input (lateral truncation, adiabatic sides), not from a paper"}
+    params.L: {basis: user, date: 2026-11-18, note: "illustrative modelling input (5 um beyond each heater end), not from a paper"}
+    params.w_wg: {basis: user, date: 2026-11-18, note: "illustrative modelling input (Si strip 500 x 220 nm), not from a paper"}
+    params.t_wg: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.w_h: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.L_h: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.t_sub: {basis: user, date: 2026-11-18, note: "modelling choice: a thin substrate slab held isothermal at its bottom (a real wafer is hundreds of um thick)"}
+    params.t_box: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.t_c: {basis: user, date: 2026-11-18, note: "illustrative modelling input, not from a paper"}
+    params.P_h: {basis: user, date: 2026-11-18, note: "1 mW: the temperature rises are per milliwatt (linear model)"}
+    params.T_sub: {basis: user, date: 2026-11-18, note: "293.15 K, the temperature of the index data used by the 2D cross-section"}
+    materials.silicon.T: {basis: user, date: 2026-11-18, note: "library k of materials/silicon evaluated at 298.15 K (k = 149.038 W/(m K), HPL 1972) and held constant (linear model)"}
+    mesh.size.hmax: {basis: user, date: 2026-11-18, note: "modelling choice (memory limit of the second nested level)"}
+    mesh.refine.0.h: {basis: user, date: 2026-11-18, note: "modelling choice"}
+    mesh.refine.1.h: {basis: user, date: 2026-11-18, note: "modelling choice: heat-flux discontinuity at the heater edges"}
+assumptions:
+  - {text: "Thin-film heater as a uniform heat flux on the cladding top: heater thickness, its own lateral conduction and its leads are not modelled", paths: [physics.ht.bcs]}
+  - {text: "Quarter model: x = 0 and y = 0 are symmetry planes (adiabatic); the outer sides and the top outside the heater are adiabatic (no air convection)", paths: [geometry, physics.ht]}
+  - {text: "Thin substrate slab with an isothermal bottom; constant k (Si k at 298.15 K, oxide k at 25 C)", paths: [params.t_sub, materials]}
+# eval: [PK-10]

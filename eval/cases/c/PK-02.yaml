@@ -71,38 +71,37 @@ references:
     accessed: null, generator: validation/pkg/tsv_lame.py, source_accessed: '2026-11-18'}
   extract: {kind: result, node: si_szz}
 - id: cu_sxx_mean
-  quantity: volume mean of the displayed Cu stress sxx
+  quantity: volume mean of the Cu stress sxx (stress recovered within each material)
   metric_id: cu_srr
   value: 170100106.91368437
   unit: Pa
-  tolerance: {rel: 0.002}
+  tolerance: {rel: 0.001}
   bounds: null
   basis: D
   form: closed_form
-  gate: false
+  gate: true
   expected: {file: eval/expected/PK-02.json, metric_id: cu_srr}
   provenance: {citation: 'Two-phase plane-strain Lame solution, finite traction-free outer radius (own derivation; validation/pkg/tsv_lame.py)',
     locator: validation/pkg/tsv_lame.py lame(); same form as advanced-packaging-atlas validation/cases/A/MA7-lame-tsv.yaml,
     accessed: null, generator: validation/pkg/tsv_lame.py, source_accessed: '2026-11-18'}
   extract: {kind: result, node: cu_sxx_mean}
-  note: 'informative: the displayed stress is averaged at nodes shared by Cu and Si, so its volume mean over the via converges
-    at first order (-3.1 % / -1.6 % at hFactor 1 / 0.5, DevLog-049 R2)'
+  note: 'per-material stress recovery: +9.0e-5 / +6.1e-6 at hFactor 1 / 0.5'
 - id: si_szz_mean
-  quantity: volume mean of the displayed Si axial stress
+  quantity: volume mean of the Si axial stress (stress recovered within each material)
   metric_id: si_szz
   value: 39124376.169230714
   unit: Pa
-  tolerance: {rel: 0.002}
+  tolerance: {rel: 0.001}
   bounds: null
   basis: D
   form: closed_form
-  gate: false
+  gate: true
   expected: {file: eval/expected/PK-02.json, metric_id: si_szz}
   provenance: {citation: 'Two-phase plane-strain Lame solution, finite traction-free outer radius (own derivation; validation/pkg/tsv_lame.py)',
     locator: validation/pkg/tsv_lame.py lame(); same form as advanced-packaging-atlas validation/cases/A/MA7-lame-tsv.yaml,
     accessed: null, generator: validation/pkg/tsv_lame.py, source_accessed: '2026-11-18'}
   extract: {kind: result, node: si_szz_mean}
-  note: informative, as cu_sxx_mean
+  note: 'per-material stress recovery: -7.9e-6 / -8.4e-7 at hFactor 1 / 0.5'
 - quantity: radial displacement at r = R
   metric_id: rim_ur
   value: -1.0024369216656939e-08

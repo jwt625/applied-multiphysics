@@ -4,7 +4,7 @@
 # tangential E_y, E_z vanish there). Reference: P. Bienstman et al., Opt. Quantum Electron. 38, 731-759 (2006),
 # doi 10.1007/s11082-006-9025-9: structure p.732 Fig. 1; CAMFR 2.412372 - 2.9135e-8 j (p.749), aperiodic Fourier modal
 # method 2.412372039 + i 2.9134801e-8 (p.751, Fig. 18 caption). PML strength and window are modelling choices
-# (DevLog-043 s.4 PML study: spread 0.14 % in Im n_eff over strength 1-4 and window changes).
+# (PML study: spread 0.14 % in Im n_eff over strength 1-4 and window changes).
 schema: amp-spec/0
 id: leaky-si-wire
 title: Silicon wire substrate leakage

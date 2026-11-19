@@ -1,0 +1,97 @@
+{
+  "schema": "amp-eval-expected/0",
+  "case": "PK-10",
+  "class": "c",
+  "generator": "validation/pkg2/heater_layers.py",
+  "command": "cd validation && uv run python pkg2/heater_layers.py",
+  "method": "compliance bounds of steady conduction (monotonicity in k; Dirichlet and complementary principles with exact cosine-series fields of layered models as trials; own derivation)",
+  "generated_at": "2026-11-18T18:30:49-08:00",
+  "versions": {
+    "python": "3.12.11",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "codata": "scipy.constants mu_0=1.25663706127e-06"
+  },
+  "platform": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "python_impl": "cpython"
+  },
+  "targets": [
+    {
+      "metric_id": "dT_heater_lower",
+      "value": 18.042142436358702,
+      "unit": "K",
+      "definition": "mean heater temperature rise at 1 mW: Dirichlet bound with the all-Si-core-layer field as trial",
+      "precision": {
+        "modes_per_direction": 300,
+        "rel_change_vs_half": 0.00013307323221933842
+      },
+      "locator": "validation/pkg2/heater_layers.py improved(), core_energies(), mean_rise(), z_surface(); eval/expected/PK-10.json (3D quarter model), PK-11.json (2D section)"
+    },
+    {
+      "metric_id": "dT_heater_upper",
+      "value": 24.176429468495638,
+      "unit": "K",
+      "definition": "mean heater temperature rise at 1 mW: complementary bound with the all-oxide-core-layer flux as trial",
+      "precision": {
+        "modes_per_direction": 300,
+        "rel_change_vs_half": 0.00013307323221933842
+      },
+      "locator": "validation/pkg2/heater_layers.py improved(), core_energies(), mean_rise(), z_surface(); eval/expected/PK-10.json (3D quarter model), PK-11.json (2D section)"
+    },
+    {
+      "metric_id": "dT_heater_all_si",
+      "value": 16.69885568670126,
+      "unit": "K",
+      "definition": "mean heater temperature rise at 1 mW, core layer all Si (exact for that layered model; plain lower bound)",
+      "locator": "validation/pkg2/heater_layers.py improved(), core_energies(), mean_rise(), z_surface(); eval/expected/PK-10.json (3D quarter model), PK-11.json (2D section)"
+    },
+    {
+      "metric_id": "dT_heater_all_oxide",
+      "value": 24.404690637074616,
+      "unit": "K",
+      "definition": "mean heater temperature rise at 1 mW, core layer all oxide (exact for that layered model; plain upper bound)",
+      "locator": "validation/pkg2/heater_layers.py improved(), core_energies(), mean_rise(), z_surface(); eval/expected/PK-10.json (3D quarter model), PK-11.json (2D section)"
+    }
+  ],
+  "inputs": {
+    "W": 3e-05,
+    "L": 3e-05,
+    "w_h": 2e-06,
+    "w_wg": 5e-07,
+    "L_h": 2e-05,
+    "t_sub": 1.5e-05,
+    "t_box": 2e-06,
+    "t_wg": 2.2e-07,
+    "t_c": 1e-06,
+    "P_h": 0.001,
+    "k_si": 149.038,
+    "k_oxide": 1.38,
+    "q_W_per_m2": 24999999.999999996
+  },
+  "sharp_by_modes": {
+    "150": {
+      "plain_upper": 24.401687917393804,
+      "plain_lower": 16.695852967020446,
+      "upper": 24.174027689172895,
+      "lower": 18.039741829605035
+    },
+    "300": {
+      "plain_upper": 24.404088983005213,
+      "plain_lower": 16.698254032631848,
+      "upper": 24.176429468495638,
+      "lower": 18.042142436358702
+    }
+  },
+  "plain_by_modes": {
+    "300": [
+      16.698254032631834,
+      24.404088983005202
+    ],
+    "600": [
+      16.69885568670126,
+      24.404690637074616
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-# CP-03 (eval/cases/c/CP-03.yaml) as a Joule chain (lane MX, DevLog-035): currents -> heat, axisymmetric. Same wire as
+# CP-03 (eval/cases/c/CP-03.yaml) as a Joule chain: currents -> heat, axisymmetric. Same wire as
 # sims/heated-wire.yaml (Rohsenow-Choi 1963 ex. 6.5 via Ansys VM58; SI values from CP-03), but the volume heat comes from
 # a DC current along the wire: a potential difference V0 over the modelled length gives E_z = V0 / Lz and Q = sigma E_z^2.
 # CP-03 fixes only q''' = 1.152 MW/m^3, not the conductivity, so sigma is a modelling choice and V0 follows from it:

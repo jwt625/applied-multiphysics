@@ -11,7 +11,7 @@ import type { Mesh, Solution, FieldData } from '@amp/spec/types';
 import { NPC, nCells, nNodes } from '../common/mesh.ts';
 import { cellOrder, restrict, type Csr } from '../common/scalar.ts';
 import { defaultRule, gatherX, physGrad, shapeTable } from '../common/lagrange.ts';
-import { shiftInvertEigen } from '../common/eigen.ts';
+import { eigenCheckNote, shiftInvertEigen } from '../common/eigen.ts';
 import { StageTimer, makeSolution, attachMesh } from '../common/solution.ts';
 import { dofPattern, isoD, scatterPair, solidKernel, solidKernelWork, solidConstraints, strainB, voigtSize, type DofMap, type SolidModel } from '../coupled/assemble.ts';
 import type { ElasticProblem } from './index.ts';
@@ -154,5 +154,7 @@ export async function solveElasticModes(p: ModalProblem): Promise<Solution & { d
   });
   attachMesh(sol, m);
   (sol as Solution & { normalization?: string }).normalization = ELASTIC_MODAL_NORMALIZATION;
+  const chkNote = eigenCheckNote(eig.stats.check);
+  if (chkNote) (sol as Solution & { notes?: string[] }).notes = [...((sol as Solution & { notes?: string[] }).notes ?? []), chkNote];
   return Object.assign(sol, { detail: { eigResidual: eig.residual, stats: { ...eig.stats, sigma, lamScale } } });
 }

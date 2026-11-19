@@ -1,6 +1,6 @@
 # RF-21 (eval/cases/a/RF-21.yaml) target Q_dielectric only: the 3D emw path (sims/cylinder-cavity.yaml) on coarse curved
 # tet10 levels. Q_d = 1/tan_delta for a homogeneous fill (first-order perturbation), so it does not need a fine mesh; the
-# frequencies use sims/cylinder-cavity-axisym.yaml. Kept separate so the hero spec keeps its own mesh size.
+# frequencies use sims/cylinder-cavity-axisym.yaml. Kept separate so sims/cylinder-cavity.yaml keeps its own mesh size.
 schema: amp-spec/0
 id: cylinder-cavity-qd
 title: Cylindrical cavity, dielectric Q (3D)

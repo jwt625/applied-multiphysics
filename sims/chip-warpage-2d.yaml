@@ -1,4 +1,4 @@
-# Si interposer on an organic substrate, cool-down warpage, 2D plane strain (lane MX, DevLog-035). Case: Xilinx TSV
+# Si interposer on an organic substrate, cool-down warpage, 2D plane strain. Case: Xilinx TSV
 # interposer "COC on pkg after C4 UF process", ECTC 2011 (doi 10.1109/ECTC.2011.5898527), as curated in
 # advanced-packaging-atlas (read only, at fe39985): validation/cases/C/ectc.2011.5898527-b.yaml, references/ectc.2011.5898527/
 # text.md, data/{metrics,stack_layers,components}.csv. Stress-free at the underfill cure 150 C, cooled to 25 C (paper p.2-3).

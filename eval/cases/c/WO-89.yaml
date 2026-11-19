@@ -1,0 +1,88 @@
+# WO-89: Silicon nitride strip waveguide (1.0 um x 300 nm LPCVD Si3N4 in oxide): TE0 group index at 1555 nm vs a measured value
+# Built by validation/c/build_cases.py (lane L7c, DevLog-008). Schema amp-eval/0 (eval/schema/amp-eval-0.schema.json).
+schema: amp-eval/0
+id: WO-89
+class: c
+title: 'Silicon nitride strip waveguide (1.0 um x 300 nm LPCVD Si3N4 in oxide): TE0 group index at 1555 nm vs a measured value'
+status: unvalidated
+untestable_reason: null
+physics: [optics-modes]
+dimension: 2D
+units: SI
+geometry:
+  kind: analytic
+  spec:
+    core_m: [1.0e-06, 3.0e-07]
+    oxide_below_m: 2.5e-06
+    oxide_above_m: 2.0e-06
+    window_x_m: 8.0e-06
+materials:
+  si3n4: {n: library (Luke et al. 2015 film Sellmeier) at 1555 nm, source: materials/si3n4-lpcvd.yaml}
+  sio2: {n: library (Malitson 1965) at 1555 nm, source: materials/sio2-thermal-oxide.yaml}
+bcs:
+- {selection: window, type: pec}
+initial: null
+study: {type: eigen, solver: mode, wavelength_m: 1.555e-06, n: 2}
+references:
+- id: ng_0.L0
+  quantity: TE0 group index at 1555 nm (library dispersion) vs a measured value (mesh level 0)
+  metric_id: ng_0
+  value: 1.892
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_measured
+  gate: false
+  levels: [0]
+  expected: {file: eval/expected/WO-89.json, metric_id: ng_0}
+  provenance: {citation: 'P. Munoz et al., Silicon nitride photonic integration platforms for visible, near-infrared and mid-infrared
+      applications, Sensors 17(9), 2088 (2017), doi 10.3390/s17092088', locator: 's.3.4: OFDR group index 1.892 (TE), MZI
+      1.90-1.92 (TE); stack s.3.1', accessed: '2026-11-18', generator: validation/photonics2/sin_reference.py}
+  extract: {kind: scalar, name: ng_0}
+  note: 'informative: measured on fabricated guides (strip or rib not stated; film indices and dimensions not known to the
+    model''s precision); the model gives 1.9498 on both levels (2026-11-18)'
+- id: ng_0.L1
+  quantity: TE0 group index at 1555 nm (library dispersion) vs a measured value (mesh level 1)
+  metric_id: ng_0
+  value: 1.892
+  unit: '1'
+  tolerance: {abs: 0.03, after: finest}
+  bounds: null
+  basis: P
+  form: paper_measured
+  gate: false
+  levels: [1]
+  expected: {file: eval/expected/WO-89.json, metric_id: ng_0}
+  provenance: {citation: 'P. Munoz et al., Silicon nitride photonic integration platforms for visible, near-infrared and mid-infrared
+      applications, Sensors 17(9), 2088 (2017), doi 10.3390/s17092088', locator: 's.3.4: OFDR group index 1.892 (TE), MZI
+      1.90-1.92 (TE); stack s.3.1', accessed: '2026-11-18', generator: validation/photonics2/sin_reference.py}
+  extract: {kind: scalar, name: ng_0}
+  note: 'informative: measured on fabricated guides (strip or rib not stated; film indices and dimensions not known to the
+    model''s precision); the model gives 1.9498 on both levels (2026-11-18)'
+reference_results: []
+convergence:
+  levels_min: 2
+  ratio_min: 2.0
+  method: none
+  h_factors: [1, 0.5]
+  note: two nested levels (one uniform refinement); each quantity is gated on both levels, the finer one with an equal or
+    tighter tolerance
+speed:
+  budget_s: {browser: null, native: null}
+  budget_basis: not set; level 1 (122k DOF) 2.1 s in Node on 2026-11-18
+  report: [dofs, wall_s_by_stage, error_vs_ref]
+  reference_timings: []
+dataset: null
+rights:
+  source_license: own reference scripts (GPL-3.0-or-later); cited published values
+  allowed: [cite_values, re_derive_setup]
+  forbidden: [copy_text, copy_figures]
+hero: {suitable: false, why: verification of a library example}
+spec: {sim: sims/sin-strip.yaml, study: modes}
+missing:
+- what: which waveguide (strip or rib) was measured; film indices of the measured wafer
+  needed_for: [gate]
+assumptions: []
+lane: G5
+created: '2026-11-18'

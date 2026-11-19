@@ -1,4 +1,4 @@
-# H1 Plate with a hole (DevLog-001 s.8). Eval gate SM-01 (R3): Kirsch, K_t = sigma_theta,max / sigma_inf = 3 for an
+# Plate with a hole. Eval gate SM-01: Kirsch, K_t = sigma_theta,max / sigma_inf = 3 for an
 # infinite plate under uniaxial tension, plane stress, W/D >= 20. Quarter model with symmetry rollers.
 schema: amp-spec/0
 id: kirsch-plate

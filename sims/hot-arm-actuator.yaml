@@ -1,5 +1,5 @@
 # CP-04 (eval/cases/c/CP-04.yaml): Si electro-thermal-compliant (hot-arm) microactuator at 15 V, currents -> heat ->
-# elastic, 3D (lane MX, DevLog-035). Inputs from the public Ansys VM223 input listing (Hlp_V_VM223TXT.html, 2025R2), which
+# elastic, 3D. Inputs from the public Ansys VM223 input listing (Hlp_V_VM223TXT.html, 2025R2), which
 # re-derives N. D. Mankame, G. K. Ananthasuresh, J. Micromech. Microeng. 11(5), 452-462 (2001), doi 10.1088/0960-1317/11/5/303
 # (paywalled, not read; CP-04's "11:252" is a page typo of the VM223 HTML page). The 14-point outline extruded by D11 is
 # written as six boxes (anchors, hot arm, end connector, cold arm, flexure). Target: tip displacement 27 um at

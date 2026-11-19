@@ -1,0 +1,150 @@
+# Single-crystal germanium (lane G1 sourcing, DevLog-041 s.4.3 follow-up). Stored values are in the units the source
+# prints (or an exact power-of-ten rescaling, stated in `derivation`); @amp/materials converts to SI on load.
+schema: amp-material/0
+id: germanium
+name: Germanium, single crystal
+class: semiconductor
+description: >-
+  High-purity single-crystal Ge. Infrared refractive index and dn/dT from the Li 1980 evaluated tables at 293 K
+  (1.9-18 um; Ge absorbs below about 1.87 um, so no near-IR / 1.55 um index is stored); thermal conductivity from the
+  HPL 1972 recommended values (alternative: Glassbrenner-Slack 1964 measurement); linear expansion from the thermal
+  expansion polynomials quoted by Li 1980 (TPRC Vol. 12). Density, heat capacity and the stiffness tensor: N/A.
+verified_on: 2026-11-18
+frame: "crystal axes: x = [100], y = [010], z = [001]"
+sources:
+  li1980:
+    citation: "H. H. Li, Refractive index of silicon and germanium and its wavelength and temperature derivatives, J. Phys. Chem. Ref. Data 9(3), 561-658 (1980)"
+    doi: 10.1063/1.555624
+    url: https://srd.nist.gov/jpcrdreprint/1.555624.pdf
+    access: open
+    read: "local cache cache/materials/silicon/li1980-jpcrd-9-561.pdf: page renders (200 and 400 dpi) of journal p.584 (pdf p.25: eq. (28) and coefficients, energy gap text), p.585 (pdf p.26: dL/L293 polynomials 'from reference [60]', uncertainty text), p.593 (pdf p.34: Table 4, 293 K column and footnote) and p.595 (pdf p.36: Table 5, 293 K column and footnote); text layer p.583 (air/vacuum remark on Ge data) and reference list ([60] = Touloukian, Kirby, Taylor, Desai, Thermal Expansion - Metallic Elements and Alloys, TPRC Data Series Vol. 12); read 2026-11-18"
+  hpl1972:
+    citation: "C. Y. Ho, R. W. Powell, P. E. Liley, Thermal conductivity of the elements, J. Phys. Chem. Ref. Data 1, 279-421 (1972)"
+    doi: 10.1063/1.3253100
+    url: https://srd.nist.gov/jpcrdreprint/1.3253100.pdf
+    access: open
+    read: "PDF fetched 2026-11-18 (sha256 84a8af6036cff51a..., 144 pages, scanned; PDF not kept); 400 dpi page render of journal p.339 (pdf p.62) 'Thermal conductivity of germanium': recommended-value table (solid) and REMARKS read from the render"
+  glassbrenner1964:
+    citation: "C. J. Glassbrenner, G. A. Slack, Thermal conductivity of silicon and germanium from 3 K to the melting point, Phys. Rev. 134(4A), A1058-A1069 (1964)"
+    doi: 10.1103/PhysRev.134.A1058
+    access: local_cache
+    read: "300 dpi page render of journal p.A1062 (Table I, Ge column, caption 'accuracy +-5%', footnote on barred digits) from the local copy in the advanced-packaging-atlas project (references/physrev.134.a1058/source.pdf, sha256 7004494c36b16a97...); read 2026-11-18"
+properties:
+  n:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [1.90, 1.92, 1.94, 1.96, 1.98, 2.00, 2.05, 2.10, 2.15, 2.20, 2.25, 2.30, 2.40, 2.50, 2.60, 2.70, 2.80, 2.90, 3.00, 3.20, 3.40, 3.60, 3.80, 4.00, 4.25, 4.50, 4.75, 5.00, 5.50, 6.00, 6.50, 7.00, 8.00, 9.00, 10.00, 11.00, 12.00, 13.00, 14.00, 15.00, 16.00, 17.00, 18.00]
+      ys: [4.1117, 4.1094, 4.1072, 4.1050, 4.1029, 4.1008, 4.0959, 4.0914, 4.0872, 4.0832, 4.0795, 4.0761, 4.0698, 4.0642, 4.0593, 4.0549, 4.0509, 4.0474, 4.0442, 4.0387, 4.0341, 4.0302, 4.0270, 4.0242, 4.0212, 4.0188, 4.0167, 4.0149, 4.0120, 4.0098, 4.0081, 4.0068, 4.0048, 4.0034, 4.0025, 4.0017, 4.0012, 4.0008, 4.0004, 4.0001, 3.9999, 3.9997, 3.9996]
+    unit: "1"
+    basis: measured
+    source: li1980
+    locator: "journal p.593 Table 4 'Recommended values on the refractive index of germanium', column 293 K (400 dpi page render); all 43 rows 1.90-18.00 um"
+    accessed: 2026-11-18
+    uncertainty: {abs: 0.002, note: "p.585 text: eq. (28) gives the recommended values 'with uncertainties of +-2 x 10-3' (Table 4 footnote exponent smudged in the scan; the text is legible); last digit printed with overstrike = insignificant"}
+    conditions: {T: "293 K", text: "evaluated recommended values from the dispersion equation (28) fitted to selected data sets (high-purity Ge)"}
+    n_medium: air
+    n_medium_note: "inferred, not stated as a convention: Li 1980 (journal p.583) compares germanium data of Rank et al. 'after correcting from vacuum values to air values' against Briggs and Salzberg-Villa, so the Ge compilation works in air values; converted to vacuum with air.n"
+    valid: {T: {unit: K, range: [293, 293]}, note: "293 K column only; use dndT for other T. Li gives no values below 1.9 um: Ge absorbs there (p.584: optical gap at 300 K 0.663 eV, lambda1 = 1.8703 um), so n and kappa at 1.55 um are N/A in this library"}
+    note: "Table 4 row 2.50 um is faintly printed; the value 4.0642 is confirmed by eq. (28) (4.06419, computed 2026-11-18). Max |eq. (28) - Table 4| over all 43 rows at 293 K = 6.6e-5"
+    alternatives:
+      - id: li1980_eq28
+        use: "smooth dispersion for group index: the Li 1980 eq. (28) that generated Table 4, at 293 K"
+        fit:
+          formula: li1980-eq22
+          vars: [{name: lambda, unit: um, range: [1.9, 18]}, {name: T, unit: K, range: [100, 550]}]
+          coeffs: {eps: [15.2892, 1.4549e-3, 3.5078e-6, -1.2071e-9], A: [2.5381, 1.8260e-3, 2.8888e-6]}
+        unit: "1"
+        basis: measured
+        source: li1980
+        locator: "journal p.584 eq. (28) and coefficients (400 dpi page render): n^2 = eps(T) + L(T)/lambda^2 (A0 + A1 T + A2 T^2), eps(T) = 15.2892 + 1.4549e-3 T + 3.5078e-6 T^2 - 1.2071e-9 T^3, A0 2.5381, A1 1.8260e-3, 'A3' 2.8888e-6 (printed A3; it is the T^2 coefficient A2 of eq. (28)); 1.9-18 um, 100-550 K"
+        accessed: 2026-11-18
+        derivation: "formula li1980-eq22 has the same form as Li eq. (28) with L(T) = 1. For Ge, L(T) = exp(-3 dL(T)/L293) with the p.585 polynomials gives dL(293)/L293 = 2e-6 (about 0), so L = 1 at 293 K; the fit is restricted to 293 K because the formula does not apply L(T). Check against Table 4 at 293 K: max |eq. 28 - table| = 6.6e-5 over all 43 rows (computed 2026-11-18)"
+        uncertainty: {abs: 0.002, note: "p.585: +-2e-3"}
+        conditions: {T: "293 K", text: "evaluated recommended dispersion equation"}
+        n_medium: air
+        n_medium_note: "same data basis as Table 4 (inferred air values, see the default leaf)"
+        valid: {T: {unit: K, range: [293, 293]}, lambda: {unit: um, range: [1.9, 18]}, note: "eq. (28) is stated for 100-550 K; restricted here to 293 K because L(T) is not applied; use dndT for other T"}
+  dndT:
+    table:
+      x: lambda
+      x_unit: um
+      xs: [1.90, 1.92, 1.94, 1.96, 1.98, 2.00, 2.05, 2.10, 2.15, 2.20, 2.25, 2.30, 2.40, 2.50, 2.60, 2.70, 2.80, 2.90, 3.00, 3.20, 3.40, 3.60, 3.80, 4.00, 4.25, 4.50, 4.75, 5.00, 5.50, 6.00, 6.50, 7.00, 8.00, 9.00, 10.00, 11.00, 12.00, 13.00, 14.00, 15.00, 16.00, 17.00, 18.00]
+      ys: [5.057e-4, 5.036e-4, 5.015e-4, 4.995e-4, 4.975e-4, 4.956e-4, 4.911e-4, 4.869e-4, 4.830e-4, 4.794e-4, 4.760e-4, 4.728e-4, 4.669e-4, 4.618e-4, 4.572e-4, 4.531e-4, 4.494e-4, 4.461e-4, 4.431e-4, 4.380e-4, 4.337e-4, 4.301e-4, 4.270e-4, 4.244e-4, 4.217e-4, 4.193e-4, 4.174e-4, 4.157e-4, 4.130e-4, 4.110e-4, 4.094e-4, 4.081e-4, 4.062e-4, 4.049e-4, 4.040e-4, 4.033e-4, 4.028e-4, 4.024e-4, 4.021e-4, 4.019e-4, 4.016e-4, 4.015e-4, 4.013e-4]
+    unit: 1/K
+    basis: derived
+    source: li1980
+    locator: "journal p.595 Table 5 'Recommended values on the temperature derivative of refractive index of germanium', column 293 K (400 dpi page render); all 43 rows 1.90-18.00 um"
+    accessed: 2026-11-18
+    derivation: "source: first derivative of eq. (28) with respect to T (p.585). The table prints values such as 4.040 without a scale factor in the header; the 1e-4 /K scale is taken from the footnote uncertainty (+-0.5 x 10-4 /K) and confirmed by differentiating eq. (28) with L(T) from the p.585 dL/L293 polynomials (constant -0.089 read as percent): max |d n/dT - Table 5| = 0.007e-4 /K over all 43 rows (computed 2026-11-18); printed values rescaled by 1e-4 (exact)"
+    uncertainty: {abs: 0.5e-4, unit: 1/K, note: "Table 5 footnote: +-0.5 x 10-4 /K"}
+    conditions: {T: "293 K"}
+    n_medium: air
+    n_medium_note: "inferred from journal p.583 (Ge data compared as air values); dn/dT is NOT converted to vacuum (no sourced dn_air/dT in this library); the difference is expected to be small against the +-0.5e-4 /K uncertainty (not quantified from a source)"
+    valid: {T: {unit: K, range: [293, 293]}}
+    alternatives: []
+  k:
+    table:
+      x: T
+      x_unit: K
+      xs: [200, 223.2, 250, 273.2, 298.2, 300, 323.2, 350, 373.2, 400, 473.2, 500, 573.2, 600, 673.2, 700, 773.2, 800, 873.2, 900, 973.2, 1000, 1073.2, 1100, 1173.2, 1200]
+      ys: [0.968, 0.859, 0.749, 0.667, 0.602, 0.599, 0.548, 0.495, 0.465, 0.432, 0.359, 0.338, 0.288, 0.273, 0.237, 0.227, 0.204, 0.198, 0.185, 0.182, 0.176, 0.174, 0.171, 0.170, 0.172, 0.174]
+    unit: W/(cm*K)
+    basis: measured
+    source: hpl1972
+    locator: "journal p.339, Thermal conductivity of germanium, recommended values (solid), rows 200-1200 K (page render)"
+    accessed: 2026-11-18
+    uncertainty: {rel: 0.10, note: "REMARKS: recommended values (above 290 K) accurate to within +-10 %; values below 290 K are 'merely typical values' (table footnote)"}
+    conditions: {text: "well-annealed high-purity germanium; melting point 1210.6 K (figure)"}
+    note: "rows below 290 K (200-273.2 K) are typical values per the source footnote; the table continues down to 0 K (not transcribed)"
+    alternatives:
+      - id: glassbrenner_slack_1964
+        use: "sensitivity (direct measurement on single crystals, one of the data sets behind evaluated values)"
+        table:
+          x: T
+          x_unit: K
+          xs: [200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
+          ys: [0.95, 0.73, 0.60, 0.44, 0.338, 0.269, 0.219, 0.193, 0.177, 0.171, 0.169, 0.173]
+        unit: W/(cm*K)
+        basis: measured
+        source: glassbrenner1964
+        locator: "journal p.A1062 Table I 'Representative values of the thermal conductivity K for high-purity single crystals of silicon and germanium', Ge column, 200-1200 K"
+        accessed: 2026-11-18
+        uncertainty: {rel: 0.05, note: "Table I caption: accuracy +-5 %; a bar over the last digit (0.338, 0.269, 0.219) marks it as rather uncertain"}
+        conditions: {text: "high-purity single-crystal Ge; steady-state radial flow above 300 K, longitudinal flow below (abstract)"}
+  alpha:
+    table:
+      x: T
+      x_unit: K
+      xs: [100, 150, 200, 250, 293, 350, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
+      ys: [2.626, 3.922, 4.886, 5.516, 5.791, 5.987, 6.153, 6.463, 6.747, 7.002, 7.231, 7.432, 7.606, 7.752, 7.871]
+    unit: ppm/K
+    cte_kind: instantaneous
+    basis: derived
+    source: li1980
+    locator: "journal p.585 (400 dpi page render), polynomials quoted 'from reference [60]' (TPRC Vol. 12, Thermal Expansion - Metallic Elements and Alloys): dL/L293 = -0.089 + 2.626e-6 (T - 100) + 1.463e-8 (T - 100)^2 - 2.221e-11 (T - 100)^3 (100 < T < 293); dL/L293 = 5.790e-6 (T - 293) + 1.768e-9 (T - 293)^2 - 4.562e-13 (T - 293)^3 (293 < T < 1200)"
+    accessed: 2026-11-18
+    derivation: "alpha = d(dL/L293)/dT, evaluated at the listed T (computed 2026-11-18): 100-293 K from the first form, 293-1200 K from the second; the two forms give 5.791 and 5.790 ppm/K at 293 K. Reading: the first form's constant -0.089 is in percent (-8.9e-4; with it dL(293)/L293 = 2e-6), the other coefficients are fractional per K; this reading reproduces Li's Table 5 dn/dT (via L(T) in eq. (28)) to 0.007e-4 /K. Referenced to L293, not L(T): differs from 1/L dL/dT by dL/L293 (at most 6.4e-3 relative, at 1200 K). Linear interpolation between the tabulated nodes of a smooth curve"
+    uncertainty: {na: "not stated by Li 1980 for the quoted polynomials; TPRC Vol. 12 (primary evaluation) not read"}
+    conditions: {text: "TPRC recommended expansion of germanium as quoted by Li 1980"}
+    note: "secondary transcription: the primary evaluation (Touloukian et al., TPRC Vol. 12, 1975) was not read; replace when read"
+    alternatives: []
+  rho:
+    value: N/A
+    unit: kg/m^3
+    missing: "no primary density or lattice-parameter source read on 2026-11-18 (JANAF has no condensed Ge table; arXiv:0910.1569 gives lattice parameters only at low temperature in figures; vendor pages list 5.32-5.35 g/cm3 without source and were not used)"
+    alternatives: []
+  cp:
+    value: N/A
+    unit: J/(kg*K)
+    missing: "no primary heat-capacity table read on 2026-11-18: NIST-JANAF has no condensed-phase germanium table (formula index checked), the NIST WebBook condensed-phase page gives only S(298.15 K) (CODATA); JPCRD 46, 033101 (2017) covers liquid Ge only"
+    alternatives: []
+  C:
+    value: N/A
+    unit: GPa
+    missing: "cubic C11, C12, C44 not read: McSkimin 1953 and McSkimin-Andreatch, J. Appl. Phys. 34, 651 (1963) are paywalled; an open HAL high-pressure study (hal-01921257) returned an anti-bot page on 2026-11-18 and was not retried"
+    alternatives: []
+missing:
+  - {property: n, what: "n and kappa below 1.9 um (including 1.31 and 1.55 um, where Ge absorbs): Li 1980 covers 1.9-18 um only; ellipsometric data (e.g. Nunley 2016, Jellison 1992, Aspnes 1983 database entries) not evaluated"}
+  - {property: alpha, what: "TPRC Vol. 12 (1975) primary evaluation not read; alpha comes from the polynomials as printed by Li 1980"}
+  - {what: "E, nu (need C), eps_r (RF), sigma (doping dependent): not authored"}

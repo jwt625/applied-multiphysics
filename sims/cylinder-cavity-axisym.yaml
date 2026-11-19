@@ -1,5 +1,5 @@
 # RF-21 (eval/cases/a/RF-21.yaml): PEC cylindrical cavity filled with eps_r 2.08, solved on the meridional (r, z) section
-# once per azimuthal order m = 0, 1, 2 (physics emw-axisym, DevLog-010 s.8). Same inputs as sims/cylinder-cavity.yaml (3D).
+# once per azimuthal order m = 0, 1, 2 (physics emw-axisym). Same inputs as sims/cylinder-cavity.yaml (3D).
 # The merged spectrum lists each m >= 1 doublet once (3D lists both partners); indices in RF-21 refer to this list.
 schema: amp-spec/0
 id: cylinder-cavity-axisym
@@ -61,4 +61,4 @@ provenance:
 assumptions:
   - {text: "r = 0 (cav.left) is the axis; the formulation imposes w = r E_phi = 0 there and E_z = 0 for m >= 1", paths: [physics.rf.bcs]}
   - {text: "Loss (tan_delta) is not used by emw-axisym; Q_d comes from the 3D spec", paths: [materials.fill]}
-# eval: [RF-21, RF-01]   (paired eval cases; amp-spec/0 has no field for this yet, DevLog-014 contract request)
+# eval: [RF-21, RF-01]   (paired eval cases; amp-spec/0 has no field for this yet)
